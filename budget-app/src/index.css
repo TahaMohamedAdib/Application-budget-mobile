@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ===== LIGHT MODE TOKENS (Marble + White) ===== */
+  :root {
+    /* Page backgrounds — Marble #F2F8FC */
+    --color-bg-base: 242 248 252;
+    --color-bg-gradient-from: 242 248 252;
+    --color-bg-gradient-via: 242 248 252;
+    --color-bg-gradient-to: 242 248 252;
+
+    /* Cards / surfaces — White #FFFFFF */
+    --color-surface: 255 255 255;
+    --color-surface-hover: 248 250 252;
+    --color-surface-border: 226 232 240;   /* #E2E8F0 */
+    --color-surface-glass: 255 255 255 / 0.7;
+
+    /* Text — Deep Navy #0F172A primary, Slate #334155 secondary */
+    --color-text-primary: 15 23 42;
+    --color-text-secondary: 51 65 85;
+    --color-text-tertiary: 148 163 184;
+    --color-text-inverse: 255 255 255;
+
+    /* Inputs / form elements */
+    --color-input-bg: 248 250 252;
+    --color-input-border: 226 232 240;
+    --color-input-placeholder: 148 163 184;
+
+    /* Modal / overlay */
+    --color-modal-bg: 255 255 255;
+    --color-modal-border: 226 232 240;
+
+    /* Misc */
+    --color-divider: 226 232 240;          /* #E2E8F0 */
+    --color-badge-bg: 241 245 249;
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  }
+
+  /* ===== DARK MODE TOKENS (Oxford Blue + Dark Slate Gray) ===== */
+  .dark {
+    /* Background — Oxford Blue #212A37 */
+    --color-bg-base: 33 42 55;
+    --color-bg-gradient-from: 33 42 55;
+    --color-bg-gradient-via: 33 42 55;
+    --color-bg-gradient-to: 33 42 55;
+
+    /* Cards / surfaces — Dark Slate Gray #191919 */
+    --color-surface: 25 25 25;
+    --color-surface-hover: 34 34 34;
+    --color-surface-border: 45 45 45;
+    --color-surface-glass: 25 25 25 / 0.8;
+
+    /* Text — Soft White #E2E8F0, Muted Gray #94A3B8 */
+    --color-text-primary: 226 232 240;
+    --color-text-secondary: 148 163 184;
+    --color-text-tertiary: 100 116 139;
+    --color-text-inverse: 15 23 42;
+
+    /* Inputs / form elements */
+    --color-input-bg: 25 25 25;
+    --color-input-border: 45 45 45;
+    --color-input-placeholder: 100 116 139;
+
+    /* Modal / overlay */
+    --color-modal-bg: 25 25 25;
+    --color-modal-border: 45 45 45;
+
+    /* Misc */
+    --color-divider: 45 45 45;
+    --color-badge-bg: 34 34 34;
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.2);
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: rgb(var(--color-bg-base));
+}
+
+@layer utilities {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, #B8860B 0%, #9A6F09 100%);
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

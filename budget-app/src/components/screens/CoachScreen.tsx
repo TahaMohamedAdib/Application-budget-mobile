@@ -1,0 +1,419 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, Send, Sparkles, TrendingDown, PiggyBank, Target, AlertTriangle, ArrowLeft, Crown } from 'lucide-react';
+import { useStore } from '../../store/useStore';
+import { formatCurrency } from '../../utils/formatters';
+import { VipUpgradeModal } from '../modals/VipUpgradeModal';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const quickPrompts = [
+  { icon: TrendingDown, text: 'How can I reduce my monthly bills?' },
+  { icon: AlertTriangle, text: 'What subscriptions should I cancel?' },
+  { icon: Target, text: 'Where can I cut spending fastest?' },
+  { icon: PiggyBank, text: 'I want to start investing—what\'s a simple plan?' },
+  { icon: Sparkles, text: 'Help me build an emergency fund' },
+];
+
+interface CoachScreenProps {
+  onBack: () => void;
+}
+
+export const CoachScreen: React.FC<CoachScreenProps> = ({ onBack }) => {
+  const { isVip, transactions, recurringRules, settings, goals } = useStore();
+  const [showVipModal, setShowVipModal] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  const vip = isVip();
+
+  const analyzeSpending = () => {
+    const now = new Date();
+    const thisMonth = transactions.filter((t) => {
+      const tDate = new Date(t.date);
+      return t.type === 'expense' && 
+             tDate.getMonth() === now.getMonth() && 
+             tDate.getFullYear() === now.getFullYear();
+    });
+    
+    const totalSpent = thisMonth.reduce((sum, t) => sum + t.amount, 0);
+    const monthlyBills = recurringRules.reduce((sum, r) => sum + r.templateTransaction.amount, 0);
+    
+    return { totalSpent, monthlyBills, transactionCount: thisMonth.length };
+  };
+
+  const generateResponse = (userMessage: string): string => {
+    const { totalSpent, monthlyBills } = analyzeSpending();
+    const income = settings.monthlyIncome;
+    const savingsRate = income > 0 ? ((income - totalSpent) / income * 100) : 0;
+
+    if (userMessage.toLowerCase().includes('reduce') || userMessage.toLowerCase().includes('bills')) {
+      return `## 💡 Ways to Reduce Your Monthly Bills
+
+**Summary:** You're spending ${formatCurrency(monthlyBills, settings.currency)}/month on recurring bills.
+
+### Biggest Opportunities:
+1. **Review subscriptions** - Cancel unused streaming services
+2. **Negotiate rates** - Call providers for better deals on internet/phone
+3. **Switch providers** - Compare insurance and utility rates
+4. **Bundle services** - Combine internet, phone, and TV for discounts
+
+### Actions This Week:
+- [ ] List all subscriptions and cancel 1-2 unused ones
+- [ ] Call your internet provider and ask for a loyalty discount
+- [ ] Compare car insurance quotes online
+
+### Monthly Savings Potential: ${formatCurrency(monthlyBills * 0.15, settings.currency)}-${formatCurrency(monthlyBills * 0.25, settings.currency)}
+
+*Disclaimer: This is general guidance, not financial advice.*`;
+    }
+
+    if (userMessage.toLowerCase().includes('subscriptions') || userMessage.toLowerCase().includes('cancel')) {
+      return `## 🔍 Subscription Audit
+
+**Your recurring expenses:** ${formatCurrency(monthlyBills, settings.currency)}/month
+
+### Questions to Ask for Each Subscription:
+1. Have I used this in the last 30 days?
+2. Does this bring me joy or save me time?
+3. Can I get this for free elsewhere?
+
+### Common Subscriptions to Review:
+- Streaming services (keep 1-2 max)
+- Gym memberships (consider home workouts)
+- Premium app subscriptions
+- News/magazine subscriptions
+
+### Action: Apply in App
+Tap "Apply" to set a reminder to review subscriptions weekly.
+
+*Disclaimer: This is general guidance, not financial advice.*`;
+    }
+
+    if (userMessage.toLowerCase().includes('investing') || userMessage.toLowerCase().includes('invest')) {
+      return `## 📈 Simple Investing Plan
+
+**Before You Invest:**
+1. ✅ Build emergency fund (3-6 months expenses)
+2. ✅ Pay off high-interest debt
+3. ✅ Have stable income
+
+### Beginner Investment Strategy:
+1. **Start with retirement accounts** (401k, IRA)
+2. **Use low-cost index funds** (S&P 500, Total Market)
+3. **Automate contributions** (even $50/month helps)
+4. **Don't try to time the market**
+
+### Your Next Steps:
+- [ ] Open a brokerage account (Fidelity, Vanguard, Schwab)
+- [ ] Set up automatic monthly transfers
+- [ ] Start with a target-date fund if unsure
+
+### Risk Assessment:
+Your current savings rate: ${savingsRate.toFixed(0)}%
+Recommended: 15-20% of income
+
+*Disclaimer: This is educational content, not financial advice. Consult a financial advisor for personalized guidance.*`;
+    }
+
+    if (userMessage.toLowerCase().includes('emergency') || userMessage.toLowerCase().includes('fund')) {
+      const emergencyTarget = (income * 3);
+      const currentSavings = goals.filter(g => g.type === 'savings').reduce((sum, g) => sum + g.currentAmount, 0);
+      
+      return `## 🛡️ Emergency Fund Plan
+
+**Target:** ${formatCurrency(emergencyTarget, settings.currency)} (3 months of expenses)
+**Current savings:** ${formatCurrency(currentSavings, settings.currency)}
+**Gap:** ${formatCurrency(Math.max(0, emergencyTarget - currentSavings), settings.currency)}
+
+### Building Your Emergency Fund:
+1. **Start small** - Even $25/week adds up
+2. **Automate it** - Set up automatic transfers
+3. **Keep it accessible** - High-yield savings account
+4. **Don't touch it** - Only for true emergencies
+
+### Monthly Savings Plan:
+- Save ${formatCurrency(emergencyTarget / 12, settings.currency)}/month to reach goal in 1 year
+- Or ${formatCurrency(emergencyTarget / 6, settings.currency)}/month for 6 months
+
+### Action: Create Goal
+Tap "Apply" to create an Emergency Fund goal in the app.
+
+*Disclaimer: This is general guidance, not financial advice.*`;
+    }
+
+    if (userMessage.toLowerCase().includes('cut') || userMessage.toLowerCase().includes('spending')) {
+      return `## ✂️ Quick Spending Cuts
+
+**This month's spending:** ${formatCurrency(totalSpent, settings.currency)}
+
+### Fastest Ways to Cut Spending:
+1. **Dining out** - Cook at home 2 more times/week
+2. **Coffee** - Make it at home (save $100+/month)
+3. **Impulse buys** - Wait 24 hours before purchasing
+4. **Subscriptions** - Cancel unused services
+
+### The 50/30/20 Rule:
+- 50% Needs: ${formatCurrency(income * 0.5, settings.currency)}
+- 30% Wants: ${formatCurrency(income * 0.3, settings.currency)}
+- 20% Savings: ${formatCurrency(income * 0.2, settings.currency)}
+
+### This Week's Challenge:
+- [ ] No-spend day on Wednesday
+- [ ] Pack lunch 3 times
+- [ ] Unsubscribe from 2 marketing emails
+
+*Disclaimer: This is general guidance, not financial advice.*`;
+    }
+
+    return `## 👋 Hi! I'm your AI Coach
+
+I can help you with:
+- **Reducing monthly bills** and subscriptions
+- **Cutting spending** in specific categories
+- **Building an emergency fund**
+- **Getting started with investing**
+
+What would you like to work on today?
+
+*Disclaimer: I provide general guidance, not personalized financial advice.*`;
+  };
+
+  const handleSend = (message?: string) => {
+    const userMessage = message || input.trim();
+    if (!userMessage) return;
+
+    const newUserMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userMessage,
+    };
+
+    setMessages((prev) => [...prev, newUserMessage]);
+    setInput('');
+    setIsTyping(true);
+
+    setTimeout(() => {
+      const response = generateResponse(userMessage);
+      const newAssistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response,
+      };
+      setMessages((prev) => [...prev, newAssistantMessage]);
+      setIsTyping(false);
+    }, 1000);
+  };
+
+  // Locked state for non-VIP users
+  if (!vip) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-theme-from via-theme-via to-theme-to">
+        {/* Header */}
+        <div className="bg-theme-from/80 backdrop-blur-lg border-b border-theme-divider px-4 pt-12 pb-4 safe-area-top">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-theme-surface backdrop-blur-sm border border-theme-surface-border flex items-center justify-center"
+            >
+              <ArrowLeft className="w-5 h-5 text-theme-primary" />
+            </button>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-theme-primary">AI Coach</h1>
+              <p className="text-sm text-theme-secondary">Spend less • Invest smarter</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-theme-surface backdrop-blur-xl border border-theme-surface-border rounded-2xl p-6 text-center"
+          >
+            <div className="w-20 h-20 bg-primary-900/15 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Bot className="w-10 h-10 text-primary-400 dark:text-primary-300" />
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Crown className="w-5 h-5 text-amber-400" />
+              <span className="text-amber-400 font-medium">VIP Feature</span>
+            </div>
+            <h2 className="text-xl font-bold text-theme-primary mb-2">
+              Unlock AI Coach
+            </h2>
+            <p className="text-theme-secondary mb-6 max-w-xs mx-auto">
+              Get personalized advice on spending less and investing smarter with our AI-powered financial coach.
+            </p>
+            <button
+              onClick={() => setShowVipModal(true)}
+              className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium"
+            >
+              Upgrade to VIP
+            </button>
+          </motion.div>
+        </div>
+
+        <VipUpgradeModal
+          isOpen={showVipModal}
+          onClose={() => setShowVipModal(false)}
+          feature="coach"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-theme-from via-theme-via to-theme-to flex flex-col">
+      {/* Header */}
+      <div className="bg-theme-from/80 backdrop-blur-lg border-b border-theme-divider px-4 pt-12 pb-4 safe-area-top">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="w-10 h-10 rounded-full bg-theme-surface backdrop-blur-sm border border-theme-surface-border flex items-center justify-center"
+          >
+            <ArrowLeft className="w-5 h-5 text-theme-primary" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary-900/15 rounded-full flex items-center justify-center">
+              <Bot className="w-5 h-5 text-primary-400 dark:text-primary-300" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-theme-primary">AI Coach</h1>
+              <p className="text-xs text-theme-secondary">Spend less • Invest smarter</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="space-y-3">
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-primary-900/15 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Bot className="w-8 h-8 text-primary-400 dark:text-primary-300" />
+              </div>
+              <h2 className="text-lg font-semibold text-theme-primary mb-2">
+                How can I help you today?
+              </h2>
+              <p className="text-theme-secondary text-sm mb-6">
+                Ask me anything about your finances!
+              </p>
+            </div>
+            
+            {quickPrompts.map((prompt, index) => {
+              const Icon = prompt.icon;
+              return (
+                <motion.button
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => handleSend(prompt.text)}
+                  className="w-full p-4 bg-theme-surface backdrop-blur-sm border border-theme-divider rounded-xl text-left flex items-center gap-3 hover:bg-theme-surface-hover"
+                >
+                  <div className="w-10 h-10 bg-primary-900/15 rounded-lg flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-primary-400 dark:text-primary-300" />
+                  </div>
+                  <span className="text-sm text-theme-secondary">{prompt.text}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        ) : (
+          <AnimatePresence>
+            {messages.map((message) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[85%] p-4 rounded-2xl ${
+                    message.role === 'user'
+                      ? 'bg-primary-900 text-white'
+                      : 'bg-theme-surface backdrop-blur-xl border border-theme-surface-border text-theme-primary'
+                  }`}
+                >
+                  <div className="text-sm whitespace-pre-wrap">
+                    {message.content.split('\n').map((line, i) => {
+                      if (line.startsWith('## ')) {
+                        return <h3 key={i} className="text-base font-bold mt-2 mb-1">{line.replace('## ', '')}</h3>;
+                      }
+                      if (line.startsWith('### ')) {
+                        return <h4 key={i} className="text-sm font-semibold mt-2 mb-1">{line.replace('### ', '')}</h4>;
+                      }
+                      if (line.startsWith('**') && line.endsWith('**')) {
+                        return <p key={i} className="font-semibold">{line.replace(/\*\*/g, '')}</p>;
+                      }
+                      if (line.startsWith('- [ ]')) {
+                        return (
+                          <div key={i} className="flex items-center gap-2 my-1">
+                            <div className="w-4 h-4 border-2 border-gray-400 rounded" />
+                            <span>{line.replace('- [ ] ', '')}</span>
+                          </div>
+                        );
+                      }
+                      if (line.startsWith('- ')) {
+                        return <li key={i} className="ml-4">{line.replace('- ', '')}</li>;
+                      }
+                      if (line.match(/^\d+\./)) {
+                        return <li key={i} className="ml-4">{line}</li>;
+                      }
+                      if (line.startsWith('*') && line.endsWith('*')) {
+                        return <p key={i} className="text-xs text-gray-500 italic mt-2">{line.replace(/\*/g, '')}</p>;
+                      }
+                      return line ? <p key={i}>{line}</p> : <br key={i} />;
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex justify-start"
+              >
+                <div className="bg-theme-surface backdrop-blur-xl border border-theme-surface-border p-4 rounded-2xl">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="p-4 bg-theme-from/80 backdrop-blur-lg border-t border-theme-divider">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Ask about spending, saving, investing..."
+            className="flex-1 px-4 py-3 bg-theme-surface backdrop-blur-sm border border-theme-divider rounded-xl text-theme-primary placeholder:text-theme outline-none focus:border-theme-surface-border"
+          />
+          <button
+            onClick={() => handleSend()}
+            disabled={!input.trim()}
+            className="w-12 h-12 bg-gold-500 hover:bg-gold-600 disabled:bg-theme-badge rounded-xl flex items-center justify-center transition-colors"
+          >
+            <Send className="w-5 h-5 text-theme-primary" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

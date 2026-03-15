@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SafeSpend</string>
+    <string name="title_activity_main">SafeSpend</string>
+    <string name="package_name">com.safespend.budgetapp</string>
+    <string name="custom_url_scheme">com.safespend.budgetapp</string>
+</resources>

@@ -1,0 +1,57 @@
+import 'dart:convert';
+
+class Settings {
+  final String currency;
+  final double monthlyIncome;
+  final bool isDarkMode;
+  final String netWorthScope; // 'all' or specific account ID
+  final String? selectedAccountId;
+
+  Settings({
+    this.currency = 'USD',
+    this.monthlyIncome = 0,
+    this.isDarkMode = false,
+    this.netWorthScope = 'all',
+    this.selectedAccountId,
+  });
+
+  Settings copyWith({
+    String? currency,
+    double? monthlyIncome,
+    bool? isDarkMode,
+    String? netWorthScope,
+    String? selectedAccountId,
+  }) {
+    return Settings(
+      currency: currency ?? this.currency,
+      monthlyIncome: monthlyIncome ?? this.monthlyIncome,
+      isDarkMode: isDarkMode ?? this.isDarkMode,
+      netWorthScope: netWorthScope ?? this.netWorthScope,
+      selectedAccountId: selectedAccountId ?? this.selectedAccountId,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'currency': currency,
+      'monthlyIncome': monthlyIncome,
+      'isDarkMode': isDarkMode,
+      'netWorthScope': netWorthScope,
+      'selectedAccountId': selectedAccountId,
+    };
+  }
+
+  factory Settings.fromJson(Map<String, dynamic> json) {
+    return Settings(
+      currency: json['currency'] ?? 'USD',
+      monthlyIncome: (json['monthlyIncome'] as num?)?.toDouble() ?? 0,
+      isDarkMode: json['isDarkMode'] ?? false,
+      netWorthScope: json['netWorthScope'] ?? 'all',
+      selectedAccountId: json['selectedAccountId'],
+    );
+  }
+
+  String toJsonString() => jsonEncode(toJson());
+  
+  factory Settings.fromJsonString(String str) => Settings.fromJson(jsonDecode(str));
+}
