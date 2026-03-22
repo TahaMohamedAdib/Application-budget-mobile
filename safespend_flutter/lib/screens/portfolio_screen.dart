@@ -1220,6 +1220,10 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
   String? _fetchError;
   Timer? _debounce;
 
+  List<StockSearchResult> _searchResults = [];
+  bool _searching = false;
+  Timer? _searchDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -1237,21 +1241,45 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
 
   void _onSymbolChanged() {
     _debounce?.cancel();
+    _searchDebounce?.cancel();
     final sym = _symbolCtrl.text.trim();
     if (sym.isEmpty) {
       setState(() {
         _livePrice = null;
         _companyName = null;
         _fetchError = null;
+        _searchResults = [];
       });
       return;
     }
+    _searchDebounce = Timer(const Duration(milliseconds: 400), _searchCompanies);
     _debounce = Timer(const Duration(milliseconds: 900), _fetchPrice);
+  }
+
+  Future<void> _searchCompanies() async {
+    final query = _symbolCtrl.text.trim();
+    if (query.length < 2) return;
+    setState(() => _searching = true);
+    final results = await StockPriceService.searchSymbols(query);
+    if (!mounted) return;
+    setState(() {
+      _searchResults = results;
+      _searching = false;
+    });
+  }
+
+  void _selectResult(StockSearchResult r) {
+    _symbolCtrl.text = r.symbol;
+    if (_titleCtrl.text.trim().isEmpty) _titleCtrl.text = r.name;
+    setState(() => _searchResults = []);
+    _debounce?.cancel();
+    _fetchPrice();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchDebounce?.cancel();
     _symbolCtrl.removeListener(_onSymbolChanged);
     _symbolCtrl.dispose();
     _titleCtrl.dispose();
@@ -1283,7 +1311,7 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
     } else {
       setState(() {
         _fetchError =
-            'Could not find "$sym". Try: AAPL, BTC-USD, ETH-USD, SPY, EURUSD=X, AIR.PA';
+            'Could not find "$sym". Try searching by name above, or use formats: AAPL, ATW.CS, AIR.PA, BTC-USD, EURUSD=X';
         _fetching = false;
       });
     }
@@ -1355,8 +1383,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                       textCapitalization: TextCapitalization.characters,
                       decoration: InputDecoration(
                         labelText: 'Ticker Symbol',
-                        hintText: 'AAPL · BTC-USD · SPY · ETH-USD · AIR.PA',
-                        helperText: 'Stocks · ETFs · Crypto · Forex · International',
+                        hintText: 'AAPL · ATW.CS · AIR.PA · BTC-USD · IAM.CS',
+                        helperText: 'Type ticker or company name — any exchange worldwide',
                         helperMaxLines: 1,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         prefixIcon: const Icon(Icons.show_chart),
@@ -1394,6 +1422,55 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   ),
                 ],
               ),
+
+              // Company search results
+              if (_searching) ...[
+                const SizedBox(height: 8),
+                const LinearProgressIndicator(minHeight: 2),
+              ] else if (_searchResults.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                  ),
+                  child: Column(
+                    children: _searchResults.map((r) {
+                      final typeIcon = r.type == 'CRYPTOCURRENCY'
+                          ? Icons.currency_bitcoin
+                          : r.type == 'ETF'
+                              ? Icons.pie_chart_outline
+                              : r.type == 'CURRENCY'
+                                  ? Icons.currency_exchange
+                                  : Icons.show_chart;
+                      return InkWell(
+                        onTap: () => _selectResult(r),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              Icon(typeIcon, size: 18, color: AppTheme.goldPrimary),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(r.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    Text('${r.symbol}  ·  ${r.exchange}', style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color)),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, size: 16),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
 
               // Live price result
               if (_livePrice != null) ...[

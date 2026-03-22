@@ -24,6 +24,20 @@ class PortfolioPoint {
   PortfolioPoint(this.date, this.value);
 }
 
+class StockSearchResult {
+  final String symbol;
+  final String name;
+  final String exchange;
+  final String type;
+
+  StockSearchResult({
+    required this.symbol,
+    required this.name,
+    required this.exchange,
+    required this.type,
+  });
+}
+
 class StockPriceService {
   // Yahoo Finance — free, no API key required.
   // Supports stocks (AAPL), ETFs (SPY), crypto (BTC-USD, ETH-USD), forex (EURUSD=X).
@@ -70,6 +84,38 @@ class StockPriceService {
       );
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Search for stocks/ETFs/crypto by company name or ticker — worldwide.
+  /// Uses Yahoo Finance autocomplete; supports any exchange (Casablanca, Euronext, TSE, etc.).
+  static Future<List<StockSearchResult>> searchSymbols(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return [];
+    try {
+      final uri = Uri.parse(
+        'https://query1.finance.yahoo.com/v1/finance/search'
+        '?q=${Uri.encodeComponent(q)}&quotesCount=10&newsCount=0&listsCount=0',
+      );
+      final response = await http.get(uri, headers: _headers).timeout(_timeout);
+      if (response.statusCode != 200) return [];
+      final data = jsonDecode(response.body);
+      final quotes = data['quotes'] as List? ?? [];
+      return quotes
+          .where((q) => q['symbol'] != null)
+          .map((q) => StockSearchResult(
+                symbol: q['symbol'] as String,
+                name: q['longname'] as String? ??
+                    q['shortname'] as String? ??
+                    q['symbol'] as String,
+                exchange: q['exchDisp'] as String? ??
+                    q['exchange'] as String? ??
+                    '',
+                type: q['quoteType'] as String? ?? 'EQUITY',
+              ))
+          .toList();
+    } catch (_) {
+      return [];
     }
   }
 
