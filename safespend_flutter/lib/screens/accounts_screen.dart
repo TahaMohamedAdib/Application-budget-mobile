@@ -8,6 +8,8 @@ import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../models/account.dart';
 import '../utils/currency_helper.dart';
+import '../services/supabase_sync_service.dart';
+import '../services/supabase_config.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -170,7 +172,9 @@ class AccountsScreen extends StatelessWidget {
                                             child: account.imagePath != null
                                                 ? ClipRRect(
                                                     borderRadius: BorderRadius.circular(13),
-                                                    child: Image.file(File(account.imagePath!), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(_getAccountIcon(account.type), color: _getAccountColor(account.color), size: 20)),
+                                                    child: account.imagePath!.startsWith('http')
+                                                        ? Image.network(account.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(_getAccountIcon(account.type), color: _getAccountColor(account.color), size: 20))
+                                                        : Image.file(File(account.imagePath!), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(_getAccountIcon(account.type), color: _getAccountColor(account.color), size: 20)),
                                                   )
                                                 : Icon(
                                                     _getAccountIcon(account.type),
@@ -483,7 +487,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
                     child: _imagePath != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(14),
-                            child: Image.file(File(_imagePath!), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 28)),
+                            child: _imagePath!.startsWith('http')
+                                ? Image.network(_imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 28))
+                                : Image.file(File(_imagePath!), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 28)),
                           )
                         : Icon(_typeIcon(_selectedType), size: 28, color: AppTheme.goldPrimary),
                   ),
@@ -492,7 +498,14 @@ class _AddAccountModalState extends State<AddAccountModal> {
                     child: GestureDetector(
                       onTap: () async {
                         final image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-                        if (image != null) setState(() => _imagePath = image.path);
+                        if (image != null) {
+                          setState(() => _imagePath = image.path);
+                          final uid = SupabaseConfig.client?.auth.currentUser?.id;
+                          if (uid != null) {
+                            final url = await SupabaseSyncService.uploadAccountLogo(uid, image.path);
+                            if (url != null && mounted) setState(() => _imagePath = url);
+                          }
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

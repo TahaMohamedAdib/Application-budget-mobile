@@ -218,13 +218,23 @@ class SupabaseSyncService {
   /// Uploads a local image file to Supabase Storage bucket 'receipts'.
   /// Returns the public URL on success, or null if upload fails.
   static Future<String?> uploadReceipt(String userId, String localPath) async {
+    return _uploadToStorage(userId, localPath, 'receipts');
+  }
+
+  /// Uploads a local image file to Supabase Storage bucket 'logos'.
+  /// Returns the public URL on success, or null if upload fails.
+  static Future<String?> uploadAccountLogo(String userId, String localPath) async {
+    return _uploadToStorage(userId, localPath, 'logos');
+  }
+
+  static Future<String?> _uploadToStorage(String userId, String localPath, String bucket) async {
     try {
       final file = File(localPath);
       if (!await file.exists()) return null;
       final bytes = await file.readAsBytes();
       final ext = localPath.split('.').last.toLowerCase();
       final fileName = '$userId/${const Uuid().v4()}.$ext';
-      await _db.storage.from('receipts').uploadBinary(
+      await _db.storage.from(bucket).uploadBinary(
         fileName,
         bytes,
         fileOptions: FileOptions(
@@ -232,9 +242,9 @@ class SupabaseSyncService {
           upsert: true,
         ),
       );
-      return _db.storage.from('receipts').getPublicUrl(fileName);
+      return _db.storage.from(bucket).getPublicUrl(fileName);
     } catch (e) {
-      print('[Supabase Storage] Error uploading receipt: $e');
+      print('[Supabase Storage] Error uploading to $bucket: $e');
       return null;
     }
   }
