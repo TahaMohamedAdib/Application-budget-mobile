@@ -40,7 +40,9 @@ class AhaScreen extends StatelessWidget {
                   height: 100,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppTheme.gold600, AppTheme.gold700],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppTheme.gold400, AppTheme.gold700],
                     ),
                     borderRadius: BorderRadius.circular(25),
                   ),

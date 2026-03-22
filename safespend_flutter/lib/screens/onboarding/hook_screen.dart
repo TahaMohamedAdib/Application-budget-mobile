@@ -38,7 +38,7 @@ class HookScreen extends StatelessWidget {
                 Icon(
                   Icons.warning_amber_rounded,
                   size: 80,
-                  color: Colors.orange,
+                  color: AppTheme.warning,
                 ),
                 const SizedBox(height: 32),
                 Text(
@@ -109,10 +109,10 @@ class HookScreen extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.error.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: Colors.red),
+            child: Icon(icon, color: AppTheme.error),
           ),
           const SizedBox(width: 16),
           Expanded(

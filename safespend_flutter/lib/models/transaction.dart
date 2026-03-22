@@ -10,6 +10,8 @@ class Transaction {
   final String accountId;
   final String? toAccountId; // For transfers
   final bool isRecurring;
+  final String? imagePath;
+  final String? expenseSubType; // 'subscription' | 'bill' | null (expense only)
 
   Transaction({
     required this.id,
@@ -21,6 +23,8 @@ class Transaction {
     required this.accountId,
     this.toAccountId,
     this.isRecurring = false,
+    this.imagePath,
+    this.expenseSubType,
   });
 
   Transaction copyWith({
@@ -33,6 +37,8 @@ class Transaction {
     String? accountId,
     String? toAccountId,
     bool? isRecurring,
+    String? imagePath,
+    String? expenseSubType,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -44,6 +50,8 @@ class Transaction {
       accountId: accountId ?? this.accountId,
       toAccountId: toAccountId ?? this.toAccountId,
       isRecurring: isRecurring ?? this.isRecurring,
+      imagePath: imagePath ?? this.imagePath,
+      expenseSubType: expenseSubType ?? this.expenseSubType,
     );
   }
 
@@ -58,6 +66,8 @@ class Transaction {
       'accountId': accountId,
       'toAccountId': toAccountId,
       'isRecurring': isRecurring,
+      'imagePath': imagePath,
+      'expenseSubType': expenseSubType,
     };
   }
 
@@ -72,6 +82,8 @@ class Transaction {
       accountId: json['accountId'],
       toAccountId: json['toAccountId'],
       isRecurring: json['isRecurring'] ?? false,
+      imagePath: json['imagePath'],
+      expenseSubType: json['expenseSubType'],
     );
   }
 

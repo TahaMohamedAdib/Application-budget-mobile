@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,24 +7,34 @@ import 'package:intl/intl.dart';
 import 'utils/currency_helper.dart';
 import 'package:uuid/uuid.dart';
 import 'providers/app_provider.dart';
+import 'services/supabase_config.dart';
+import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 import 'models/transaction.dart';
 import 'models/recurring_rule.dart';
-import 'screens/today_screen.dart';
+import 'screens/today_screen.dart' show HomeScreen, HomeScreenState;
 import 'screens/budgets_screen.dart';
 import 'screens/wealth_screen.dart';
 import 'screens/coach_screen.dart';
+import 'screens/auth_screen.dart';
+import 'screens/onboarding/onboarding_flow.dart';
 import 'widgets/add_transaction_modal.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+
+  await SupabaseConfig.initialize();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => AppProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -31,19 +43,65 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  Widget _buildHome(BuildContext context, AuthService auth, AppProvider provider) {
+    // Still loading local data or auth state
+    if (auth.loading || !provider.localDataLoaded) return const _SplashScreen();
+
+    // Not authenticated → show login
+    if (!auth.isAuthenticated) return const AuthScreen();
+
+    // Authenticated but Supabase data not loaded yet → trigger load + show splash
+    if (!provider.supabaseDataLoaded) {
+      final uid = auth.userId;
+      if (uid != null) {
+        Future.microtask(() => provider.loadFromSupabase(uid));
+      }
+      return const _SplashScreen();
+    }
+
+    // Has data → skip onboarding if accounts exist
+    if (provider.setupComplete || provider.accounts.isNotEmpty) return const MainScreen();
+
+    return OnboardingFlow(onComplete: () => provider.markSetupComplete());
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, _) {
+    return Consumer2<AppProvider, AuthService>(
+      builder: (context, provider, auth, _) {
         return MaterialApp(
           title: 'SafeSpend',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: provider.settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: const MainScreen(),
+          home: _buildHome(context, auth, provider),
         );
       },
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.account_balance_wallet_rounded, size: 64, color: AppTheme.goldPrimary),
+            const SizedBox(height: 16),
+            Text('SafeSpend', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppTheme.goldPrimary)),
+            const SizedBox(height: 24),
+            const CircularProgressIndicator(color: AppTheme.goldPrimary),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -61,32 +119,57 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   bool _isMenuOpen = false;
   late final AnimationController _menuAnimController;
   late final Animation<double> _menuAnimation;
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
+  Timer? _subscriptionTimer;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const BudgetsScreen(),
-    const WealthScreen(),
-  ];
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    _screens = [
+      HomeScreen(key: _homeKey),
+      const CoachScreen(),
+      const BudgetsScreen(),
+      const WealthScreen(),
+    ];
     _pageController = PageController();
     _menuAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
     _menuAnimation = CurvedAnimation(parent: _menuAnimController, curve: Curves.easeOutCubic);
+
+    // Load user data from Supabase on mount (only if not already loaded this session)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final appProvider = Provider.of<AppProvider>(context, listen: false);
+      if (auth.isAuthenticated && auth.userId != null && !appProvider.supabaseDataLoaded) {
+        appProvider.loadFromSupabase(auth.userId!);
+      }
+    });
+
+    // Check every minute for subscriptions that have become due
+    _subscriptionTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      Provider.of<AppProvider>(context, listen: false).processSubscriptions();
+    });
   }
 
   @override
   void dispose() {
+    _subscriptionTimer?.cancel();
     _pageController.dispose();
     _menuAnimController.dispose();
     super.dispose();
   }
 
   void _onTabTapped(int index) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (index == 0 && _selectedIndex == 0) {
+      _homeKey.currentState?.resetToAll();
+    }
+    _closeMenu();
     setState(() => _selectedIndex = index);
     _pageController.animateToPage(
       index,
@@ -161,33 +244,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-            // Floating AI Coach Button (bottom-left)
-            Positioned(
-              left: 20,
-              bottom: 20,
-              child: GestureDetector(
-                onTap: () {
-                  _closeMenu();
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const CoachScreen()));
-                },
-                child: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [AppTheme.gold400, AppTheme.gold600],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: AppTheme.goldGlow,
-                  ),
-                  child: const Icon(Icons.psychology, color: Colors.white, size: 24),
-                ),
-              ),
-            ),
-
-            // Speed Dial Menu Items (above + button)
+            // Speed Dial Menu Items + FAB (hidden on AI Coach tab)
+            if (_selectedIndex != 1)
             Positioned(
               right: 20,
               bottom: 84,
@@ -203,12 +261,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildSpeedDialItem('Add Expense', Icons.receipt_long_rounded, const Color(0xFFEF4444), () => _openAddBillModal()),
-                          const SizedBox(height: 10),
+                          _buildSpeedDialItem('Add Expense', Icons.receipt_long_rounded, AppTheme.error, () => _openTransactionModal('expense')),
+                          const SizedBox(height: 12),
                           _buildSpeedDialItem('Add Income', Icons.arrow_downward_rounded, AppTheme.success, () => _openTransactionModal('income')),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           _buildSpeedDialItem('Withdrawal', Icons.account_balance_wallet_rounded, AppTheme.warning, () => _openTransactionModal('withdrawal')),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           _buildSpeedDialItem('Transfer', Icons.swap_horiz_rounded, AppTheme.info, () => _openTransactionModal('transfer')),
                         ],
                       ),
@@ -218,6 +276,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ),
             ),
 
+            if (_selectedIndex != 1)
             // Floating + Button (bottom-right) — toggles speed dial
             Positioned(
               right: 20,
@@ -247,10 +306,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+            border: isDark
+                ? Border(top: BorderSide(color: Colors.white.withOpacity(0.06), width: 1))
+                : null,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-                blurRadius: 20,
+                color: Colors.black.withOpacity(isDark ? 0.35 : 0.06),
+                blurRadius: 24,
                 offset: const Offset(0, -4),
               ),
             ],
@@ -258,13 +320,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildNavItem(0, Icons.home_rounded, 'Home'),
-                  _buildNavItem(1, Icons.pie_chart_rounded, 'Budgets'),
-                  _buildNavItem(2, Icons.trending_up_rounded, 'Wealth'),
+                  _buildNavItem(1, Icons.psychology_rounded, 'AI Coach'),
+                  _buildNavItem(2, Icons.pie_chart_rounded, 'Budgets'),
+                  _buildNavItem(3, Icons.trending_up_rounded, 'Wealth'),
                 ],
               ),
             ),
@@ -290,25 +353,30 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
         decoration: BoxDecoration(
           color: isActive
-              ? AppTheme.goldPrimary.withOpacity(isDark ? 0.15 : 0.1)
+              ? AppTheme.goldPrimary.withOpacity(0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isActive
-                  ? AppTheme.goldPrimary
-                  : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
+            AnimatedScale(
+              scale: isActive ? 1.05 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: Icon(
+                icon,
+                size: 20,
+                color: isActive
+                    ? AppTheme.goldPrimary
+                    : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
+              ),
             ),
             if (isActive) ...[
               const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.goldPrimary,
@@ -443,7 +511,7 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                     child: Row(children: [
                       const Icon(Icons.payments_rounded, size: 18, color: AppTheme.warning),
                       const SizedBox(width: 8),
-                      const Text('Cash on Hand'),
+                      const Text('Cash'),
                       const Spacer(),
                       Text(cf.format(provider.totalCash), style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
                     ]),
@@ -451,7 +519,16 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                   ...provider.accounts.map((a) => DropdownMenuItem(
                     value: a.id,
                     child: Row(children: [
-                      Icon(_accountIcon(a.type), size: 18, color: AppTheme.goldPrimary),
+                      SizedBox(
+                        width: 22, height: 22,
+                        child: a.imagePath != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(5),
+                                child: Image.file(File(a.imagePath!), fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 18, color: AppTheme.goldPrimary)),
+                              )
+                            : Icon(_accountIcon(a.type), size: 18, color: AppTheme.goldPrimary),
+                      ),
                       const SizedBox(width: 8),
                       Text(a.name),
                       const Spacer(),

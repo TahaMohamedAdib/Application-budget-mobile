@@ -3,6 +3,7 @@ import 'dart:convert';
 class Holding {
   final String id;
   final String symbol;
+  final String? title;
   final double shares;
   final double costBasis;
   final double currentPrice;
@@ -11,6 +12,7 @@ class Holding {
   Holding({
     required this.id,
     required this.symbol,
+    this.title,
     required this.shares,
     required this.costBasis,
     this.currentPrice = 0,
@@ -25,6 +27,7 @@ class Holding {
   Holding copyWith({
     String? id,
     String? symbol,
+    String? title,
     double? shares,
     double? costBasis,
     double? currentPrice,
@@ -33,6 +36,7 @@ class Holding {
     return Holding(
       id: id ?? this.id,
       symbol: symbol ?? this.symbol,
+      title: title ?? this.title,
       shares: shares ?? this.shares,
       costBasis: costBasis ?? this.costBasis,
       currentPrice: currentPrice ?? this.currentPrice,
@@ -44,6 +48,7 @@ class Holding {
     return {
       'id': id,
       'symbol': symbol,
+      'title': title,
       'shares': shares,
       'costBasis': costBasis,
       'currentPrice': currentPrice,
@@ -55,6 +60,7 @@ class Holding {
     return Holding(
       id: json['id'],
       symbol: json['symbol'],
+      title: json['title'],
       shares: (json['shares'] as num).toDouble(),
       costBasis: (json['costBasis'] as num).toDouble(),
       currentPrice: (json['currentPrice'] as num?)?.toDouble() ?? 0,

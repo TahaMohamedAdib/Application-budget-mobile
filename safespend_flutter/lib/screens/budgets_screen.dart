@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
 import '../utils/currency_helper.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -45,9 +47,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             Text('Budgets', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 2),
                             Text(
-                              allCategories.isEmpty
-                                  ? 'Create categories to manage spending'
-                                  : 'Spent ${cf.format(totalSpent)} of ${cf.format(totalBudget)} this month',
+                              'Manage your spending categories',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -90,10 +90,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            '${cf.format(totalSpent)} / ${cf.format(totalBudget)}',
-                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: -0.5),
-                          ),
+                          Builder(builder: (ctx) {
+                            final rawFmt = NumberFormat('#,##0.##', 'en_US');
+                            final symbol = CurrencyHelper.getSymbol(provider.settings.currency);
+                            return Text(
+                              '${rawFmt.format(totalSpent)} / ${rawFmt.format(totalBudget)} $symbol',
+                              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: -0.5),
+                            );
+                          }),
                           const SizedBox(height: 14),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(6),
@@ -101,9 +105,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                               value: totalBudget > 0 ? (totalSpent / totalBudget).clamp(0, 1).toDouble() : 0,
                               backgroundColor: Colors.white.withOpacity(0.2),
                               color: totalSpent > totalBudget ? AppTheme.error : Colors.white,
-                              minHeight: 6,
+                              minHeight: 7,
                             ),
-                          ),
+                          ).animate(onPlay: (c) => c.forward()).shimmer(duration: 1200.ms, delay: 400.ms, color: Colors.white.withOpacity(0.3)),
                           const SizedBox(height: 8),
                           Text(
                             totalSpent > totalBudget
@@ -187,25 +191,65 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           } else {
                             statusColor = Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey;
                           }
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
+                          return Dismissible(
+                            key: Key(cat.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              color: Colors.transparent,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 16),
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: const BoxDecoration(
+                                  color: AppTheme.error,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.delete_rounded, color: Colors.white, size: 22),
+                              ),
+                            ),
+                            confirmDismiss: (_) async {
+                              return await showDialog<bool>(
+                                context: context,
+                                builder: (dCtx) => AlertDialog(
+                                  title: const Text('Delete Category?'),
+                                  content: Text('Delete "${cat.name}"? This cannot be undone.'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(dCtx, true),
+                                      style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              ) ?? false;
+                            },
+                            onDismissed: (_) => provider.deleteCategory(cat.id),
+                            child: Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: GestureDetector(
                               onTap: () => _showCategoryExpenses(context, provider, cat, cf),
                               child: Container(
                                 padding: const EdgeInsets.all(20),
-                                decoration: AppTheme.premiumCard(context),
+                                decoration: spent > budget && budget > 0
+                                    ? AppTheme.premiumCard(context).copyWith(
+                                        color: Color.lerp(AppTheme.premiumCard(context).color, AppTheme.error, 0.06),
+                                      )
+                                    : AppTheme.premiumCard(context),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
                                         Container(
-                                          width: 42, height: 42,
+                                          width: 44, height: 44,
                                           decoration: BoxDecoration(
-                                            color: statusColor.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(12),
+                                            color: statusColor.withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(14),
                                           ),
-                                          child: Icon(_categoryIcon(cat.icon), color: statusColor, size: 20),
+                                          child: _buildCatIcon(cat.icon, statusColor, 44),
                                         ),
                                         const SizedBox(width: 14),
                                         Expanded(
@@ -232,7 +276,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                               borderRadius: BorderRadius.circular(12),
                                             ),
                                             child: Text(
-                                              spent > budget ? '+${cf.format(spent - budget)}' : cf.format(budget - spent),
+                                              spent > budget ? 'Over ${cf.format(spent - budget)}' : cf.format(budget - spent),
                                               style: TextStyle(color: statusColor, fontWeight: FontWeight.w700, fontSize: 12),
                                             ),
                                           ),
@@ -247,10 +291,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                           child: Container(
                                             width: 34, height: 34,
                                             decoration: BoxDecoration(
-                                              color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
+                                              color: statusColor.withOpacity(0.08),
                                               borderRadius: BorderRadius.circular(10),
                                             ),
-                                            child: Icon(Icons.edit_rounded, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+                                            child: Icon(Icons.edit_rounded, size: 16, color: statusColor),
                                           ),
                                         ),
                                       ],
@@ -261,9 +305,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                         borderRadius: BorderRadius.circular(6),
                                         child: LinearProgressIndicator(
                                           value: ratio.clamp(0, 1).toDouble(),
-                                          backgroundColor: isDark ? AppTheme.darkBorder : const Color(0xFFE2E8F0),
+                                          backgroundColor: isDark ? AppTheme.darkBorder : const Color(0xFFE8ECF1),
                                           color: statusColor,
-                                          minHeight: 6,
+                                          minHeight: 7,
                                         ),
                                       ),
                                     ],
@@ -271,12 +315,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                 ),
                               ),
                             ),
-                          ).animate().fadeIn(duration: 400.ms, delay: (150 + entry.key * 60).ms);
+                          )).animate().fadeIn(duration: 400.ms, delay: (150 + entry.key * 60).ms);
                         }),
 
                         // Add Category card
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.only(bottom: 10),
                           child: GestureDetector(
                             onTap: () => _showAddCategoryModal(context, provider),
                             child: Container(
@@ -284,7 +328,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: AppTheme.goldPrimary.withOpacity(0.4),
+                                  color: AppTheme.goldPrimary.withOpacity(0.3),
                                   width: 1.5,
                                 ),
                               ),
@@ -292,10 +336,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Container(
-                                    width: 42, height: 42,
+                                    width: 44, height: 44,
                                     decoration: BoxDecoration(
                                       color: AppTheme.goldPrimary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
                                     child: const Icon(Icons.add_rounded, color: AppTheme.goldPrimary, size: 22),
                                   ),
@@ -324,6 +368,23 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     );
   }
 
+  Widget _buildCatIcon(String iconStr, Color color, double containerSize) {
+    if (iconStr.startsWith('img:')) {
+      final path = iconStr.substring(4);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(containerSize * 0.3),
+        child: Image.file(
+          File(path),
+          width: containerSize,
+          height: containerSize,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(Icons.broken_image_rounded, color: color, size: containerSize * 0.45),
+        ),
+      );
+    }
+    return Icon(_categoryIcon(iconStr), color: color, size: containerSize * 0.45);
+  }
+
   IconData _categoryIcon(String iconName) {
     switch (iconName) {
       case 'home': return Icons.home_rounded;
@@ -345,6 +406,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       case 'pets': return Icons.pets_rounded;
       case 'more_horiz': return Icons.more_horiz_rounded;
       case 'autorenew': return Icons.autorenew_rounded;
+      case 'fitness_center': return Icons.fitness_center_rounded;
+      case 'local_cafe': return Icons.local_cafe_rounded;
+      case 'child_care': return Icons.child_care_rounded;
+      case 'build': return Icons.build_rounded;
       default: return Icons.category_rounded;
     }
   }
@@ -369,25 +434,25 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
         decoration: BoxDecoration(
           color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(2)))),
+              Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                 child: Row(
                   children: [
                     Container(
-                      width: 42, height: 42,
+                      width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: AppTheme.goldPrimary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppTheme.goldPrimary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Icon(_categoryIcon(cat.icon), color: AppTheme.goldPrimary, size: 20),
+                      child: _buildCatIcon(cat.icon, AppTheme.goldPrimary, 44),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -436,10 +501,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             child: Row(
                               children: [
                                 Container(
-                                  width: 42, height: 42,
+                                  width: 44, height: 44,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.error.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
+                                    color: AppTheme.error.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: const Icon(Icons.arrow_upward_rounded, color: AppTheme.error, size: 20),
                                 ),
@@ -511,7 +576,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         builder: (ctx, setModalState) => Container(
           decoration: BoxDecoration(
             color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: SafeArea(
@@ -521,38 +586,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(2)))),
+                  Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Edit Category', style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                      IconButton(
-                        onPressed: () {
-                          showDialog(
-                            context: ctx,
-                            builder: (dCtx) => AlertDialog(
-                              title: const Text('Delete Category?'),
-                              content: Text('Are you sure you want to delete "${cat.name}"? This cannot be undone.'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(dCtx);
-                                    Navigator.pop(ctx);
-                                    provider.deleteCategory(cat.id);
-                                  },
-                                  style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.error),
-                      ),
-                    ],
-                  ),
+                  Text('Edit Category', style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
                   Text('Spent this month: ${cf.format(spent)}', style: Theme.of(ctx).textTheme.bodySmall),
                   const SizedBox(height: 20),
@@ -561,7 +597,15 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     decoration: InputDecoration(
                       labelText: 'Category Name',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: Icon(_categoryIcon(selectedIcon)),
+                      prefixIcon: selectedIcon.startsWith('img:')
+                          ? Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.file(File(selectedIcon.substring(4)), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_rounded)),
+                              ),
+                            )
+                          : Icon(_categoryIcon(selectedIcon)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -578,7 +622,58 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Icon', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text('Logo', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        width: 64, height: 64,
+                        decoration: BoxDecoration(
+                          color: selectedIcon.startsWith('img:') ? Colors.transparent : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.goldPrimary.withOpacity(0.3), width: 1.5),
+                        ),
+                        child: selectedIcon.startsWith('img:')
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.file(
+                                  File(selectedIcon.substring(4)),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 28),
+                                ),
+                              )
+                            : Icon(_categoryIcon(selectedIcon), size: 28, color: AppTheme.goldPrimary),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                            if (image != null) setModalState(() => selectedIcon = 'img:${image.path}');
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.goldPrimary.withOpacity(0.3), width: 1.5),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.photo_library_rounded, size: 18, color: AppTheme.goldPrimary),
+                                SizedBox(width: 8),
+                                Text('Upload from Gallery', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.goldPrimary)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text('Or choose icon', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 10,
@@ -677,7 +772,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         builder: (ctx, setModalState) => Container(
           decoration: BoxDecoration(
             color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: SafeArea(
@@ -687,7 +782,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(2)))),
+                  Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
                   const SizedBox(height: 20),
                   Text('Add Category', style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 20),
@@ -697,7 +792,15 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       labelText: 'Category Name',
                       hintText: 'e.g., Clothing',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: Icon(_categoryIcon(selectedIcon)),
+                      prefixIcon: selectedIcon.startsWith('img:')
+                          ? Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.file(File(selectedIcon.substring(4)), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_rounded)),
+                              ),
+                            )
+                          : Icon(_categoryIcon(selectedIcon)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -712,7 +815,58 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Choose Icon', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text('Logo', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        width: 64, height: 64,
+                        decoration: BoxDecoration(
+                          color: selectedIcon.startsWith('img:') ? Colors.transparent : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.goldPrimary.withOpacity(0.3), width: 1.5),
+                        ),
+                        child: selectedIcon.startsWith('img:')
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.file(
+                                  File(selectedIcon.substring(4)),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 28),
+                                ),
+                              )
+                            : Icon(_categoryIcon(selectedIcon), size: 28, color: AppTheme.goldPrimary),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                            if (image != null) setModalState(() => selectedIcon = 'img:${image.path}');
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.goldPrimary.withOpacity(0.3), width: 1.5),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.photo_library_rounded, size: 18, color: AppTheme.goldPrimary),
+                                SizedBox(width: 8),
+                                Text('Upload from Gallery', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.goldPrimary)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text('Or choose icon', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 10,

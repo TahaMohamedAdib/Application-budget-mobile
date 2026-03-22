@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -13,16 +14,22 @@ import 'portfolio_screen.dart';
 import 'settings_screen.dart';
 import 'spending_screen.dart';
 import 'transactions_screen.dart';
+import 'all_subscriptions_screen.dart';
+import '../widgets/add_transaction_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   String _activeFilter = 'all';
+
+  void resetToAll() {
+    setState(() => _activeFilter = 'all');
+  }
   bool _balanceVisible = true;
   String? _selectedAccountId; // null means "All Accounts"
   String _selectedTimeframe = '1m';
@@ -51,9 +58,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         GestureDetector(
                           onTap: () => _showAccountPicker(context, provider),
                           child: Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: AppTheme.borderedCard(context),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark ? Colors.white.withOpacity(0.08) : AppTheme.lightBorder,
+                              ),
+                              boxShadow: isDark ? [] : AppTheme.cardShadowLight,
+                            ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -62,7 +75,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   size: 16, color: AppTheme.goldPrimary,
                                 ),
                                 const SizedBox(width: 8),
-                                Text(_getSelectedAccountName(provider), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                Text(
+                                  _getSelectedAccountName(provider),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                                  ),
+                                ),
                                 const SizedBox(width: 4),
                                 Icon(Icons.unfold_more_rounded, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
                               ],
@@ -88,14 +108,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         children: [
                           _buildFilterPill('All', 'all'),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           _buildFilterPill('Accounts', 'accounts'),
-                          const SizedBox(width: 8),
-                          _buildFilterPill('History', 'transactions'),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionsScreen())),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: isDark ? [] : AppTheme.cardShadowLight,
+                              ),
+                              child: Text('Transactions', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodySmall?.color)),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+                  ).animate().fadeIn(duration: 450.ms, delay: 80.ms),
                 ),
 
                 // ── Account Balance Card ──
@@ -123,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 200.ms).slideY(begin: 0.05, end: 0),
+                    ).animate().fadeIn(duration: 450.ms, delay: 160.ms).slideY(begin: 0.05, end: 0),
                   ),
 
                 // ── Balance Evolution Graph (All tab only) ──
@@ -140,15 +171,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Balance Evolution', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                Flexible(
+                                  child: Text('Balance Evolution', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                                ),
+                                const SizedBox(width: 8),
                                 Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
                                     final isActive = _selectedTimeframe == tf;
                                     return GestureDetector(
                                       onTap: () => setState(() => _selectedTimeframe = tf),
-                                      child: Container(
-                                        margin: const EdgeInsets.only(left: 4),
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        margin: const EdgeInsets.only(left: 3),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                         decoration: BoxDecoration(
                                           color: isActive ? AppTheme.goldPrimary : Colors.transparent,
                                           borderRadius: BorderRadius.circular(8),
@@ -156,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         child: Text(
                                           tf.toUpperCase(),
                                           style: TextStyle(
-                                            fontSize: 11,
+                                            fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                             color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
                                           ),
@@ -169,13 +205,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 20),
                             SizedBox(
-                              height: 160,
+                              height: 180,
                               child: _buildBalanceChart(provider, isDark),
                             ),
                           ],
                         ),
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 300.ms).slideY(begin: 0.05, end: 0),
+                    ).animate().fadeIn(duration: 450.ms, delay: 240.ms).slideY(begin: 0.05, end: 0),
                   ),
 
                 // ── Accounts Section (Accounts tab only) ──
@@ -197,25 +233,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 12),
                           ...provider.accounts.map((account) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: _buildAccountRow(
                               context: context,
                               icon: _iconForAccountType(account.type),
-                              iconColor: AppTheme.goldPrimary,
+                              iconColor: _colorFromHex(account.color),
                               label: account.name,
                               sublabel: account.bankName ?? account.type[0].toUpperCase() + account.type.substring(1),
                               amount: account.balance,
                               cf: currencyFormat,
+                              imagePath: account.imagePath,
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen())),
                             ),
                           )),
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: _buildAccountRow(
                               context: context,
                               icon: Icons.payments_rounded,
                               iconColor: AppTheme.warning,
-                              label: 'Cash on Hand',
+                              label: 'Cash',
                               sublabel: 'From withdrawals',
                               amount: totalCash,
                               cf: currencyFormat,
@@ -223,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: _buildAccountRow(
                               context: context,
                               icon: Icons.trending_up_rounded,
@@ -252,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           // Add Account button
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: GestureDetector(
                               onTap: () {
                                 showModalBottomSheet(
@@ -272,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: AppTheme.goldPrimary.withOpacity(0.4),
+                                    color: AppTheme.goldPrimary.withOpacity(0.3),
                                     width: 1.5,
                                     style: BorderStyle.solid,
                                   ),
@@ -281,10 +318,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Container(
-                                      width: 42, height: 42,
+                                      width: 44, height: 44,
                                       decoration: BoxDecoration(
                                         color: AppTheme.goldPrimary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
                                       child: const Icon(Icons.add_rounded, color: AppTheme.goldPrimary, size: 22),
                                     ),
@@ -305,11 +342,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   SliverToBoxAdapter(
                     child: Builder(
                       builder: (context) {
-                        final activeRules = provider.recurringRules.where((r) => r.isActive).toList()
+                        final _now = DateTime.now();
+                        final activeRules = provider.recurringRules
+                            .where((r) => r.isActive && DateTime.parse(r.nextDate).isAfter(_now))
+                            .toList()
                           ..sort((a, b) => a.nextDate.compareTo(b.nextDate));
                         final upcoming = activeRules.take(3).toList();
                         return Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
                           child: Column(
                             children: [
                               Row(
@@ -317,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   Text('Upcoming Subscriptions', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                                   GestureDetector(
-                                    onTap: () => _showAllSubscriptions(context, provider),
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllSubscriptionsScreen())),
                                     child: Text('See all', style: TextStyle(fontSize: 13, color: AppTheme.goldPrimary, fontWeight: FontWeight.w500)),
                                   ),
                                 ],
@@ -340,14 +380,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                                                 child: Row(
                                                   children: [
-                                                    Container(
-                                                      width: 42, height: 42,
-                                                      decoration: BoxDecoration(
-                                                        color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
-                                                        borderRadius: BorderRadius.circular(12),
-                                                      ),
-                                                      child: const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20),
-                                                    ),
+                                                    Builder(builder: (_) {
+                                                      final cat = rule.templateTransaction.categoryId != null
+                                                          ? provider.categories.where((c) => c.id == rule.templateTransaction.categoryId).firstOrNull
+                                                          : null;
+                                                      final acct = provider.accounts.where((a) => a.id == rule.templateTransaction.accountId).firstOrNull;
+                                                      final imgPath = (cat != null && cat.icon.startsWith('img:')) ? cat.icon.substring(4) : acct?.imagePath;
+                                                      return Container(
+                                                        width: 44, height: 44,
+                                                        decoration: BoxDecoration(color: AppTheme.goldPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
+                                                        child: imgPath != null
+                                                            ? ClipRRect(
+                                                                borderRadius: BorderRadius.circular(14),
+                                                                child: imgPath.startsWith('http')
+                                                                    ? Image.network(imgPath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20))
+                                                                    : Image.file(File(imgPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20)),
+                                                              )
+                                                            : cat != null
+                                                                ? Icon(_subCategoryIcon(cat.icon), color: AppTheme.goldPrimary, size: 20)
+                                                                : const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20),
+                                                      );
+                                                    }),
                                                     const SizedBox(width: 14),
                                                     Expanded(
                                                       child: Column(
@@ -355,7 +408,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         children: [
                                                           Text(rule.templateTransaction.note ?? 'Subscription', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                                                           const SizedBox(height: 2),
-                                                          Text('Due ${DateFormat('MMM d').format(DateTime.parse(rule.nextDate))}', style: Theme.of(context).textTheme.bodySmall),
+                                                          Builder(builder: (ctx) {
+                                            final nd = DateTime.parse(rule.nextDate);
+                                            final today = DateTime.now();
+                                            final isToday = nd.year == today.year && nd.month == today.month && nd.day == today.day;
+                                            return Text(
+                                              isToday ? 'Today · ${DateFormat('h:mm a').format(nd)}' : 'Due ${DateFormat('MMM d').format(nd)}',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                            );
+                                          }),
                                                         ],
                                                       ),
                                                     ),
@@ -381,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (_activeFilter == 'all' || _activeFilter == 'transactions')
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -406,14 +467,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 56, height: 56,
+                                    width: 72, height: 72,
                                     decoration: BoxDecoration(
                                       color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
-                                    child: Icon(Icons.receipt_long_rounded, size: 28, color: Theme.of(context).textTheme.bodySmall?.color),
+                                    child: Icon(Icons.receipt_long_rounded, size: 32, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 18),
                                   Text('No transactions yet', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 6),
                                   Text('Tap + to add your first transaction', style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
@@ -422,60 +483,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
                           )
                         : SliverToBoxAdapter(
-                            child: Container(
-                              decoration: AppTheme.premiumCard(context),
-                              child: Column(
-                                children: provider.transactions.reversed.take(5).toList().asMap().entries.map((entry) {
-                                  final transaction = entry.value;
-                                  final isLast = entry.key == (provider.transactions.length > 5 ? 4 : provider.transactions.length - 1);
-                                  return Column(
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 42, height: 42,
-                                              decoration: BoxDecoration(
-                                                color: _getTransactionColor(transaction.type).withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: Icon(_getTransactionIcon(transaction.type), color: _getTransactionColor(transaction.type), size: 20),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(transaction.note ?? 'Transaction', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                                                  const SizedBox(height: 2),
-                                                  Text(DateFormat('MMM d, yyyy').format(DateTime.parse(transaction.date)), style: Theme.of(context).textTheme.bodySmall),
-                                                ],
-                                              ),
-                                            ),
-                                            Text(
-                                              _balanceVisible
-                                                  ? '${transaction.type == 'income' ? '+' : '-'}${currencyFormat.format(transaction.amount)}'
-                                                  : '••••••',
-                                              style: TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w700,
-                                                color: _getTransactionColor(transaction.type),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (!isLast) Divider(height: 1, indent: 76, color: Theme.of(context).dividerColor),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
+                            child: _buildGroupedTransactions(
+                              provider.transactions.reversed.take(20).toList(),
+                              currencyFormat, context, isDark,
+                              provider: provider,
                             ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
                           ),
                   ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
             ),
           ),
@@ -715,6 +731,43 @@ class _HomeScreenState extends State<HomeScreen> {
     return account.isNotEmpty ? account.first.balance : 0.0;
   }
 
+  IconData _subCategoryIcon(String iconName) {
+    switch (iconName) {
+      case 'home': return Icons.home_rounded;
+      case 'flash': return Icons.flash_on_rounded;
+      case 'phone': return Icons.phone_android_rounded;
+      case 'tv': return Icons.tv_rounded;
+      case 'shield': return Icons.shield_rounded;
+      case 'credit_card': return Icons.credit_card_rounded;
+      case 'shopping_cart': return Icons.shopping_cart_rounded;
+      case 'car': return Icons.directions_car_rounded;
+      case 'restaurant': return Icons.restaurant_rounded;
+      case 'shopping_bag': return Icons.shopping_bag_rounded;
+      case 'favorite': return Icons.favorite_rounded;
+      case 'sports_esports': return Icons.sports_esports_rounded;
+      case 'face': return Icons.face_rounded;
+      case 'school': return Icons.school_rounded;
+      case 'flight': return Icons.flight_rounded;
+      case 'card_giftcard': return Icons.card_giftcard_rounded;
+      case 'pets': return Icons.pets_rounded;
+      case 'fitness_center': return Icons.fitness_center_rounded;
+      case 'local_cafe': return Icons.local_cafe_rounded;
+      case 'child_care': return Icons.child_care_rounded;
+      case 'build': return Icons.build_rounded;
+      default: return Icons.autorenew_rounded;
+    }
+  }
+
+  Color _colorFromHex(String? hex) {
+    if (hex == null || hex.isEmpty) return AppTheme.goldPrimary;
+    try {
+      final cleaned = hex.replaceFirst('#', '');
+      return Color(int.parse('FF$cleaned', radix: 16));
+    } catch (_) {
+      return AppTheme.goldPrimary;
+    }
+  }
+
   IconData _iconForAccountType(String type) {
     switch (type) {
       case 'bank': return Icons.account_balance_rounded;
@@ -735,6 +788,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required NumberFormat cf,
     required VoidCallback onTap,
     bool isNegative = false,
+    String? imagePath,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -744,9 +798,18 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           children: [
             Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: iconColor, size: 20),
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
+              child: imagePath != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.file(
+                        File(imagePath),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(icon, color: iconColor, size: 20),
+                      ),
+                    )
+                  : Icon(icon, color: iconColor, size: 20),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -779,15 +842,182 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: () => setState(() => _activeFilter = value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           color: isActive ? AppTheme.goldPrimary : (isDark ? AppTheme.darkSurface : AppTheme.lightSurface),
           borderRadius: BorderRadius.circular(20),
+          border: isDark && !isActive ? Border.all(color: Colors.white.withOpacity(0.07), width: 1) : null,
           boxShadow: isActive ? AppTheme.goldGlow : (isDark ? [] : AppTheme.cardShadowLight),
         ),
         child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isActive ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color)),
       ),
     );
+  }
+
+  String _getDateGroupLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(d).inDays;
+    if (diff == 0) return 'TODAY';
+    if (diff == 1) return 'YESTERDAY';
+    if (diff < 7) return DateFormat('EEEE').format(date).toUpperCase();
+    return DateFormat('MMM d').format(date).toUpperCase();
+  }
+
+  Widget _buildGroupedTransactions(
+    List<dynamic> transactions,
+    NumberFormat cf,
+    BuildContext context,
+    bool isDark, {
+    AppProvider? provider,
+  }) {
+    // Group by date
+    final groups = <String, List<dynamic>>{};
+    for (final t in transactions) {
+      final key = DateFormat('yyyy-MM-dd').format(DateTime.parse(t.date));
+      groups.putIfAbsent(key, () => []).add(t);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: groups.entries.map((entry) {
+        final items = entry.value;
+        final date = DateTime.parse(entry.key);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 16, 0, 8),
+              child: Text(
+                _getDateGroupLabel(date),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            Container(
+              decoration: AppTheme.premiumCard(context),
+              child: Column(
+                children: items.asMap().entries.map((e) {
+                  final isLast = e.key == items.length - 1;
+                  final t = e.value;
+                  final tColor = _getTransactionColor(t.type);
+
+                  // Look up category for icon
+                  final cat = (provider != null && t.categoryId != null)
+                      ? provider.categories.where((c) => c.id == t.categoryId).firstOrNull
+                      : null;
+
+                  return Column(
+                    children: [
+                      GestureDetector(
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => AddTransactionModal(initialTransaction: t),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: isDark ? tColor.withOpacity(0.12) : const Color(0xFFF0F1F5),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: cat != null
+                                    ? _buildCategoryIcon(cat.icon, tColor)
+                                    : Icon(_getTransactionIcon(t.type), color: tColor, size: 18),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      t.note ?? cat?.name ?? 'Transaction',
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      DateFormat('h:mm a').format(DateTime.parse(t.date)),
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                _balanceVisible
+                                    ? '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}'
+                                    : '••••',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: _getTransactionColor(t.type),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (!isLast) Divider(height: 1, indent: 70, color: Theme.of(context).dividerColor),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCategoryIcon(String iconStr, Color color) {
+    if (iconStr.startsWith('img:')) {
+      final path = iconStr.substring(4);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.file(
+          File(path),
+          width: 40, height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(Icons.category_rounded, color: color, size: 18),
+        ),
+      );
+    }
+    return Icon(_categoryIconData(iconStr), color: color, size: 18);
+  }
+
+  IconData _categoryIconData(String iconName) {
+    switch (iconName) {
+      case 'home': return Icons.home_rounded;
+      case 'flash': return Icons.flash_on_rounded;
+      case 'phone': return Icons.phone_android_rounded;
+      case 'tv': return Icons.tv_rounded;
+      case 'shield': return Icons.shield_rounded;
+      case 'credit_card': return Icons.credit_card_rounded;
+      case 'shopping_cart': return Icons.shopping_cart_rounded;
+      case 'car': return Icons.directions_car_rounded;
+      case 'restaurant': return Icons.restaurant_rounded;
+      case 'shopping_bag': return Icons.shopping_bag_rounded;
+      case 'favorite': return Icons.favorite_rounded;
+      case 'sports_esports': return Icons.sports_esports_rounded;
+      case 'face': return Icons.face_rounded;
+      case 'school': return Icons.school_rounded;
+      case 'flight': return Icons.flight_rounded;
+      case 'card_giftcard': return Icons.card_giftcard_rounded;
+      case 'pets': return Icons.pets_rounded;
+      case 'autorenew': return Icons.autorenew_rounded;
+      case 'fitness_center': return Icons.fitness_center_rounded;
+      case 'local_cafe': return Icons.local_cafe_rounded;
+      case 'child_care': return Icons.child_care_rounded;
+      case 'build': return Icons.build_rounded;
+      default: return Icons.category_rounded;
+    }
   }
 
   IconData _getTransactionIcon(String type) {
@@ -893,18 +1123,21 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.4,
+        maxChildSize: 1.0,
+        snap: true,
+        snapSizes: const [0.55, 1.0],
+        builder: (ctx, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(2)))),
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.12), borderRadius: BorderRadius.circular(2)))),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                 child: Row(
@@ -917,10 +1150,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 16),
               Divider(height: 1, color: Theme.of(ctx).dividerColor),
-              Flexible(
+              Expanded(
                 child: allRules.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(40),
+                    ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -931,7 +1163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       )
                     : ListView.separated(
-                        shrinkWrap: true,
+                        controller: scrollController,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: allRules.length,
                         separatorBuilder: (_, __) => Divider(height: 1, indent: 76, color: Theme.of(ctx).dividerColor),

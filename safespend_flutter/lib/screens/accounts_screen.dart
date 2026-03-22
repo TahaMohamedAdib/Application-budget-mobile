@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../models/account.dart';
+import '../utils/currency_helper.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -12,6 +16,7 @@ class AccountsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        final cf = CurrencyHelper.formatter(provider.settings.currency);
         return Scaffold(
           body: Container(
             decoration: BoxDecoration(
@@ -110,60 +115,41 @@ class AccountsScreen extends StatelessWidget {
                             itemCount: provider.accounts.length,
                             itemBuilder: (context, index) {
                               final account = provider.accounts[index];
-                              return Dismissible(
+                              return Slidable(
                                 key: Key(account.id),
-                                direction: DismissDirection.endToStart,
-                                background: Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 20),
-                                  child: const Icon(
-                                    Icons.delete,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                confirmDismiss: (direction) async {
-                                  return await showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Delete Account?'),
-                                      content: Text(
-                                        'Are you sure you want to delete "${account.name}"? This will also delete all associated transactions.',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context, false),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context, true),
-                                          style: TextButton.styleFrom(
-                                            foregroundColor: Colors.red,
+                                endActionPane: ActionPane(
+                                  motion: const DrawerMotion(),
+                                  extentRatio: 0.22,
+                                  children: [
+                                    CustomSlidableAction(
+                                      onPressed: (_) async {
+                                        final confirmed = await showDialog<bool>(
+                                          context: context,
+                                          builder: (dCtx) => AlertDialog(
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                            title: const Text('Delete Account?'),
+                                            content: Text('Delete "${account.name}"? All associated transactions will also be removed.'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(dCtx, true),
+                                                style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
                                           ),
-                                          child: const Text('Delete'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                                onDismissed: (direction) {
-                                  provider.deleteAccount(account.id);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('${account.name} deleted'),
-                                      action: SnackBarAction(
-                                        label: 'Undo',
-                                        onPressed: () {
-                                          provider.addAccount(account);
-                                        },
+                                        ) ?? false;
+                                        if (confirmed) provider.deleteAccount(account.id);
+                                      },
+                                      backgroundColor: Colors.transparent,
+                                      child: Container(
+                                        width: 48, height: 48,
+                                        decoration: const BoxDecoration(color: AppTheme.error, shape: BoxShape.circle),
+                                        child: const Icon(Icons.delete_rounded, color: Colors.white, size: 20),
                                       ),
                                     ),
-                                  );
-                                },
+                                  ],
+                                ),
                                 child: Card(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   child: InkWell(
@@ -174,17 +160,23 @@ class AccountsScreen extends StatelessWidget {
                                       child: Row(
                                         children: [
                                           Container(
-                                            width: 48,
-                                            height: 48,
+                                            width: 44,
+                                            height: 44,
                                             decoration: BoxDecoration(
-                                              color: _getAccountColor(account.color).withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(12),
+                                              color: _getAccountColor(account.color).withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(14),
+                                              border: Border(left: BorderSide(color: _getAccountColor(account.color), width: 3)),
                                             ),
-                                            child: Icon(
-                                              _getAccountIcon(account.type),
-                                              color: _getAccountColor(account.color),
-                                              size: 24,
-                                            ),
+                                            child: account.imagePath != null
+                                                ? ClipRRect(
+                                                    borderRadius: BorderRadius.circular(13),
+                                                    child: Image.file(File(account.imagePath!), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(_getAccountIcon(account.type), color: _getAccountColor(account.color), size: 20)),
+                                                  )
+                                                : Icon(
+                                                    _getAccountIcon(account.type),
+                                                    color: _getAccountColor(account.color),
+                                                    size: 20,
+                                                  ),
                                           ),
                                           const SizedBox(width: 16),
                                           Expanded(
@@ -200,9 +192,27 @@ class AccountsScreen extends StatelessWidget {
                                                   account.name,
                                                   style: Theme.of(context).textTheme.titleMedium,
                                                 ),
-                                                Text(
-                                                  _getAccountTypeLabel(account.type),
-                                                  style: Theme.of(context).textTheme.bodySmall,
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      _getAccountTypeLabel(account.type),
+                                                      style: Theme.of(context).textTheme.bodySmall,
+                                                    ),
+                                                    if (account.salaryAmount != null && account.salaryAmount! > 0) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: AppTheme.goldPrimary.withValues(alpha: 0.15),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Text(
+                                                          'Salary day ${account.salaryDay}',
+                                                          style: const TextStyle(fontSize: 10, color: AppTheme.goldPrimary, fontWeight: FontWeight.w600),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
                                                 ),
                                               ],
                                             ),
@@ -210,14 +220,14 @@ class AccountsScreen extends StatelessWidget {
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              Text(
-                                                '\$${account.balance.toStringAsFixed(2)}',
+                                                            Text(
+                                                cf.format(account.balance),
                                                 style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w700,
                                                   color: account.balance >= 0
                                                       ? AppTheme.gold500
-                                                      : Colors.red,
+                                                      : AppTheme.error,
                                                 ),
                                               ),
                                               if (!account.includeInNetWorth)
@@ -341,17 +351,20 @@ class _AddAccountModalState extends State<AddAccountModal> {
   String _selectedType = 'bank';
   String _selectedColor = '#B8860B';
   bool _includeInNetWorth = true;
+  String? _imagePath;
 
   @override
   void initState() {
     super.initState();
     if (widget.account != null) {
-      _nameController.text = widget.account!.name;
-      _bankNameController.text = widget.account!.bankName ?? '';
-      _balanceController.text = widget.account!.balance.toString();
-      _selectedType = widget.account!.type;
-      _selectedColor = widget.account!.color ?? '#B8860B';
-      _includeInNetWorth = widget.account!.includeInNetWorth;
+      final a = widget.account!;
+      _nameController.text = a.name;
+      _bankNameController.text = a.bankName ?? '';
+      _balanceController.text = a.balance.toString();
+      _selectedType = a.type;
+      _selectedColor = a.color ?? '#B8860B';
+      _includeInNetWorth = a.includeInNetWorth;
+      _imagePath = a.imagePath;
     }
   }
 
@@ -368,7 +381,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -398,6 +411,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
               // Account Name
               TextField(
                 controller: _nameController,
+                textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                   labelText: 'Account Name',
                   hintText: 'e.g., Checking Account',
@@ -408,10 +422,11 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Bank Name (Optional)
               TextField(
                 controller: _bankNameController,
+                textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                   labelText: 'Bank Name (Optional)',
                   hintText: 'e.g., Chase, Bank of America',
@@ -422,37 +437,85 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Balance
-              TextField(
-                controller: _balanceController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Current Balance',
-                  hintText: '0.00',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+
+              // Balance with currency symbol from settings
+              Builder(builder: (ctx) {
+                final provider = Provider.of<AppProvider>(ctx, listen: false);
+                final symbol = CurrencyHelper.getSymbol(provider.settings.currency);
+                return TextField(
+                  controller: _balanceController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Current Balance',
+                    hintText: '0.00',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: Container(
+                      width: 48,
+                      alignment: Alignment.center,
+                      child: Text(
+                        symbol,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.goldPrimary,
+                        ),
+                      ),
+                    ),
                   ),
-                  prefixIcon: const Icon(Icons.attach_money),
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 24),
-              
-              // Account Type
-              Text(
-                'Account Type',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+
+              // Logo Upload
+              Text('Logo', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Row(
                 children: [
-                  _buildTypeChip('bank', 'Bank Account', Icons.account_balance),
+                  Container(
+                    width: 64, height: 64,
+                    decoration: BoxDecoration(
+                      color: _imagePath != null ? Colors.transparent : Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.goldPrimary.withOpacity(0.3), width: 1.5),
+                    ),
+                    child: _imagePath != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.file(File(_imagePath!), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 28)),
+                          )
+                        : Icon(_typeIcon(_selectedType), size: 28, color: AppTheme.goldPrimary),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        final image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+                        if (image != null) setState(() => _imagePath = image.path);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.goldPrimary.withOpacity(0.3), width: 1.5),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.photo_library_rounded, size: 18, color: AppTheme.goldPrimary),
+                            SizedBox(width: 8),
+                            Text('Upload from Gallery', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.goldPrimary)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // Color Picker
               Text(
                 'Color',
@@ -484,8 +547,8 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 activeThumbColor: AppTheme.goldPrimary,
                 contentPadding: EdgeInsets.zero,
               ),
-              const SizedBox(height: 24),
-              
+              const SizedBox(height: 8),
+
               // Save Button
               SizedBox(
                 width: double.infinity,
@@ -545,8 +608,8 @@ class _AddAccountModalState extends State<AddAccountModal> {
     return GestureDetector(
       onTap: () => setState(() => _selectedColor = colorHex),
       child: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
@@ -571,6 +634,15 @@ class _AddAccountModalState extends State<AddAccountModal> {
     );
   }
 
+  IconData _typeIcon(String type) {
+    switch (type) {
+      case 'savings': return Icons.savings;
+      case 'investment': return Icons.trending_up;
+      case 'debt': return Icons.credit_card;
+      default: return Icons.account_balance;
+    }
+  }
+
   void _saveAccount() {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -589,6 +661,10 @@ class _AddAccountModalState extends State<AddAccountModal> {
       bankName: _bankNameController.text.isEmpty ? null : _bankNameController.text,
       color: _selectedColor,
       includeInNetWorth: _includeInNetWorth,
+      imagePath: _imagePath,
+      salaryAmount: null,
+      salaryDay: null,
+      lastSalaryDate: widget.account?.lastSalaryDate,
     );
 
     widget.onSave(account);

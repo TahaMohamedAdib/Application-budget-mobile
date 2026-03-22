@@ -1,12 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import '../utils/currency_helper.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../models/transaction.dart';
+import '../widgets/add_transaction_modal.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -106,14 +109,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Theme.of(context).dividerColor,
-                                ),
+                                color: Theme.of(context).brightness == Brightness.dark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                                shape: BoxShape.circle,
+                                boxShadow: Theme.of(context).brightness == Brightness.dark ? [] : AppTheme.cardShadowLight,
                               ),
                               child: IconButton(
-                                icon: const Icon(Icons.arrow_back, size: 20),
+                                icon: const Icon(Icons.arrow_back_rounded, size: 20),
                                 onPressed: () => Navigator.pop(context),
                                 padding: EdgeInsets.zero,
                               ),
@@ -294,43 +295,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               ],
                             ),
                           )
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                            itemCount: filteredTransactions.length,
-                            itemBuilder: (context, index) {
-                              final transaction = filteredTransactions[index];
-                              final date = DateTime.parse(transaction.date);
-
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: _getTransactionColor(transaction.type).withOpacity(0.2),
-                                    child: Icon(
-                                      _getTransactionIcon(transaction.type),
-                                      color: _getTransactionColor(transaction.type),
-                                      size: 20,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    transaction.note ?? _getTransactionTypeLabel(transaction.type),
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  subtitle: Text(
-                                    DateFormat('MMM d, yyyy • h:mm a').format(date),
-                                    style: Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                  trailing: Text(
-                                    '\$${transaction.amount.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: _getTransactionColor(transaction.type),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                        : ListView(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+                            children: _buildTransactionGroups(filteredTransactions, provider, context),
                           ),
                   ),
                 ],
@@ -411,7 +378,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             children: [
               _buildChartHeader(context, chartLabel, cf, totalAmount, isDark),
               const SizedBox(height: 20),
-              SizedBox(height: 160, child: Center(child: Text('Not enough data', style: Theme.of(context).textTheme.bodySmall))),
+              SizedBox(height: 180, child: Center(child: Text('Not enough data', style: Theme.of(context).textTheme.bodySmall))),
             ],
           ),
         ),
@@ -440,7 +407,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             _buildChartHeader(context, chartLabel, cf, totalAmount, isDark),
             const SizedBox(height: 20),
             SizedBox(
-              height: 160,
+              height: 180,
               child: LineChart(
                 LineChartData(
                   gridData: FlGridData(
@@ -502,7 +469,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       }).toList(),
                     ),
                   ),
-                  minY: minY - yPadding,
+                  minY: (minY - yPadding).clamp(0.0, double.infinity),
                   maxY: maxY + yPadding,
                   lineBarsData: [
                     LineChartBarData(
@@ -547,14 +514,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         Row(
           children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
             final isActive = _chartTimeframe == tf;
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return GestureDetector(
               onTap: () => setState(() => _chartTimeframe = tf),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(left: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: isActive ? AppTheme.goldPrimary : Colors.transparent,
+                  color: isActive ? AppTheme.goldPrimary : (isDark ? AppTheme.darkSurfaceElevated : Colors.transparent),
                   borderRadius: BorderRadius.circular(8),
+                  border: isActive ? null : Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
                 ),
                 child: Text(
                   tf.toUpperCase(),
@@ -570,6 +540,375 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ),
       ],
     );
+  }
+
+  String _getDateGroupLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(d).inDays;
+    if (diff == 0) return 'TODAY';
+    if (diff == 1) return 'YESTERDAY';
+    if (diff < 7) return DateFormat('EEEE').format(date).toUpperCase();
+    return DateFormat('MMM d').format(date).toUpperCase();
+  }
+
+  List<Widget> _buildTransactionGroups(List transactions, AppProvider provider, BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cf = CurrencyHelper.formatter(provider.settings.currency);
+
+    final groups = <String, List>{};
+    for (final t in transactions) {
+      final key = DateFormat('yyyy-MM-dd').format(DateTime.parse(t.date));
+      groups.putIfAbsent(key, () => []).add(t);
+    }
+
+    final widgets = <Widget>[];
+    for (final entry in groups.entries) {
+      final items = entry.value;
+      final date = DateTime.parse(entry.key);
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 16, 0, 8),
+          child: Text(
+            _getDateGroupLabel(date),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      );
+      widgets.add(
+        Container(
+          decoration: AppTheme.premiumCard(context),
+          child: Column(
+            children: items.asMap().entries.map((e) {
+              final isLast = e.key == items.length - 1;
+              final t = e.value;
+              final tColor = _getTransactionColor(t.type);
+              final date = DateTime.parse(t.date);
+
+              // Look up category
+              final cat = t.categoryId != null
+                  ? provider.categories.where((c) => c.id == t.categoryId).firstOrNull
+                  : null;
+
+              return Column(
+                children: [
+                  Slidable(
+                    key: Key(t.id),
+                    endActionPane: ActionPane(
+                      motion: const DrawerMotion(),
+                      extentRatio: 0.22,
+                      children: [
+                        CustomSlidableAction(
+                          onPressed: (_) async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (dCtx) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: const Text('Delete Transaction?'),
+                                content: Text('Delete "${t.note ?? _getTransactionTypeLabel(t.type)}"? This cannot be undone.'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dCtx, true),
+                                    style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            ) ?? false;
+                            if (confirmed) provider.deleteTransaction(t.id);
+                          },
+                          backgroundColor: Colors.transparent,
+                          child: Container(
+                            width: 48, height: 48,
+                            decoration: const BoxDecoration(color: AppTheme.error, shape: BoxShape.circle),
+                            child: const Icon(Icons.delete_rounded, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ],
+                    ),
+                    child: GestureDetector(
+                      onTap: () => _showTransactionDetail(context, t, provider, cf, isDark),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                color: isDark ? tColor.withOpacity(0.12) : const Color(0xFFF0F1F5),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: cat != null
+                                  ? _buildCategoryIcon(cat.icon, tColor)
+                                  : Icon(_getTransactionDisplayIcon(t.type, t.note), color: tColor, size: 18),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          t.note ?? cat?.name ?? _getTransactionTypeLabel(t.type),
+                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (t.expenseSubType != null) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: (t.expenseSubType == 'subscription' ? AppTheme.info : AppTheme.warning).withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            t.expenseSubType == 'subscription' ? 'Sub' : 'Bill',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: t.expenseSubType == 'subscription' ? AppTheme.info : AppTheme.warning,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    DateFormat('h:mm a').format(date),
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              cf.format(t.amount),
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: tColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!isLast) Divider(height: 1, indent: 70, color: Theme.of(context).dividerColor),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  void _showTransactionDetail(BuildContext context, Transaction t, AppProvider provider, NumberFormat cf, bool isDark) {
+    final cat = t.categoryId != null
+        ? provider.categories.where((c) => c.id == t.categoryId).firstOrNull
+        : null;
+    final account = provider.accounts.where((a) => a.id == t.accountId).firstOrNull;
+    final tColor = _getTransactionColor(t.type);
+    final date = DateTime.parse(t.date);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Icon + title + amount
+                Row(
+                  children: [
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(color: tColor.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
+                      child: cat != null
+                          ? _buildCategoryIcon(cat.icon, tColor)
+                          : Icon(_getTransactionDisplayIcon(t.type, t.note), color: tColor, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.note ?? cat?.name ?? t.type,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            DateFormat('MMM d, yyyy · h:mm a').format(date),
+                            style: TextStyle(fontSize: 13, color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: tColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Info rows
+                if (account != null) _detailInfoRow(ctx, Icons.account_balance_rounded, 'Account', account.name),
+                if (cat != null) _detailInfoRow(ctx, Icons.category_rounded, 'Category', cat.name),
+                if (t.expenseSubType != null) _detailInfoRow(ctx, Icons.label_rounded, 'Type', t.expenseSubType![0].toUpperCase() + t.expenseSubType!.substring(1)),
+                if (t.isRecurring) _detailInfoRow(ctx, Icons.repeat_rounded, 'Recurring', 'Yes'),
+                const SizedBox(height: 8),
+                // Receipt image
+                if (t.imagePath != null) ...[
+                  Text('Receipt', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => showDialog(
+                      context: ctx,
+                      builder: (_) => Dialog(
+                        backgroundColor: Colors.transparent,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: t.imagePath!.startsWith('http')
+                              ? Image.network(t.imagePath!, fit: BoxFit.contain)
+                              : Image.file(File(t.imagePath!), fit: BoxFit.contain),
+                        ),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: t.imagePath!.startsWith('http')
+                          ? Image.network(t.imagePath!, width: double.infinity, height: 180, fit: BoxFit.cover)
+                          : Image.file(File(t.imagePath!), width: double.infinity, height: 180, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 180, color: Colors.grey.withOpacity(0.1),
+                                child: const Center(child: Icon(Icons.broken_image_rounded, size: 40)),
+                              )),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // Edit button
+                SizedBox(
+                  width: double.infinity, height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => AddTransactionModal(initialTransaction: t),
+                      );
+                    },
+                    icon: const Icon(Icons.edit_rounded, size: 18),
+                    label: const Text('Edit Transaction', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB8860B),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _detailInfoRow(BuildContext context, IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+          const SizedBox(width: 8),
+          Text('$label  ', style: Theme.of(context).textTheme.bodySmall),
+          Flexible(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryIcon(String iconStr, Color color) {
+    if (iconStr.startsWith('img:')) {
+      final path = iconStr.substring(4);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.file(
+          File(path),
+          width: 40, height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(Icons.category_rounded, color: color, size: 18),
+        ),
+      );
+    }
+    return Icon(_categoryIcon(iconStr), color: color, size: 18);
+  }
+
+  IconData _categoryIcon(String iconName) {
+    switch (iconName) {
+      case 'home': return Icons.home_rounded;
+      case 'flash': return Icons.flash_on_rounded;
+      case 'phone': return Icons.phone_android_rounded;
+      case 'tv': return Icons.tv_rounded;
+      case 'shield': return Icons.shield_rounded;
+      case 'credit_card': return Icons.credit_card_rounded;
+      case 'shopping_cart': return Icons.shopping_cart_rounded;
+      case 'car': return Icons.directions_car_rounded;
+      case 'restaurant': return Icons.restaurant_rounded;
+      case 'shopping_bag': return Icons.shopping_bag_rounded;
+      case 'favorite': return Icons.favorite_rounded;
+      case 'sports_esports': return Icons.sports_esports_rounded;
+      case 'face': return Icons.face_rounded;
+      case 'school': return Icons.school_rounded;
+      case 'flight': return Icons.flight_rounded;
+      case 'card_giftcard': return Icons.card_giftcard_rounded;
+      case 'pets': return Icons.pets_rounded;
+      case 'autorenew': return Icons.autorenew_rounded;
+      case 'fitness_center': return Icons.fitness_center_rounded;
+      case 'local_cafe': return Icons.local_cafe_rounded;
+      case 'child_care': return Icons.child_care_rounded;
+      case 'build': return Icons.build_rounded;
+      default: return Icons.category_rounded;
+    }
+  }
+
+  IconData _getTransactionDisplayIcon(String type, String? note) {
+    if (type == 'income') {
+      final n = note?.toLowerCase() ?? '';
+      if (n.contains('salary') || n.contains('salaire') || n.contains('paycheck') || n.contains('wage')) {
+        return Icons.paid_rounded;
+      }
+    }
+    return _getTransactionIcon(type);
   }
 
   IconData _getTransactionIcon(String type) {
@@ -594,13 +933,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Color _getTransactionColor(String type) {
     switch (type) {
       case 'expense':
-        return Colors.red;
+        return AppTheme.error;
       case 'income':
-        return AppTheme.gold500;
+        return AppTheme.success;
       case 'transfer':
-        return Colors.blue;
+        return AppTheme.info;
       case 'withdrawal':
-        return Colors.amber;
+        return AppTheme.warning;
       case 'goal_contribution':
         return AppTheme.goldPrimary;
       case 'debt_payment':

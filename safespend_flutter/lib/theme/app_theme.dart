@@ -1,65 +1,64 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'app_colors.dart';
+import 'app_text_styles.dart';
 
+/// Central theme provider for SafeSpend.
+/// All color constants are backward-compatible aliases to AppColors.
 class AppTheme {
-  // Gold colors
-  static const Color goldPrimary = Color(0xFFB8860B);
-  static const Color gold600 = Color(0xFF9A6F09);
-  static const Color gold700 = Color(0xFF7A5807);
-  static const Color gold500 = Color(0xFFB8860B);
-  static const Color gold400 = Color(0xFFD4A520);
-  static const Color gold300 = Color(0xFFE5C158);
-  static const Color gold200 = Color(0xFFF0D88A);
-  static const Color gold100 = Color(0xFFFBF0C8);
-  static const Color gold50 = Color(0xFFFDF8E8);
+  AppTheme._();
 
-  // Semantic
-  static const Color success = Color(0xFF22C55E);
-  static const Color error = Color(0xFFEF4444);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color info = Color(0xFF3B82F6);
-  
-  // Light theme colors
-  static const Color lightBackground = Color(0xFFF8F9FB);
-  static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightTextPrimary = Color(0xFF0F172A);
-  static const Color lightTextSecondary = Color(0xFF475569);
-  static const Color lightTextTertiary = Color(0xFF94A3B8);
-  static const Color lightBorder = Color(0xFFE2E8F0);
-  static const Color lightDivider = Color(0xFFF1F5F9);
-  
-  // Dark theme colors
-  static const Color darkBackground = Color(0xFF0F1419);
-  static const Color darkSurface = Color(0xFF1A2029);
-  static const Color darkSurfaceElevated = Color(0xFF232A35);
-  static const Color darkTextPrimary = Color(0xFFF1F5F9);
-  static const Color darkTextSecondary = Color(0xFF94A3B8);
-  static const Color darkTextTertiary = Color(0xFF64748B);
-  static const Color darkBorder = Color(0xFF2A3140);
-  static const Color darkDivider = Color(0xFF1E2530);
+  // ── Backward-compat color aliases ────────────────────────────────────────
+  static const Color goldPrimary         = AppColors.goldPrimary;
+  static const Color gold600             = AppColors.gold600;
+  static const Color gold700             = AppColors.gold700;
+  static const Color gold500             = AppColors.gold500;
+  static const Color gold400             = AppColors.gold400;
+  static const Color gold300             = AppColors.gold300;
+  static const Color gold200             = AppColors.gold200;
+  static const Color gold100             = AppColors.gold100;
+  static const Color gold50              = AppColors.gold50;
 
-  // Premium shadows
+  static const Color success = AppColors.success;
+  static const Color error   = AppColors.error;
+  static const Color warning = AppColors.warning;
+  static const Color info    = AppColors.info;
+
+  static const Color lightBackground    = AppColors.lightBackground;
+  static const Color lightSurface       = AppColors.lightSurface;
+  static const Color lightTextPrimary   = AppColors.lightTextPrimary;
+  static const Color lightTextSecondary = AppColors.lightTextSecondary;
+  static const Color lightTextTertiary  = AppColors.lightTextTertiary;
+  static const Color lightBorder        = AppColors.lightBorder;
+  static const Color lightDivider       = AppColors.lightDivider;
+
+  static const Color darkBackground       = AppColors.darkBackground;
+  static const Color darkSurface          = AppColors.darkSurface;
+  static const Color darkSurfaceElevated  = AppColors.darkSurfaceElevated;
+  static const Color darkTextPrimary      = AppColors.darkTextPrimary;
+  static const Color darkTextSecondary    = AppColors.darkTextSecondary;
+  static const Color darkTextTertiary     = AppColors.darkTextTertiary;
+  static const Color darkBorder           = AppColors.darkBorder;
+  static const Color darkDivider          = AppColors.darkDivider;
+
+  // ── Shadows ───────────────────────────────────────────────────────────────
   static List<BoxShadow> get cardShadowLight => [
     BoxShadow(
       color: const Color(0xFF0F172A).withOpacity(0.04),
-      blurRadius: 16,
+      blurRadius: 12,
       offset: const Offset(0, 4),
-      spreadRadius: 0,
     ),
     BoxShadow(
       color: const Color(0xFF0F172A).withOpacity(0.02),
       blurRadius: 4,
       offset: const Offset(0, 1),
-      spreadRadius: 0,
     ),
   ];
 
   static List<BoxShadow> get cardShadowDark => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.2),
-      blurRadius: 16,
+      color: Colors.black.withOpacity(0.25),
+      blurRadius: 20,
       offset: const Offset(0, 4),
-      spreadRadius: 0,
     ),
   ];
 
@@ -74,38 +73,19 @@ class AppTheme {
       color: const Color(0xFF0F172A).withOpacity(0.04),
       blurRadius: 8,
       offset: const Offset(0, 2),
-      spreadRadius: 0,
     ),
   ];
 
   static List<BoxShadow> get goldGlow => [
     BoxShadow(
-      color: goldPrimary.withOpacity(0.25),
+      color: Colors.black.withOpacity(0.18),
       blurRadius: 20,
       offset: const Offset(0, 6),
       spreadRadius: -2,
     ),
   ];
 
-  static TextTheme _buildTextTheme(Color primary, Color secondary, Color tertiary) {
-    return GoogleFonts.dmSansTextTheme(TextTheme(
-      displayLarge: TextStyle(color: primary, fontWeight: FontWeight.w700, fontSize: 40, letterSpacing: -1.5, height: 1.1),
-      displayMedium: TextStyle(color: primary, fontWeight: FontWeight.w700, fontSize: 34, letterSpacing: -1.0, height: 1.1),
-      displaySmall: TextStyle(color: primary, fontWeight: FontWeight.w700, fontSize: 28, letterSpacing: -0.5, height: 1.2),
-      headlineMedium: TextStyle(color: primary, fontWeight: FontWeight.w700, fontSize: 24, letterSpacing: -0.3, height: 1.2),
-      headlineSmall: TextStyle(color: primary, fontWeight: FontWeight.w600, fontSize: 20, letterSpacing: -0.2, height: 1.3),
-      titleLarge: TextStyle(color: primary, fontWeight: FontWeight.w600, fontSize: 18, letterSpacing: -0.1, height: 1.3),
-      titleMedium: TextStyle(color: primary, fontWeight: FontWeight.w500, fontSize: 15, height: 1.4),
-      titleSmall: TextStyle(color: secondary, fontWeight: FontWeight.w500, fontSize: 13, height: 1.4),
-      bodyLarge: TextStyle(color: primary, fontWeight: FontWeight.w400, fontSize: 15, height: 1.5),
-      bodyMedium: TextStyle(color: secondary, fontWeight: FontWeight.w400, fontSize: 14, height: 1.5),
-      bodySmall: TextStyle(color: tertiary, fontWeight: FontWeight.w400, fontSize: 12, height: 1.4),
-      labelLarge: TextStyle(color: primary, fontWeight: FontWeight.w600, fontSize: 14, letterSpacing: 0.3, height: 1.4),
-      labelMedium: TextStyle(color: secondary, fontWeight: FontWeight.w500, fontSize: 12, letterSpacing: 0.2, height: 1.3),
-      labelSmall: TextStyle(color: tertiary, fontWeight: FontWeight.w500, fontSize: 10, letterSpacing: 0.3, height: 1.3),
-    ));
-  }
-
+  // ── ThemeData ─────────────────────────────────────────────────────────────
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
@@ -121,7 +101,7 @@ class AppTheme {
       color: lightSurface,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
     dividerColor: lightDivider,
     dividerTheme: const DividerThemeData(color: lightDivider, thickness: 1, space: 0),
@@ -131,10 +111,87 @@ class AppTheme {
       elevation: 0,
       scrolledUnderElevation: 0,
     ),
-    textTheme: _buildTextTheme(lightTextPrimary, lightTextSecondary, lightTextTertiary),
+    textTheme: AppTextStyles.buildTextTheme(
+      lightTextPrimary, lightTextSecondary, lightTextTertiary,
+    ),
     iconTheme: const IconThemeData(color: lightTextSecondary, size: 20),
     splashColor: goldPrimary.withOpacity(0.08),
     highlightColor: goldPrimary.withOpacity(0.04),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color(0xFFF1F3F6),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: lightBorder, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: goldPrimary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: error, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: error, width: 1.5),
+      ),
+      labelStyle: const TextStyle(color: lightTextSecondary),
+      hintStyle: const TextStyle(color: lightTextTertiary),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: goldPrimary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      backgroundColor: const Color(0xFF1A2029),
+      contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: lightSurface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 0,
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? goldPrimary : Colors.grey),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected)
+              ? goldPrimary.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.2)),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: const Color(0xFFF1F3F6),
+      selectedColor: goldPrimary.withOpacity(0.15),
+      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      side: const BorderSide(color: lightBorder),
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -152,7 +209,7 @@ class AppTheme {
       color: darkSurface,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
     dividerColor: darkDivider,
     dividerTheme: const DividerThemeData(color: darkDivider, thickness: 1, space: 0),
@@ -162,53 +219,216 @@ class AppTheme {
       elevation: 0,
       scrolledUnderElevation: 0,
     ),
-    textTheme: _buildTextTheme(darkTextPrimary, darkTextSecondary, darkTextTertiary),
+    textTheme: AppTextStyles.buildTextTheme(
+      darkTextPrimary, darkTextSecondary, darkTextTertiary,
+    ),
     iconTheme: const IconThemeData(color: darkTextSecondary, size: 20),
-    splashColor: goldPrimary.withOpacity(0.12),
-    highlightColor: goldPrimary.withOpacity(0.06),
+    splashColor: goldPrimary.withOpacity(0.10),
+    highlightColor: goldPrimary.withOpacity(0.05),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: darkSurfaceElevated,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: goldPrimary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: error, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: error, width: 1.5),
+      ),
+      labelStyle: const TextStyle(color: darkTextSecondary),
+      hintStyle: const TextStyle(color: darkTextTertiary),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: goldPrimary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      backgroundColor: darkSurfaceElevated,
+      contentTextStyle: const TextStyle(color: darkTextPrimary, fontSize: 14),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: darkSurface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 0,
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? goldPrimary : darkTextTertiary),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected)
+              ? goldPrimary.withOpacity(0.35)
+              : Colors.white.withOpacity(0.1)),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: darkSurfaceElevated,
+      selectedColor: goldPrimary.withOpacity(0.2),
+      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: darkTextSecondary),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      side: BorderSide(color: Colors.white.withOpacity(0.08)),
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 
-  // Helper: premium card decoration
+  // ── Card decoration helpers (backward-compat API) ─────────────────────────
+
+  /// Standard surface card with subtle 1px border on dark mode.
   static BoxDecoration premiumCard(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
       color: isDark ? darkSurface : lightSurface,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
+      border: isDark
+          ? Border.all(color: Colors.white.withOpacity(0.07), width: 1)
+          : null,
       boxShadow: isDark ? cardShadowDark : cardShadowLight,
     );
   }
 
-  // Helper: elevated card decoration
+  /// Elevated card — slightly raised surface.
   static BoxDecoration elevatedCard(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
       color: isDark ? darkSurfaceElevated : lightSurface,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(16),
+      border: isDark
+          ? Border.all(color: Colors.white.withOpacity(0.07), width: 1)
+          : null,
       boxShadow: isDark ? cardShadowDark : elevatedShadowLight,
     );
   }
 
-  // Helper: gold gradient card
+  /// Slate gradient hero card with white neon edge glow.
   static BoxDecoration goldCard() {
     return BoxDecoration(
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFFC49B1A), Color(0xFF9A6F09), Color(0xFF7A5807)],
-        stops: [0.0, 0.5, 1.0],
+        colors: [Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF06080D)],
+        stops: [0.0, 0.55, 1.0],
       ),
       borderRadius: BorderRadius.circular(24),
-      boxShadow: goldGlow,
+      border: Border.all(
+        color: Colors.white.withOpacity(0.12),
+        width: 1.5,
+      ),
+      boxShadow: [
+        // White neon edge glow — tight inner ring
+        BoxShadow(
+          color: Colors.white.withOpacity(0.18),
+          blurRadius: 12,
+          spreadRadius: 0,
+        ),
+        // White neon edge glow — soft outer halo
+        BoxShadow(
+          color: Colors.white.withOpacity(0.07),
+          blurRadius: 32,
+          spreadRadius: 4,
+        ),
+        // Depth shadow underneath
+        BoxShadow(
+          color: Colors.black.withOpacity(0.35),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
+          spreadRadius: -4,
+        ),
+      ],
     );
   }
 
-  // Helper: subtle border card
+  /// Subtle bordered card (outline style).
   static BoxDecoration borderedCard(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
       color: isDark ? darkSurface : lightSurface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: isDark ? darkBorder : lightBorder, width: 1),
+      border: Border.all(
+        color: isDark ? Colors.white.withOpacity(0.09) : lightBorder,
+        width: 1,
+      ),
+    );
+  }
+
+  /// Glass-style semi-transparent card for overlays.
+  static BoxDecoration glassCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return BoxDecoration(
+      color: isDark
+          ? Colors.white.withOpacity(0.06)
+          : Colors.white.withOpacity(0.72),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: isDark
+            ? Colors.white.withOpacity(0.10)
+            : Colors.white.withOpacity(0.60),
+        width: 1,
+      ),
+    );
+  }
+
+  /// Colored gradient accent card (red for debt, purple for portfolio, etc.).
+  static BoxDecoration accentCard(Color baseColor) {
+    final lighter = Color.lerp(baseColor, Colors.white, 0.18)!;
+    final darker  = Color.lerp(baseColor, Colors.black, 0.25)!;
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [lighter, baseColor, darker],
+        stops: const [0.0, 0.5, 1.0],
+      ),
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: baseColor.withOpacity(0.30),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    );
+  }
+
+  /// Consistent icon container decoration.
+  static BoxDecoration iconContainer({
+    required Color color,
+    double radius = 14,
+    double opacity = 0.12,
+  }) {
+    return BoxDecoration(
+      color: color.withOpacity(opacity),
+      borderRadius: BorderRadius.circular(radius),
     );
   }
 }

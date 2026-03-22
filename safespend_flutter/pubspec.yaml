@@ -16,6 +16,9 @@ dependencies:
   # Local Storage
   shared_preferences: ^2.2.2
   
+  # Supabase
+  supabase_flutter: ^2.3.0
+  
   # Date/Time
   intl: ^0.18.1
   
@@ -24,12 +27,17 @@ dependencies:
   
   # UUID
   uuid: ^4.2.2
-  
+
+  # HTTP (live stock prices)
+  http: ^1.2.0
+
   # Premium UI
   google_fonts: ^6.1.0
   fl_chart: ^0.68.0
   flutter_animate: ^4.5.0
   flutter_staggered_animations: ^1.1.1
+  image_picker: ^1.0.7
+  flutter_slidable: ^3.0.0
 
 dev_dependencies:
   flutter_test:

@@ -853,7 +853,7 @@ class _PlanScreenState extends State<PlanScreen> {
                         child: Row(children: [
                           const Icon(Icons.payments_rounded, size: 18, color: AppTheme.warning),
                           const SizedBox(width: 8),
-                          const Text('Cash on Hand'),
+                          const Text('Cash'),
                           const Spacer(),
                           Text(cf.format(provider.totalCash), style: TextStyle(fontSize: 12, color: Theme.of(ctx).textTheme.bodySmall?.color)),
                         ]),
@@ -981,7 +981,7 @@ class _AddBillModalState extends State<AddBillModal> {
                         child: Row(children: [
                           const Icon(Icons.payments_rounded, size: 18, color: AppTheme.warning),
                           const SizedBox(width: 8),
-                          const Text('Cash on Hand'),
+                          const Text('Cash'),
                           const Spacer(),
                           Text(cf.format(provider.totalCash), style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
                         ]),

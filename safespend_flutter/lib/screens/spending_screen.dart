@@ -157,7 +157,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                         children: [
                           Text('Total Spending', style: Theme.of(context).textTheme.bodySmall),
                           const SizedBox(height: 4),
-                          Text(cf.format(totalSpending), style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -1)),
+                          Text(cf.format(totalSpending), style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1.5)),
                           const SizedBox(height: 28),
                           SizedBox(
                             height: 200,
@@ -203,9 +203,9 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                     barRods: [
                                       BarChartRodData(
                                         toY: entry.value > 0 ? entry.value : 0,
-                                        color: isHighlight ? AppTheme.goldPrimary : (isDark ? AppTheme.darkBorder : const Color(0xFFE2E8F0)),
+                                        color: isHighlight ? AppTheme.goldPrimary : (isDark ? AppTheme.darkSurfaceElevated : const Color(0xFFE4E5EA)),
                                         width: isWeek ? 28 : 40,
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                                       ),
                                     ],
                                   );
@@ -222,7 +222,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                 // Recent Expenses Header
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
                     child: Text('Recent Expenses', style: Theme.of(context).textTheme.titleLarge),
                   ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
                 ),
@@ -237,7 +237,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                             decoration: AppTheme.premiumCard(context),
                             child: Column(
                               children: [
-                                Icon(Icons.receipt_long_rounded, size: 48, color: Theme.of(context).textTheme.bodySmall?.color),
+                                Icon(Icons.receipt_long_rounded, size: 72, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
                                 const SizedBox(height: 16),
                                 Text('No expenses yet', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                               ],
@@ -261,8 +261,8 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                       child: Row(
                                         children: [
                                           Container(
-                                            width: 42, height: 42,
-                                            decoration: BoxDecoration(color: AppTheme.error.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                            width: 44, height: 44,
+                                            decoration: BoxDecoration(color: AppTheme.error.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
                                             child: const Icon(Icons.arrow_upward_rounded, color: AppTheme.error, size: 20),
                                           ),
                                           const SizedBox(width: 14),
@@ -289,7 +289,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                         ),
                       ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
             ),
           ),

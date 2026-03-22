@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_helper.dart';
 
@@ -83,10 +84,10 @@ class SettingsScreen extends StatelessWidget {
                           child: Row(
                             children: [
                               Container(
-                                width: 40, height: 40,
+                                width: 44, height: 44,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.goldPrimary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: AppTheme.goldPrimary.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: const Center(child: Text('💱', style: TextStyle(fontSize: 20))),
                               ),
@@ -117,13 +118,13 @@ class SettingsScreen extends StatelessWidget {
                         decoration: AppTheme.premiumCard(context),
                         child: Column(
                           children: [
-                            _buildMenuItem(context, icon: Icons.person_rounded, label: 'Account'),
+                            _buildMenuItem(context, icon: Icons.person_rounded, label: 'Account', onTap: () => _showAccountDialog(context)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.notifications_rounded, label: 'Notifications'),
+                            _buildMenuItem(context, icon: Icons.notifications_rounded, label: 'Notifications', onTap: () => _showNotificationsDialog(context, provider)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.shield_rounded, label: 'Privacy'),
+                            _buildMenuItem(context, icon: Icons.shield_rounded, label: 'Privacy', onTap: () => _showPrivacyDialog(context)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.help_outline_rounded, label: 'Help & Support'),
+                            _buildMenuItem(context, icon: Icons.help_outline_rounded, label: 'Help & Support', onTap: () => _showHelpDialog(context)),
                           ],
                         ),
                       ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
@@ -132,7 +133,7 @@ class SettingsScreen extends StatelessWidget {
 
                       // Log Out
                       GestureDetector(
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logout coming soon'))),
+                        onTap: () => _confirmLogOut(context, provider),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                           decoration: AppTheme.premiumCard(context),
@@ -202,9 +203,9 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(BuildContext context, {required IconData icon, required String label}) {
+  Widget _buildMenuItem(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
     return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label coming soon!'))),
+      onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -218,6 +219,153 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showAccountDialog(BuildContext context) {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final email = auth.user?.email ?? 'Local mode';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.person_rounded, color: AppTheme.goldPrimary),
+          SizedBox(width: 10),
+          Text('Account', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Email', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+            const SizedBox(height: 4),
+            Text(email, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+            const SizedBox(height: 16),
+            Text('To change your password, use the "Forgot Password" option on the login screen.', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+      ),
+    );
+  }
+
+  void _showNotificationsDialog(BuildContext context, AppProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(children: [
+            Icon(Icons.notifications_rounded, color: AppTheme.goldPrimary),
+            SizedBox(width: 10),
+            Text('Notifications', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          ]),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                value: provider.settings.notificationsEnabled ?? true,
+                onChanged: (v) {
+                  provider.updateSettings(provider.settings.copyWith(notificationsEnabled: v));
+                  setS(() {});
+                },
+                title: const Text('Push Notifications'),
+                subtitle: const Text('Reminders for bills and budgets'),
+                activeColor: AppTheme.goldPrimary,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done'))],
+        ),
+      ),
+    );
+  }
+
+  void _showPrivacyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.shield_rounded, color: AppTheme.goldPrimary),
+          SizedBox(width: 10),
+          Text('Privacy', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        ]),
+        content: const Text(
+          'Your financial data is stored securely in Supabase with row-level security. Only you can access your data.\n\nNo data is shared with third parties. Transaction data never leaves your secure account.',
+          style: TextStyle(height: 1.5, fontSize: 13),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it'))],
+      ),
+    );
+  }
+
+  void _showHelpDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.help_outline_rounded, color: AppTheme.goldPrimary),
+          SizedBox(width: 10),
+          Text('Help & Support', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        ]),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _HelpItem(q: 'How do I add a transaction?', a: 'Tap the + button at the bottom right of the home screen.'),
+            SizedBox(height: 12),
+            _HelpItem(q: 'How do subscriptions work?', a: 'Add a subscription via the + button → Expense → Subscription. It auto-deducts from your account on the due date.'),
+            SizedBox(height: 12),
+            _HelpItem(q: 'How is net worth calculated?', a: 'Net worth = all bank accounts + cash + investments − outstanding debt.'),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+      ),
+    );
+  }
+
+  void _confirmLogOut(BuildContext context, AppProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Log Out?', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text('You will need to sign in again to access your data.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final auth = Provider.of<AuthService>(context, listen: false);
+              await auth.signOut();
+              provider.clearData();
+              if (context.mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HelpItem extends StatelessWidget {
+  final String q;
+  final String a;
+  const _HelpItem({required this.q, required this.a});
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(q, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+      const SizedBox(height: 3),
+      Text(a, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.4)),
+    ]);
   }
 }
 
@@ -257,7 +405,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -266,7 +414,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
             child: Column(
               children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(2)))),
+                Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(3)))),
                 const SizedBox(height: 20),
                 Row(
                   children: [

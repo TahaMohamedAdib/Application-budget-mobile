@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -8,10 +9,8 @@ import '../theme/app_theme.dart';
 import 'accounts_screen.dart';
 import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
-import 'budgets_screen.dart';
 import 'portfolio_screen.dart';
 import 'settings_screen.dart';
-import 'spending_screen.dart';
 
 class WealthScreen extends StatefulWidget {
   const WealthScreen({super.key});
@@ -24,41 +23,138 @@ class _WealthScreenState extends State<WealthScreen> {
   String? _selectedAccountId; // null = all accounts
 
 
+  Color _colorFromHex(String? hex) {
+    if (hex == null || hex.isEmpty) return AppTheme.goldPrimary;
+    try {
+      final cleaned = hex.replaceFirst('#', '');
+      return Color(int.parse('FF$cleaned', radix: 16));
+    } catch (_) {
+      return AppTheme.goldPrimary;
+    }
+  }
+
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'bank': return Icons.account_balance_rounded;
+      case 'savings': return Icons.savings_rounded;
+      case 'investment': return Icons.trending_up_rounded;
+      case 'debt': return Icons.credit_card_rounded;
+      default: return Icons.account_balance_wallet_rounded;
+    }
+  }
+
   void _showAccountPicker(BuildContext context, AppProvider provider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cf = CurrencyHelper.formatter(provider.settings.currency);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => Container(
         decoration: BoxDecoration(
           color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(2))),
+              Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3))),
               const SizedBox(height: 16),
               Text('Select Account', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.account_balance_wallet_rounded, color: AppTheme.goldPrimary),
-                title: const Text('All Accounts'),
-                trailing: _selectedAccountId == null ? const Icon(Icons.check_rounded, color: AppTheme.goldPrimary) : null,
+              const SizedBox(height: 12),
+              // All Accounts row
+              _buildPickerAccountRow(
+                ctx: ctx, isDark: isDark, cf: cf,
+                icon: Icons.account_balance_wallet_rounded,
+                iconColor: AppTheme.goldPrimary,
+                name: 'All Accounts',
+                sublabel: '${provider.accounts.length} accounts combined',
+                balance: provider.accounts.fold(0.0, (s, a) => s + a.balance),
+                isSelected: _selectedAccountId == null,
                 onTap: () { setState(() => _selectedAccountId = null); Navigator.pop(ctx); },
               ),
-              ...provider.accounts.map((a) => ListTile(
-                leading: const Icon(Icons.account_balance_rounded),
-                title: Text(a.name),
-                subtitle: a.bankName != null ? Text(a.bankName!) : null,
-                trailing: _selectedAccountId == a.id ? const Icon(Icons.check_rounded, color: AppTheme.goldPrimary) : null,
-                onTap: () { setState(() => _selectedAccountId = a.id); Navigator.pop(ctx); },
-              )),
+              if (provider.accounts.isNotEmpty) Divider(height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
+              ...provider.accounts.asMap().entries.map((e) {
+                final a = e.value;
+                final isLast = e.key == provider.accounts.length - 1;
+                return Column(
+                  children: [
+                    _buildPickerAccountRow(
+                      ctx: ctx, isDark: isDark, cf: cf,
+                      icon: _iconForType(a.type),
+                      iconColor: _colorFromHex(a.color),
+                      name: a.name,
+                      sublabel: a.bankName ?? (a.type[0].toUpperCase() + a.type.substring(1)),
+                      balance: a.balance,
+                      isSelected: _selectedAccountId == a.id,
+                      imagePath: a.imagePath,
+                      onTap: () { setState(() => _selectedAccountId = a.id); Navigator.pop(ctx); },
+                    ),
+                    if (!isLast) Divider(height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
+                  ],
+                );
+              }),
               const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerAccountRow({
+    required BuildContext ctx,
+    required bool isDark,
+    required NumberFormat cf,
+    required IconData icon,
+    required Color iconColor,
+    required String name,
+    required String sublabel,
+    required double balance,
+    required bool isSelected,
+    required VoidCallback onTap,
+    String? imagePath,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
+              child: imagePath != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: (imagePath.startsWith('http')
+                          ? Image.network(imagePath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, color: iconColor, size: 20))
+                          : Image.file(File(imagePath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(icon, color: iconColor, size: 20))),
+                    )
+                  : Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(sublabel, style: Theme.of(ctx).textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(cf.format(balance), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 10),
+            Icon(
+              isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+              color: isSelected ? AppTheme.goldPrimary : Theme.of(ctx).dividerColor,
+              size: 22,
+            ),
+          ],
         ),
       ),
     );
@@ -168,17 +264,25 @@ class _WealthScreenState extends State<WealthScreen> {
                         children: [
                           Text('Net Worth', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),
                           const SizedBox(height: 6),
-                          Text(cf.format(netWorth), style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -1)),
+                          Text(cf.format(netWorth), style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1.5)),
                           const SizedBox(height: 20),
-                          Container(height: 1, color: Colors.white.withOpacity(0.15)),
+                          Container(
+                            height: 1,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.white.withOpacity(0.25), Colors.transparent],
+                                stops: const [0.0, 1.0],
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           Text('All Time', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.w500)),
                           const SizedBox(height: 10),
                           Row(
                             children: [
                               _goldStatCol('Income', '+${cf.format(income)}', AppTheme.success),
-                              _goldStatCol('Expenses', '-${cf.format(expenses)}', const Color(0xFFFF8A80)),
-                              _goldStatCol('Balance', '${balance >= 0 ? '+' : ''}${cf.format(balance)}', balance >= 0 ? AppTheme.success : const Color(0xFFFF8A80)),
+                              _goldStatCol('Debt', '-${cf.format(totalDebt)}', const Color(0xFFFF8A80)),
+                              _goldStatCol('Net Worth', cf.format(netWorth), netWorth >= 0 ? AppTheme.success : const Color(0xFFFF8A80)),
                             ],
                           ),
                         ],
@@ -190,7 +294,7 @@ class _WealthScreenState extends State<WealthScreen> {
                 // ── Breakdown (clickable items) ──
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
                     child: Text('Breakdown', style: Theme.of(context).textTheme.titleLarge),
                   ),
                 ),
@@ -207,17 +311,9 @@ class _WealthScreenState extends State<WealthScreen> {
                             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen())),
                           ),
                           _buildBreakdownItem(
-                            context: context, cf: cf, icon: '💵', label: 'Cash on Hand', sublabel: 'From withdrawals',
+                            context: context, cf: cf, icon: '💵', label: 'Cash', sublabel: 'From withdrawals',
                             amount: totalCash, color: AppTheme.goldPrimary,
                             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashOnHandScreen())),
-                          ),
-                          _buildBreakdownItem(
-                            context: context, cf: cf, icon: '��', label: 'Savings', sublabel: 'Goals & sinking funds',
-                            amount: totalSavings, color: const Color(0xFFF59E0B),
-                            onTap: () {
-                              // Navigate to Budgets screen
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetsScreen()));
-                            },
                           ),
                           _buildBreakdownItem(
                             context: context, cf: cf, icon: '📈', label: 'Investments', sublabel: 'Stocks, funds, etc.',
@@ -235,7 +331,7 @@ class _WealthScreenState extends State<WealthScreen> {
                   ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
                 ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
             ),
           ),
@@ -270,8 +366,12 @@ class _WealthScreenState extends State<WealthScreen> {
             child: Row(
               children: [
                 Container(
-                  width: 42, height: 42,
-                  decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border(left: BorderSide(color: color, width: 3)),
+                  ),
                   child: Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
                 ),
                 const SizedBox(width: 14),

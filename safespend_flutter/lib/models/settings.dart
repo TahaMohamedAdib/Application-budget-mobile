@@ -6,6 +6,7 @@ class Settings {
   final bool isDarkMode;
   final String netWorthScope; // 'all' or specific account ID
   final String? selectedAccountId;
+  final bool? notificationsEnabled;
 
   Settings({
     this.currency = 'USD',
@@ -13,6 +14,7 @@ class Settings {
     this.isDarkMode = false,
     this.netWorthScope = 'all',
     this.selectedAccountId,
+    this.notificationsEnabled = true,
   });
 
   Settings copyWith({
@@ -21,6 +23,7 @@ class Settings {
     bool? isDarkMode,
     String? netWorthScope,
     String? selectedAccountId,
+    bool? notificationsEnabled,
   }) {
     return Settings(
       currency: currency ?? this.currency,
@@ -28,6 +31,7 @@ class Settings {
       isDarkMode: isDarkMode ?? this.isDarkMode,
       netWorthScope: netWorthScope ?? this.netWorthScope,
       selectedAccountId: selectedAccountId ?? this.selectedAccountId,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     );
   }
 
@@ -38,6 +42,7 @@ class Settings {
       'isDarkMode': isDarkMode,
       'netWorthScope': netWorthScope,
       'selectedAccountId': selectedAccountId,
+      'notificationsEnabled': notificationsEnabled,
     };
   }
 
@@ -48,6 +53,7 @@ class Settings {
       isDarkMode: json['isDarkMode'] ?? false,
       netWorthScope: json['netWorthScope'] ?? 'all',
       selectedAccountId: json['selectedAccountId'],
+      notificationsEnabled: json['notificationsEnabled'] ?? true,
     );
   }
 

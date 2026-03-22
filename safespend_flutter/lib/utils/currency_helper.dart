@@ -95,9 +95,9 @@ class CurrencyHelper {
   static NumberFormat formatter(String currencyCode) {
     final symbol = getSymbol(currencyCode);
     final noDecimals = {'JPY', 'KRW', 'VND', 'IDR', 'HUF', 'CLP', 'ISK', 'UGX', 'KHR', 'MMK', 'RWF', 'XOF', 'XAF', 'IQD', 'IRR', 'LBP'};
-    return NumberFormat.currency(
-      symbol: '$symbol ',
-      decimalDigits: noDecimals.contains(currencyCode) ? 0 : 2,
-    );
+    final decimals = noDecimals.contains(currencyCode) ? 0 : 2;
+    final decStr = decimals > 0 ? '.00' : '';
+    final escapedSymbol = symbol.replaceAll("'", "''");
+    return NumberFormat("#,##0$decStr '$escapedSymbol'", 'en_US');
   }
 }

@@ -56,7 +56,7 @@ class CashOnHandScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text('Cash on Hand', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        Text('Cash', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                       ],
                     ),
                   ).animate().fadeIn(duration: 400.ms),
@@ -76,11 +76,11 @@ class CashOnHandScreen extends StatelessWidget {
                             children: [
                               const Icon(Icons.payments_rounded, color: Colors.white, size: 22),
                               const SizedBox(width: 10),
-                              Text('Total Cash on Hand', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w500)),
+                              Text('Total Cash', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w500)),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Text(cf.format(totalCash), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700, letterSpacing: -1)),
+                          Text(cf.format(totalCash), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1.5)),
                           const SizedBox(height: 8),
                           Text(
                             'From withdrawals, income & transactions',
@@ -95,7 +95,7 @@ class CashOnHandScreen extends StatelessWidget {
                 // Transaction History Header
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
                     child: Row(
                       children: [
                         Text('Cash Transactions', style: Theme.of(context).textTheme.titleLarge),
@@ -116,7 +116,7 @@ class CashOnHandScreen extends StatelessWidget {
                             decoration: AppTheme.premiumCard(context),
                             child: Column(
                               children: [
-                                Icon(Icons.payments_rounded, size: 48, color: Theme.of(context).textTheme.bodySmall?.color),
+                                Icon(Icons.payments_rounded, size: 72, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
                                 const SizedBox(height: 16),
                                 Text('No cash transactions yet', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 6),
@@ -168,10 +168,10 @@ class CashOnHandScreen extends StatelessWidget {
                                       child: Row(
                                         children: [
                                           Container(
-                                            width: 42, height: 42,
+                                            width: 44, height: 44,
                                             decoration: BoxDecoration(
-                                              color: (addsCash ? AppTheme.success : AppTheme.error).withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(12),
+                                              color: (addsCash ? AppTheme.success : AppTheme.error).withOpacity(0.12),
+                                              borderRadius: BorderRadius.circular(14),
                                             ),
                                             child: Icon(
                                               addsCash ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
@@ -210,7 +210,7 @@ class CashOnHandScreen extends StatelessWidget {
                         ),
                       ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
             ),
           ),
