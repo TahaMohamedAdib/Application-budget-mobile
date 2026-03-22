@@ -168,45 +168,71 @@ class HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Text('Balance Evolution', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 16),
+                            // ── Metric cards ──
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Flexible(
-                                  child: Text('Balance Evolution', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
-                                ),
+                                _metricCard(context, 'Balance actuelle', currencyFormat.format(_getAccountBalance(provider)), const Color(0xFF1D9E75)),
                                 const SizedBox(width: 8),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
-                                    final isActive = _selectedTimeframe == tf;
-                                    return GestureDetector(
-                                      onTap: () => setState(() => _selectedTimeframe = tf),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        margin: const EdgeInsets.only(left: 3),
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: isActive ? AppTheme.goldPrimary : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          tf.toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
+                                _metricCard(context, 'Dépenses / mois', currencyFormat.format(_getMonthlyExpenses(provider)), const Color(0xFFE24B4A)),
+                                const SizedBox(width: 8),
+                                _metricCard(
+                                  context,
+                                  'Épargne nette',
+                                  (_getMonthlyIncome(provider) - _getMonthlyExpenses(provider) >= 0 ? '+' : '') +
+                                      currencyFormat.format(_getMonthlyIncome(provider) - _getMonthlyExpenses(provider)),
+                                  const Color(0xFF185FA5),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
+                            // ── Period pills ──
+                            Row(
+                              children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
+                                final isActive = _selectedTimeframe == tf;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _selectedTimeframe = tf),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 180),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: isActive ? const Color(0xFF185FA5) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: isActive ? const Color(0xFF185FA5) : const Color(0xFFCCCCCC),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        tf.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 16),
                             SizedBox(
-                              height: 180,
+                              height: 260,
                               child: _buildBalanceChart(provider, isDark),
+                            ),
+                            const SizedBox(height: 12),
+                            // ── Legend ──
+                            Row(
+                              children: [
+                                _legendDot(const Color(0xFF1D9E75), 'Balance'),
+                                const SizedBox(width: 16),
+                                _legendDot(const Color(0xFFE24B4A), 'Revenu entrant'),
+                                const SizedBox(width: 16),
+                                _legendDot(const Color(0xFFBA7517), 'Seuil safe'),
+                              ],
                             ),
                           ],
                         ),
@@ -502,6 +528,10 @@ class HomeScreenState extends State<HomeScreen> {
 
   // ── Balance Chart ──
   Widget _buildBalanceChart(AppProvider provider, bool isDark) {
+    const kGreen = Color(0xFF1D9E75);
+    const kRed = Color(0xFFE24B4A);
+    const kAmber = Color(0xFFBA7517);
+
     final spots = _computeBalanceSpots(provider);
     if (spots.isEmpty || spots.length < 2) {
       return Center(child: Text('Not enough data', style: Theme.of(context).textTheme.bodySmall));
@@ -510,6 +540,9 @@ class HomeScreenState extends State<HomeScreen> {
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final range = maxY - minY;
     final padding = range == 0 ? 100.0 : range * 0.15;
+
+    // Dynamic safe threshold at the lower 30 % of the balance range
+    final safeThreshold = minY + (range == 0 ? 100 : range * 0.30);
 
     final cf = CurrencyHelper.formatter(provider.settings.currency);
     final now = DateTime.now();
@@ -524,7 +557,69 @@ class HomeScreenState extends State<HomeScreen> {
     }
     final numPoints = spots.length;
     final totalDuration = now.difference(chartStart);
-    final intervalMs = totalDuration.inMilliseconds / (numPoints - 1);
+    final intervalMs = numPoints > 1 ? totalDuration.inMilliseconds / (numPoints - 1) : 1.0;
+
+    // Detect income spike indices: delta > 1.5× average positive delta
+    final positiveDeltas = <double>[];
+    for (int i = 1; i < spots.length; i++) {
+      final d = spots[i].y - spots[i - 1].y;
+      if (d > 0) positiveDeltas.add(d);
+    }
+    final avgDelta = positiveDeltas.isEmpty
+        ? double.infinity
+        : positiveDeltas.reduce((a, b) => a + b) / positiveDeltas.length;
+    final spikeIndices = <int>{};
+    for (int i = 1; i < spots.length; i++) {
+      if (spots[i].y - spots[i - 1].y >= avgDelta * 1.5) spikeIndices.add(i);
+    }
+
+    // Split into green (≥ threshold) and red (< threshold) with bridge points
+    final greenSpots = <FlSpot>[];
+    final redSpots = <FlSpot>[];
+    for (final s in spots) {
+      if (s.y >= safeThreshold) {
+        greenSpots.add(s);
+        if (redSpots.isNotEmpty) redSpots.add(s);
+      } else {
+        redSpots.add(s);
+        if (greenSpots.isNotEmpty) greenSpots.add(s);
+      }
+    }
+
+    FlDotData dotData() => FlDotData(
+      show: true,
+      getDotPainter: (spot, _, __, index) {
+        final originalIndex = spots.indexWhere((s) => s.x == spot.x && s.y == spot.y);
+        if (spikeIndices.contains(originalIndex)) {
+          return FlDotCirclePainter(
+            radius: 5, color: kRed, strokeWidth: 2, strokeColor: Colors.white,
+          );
+        }
+        return FlDotCirclePainter(radius: 0, color: Colors.transparent);
+      },
+    );
+
+    LineChartBarData barData(List<FlSpot> s, Color color) => LineChartBarData(
+      spots: s,
+      isCurved: true,
+      curveSmoothness: 0.45,
+      color: color,
+      barWidth: 2.5,
+      isStrokeCapRound: true,
+      dotData: dotData(),
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [color.withOpacity(0.35), color.withOpacity(0.0)],
+        ),
+      ),
+    );
+
+    final lineBars = <LineChartBarData>[];
+    if (greenSpots.isNotEmpty) lineBars.add(barData(greenSpots, kGreen));
+    if (redSpots.isNotEmpty) lineBars.add(barData(redSpots, kRed));
 
     String formatYLabel(double v) {
       if (v.abs() >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
@@ -534,14 +629,36 @@ class HomeScreenState extends State<HomeScreen> {
 
     return LineChart(
       LineChartData(
+        minX: 0,
+        maxX: (numPoints - 1).toDouble(),
+        minY: minY - padding,
+        maxY: maxY + padding,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
           horizontalInterval: range == 0 ? 100 : range / 4,
-          getDrawingHorizontalLine: (value) => FlLine(
+          getDrawingHorizontalLine: (_) => FlLine(
             color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
             strokeWidth: 1,
           ),
+        ),
+        borderData: FlBorderData(show: false),
+        extraLinesData: ExtraLinesData(
+          horizontalLines: [
+            HorizontalLine(
+              y: safeThreshold,
+              color: kAmber,
+              strokeWidth: 1.5,
+              dashArray: [6, 4],
+              label: HorizontalLineLabel(
+                show: true,
+                alignment: Alignment.topRight,
+                padding: const EdgeInsets.only(right: 6, bottom: 4),
+                style: const TextStyle(fontSize: 10, color: kAmber, fontWeight: FontWeight.w600),
+                labelResolver: (_) => 'Seuil ${cf.format(safeThreshold)}',
+              ),
+            ),
+          ],
         ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -585,36 +702,71 @@ class HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        borderData: FlBorderData(show: false),
         lineTouchData: LineTouchData(
+          handleBuiltInTouches: true,
           touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (spots) => spots.map((s) {
-              return LineTooltipItem(cf.format(s.y), const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12));
-            }).toList(),
+            getTooltipColor: (_) => const Color(0xFF1E2A38),
+            tooltipRoundedRadius: 8,
+            getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
+              cf.format(s.y),
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            )).toList(),
           ),
         ),
-        minY: minY - padding,
-        maxY: maxY + padding,
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            curveSmoothness: 0.3,
-            color: AppTheme.goldPrimary,
-            barWidth: 2.5,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [AppTheme.goldPrimary.withOpacity(0.25), AppTheme.goldPrimary.withOpacity(0.0)],
-              ),
-            ),
-          ),
-        ],
+        lineBarsData: lineBars,
       ),
+    );
+  }
+
+  // ── Metric helpers ──
+
+  double _getMonthlyExpenses(AppProvider provider) {
+    final startOfMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+    return provider.transactions.where((t) {
+      if (_selectedAccountId != null && t.accountId != _selectedAccountId) return false;
+      final d = DateTime.parse(t.date);
+      return (t.type == 'expense' || t.type == 'withdrawal') && d.isAfter(startOfMonth);
+    }).fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double _getMonthlyIncome(AppProvider provider) {
+    final startOfMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+    return provider.transactions.where((t) {
+      if (_selectedAccountId != null && t.accountId != _selectedAccountId) return false;
+      final d = DateTime.parse(t.date);
+      return t.type == 'income' && d.isAfter(startOfMonth);
+    }).fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  Widget _metricCard(BuildContext context, String label, String value, Color valueColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E2E) : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 9.5, color: Color(0xFF888888)), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            Text(value, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: valueColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 5),
+        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
+      ],
     );
   }
 
