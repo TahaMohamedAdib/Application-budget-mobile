@@ -22,6 +22,7 @@ class AppProvider with ChangeNotifier {
   bool _isLoading = true;
   bool _localDataLoaded = false;
   bool _supabaseDataLoaded = false;
+  bool _supabaseLoadInProgress = false;
 
   bool _setupComplete = false;
 
@@ -50,6 +51,8 @@ class AppProvider with ChangeNotifier {
   /// Load ALL data from Supabase for the authenticated user.
   /// Falls back to SharedPreferences if not authenticated or on error.
   Future<void> loadFromSupabase(String userId) async {
+    if (_supabaseLoadInProgress) return;
+    _supabaseLoadInProgress = true;
     _isLoading = true;
     notifyListeners();
 
@@ -66,6 +69,7 @@ class AppProvider with ChangeNotifier {
 
       _isLoading = false;
       _supabaseDataLoaded = true;
+      _supabaseLoadInProgress = false;
 
       // Auto-skip onboarding if user already has data in Supabase
       if (_accounts.isNotEmpty && !_setupComplete) {
@@ -83,11 +87,13 @@ class AppProvider with ChangeNotifier {
     } catch (e) {
       print('[AppProvider] Error loading from Supabase, falling back to local: $e');
       _supabaseDataLoaded = true; // mark as done even on error to avoid retry loops
+      _supabaseLoadInProgress = false;
       await loadData();
     }
   }
 
-  /// Clear all data (used on sign out).
+  /// Clear all data (used on sign out). Resets flags so the next user
+  /// can load their own data from Supabase cleanly.
   void clearData() {
     _accounts = [];
     _transactions = [];
@@ -97,7 +103,24 @@ class AppProvider with ChangeNotifier {
     _goals = [];
     _settings = Settings();
     _isLoading = false;
+    _supabaseDataLoaded = false;
+    _localDataLoaded = false;
+    _setupComplete = false;
+    _supabaseLoadInProgress = false;
     notifyListeners();
+    _clearLocalCache();
+  }
+
+  Future<void> _clearLocalCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('accounts');
+    await prefs.remove('transactions');
+    await prefs.remove('settings');
+    await prefs.remove('recurringRules');
+    await prefs.remove('holdings');
+    await prefs.remove('goals');
+    await prefs.remove('categories');
+    await prefs.remove('setup_complete');
   }
 
   // ============================================
