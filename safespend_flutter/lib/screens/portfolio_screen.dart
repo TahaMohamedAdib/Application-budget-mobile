@@ -631,31 +631,27 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                   ...List.generate(_ranges.length, (i) {
                     final r = _ranges[i];
                     final selected = widget.range == r;
-                    return GestureDetector(
-                      onTap: () => widget.onRangeChanged(r),
-                      child: Container(
-                        margin: const EdgeInsets.only(left: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? lineColor.withValues(alpha: 0.15)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _rangeLabels[i],
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: selected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: selected
-                                ? lineColor
-                                : Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color,
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: GestureDetector(
+                        onTap: () => widget.onRangeChanged(r),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: selected ? const Color(0xFF185FA5) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: selected ? const Color(0xFF185FA5) : const Color(0xFFCCCCCC),
+                            ),
+                          ),
+                          child: Text(
+                            _rangeLabels[i],
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: selected ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+                            ),
                           ),
                         ),
                       ),
@@ -710,7 +706,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
 
             // ── Chart area
             SizedBox(
-              height: 150,
+              height: 220,
               child: widget.loading
                   ? Center(
                       child: SizedBox(
@@ -749,24 +745,104 @@ class _PortfolioChartState extends State<_PortfolioChart> {
             style: Theme.of(context).textTheme.bodySmall),
       );
     }
+    final range = maxY - minY;
+    final safeThreshold = minY + (range == 0 ? 0 : range * 0.30);
+    const kGreen = Color(0xFF1D9E75);
+    const kRed = Color(0xFFE24B4A);
+    const kAmber = Color(0xFFBA7517);
+
+    // Split spots: above threshold = green, below = red
+    final allSpots = List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value));
+    final greenSpots = <FlSpot>[];
+    final redSpots = <FlSpot>[];
+    for (final s in allSpots) {
+      if (s.y >= safeThreshold) {
+        greenSpots.add(s);
+        if (redSpots.isNotEmpty) redSpots.add(s);
+      } else {
+        redSpots.add(s);
+        if (greenSpots.isNotEmpty) greenSpots.add(s);
+      }
+    }
+
+    LineChartBarData barData(List<FlSpot> s, Color color) => LineChartBarData(
+      spots: s,
+      isCurved: true,
+      curveSmoothness: 0.45,
+      color: color,
+      barWidth: 2.5,
+      isStrokeCapRound: true,
+      dotData: FlDotData(
+        show: _touchedIndex != null,
+        getDotPainter: (spot, _, __, index) {
+          final originalIndex = allSpots.indexWhere((p) => p.x == spot.x && p.y == spot.y);
+          return FlDotCirclePainter(
+            radius: originalIndex == _touchedIndex ? 5 : 0,
+            color: color,
+            strokeWidth: 2,
+            strokeColor: isDark ? Colors.black : Colors.white,
+          );
+        },
+      ),
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [color.withValues(alpha: 0.35), color.withValues(alpha: 0.0)],
+        ),
+      ),
+    );
+
+    final lineBars = <LineChartBarData>[];
+    if (greenSpots.isNotEmpty) lineBars.add(barData(greenSpots, kGreen));
+    if (redSpots.isNotEmpty) lineBars.add(barData(redSpots, kRed));
+
     return LineChart(
       LineChartData(
         minX: 0,
         maxX: (points.length - 1).toDouble(),
         minY: minY,
         maxY: maxY,
-        gridData: const FlGridData(show: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: range == 0 ? 100 : range / 4,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+            strokeWidth: 1,
+          ),
+        ),
         borderData: FlBorderData(show: false),
         titlesData: const FlTitlesData(show: false),
+        extraLinesData: ExtraLinesData(
+          horizontalLines: [
+            HorizontalLine(
+              y: safeThreshold,
+              color: kAmber,
+              strokeWidth: 1.5,
+              dashArray: [6, 4],
+              label: HorizontalLineLabel(
+                show: true,
+                alignment: Alignment.topRight,
+                padding: const EdgeInsets.only(right: 6, bottom: 4),
+                style: const TextStyle(fontSize: 10, color: kAmber, fontWeight: FontWeight.w600),
+                labelResolver: (_) => 'Seuil',
+              ),
+            ),
+          ],
+        ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => Colors.transparent,
-            tooltipPadding: EdgeInsets.zero,
-            getTooltipItems: (_) => [],
+            getTooltipColor: (_) => const Color(0xFF1E2A38),
+            tooltipRoundedRadius: 8,
+            getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
+              '\$${s.y.toStringAsFixed(2)}',
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            )).toList(),
           ),
           touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
-            if (response?.lineBarSpots != null &&
-                response!.lineBarSpots!.isNotEmpty) {
+            if (response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
               final idx = response.lineBarSpots!.first.x.round();
               if (idx >= 0 && idx < points.length) {
                 setState(() {
@@ -774,9 +850,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                   _hoveredPoint = points[idx];
                 });
               }
-            } else if (event is FlTapUpEvent ||
-                event is FlLongPressEnd ||
-                event is FlPanEndEvent) {
+            } else if (event is FlTapUpEvent || event is FlLongPressEnd || event is FlPanEndEvent) {
               setState(() {
                 _touchedIndex = null;
                 _hoveredPoint = null;
@@ -785,36 +859,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
           },
           handleBuiltInTouches: true,
         ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: List.generate(
-                points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
-            isCurved: true,
-            curveSmoothness: 0.3,
-            color: lineColor,
-            barWidth: 2.5,
-            dotData: FlDotData(
-              show: _touchedIndex != null,
-              getDotPainter: (spot, _, __, index) => FlDotCirclePainter(
-                radius: index == _touchedIndex ? 5 : 0,
-                color: lineColor,
-                strokeWidth: 2,
-                strokeColor: isDark ? Colors.black : Colors.white,
-              ),
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  lineColor.withValues(alpha: 0.25),
-                  lineColor.withValues(alpha: 0.0),
-                ],
-              ),
-            ),
-          ),
-        ],
+        lineBarsData: lineBars,
       ),
       duration: const Duration(milliseconds: 300),
     );

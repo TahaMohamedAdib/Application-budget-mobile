@@ -405,19 +405,36 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildChartHeader(context, chartLabel, cf, totalAmount, isDark),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             SizedBox(
-              height: 180,
+              height: 260,
               child: LineChart(
                 LineChartData(
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: range == 0 ? 100 : range / 4,
-                    getDrawingHorizontalLine: (value) => FlLine(
+                    getDrawingHorizontalLine: (_) => FlLine(
                       color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
                       strokeWidth: 1,
                     ),
+                  ),
+                  extraLinesData: ExtraLinesData(
+                    horizontalLines: [
+                      HorizontalLine(
+                        y: minY + (range == 0 ? 100 : range * 0.30),
+                        color: const Color(0xFFBA7517),
+                        strokeWidth: 1.5,
+                        dashArray: [6, 4],
+                        label: HorizontalLineLabel(
+                          show: true,
+                          alignment: Alignment.topRight,
+                          padding: const EdgeInsets.only(right: 6, bottom: 4),
+                          style: const TextStyle(fontSize: 10, color: Color(0xFFBA7517), fontWeight: FontWeight.w600),
+                          labelResolver: (_) => 'Seuil ${cf.format(minY + (range == 0 ? 100 : range * 0.30))}',
+                        ),
+                      ),
+                    ],
                   ),
                   titlesData: FlTitlesData(
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -463,10 +480,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                   borderData: FlBorderData(show: false),
                   lineTouchData: LineTouchData(
+                    handleBuiltInTouches: true,
                     touchTooltipData: LineTouchTooltipData(
-                      getTooltipItems: (touchedSpots) => touchedSpots.map((s) {
-                        return LineTooltipItem(cf.format(s.y), const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12));
-                      }).toList(),
+                      getTooltipColor: (_) => const Color(0xFF1E2A38),
+                      tooltipRoundedRadius: 8,
+                      getTooltipItems: (touchedSpots) => touchedSpots.map((s) =>
+                        LineTooltipItem(cf.format(s.y), const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                      ).toList(),
                     ),
                   ),
                   minY: (minY - yPadding).clamp(0.0, double.infinity),
@@ -475,7 +495,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     LineChartBarData(
                       spots: spots,
                       isCurved: true,
-                      curveSmoothness: 0.3,
+                      curveSmoothness: 0.45,
                       color: lineColor,
                       barWidth: 2.5,
                       isStrokeCapRound: true,
@@ -485,13 +505,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [lineColor.withOpacity(0.25), lineColor.withOpacity(0.0)],
+                          colors: [lineColor.withOpacity(0.35), lineColor.withOpacity(0.0)],
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _chartLegendDot(lineColor, chartLabel),
+                const SizedBox(width: 16),
+                _chartLegendDot(const Color(0xFFBA7517), 'Seuil'),
+              ],
             ),
           ],
         ),
@@ -514,30 +542,44 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         Row(
           children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
             final isActive = _chartTimeframe == tf;
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            return GestureDetector(
-              onTap: () => setState(() => _chartTimeframe = tf),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(left: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: isActive ? AppTheme.goldPrimary : (isDark ? AppTheme.darkSurfaceElevated : Colors.transparent),
-                  borderRadius: BorderRadius.circular(8),
-                  border: isActive ? null : Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
-                ),
-                child: Text(
-                  tf.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+            return Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: GestureDetector(
+                onTap: () => setState(() => _chartTimeframe = tf),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isActive ? const Color(0xFF185FA5) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isActive ? const Color(0xFF185FA5) : const Color(0xFFCCCCCC),
+                    ),
+                  ),
+                  child: Text(
+                    tf.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+                    ),
                   ),
                 ),
               ),
             );
           }).toList(),
         ),
+      ],
+    );
+  }
+
+  Widget _chartLegendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 5),
+        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
       ],
     );
   }
