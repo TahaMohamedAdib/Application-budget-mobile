@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'image_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'supabase_config.dart';
@@ -231,8 +233,12 @@ class SupabaseSyncService {
     try {
       final file = File(localPath);
       if (!await file.exists()) return null;
-      final bytes = await file.readAsBytes();
-      final ext = localPath.split('.').last.toLowerCase();
+
+      // Receipts/photos are compressed before upload to save storage space.
+      // All image uploads (receipts and logos) are compressed before storing.
+      final Uint8List bytes = await ImageService.compressReceipt(localPath);
+      const String ext = 'jpg';
+
       final fileName = '$userId/${const Uuid().v4()}.$ext';
       await _db.storage.from(bucket).uploadBinary(
         fileName,

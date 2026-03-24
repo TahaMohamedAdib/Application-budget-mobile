@@ -33,6 +33,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       final t = widget.initialTransaction!;
       _amountController.text = t.amount.toString();
       _noteController.text = t.note ?? '';
+      _descriptionController.text = t.description ?? '';
       _selectedCategoryId = t.categoryId;
       _selectedAccountId = t.accountId;
       _selectedDate = DateTime.parse(t.date);
@@ -42,6 +43,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
 
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _recipientController = TextEditingController();
   String? _selectedAccountId;
   String? _selectedToAccountId;
@@ -59,6 +61,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   void dispose() {
     _amountController.dispose();
     _noteController.dispose();
+    _descriptionController.dispose();
     _recipientController.dispose();
     super.dispose();
   }
@@ -267,7 +270,10 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     label: _selectedType == 'transfer' ? 'From' : (_selectedType == 'withdrawal' ? 'Withdraw From' : 'Account'),
                     icon: Icons.account_balance_wallet_rounded,
                     showCashOnHand: _selectedType != 'withdrawal',
-                    onChanged: (value) => setState(() => _selectedAccountId = value),
+                    onChanged: (value) => setState(() {
+                      _selectedAccountId = value;
+                      _selectedToAccountId = null; // reset To when From changes
+                    }),
                   ),
                   const SizedBox(height: 16),
 
@@ -313,7 +319,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                         value: _selectedToAccountId,
                         label: 'To',
                         icon: Icons.account_balance_rounded,
-                        showCashOnHand: true,
+                        showCashOnHand: false,
                         excludeId: _selectedAccountId,
                         onChanged: (value) => setState(() => _selectedToAccountId = value),
                       )
@@ -500,14 +506,27 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                   // Title / Note
                   TextField(
                     controller: _noteController,
-                    maxLines: 2,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: 'Title (Optional)',
                       hintText: 'e.g., Netflix, Groceries...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                       filled: true,
-                      prefixIcon: const Icon(Icons.note_rounded),
+                      prefixIcon: const Icon(Icons.title_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Description
+                  TextField(
+                    controller: _descriptionController,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: 'Description (Optional)',
+                      hintText: 'e.g., Monthly plan, Morning coffee...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      filled: true,
+                      prefixIcon: const Icon(Icons.notes_rounded),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -661,70 +680,196 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     required ValueChanged<String?> onChanged,
     String? excludeId,
   }) {
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
-    final items = <DropdownMenuItem<String>>[];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cf     = CurrencyHelper.formatter(provider.settings.currency);
 
-    // Add Cash option
-    if (showCashOnHand) {
-      items.add(DropdownMenuItem(
-        value: AppProvider.cashOnHandId,
-        child: Row(
-          children: [
-            const Icon(Icons.payments_rounded, size: 18, color: AppTheme.warning),
-            const SizedBox(width: 8),
-            const Text('Cash'),
-            const Spacer(),
-            Text(cf.format(provider.totalCash), style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
-          ],
-        ),
-      ));
+    // Determine display info for current selection
+    String selName    = 'Select account';
+    String? selBal;
+    Widget  selIcon   = Icon(icon, size: 20, color: Theme.of(context).textTheme.bodySmall?.color);
+
+    if (value == AppProvider.cashOnHandId) {
+      selName  = 'Cash';
+      selBal   = cf.format(provider.totalCash);
+      selIcon  = const Icon(Icons.payments_rounded, size: 20, color: AppTheme.warning);
+    } else if (value != null) {
+      final acc = provider.accounts.where((a) => a.id == value).firstOrNull;
+      if (acc != null) {
+        selName = acc.name;
+        selBal  = cf.format(acc.balance);
+        selIcon = acc.imagePath != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: Image.file(File(acc.imagePath!), width: 20, height: 20, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary)),
+              )
+            : Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary);
+      }
+    } else if (showCashOnHand) {
+      // Auto-default to cash if nothing else selected
+      WidgetsBinding.instance.addPostFrameCallback((_) => onChanged(AppProvider.cashOnHandId));
+    } else if (provider.accounts.isNotEmpty) {
+      final first = provider.accounts.firstWhere(
+        (a) => excludeId == null || a.id != excludeId,
+        orElse: () => provider.accounts.first,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => onChanged(first.id));
     }
 
-    // Add real accounts
-    for (final account in provider.accounts) {
-      if (excludeId != null && account.id == excludeId) continue;
-      items.add(DropdownMenuItem(
-        value: account.id,
+    return GestureDetector(
+      onTap: () => _showAccountSheet(
+        provider: provider,
+        currentValue: value,
+        label: label,
+        showCashOnHand: showCashOnHand,
+        excludeId: excludeId,
+        onChanged: onChanged,
+        cf: cf,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.6)),
+          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF8F8F8),
+        ),
         child: Row(
           children: [
-            SizedBox(
-              width: 22, height: 22,
-              child: account.imagePath != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
-                      child: Image.file(File(account.imagePath!), fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(_accountIcon(account.type), size: 18, color: AppTheme.goldPrimary)),
-                    )
-                  : Icon(_accountIcon(account.type), size: 18, color: AppTheme.goldPrimary),
+            selIcon,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 1),
+                  Text(selName, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            if (selBal != null) ...[
+              Text(selBal, style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodySmall?.color)),
+              const SizedBox(width: 6),
+            ],
+            Icon(Icons.expand_more_rounded, size: 20, color: Theme.of(context).textTheme.bodySmall?.color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAccountSheet({
+    required AppProvider provider,
+    required String? currentValue,
+    required String label,
+    required bool showCashOnHand,
+    required String? excludeId,
+    required ValueChanged<String?> onChanged,
+    required NumberFormat cf,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
+              const SizedBox(height: 16),
+              Text(label, style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              if (showCashOnHand)
+                _buildAccountSheetRow(
+                  ctx: ctx, isDark: isDark,
+                  iconWidget: const Icon(Icons.payments_rounded, size: 20, color: AppTheme.warning),
+                  iconBg: AppTheme.warning.withOpacity(0.12),
+                  name: 'Cash',
+                  sublabel: 'Cash on hand',
+                  balance: cf.format(provider.totalCash),
+                  isSelected: currentValue == AppProvider.cashOnHandId,
+                  onTap: () { onChanged(AppProvider.cashOnHandId); Navigator.pop(ctx); },
+                ),
+              ...provider.accounts
+                  .where((a) => excludeId == null || a.id != excludeId)
+                  .map((a) {
+                final iconW = a.imagePath != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.file(File(a.imagePath!), width: 22, height: 22, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary)),
+                      )
+                    : Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary);
+                return _buildAccountSheetRow(
+                  ctx: ctx, isDark: isDark,
+                  iconWidget: iconW,
+                  iconBg: AppTheme.goldPrimary.withOpacity(0.12),
+                  name: a.name,
+                  sublabel: a.bankName ?? (a.type[0].toUpperCase() + a.type.substring(1)),
+                  balance: cf.format(a.balance),
+                  isSelected: currentValue == a.id,
+                  onTap: () { onChanged(a.id); Navigator.pop(ctx); },
+                );
+              }),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountSheetRow({
+    required BuildContext ctx,
+    required bool isDark,
+    required Widget iconWidget,
+    required Color iconBg,
+    required String name,
+    required String sublabel,
+    required String balance,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(14)),
+              child: Center(child: iconWidget),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(sublabel, style: Theme.of(ctx).textTheme.bodySmall),
+                ],
+              ),
             ),
             const SizedBox(width: 8),
-            Text(account.name),
-            const Spacer(),
-            Text(cf.format(account.balance), style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
+            Text(balance, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 10),
+            Icon(
+              isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              color: isSelected ? AppTheme.goldPrimary : Theme.of(ctx).dividerColor,
+              size: 22,
+            ),
           ],
         ),
-      ));
-    }
-
-    // Default selection
-    if (value == null && items.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        onChanged(items.first.value);
-      });
-    }
-
-    return DropdownButtonFormField<String>(
-      value: value,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-        filled: true,
-        prefixIcon: Icon(icon),
       ),
-      hint: const Text('Select account'),
-      items: items,
-      onChanged: onChanged,
     );
   }
 
@@ -814,6 +959,8 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       if (cat != null) note = cat.name;
     }
 
+    final description = _descriptionController.text.isEmpty ? null : _descriptionController.text;
+
     // If editing an existing transaction
     if (widget.initialTransaction != null) {
       final transaction = Transaction(
@@ -822,6 +969,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
         amount: amount,
         date: _selectedDate.toIso8601String(),
         note: note,
+        description: description,
         categoryId: _selectedCategoryId,
         accountId: _selectedAccountId!,
         toAccountId: _sendToPerson ? null : _selectedToAccountId,
@@ -907,6 +1055,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       amount: amount,
       date: _selectedDate.toIso8601String(),
       note: note,
+      description: description,
       categoryId: _selectedCategoryId,
       accountId: _selectedAccountId!,
       toAccountId: _sendToPerson ? null : _selectedToAccountId,

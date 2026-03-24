@@ -49,9 +49,9 @@ app.*.map.json
 fix-user-data-loading.patch
 *.patch
 
-# Bloque le dossier Node local et les dépendances
+# Bloque le dossier Node local et les dÃ©pendances
 nodejs22/
 node_modules/
 
-# Bloque les bases de données SQLite/locales
+# Bloque les bases de donnÃ©es SQLite/locales
 *.db

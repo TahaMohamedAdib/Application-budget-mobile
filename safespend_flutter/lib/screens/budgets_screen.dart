@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils/currency_helper.dart';
 import '../providers/app_provider.dart';
@@ -191,42 +192,41 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           } else {
                             statusColor = Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey;
                           }
-                          return Dismissible(
+                          return Slidable(
                             key: Key(cat.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              color: Colors.transparent,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 16),
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: const BoxDecoration(
-                                  color: AppTheme.error,
-                                  shape: BoxShape.circle,
+                            endActionPane: ActionPane(
+                              motion: const DrawerMotion(),
+                              extentRatio: 0.22,
+                              children: [
+                                CustomSlidableAction(
+                                  onPressed: (_) async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (dCtx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                        title: const Text('Delete Category?'),
+                                        content: Text('Delete "${cat.name}"? This cannot be undone.'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dCtx, true),
+                                            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    ) ?? false;
+                                    if (confirmed) provider.deleteCategory(cat.id);
+                                  },
+                                  backgroundColor: Colors.transparent,
+                                  child: Container(
+                                    width: 48, height: 48,
+                                    decoration: const BoxDecoration(color: AppTheme.error, shape: BoxShape.circle),
+                                    child: const Icon(Icons.delete_rounded, color: Colors.white, size: 20),
+                                  ),
                                 ),
-                                child: const Icon(Icons.delete_rounded, color: Colors.white, size: 22),
-                              ),
+                              ],
                             ),
-                            confirmDismiss: (_) async {
-                              return await showDialog<bool>(
-                                context: context,
-                                builder: (dCtx) => AlertDialog(
-                                  title: const Text('Delete Category?'),
-                                  content: Text('Delete "${cat.name}"? This cannot be undone.'),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(dCtx, true),
-                                      style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              ) ?? false;
-                            },
-                            onDismissed: (_) => provider.deleteCategory(cat.id),
                             child: Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: GestureDetector(

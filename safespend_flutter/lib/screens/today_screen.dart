@@ -31,7 +31,6 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() => _activeFilter = 'all');
   }
   bool _balanceVisible = true;
-  String? _selectedAccountId; // null means "All Accounts"
   String _selectedTimeframe = '1m';
 
   @override
@@ -71,7 +70,7 @@ class HomeScreenState extends State<HomeScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  _selectedAccountId == null ? Icons.account_balance_wallet_rounded : _getAccountIcon(provider),
+                                  provider.selectedAccountId == null ? Icons.account_balance_wallet_rounded : _getAccountIcon(provider),
                                   size: 16, color: AppTheme.goldPrimary,
                                 ),
                                 const SizedBox(width: 8),
@@ -148,7 +147,7 @@ class HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _selectedAccountId == null ? 'All accounts combined' : _getSelectedAccountName(provider),
+                              provider.selectedAccountId == null ? 'All accounts combined' : _getSelectedAccountName(provider),
                               style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.6)),
                             ),
                           ],
@@ -164,75 +163,74 @@ class HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                       child: Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: AppTheme.premiumCard(context),
+                        decoration: AppTheme.goldCard(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Balance Evolution', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 16),
-                            // ── Metric cards ──
+                            // ── Header: title + balance left, time pills right ──
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _metricCard(context, 'Balance actuelle', currencyFormat.format(_getAccountBalance(provider)), const Color(0xFF1D9E75)),
-                                const SizedBox(width: 8),
-                                _metricCard(context, 'Dépenses / mois', currencyFormat.format(_getMonthlyExpenses(provider)), const Color(0xFFE24B4A)),
-                                const SizedBox(width: 8),
-                                _metricCard(
-                                  context,
-                                  'Épargne nette',
-                                  (_getMonthlyIncome(provider) - _getMonthlyExpenses(provider) >= 0 ? '+' : '') +
-                                      currencyFormat.format(_getMonthlyIncome(provider) - _getMonthlyExpenses(provider)),
-                                  const Color(0xFF185FA5),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Balance Evolution',
+                                        style: const TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        currencyFormat.format(_getAccountBalance(provider)),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
+                                    final isActive = _selectedTimeframe == tf;
+                                    return GestureDetector(
+                                      onTap: () => setState(() => _selectedTimeframe = tf),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        margin: const EdgeInsets.only(left: 4),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: isActive
+                                              ? AppTheme.goldPrimary
+                                              : Colors.white.withOpacity(0.08),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          tf.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: isActive ? Colors.white : Colors.white60,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-                            // ── Period pills ──
-                            Row(
-                              children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
-                                final isActive = _selectedTimeframe == tf;
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _selectedTimeframe = tf),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 180),
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                      decoration: BoxDecoration(
-                                        color: isActive ? const Color(0xFF185FA5) : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: isActive ? const Color(0xFF185FA5) : const Color(0xFFCCCCCC),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        tf.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
                             SizedBox(
-                              height: 260,
+                              height: 200,
                               child: _buildBalanceChart(provider, isDark),
-                            ),
-                            const SizedBox(height: 12),
-                            // ── Legend ──
-                            Row(
-                              children: [
-                                _legendDot(const Color(0xFF1D9E75), 'Balance'),
-                                const SizedBox(width: 16),
-                                _legendDot(const Color(0xFFE24B4A), 'Revenu entrant'),
-                                const SizedBox(width: 16),
-                                _legendDot(const Color(0xFFBA7517), 'Seuil safe'),
-                              ],
                             ),
                           ],
                         ),
@@ -528,21 +526,15 @@ class HomeScreenState extends State<HomeScreen> {
 
   // ── Balance Chart ──
   Widget _buildBalanceChart(AppProvider provider, bool isDark) {
-    const kGreen = Color(0xFF1D9E75);
-    const kRed = Color(0xFFE24B4A);
-    const kAmber = Color(0xFFBA7517);
-
     final spots = _computeBalanceSpots(provider);
     if (spots.isEmpty || spots.length < 2) {
-      return Center(child: Text('Not enough data', style: Theme.of(context).textTheme.bodySmall));
+      return Center(child: Text('Not enough data', style: const TextStyle(color: Colors.white54, fontSize: 13)));
     }
+
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final range = maxY - minY;
-    final padding = range == 0 ? 100.0 : range * 0.15;
-
-    // Dynamic safe threshold at the lower 30 % of the balance range
-    final safeThreshold = minY + (range == 0 ? 100 : range * 0.30);
+    final padding = range == 0 ? 100.0 : range * 0.20;
 
     final cf = CurrencyHelper.formatter(provider.settings.currency);
     final now = DateTime.now();
@@ -558,68 +550,6 @@ class HomeScreenState extends State<HomeScreen> {
     final numPoints = spots.length;
     final totalDuration = now.difference(chartStart);
     final intervalMs = numPoints > 1 ? totalDuration.inMilliseconds / (numPoints - 1) : 1.0;
-
-    // Detect income spike indices: delta > 1.5× average positive delta
-    final positiveDeltas = <double>[];
-    for (int i = 1; i < spots.length; i++) {
-      final d = spots[i].y - spots[i - 1].y;
-      if (d > 0) positiveDeltas.add(d);
-    }
-    final avgDelta = positiveDeltas.isEmpty
-        ? double.infinity
-        : positiveDeltas.reduce((a, b) => a + b) / positiveDeltas.length;
-    final spikeIndices = <int>{};
-    for (int i = 1; i < spots.length; i++) {
-      if (spots[i].y - spots[i - 1].y >= avgDelta * 1.5) spikeIndices.add(i);
-    }
-
-    // Split into green (≥ threshold) and red (< threshold) with bridge points
-    final greenSpots = <FlSpot>[];
-    final redSpots = <FlSpot>[];
-    for (final s in spots) {
-      if (s.y >= safeThreshold) {
-        greenSpots.add(s);
-        if (redSpots.isNotEmpty) redSpots.add(s);
-      } else {
-        redSpots.add(s);
-        if (greenSpots.isNotEmpty) greenSpots.add(s);
-      }
-    }
-
-    FlDotData dotData() => FlDotData(
-      show: true,
-      getDotPainter: (spot, _, __, index) {
-        final originalIndex = spots.indexWhere((s) => s.x == spot.x && s.y == spot.y);
-        if (spikeIndices.contains(originalIndex)) {
-          return FlDotCirclePainter(
-            radius: 5, color: kRed, strokeWidth: 2, strokeColor: Colors.white,
-          );
-        }
-        return FlDotCirclePainter(radius: 0, color: Colors.transparent);
-      },
-    );
-
-    LineChartBarData barData(List<FlSpot> s, Color color) => LineChartBarData(
-      spots: s,
-      isCurved: true,
-      curveSmoothness: 0.45,
-      color: color,
-      barWidth: 2.5,
-      isStrokeCapRound: true,
-      dotData: dotData(),
-      belowBarData: BarAreaData(
-        show: true,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [color.withOpacity(0.35), color.withOpacity(0.0)],
-        ),
-      ),
-    );
-
-    final lineBars = <LineChartBarData>[];
-    if (greenSpots.isNotEmpty) lineBars.add(barData(greenSpots, kGreen));
-    if (redSpots.isNotEmpty) lineBars.add(barData(redSpots, kRed));
 
     String formatYLabel(double v) {
       if (v.abs() >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
@@ -638,41 +568,25 @@ class HomeScreenState extends State<HomeScreen> {
           drawVerticalLine: false,
           horizontalInterval: range == 0 ? 100 : range / 4,
           getDrawingHorizontalLine: (_) => FlLine(
-            color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+            color: Colors.white.withOpacity(0.08),
             strokeWidth: 1,
           ),
         ),
         borderData: FlBorderData(show: false),
-        extraLinesData: ExtraLinesData(
-          horizontalLines: [
-            HorizontalLine(
-              y: safeThreshold,
-              color: kAmber,
-              strokeWidth: 1.5,
-              dashArray: [6, 4],
-              label: HorizontalLineLabel(
-                show: true,
-                alignment: Alignment.topRight,
-                padding: const EdgeInsets.only(right: 6, bottom: 4),
-                style: const TextStyle(fontSize: 10, color: kAmber, fontWeight: FontWeight.w600),
-                labelResolver: (_) => 'Seuil ${cf.format(safeThreshold)}',
-              ),
-            ),
-          ],
-        ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 48,
+              reservedSize: 46,
               interval: range == 0 ? 100 : range / 4,
               getTitlesWidget: (value, meta) {
                 if (value == meta.min || value == meta.max) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
-                  child: Text(formatYLabel(value), style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color)),
+                  child: Text(formatYLabel(value),
+                    style: const TextStyle(fontSize: 10, color: Colors.white54)),
                 );
               },
             ),
@@ -680,7 +594,7 @@ class HomeScreenState extends State<HomeScreen> {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 28,
+              reservedSize: 24,
               interval: _selectedTimeframe == '1d' ? 6 : (_selectedTimeframe == '1w' ? 2 : (_selectedTimeframe == '1m' ? 7 : (_selectedTimeframe == '6m' ? 6 : 3))),
               getTitlesWidget: (value, meta) {
                 final idx = value.toInt();
@@ -695,8 +609,8 @@ class HomeScreenState extends State<HomeScreen> {
                   label = DateFormat('MMM').format(pointTime);
                 }
                 return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(label, style: TextStyle(fontSize: 9, color: Theme.of(context).textTheme.bodySmall?.color)),
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(label, style: const TextStyle(fontSize: 9, color: Colors.white54)),
                 );
               },
             ),
@@ -705,7 +619,7 @@ class HomeScreenState extends State<HomeScreen> {
         lineTouchData: LineTouchData(
           handleBuiltInTouches: true,
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF1E2A38),
+            getTooltipColor: (_) => const Color(0xFF2D2D2D),
             tooltipRoundedRadius: 8,
             getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
               cf.format(s.y),
@@ -713,60 +627,26 @@ class HomeScreenState extends State<HomeScreen> {
             )).toList(),
           ),
         ),
-        lineBarsData: lineBars,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.40,
+            color: Colors.white,
+            barWidth: 2.0,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.white.withOpacity(0.10), Colors.white.withOpacity(0.0)],
+              ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  // ── Metric helpers ──
-
-  double _getMonthlyExpenses(AppProvider provider) {
-    final startOfMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
-    return provider.transactions.where((t) {
-      if (_selectedAccountId != null && t.accountId != _selectedAccountId) return false;
-      final d = DateTime.parse(t.date);
-      return (t.type == 'expense' || t.type == 'withdrawal') && d.isAfter(startOfMonth);
-    }).fold(0.0, (sum, t) => sum + t.amount);
-  }
-
-  double _getMonthlyIncome(AppProvider provider) {
-    final startOfMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
-    return provider.transactions.where((t) {
-      if (_selectedAccountId != null && t.accountId != _selectedAccountId) return false;
-      final d = DateTime.parse(t.date);
-      return t.type == 'income' && d.isAfter(startOfMonth);
-    }).fold(0.0, (sum, t) => sum + t.amount);
-  }
-
-  Widget _metricCard(BuildContext context, String label, String value, Color valueColor) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E2E) : const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 9.5, color: Color(0xFF888888)), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            Text(value, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: valueColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _legendDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 5),
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF666666))),
-      ],
     );
   }
 
@@ -803,7 +683,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Get relevant transactions for selected account
     final txns = provider.transactions.where((t) {
-      if (_selectedAccountId != null && t.accountId != _selectedAccountId) return false;
+      if (provider.selectedAccountId != null && t.accountId != provider.selectedAccountId) return false;
       final d = DateTime.parse(t.date);
       return d.isAfter(start.subtract(const Duration(days: 1)));
     }).toList()
@@ -820,9 +700,9 @@ class HomeScreenState extends State<HomeScreen> {
       } else if (t.type == 'expense' || t.type == 'withdrawal') {
         balanceAtStart += t.amount;
       } else if (t.type == 'transfer') {
-        if (t.accountId == _selectedAccountId) {
+        if (t.accountId == provider.selectedAccountId) {
           balanceAtStart += t.amount;
-        } else if (t.toAccountId == _selectedAccountId) {
+        } else if (t.toAccountId == provider.selectedAccountId) {
           balanceAtStart -= t.amount;
         }
       }
@@ -845,9 +725,9 @@ class HomeScreenState extends State<HomeScreen> {
         } else if (t.type == 'expense' || t.type == 'withdrawal') {
           runningBalance -= t.amount;
         } else if (t.type == 'transfer') {
-          if (t.accountId == _selectedAccountId) {
+          if (t.accountId == provider.selectedAccountId) {
             runningBalance -= t.amount;
-          } else if (t.toAccountId == _selectedAccountId) {
+          } else if (t.toAccountId == provider.selectedAccountId) {
             runningBalance += t.amount;
           }
         }
@@ -876,10 +756,10 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   double _getAccountBalance(AppProvider provider) {
-    if (_selectedAccountId == null) {
+    if (provider.selectedAccountId == null) {
       return provider.accounts.fold(0.0, (sum, a) => sum + a.balance);
     }
-    final account = provider.accounts.where((a) => a.id == _selectedAccountId);
+    final account = provider.accounts.where((a) => a.id == provider.selectedAccountId);
     return account.isNotEmpty ? account.first.balance : 0.0;
   }
 
@@ -1056,6 +936,7 @@ class HomeScreenState extends State<HomeScreen> {
                   final isLast = e.key == items.length - 1;
                   final t = e.value;
                   final tColor = _getTransactionColor(t.type);
+                  final tDate = DateTime.parse(t.date);
 
                   // Look up category for icon
                   final cat = (provider != null && t.categoryId != null)
@@ -1065,25 +946,20 @@ class HomeScreenState extends State<HomeScreen> {
                   return Column(
                     children: [
                       GestureDetector(
-                        onTap: () => showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => AddTransactionModal(initialTransaction: t),
-                        ),
+                        onTap: () => _showTransactionDetail(context, t, provider, cf, isDark),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           child: Row(
                             children: [
                               Container(
-                                width: 40, height: 40,
+                                width: 44, height: 44,
                                 decoration: BoxDecoration(
-                                  color: isDark ? tColor.withOpacity(0.12) : const Color(0xFFF0F1F5),
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: isDark ? tColor.withOpacity(0.12) : tColor.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: cat != null
                                     ? _buildCategoryIcon(cat.icon, tColor)
-                                    : Icon(_getTransactionIcon(t.type), color: tColor, size: 18),
+                                    : Icon(_getTransactionIcon(t.type), color: tColor, size: 20),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -1091,32 +967,58 @@ class HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      t.note ?? cat?.name ?? 'Transaction',
+                                      t.note ?? cat?.name ?? _getTransactionTypeLabel(t.type),
                                       style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      DateFormat('h:mm a').format(DateTime.parse(t.date)),
+                                      t.description ?? DateFormat('h:mm a').format(tDate),
                                       style: Theme.of(context).textTheme.bodySmall,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
                               ),
-                              Text(
-                                _balanceVisible
-                                    ? '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}'
-                                    : '••••',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: _getTransactionColor(t.type),
-                                ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _balanceVisible
+                                        ? '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}'
+                                        : '••••',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: tColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  if (cat != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: tColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        cat.name,
+                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: tColor),
+                                      ),
+                                    )
+                                  else
+                                    Text(
+                                      DateFormat('h:mm a').format(tDate),
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
+                                    ),
+                                ],
                               ),
                             ],
                           ),
                         ),
                       ),
-                      if (!isLast) Divider(height: 1, indent: 70, color: Theme.of(context).dividerColor),
+                      if (!isLast) Divider(height: 1, indent: 74, color: Theme.of(context).dividerColor),
                     ],
                   );
                 }).toList(),
@@ -1125,6 +1027,206 @@ class HomeScreenState extends State<HomeScreen> {
           ],
         );
       }).toList(),
+    );
+  }
+
+  String _getTransactionTypeLabel(String type) {
+    switch (type) {
+      case 'expense': return 'Expense';
+      case 'income': return 'Income';
+      case 'transfer': return 'Transfer';
+      case 'withdrawal': return 'Withdrawal';
+      default: return 'Transaction';
+    }
+  }
+
+  void _showTransactionDetail(BuildContext context, dynamic t, AppProvider? provider, NumberFormat cf, bool isDark) {
+    final cat = (provider != null && t.categoryId != null)
+        ? provider!.categories.where((c) => c.id == t.categoryId).firstOrNull
+        : null;
+    final account = provider?.accounts.where((a) => a.id == t.accountId).firstOrNull;
+    final tColor = _getTransactionColor(t.type);
+    final date = DateTime.parse(t.date);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurface : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Icon + title + amount
+                Row(
+                  children: [
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(color: tColor.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
+                      child: cat != null
+                          ? _buildCategoryIcon(cat.icon, tColor)
+                          : Icon(_getTransactionIcon(t.type), color: tColor, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.note ?? cat?.name ?? _getTransactionTypeLabel(t.type),
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            DateFormat('MMM d, yyyy · h:mm a').format(date),
+                            style: TextStyle(fontSize: 13, color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: tColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Info rows
+                if (t.description != null && t.description!.isNotEmpty)
+                  _detailInfoRow(ctx, Icons.notes_rounded, 'Description', t.description!),
+                if (account != null)
+                  _detailInfoRow(ctx, Icons.account_balance_rounded, 'Account', account.name),
+                if (cat != null)
+                  _detailInfoRow(ctx, Icons.category_rounded, 'Category', cat.name),
+                if (t.type != null)
+                  _detailInfoRow(ctx, Icons.label_rounded, 'Type', _getTransactionTypeLabel(t.type)),
+                if (t.expenseSubType != null)
+                  _detailInfoRow(ctx, Icons.repeat_rounded, 'Sub-type', t.expenseSubType![0].toUpperCase() + t.expenseSubType!.substring(1)),
+                if (t.isRecurring)
+                  _detailInfoRow(ctx, Icons.repeat_rounded, 'Recurring', 'Yes'),
+
+                // Receipt image
+                if (t.imagePath != null) ...[
+                  const SizedBox(height: 8),
+                  Text('Receipt', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: t.imagePath!.startsWith('http')
+                        ? Image.network(t.imagePath!, width: double.infinity, height: 180, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(height: 180, color: Colors.grey.withOpacity(0.1), child: const Center(child: Icon(Icons.broken_image_rounded, size: 40))))
+                        : Image.file(File(t.imagePath!), width: double.infinity, height: 180, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(height: 180, color: Colors.grey.withOpacity(0.1), child: const Center(child: Icon(Icons.broken_image_rounded, size: 40)))),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                const SizedBox(height: 8),
+                // Action buttons: Edit + Delete
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            if (provider != null) {
+                              final confirmed = true;
+                              Navigator.pop(ctx);
+                              showDialog<bool>(
+                                context: context,
+                                builder: (dCtx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  title: const Text('Delete Transaction?'),
+                                  content: Text('Delete "${t.note ?? _getTransactionTypeLabel(t.type)}"? This cannot be undone.'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(dCtx, true);
+                                        provider!.deleteTransaction(t.id);
+                                      },
+                                      style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                          label: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w600)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.error,
+                            side: BorderSide(color: AppTheme.error.withOpacity(0.3)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => AddTransactionModal(initialTransaction: t),
+                            );
+                          },
+                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          label: const Text('Edit Transaction', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.goldPrimary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _detailInfoRow(BuildContext context, IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+          const SizedBox(width: 8),
+          Text('$label  ', style: Theme.of(context).textTheme.bodySmall),
+          Flexible(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+        ],
+      ),
     );
   }
 
@@ -1197,14 +1299,14 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   String _getSelectedAccountName(AppProvider provider) {
-    if (_selectedAccountId == null) return 'All Accounts';
-    final account = provider.accounts.where((a) => a.id == _selectedAccountId);
+    if (provider.selectedAccountId == null) return 'All Accounts';
+    final account = provider.accounts.where((a) => a.id == provider.selectedAccountId);
     return account.isNotEmpty ? account.first.name : 'All Accounts';
   }
 
   IconData _getAccountIcon(AppProvider provider) {
-    if (_selectedAccountId == null) return Icons.account_balance_wallet_rounded;
-    final account = provider.accounts.where((a) => a.id == _selectedAccountId);
+    if (provider.selectedAccountId == null) return Icons.account_balance_wallet_rounded;
+    final account = provider.accounts.where((a) => a.id == provider.selectedAccountId);
     if (account.isEmpty) return Icons.account_balance_wallet_rounded;
     switch (account.first.type) {
       case 'bank': return Icons.account_balance_rounded;
@@ -1359,13 +1461,13 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAccountOption(BuildContext ctx, String? accountId, String name, IconData icon, double? balance, AppProvider provider) {
-    final isSelected = _selectedAccountId == accountId;
+    final isSelected = provider.selectedAccountId == accountId;
     final isDark = Theme.of(ctx).brightness == Brightness.dark;
     final currencyFormat = CurrencyHelper.formatter(provider.settings.currency);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
-        setState(() => _selectedAccountId = accountId);
+        provider.setSelectedAccount(accountId);
         Navigator.pop(ctx);
       },
       child: Padding(

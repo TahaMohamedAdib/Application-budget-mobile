@@ -10,6 +10,7 @@ import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../models/transaction.dart';
 import '../widgets/add_transaction_modal.dart';
+import '../widgets/modern_chart.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -23,7 +24,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   String _filterType = 'all';
   String _sortBy = 'newest';
   bool _showFilters = false;
-  String _chartTimeframe = '1w';
+  String _chartTimeframe = '1W';
 
   @override
   void dispose() {
@@ -329,11 +330,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     late DateTime chartStart;
     late int numPoints;
     switch (_chartTimeframe) {
-      case '1d': chartStart = now.subtract(const Duration(hours: 24)); numPoints = 24; break;
-      case '1w': chartStart = now.subtract(const Duration(days: 7)); numPoints = 7; break;
-      case '1m': chartStart = now.subtract(const Duration(days: 30)); numPoints = 30; break;
-      case '6m': chartStart = now.subtract(const Duration(days: 180)); numPoints = 26; break;
-      case '1y': chartStart = now.subtract(const Duration(days: 365)); numPoints = 12; break;
+      case '1D': chartStart = now.subtract(const Duration(hours: 24)); numPoints = 24; break;
+      case '1W': chartStart = now.subtract(const Duration(days: 7)); numPoints = 7; break;
+      case '1M': chartStart = now.subtract(const Duration(days: 30)); numPoints = 30; break;
+      case '6M': chartStart = now.subtract(const Duration(days: 180)); numPoints = 26; break;
+      case '1Y': chartStart = now.subtract(const Duration(days: 365)); numPoints = 12; break;
       default: chartStart = now.subtract(const Duration(days: 7)); numPoints = 7;
     }
 
@@ -369,20 +370,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final totalAmount = cumulative;
 
     if (spots.length < 2) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: AppTheme.premiumCard(context),
-          child: Column(
-            children: [
-              _buildChartHeader(context, chartLabel, cf, totalAmount, isDark),
-              const SizedBox(height: 20),
-              SizedBox(height: 180, child: Center(child: Text('Not enough data', style: Theme.of(context).textTheme.bodySmall))),
-            ],
-          ),
-        ),
-      );
+      spots.add(const FlSpot(0, 0));
+      spots.add(const FlSpot(1, 0));
     }
 
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
@@ -398,179 +387,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: AppTheme.premiumCard(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildChartHeader(context, chartLabel, cf, totalAmount, isDark),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 260,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: range == 0 ? 100 : range / 4,
-                    getDrawingHorizontalLine: (_) => FlLine(
-                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
-                      strokeWidth: 1,
-                    ),
-                  ),
-                  extraLinesData: ExtraLinesData(
-                    horizontalLines: [
-                      HorizontalLine(
-                        y: minY + (range == 0 ? 100 : range * 0.30),
-                        color: const Color(0xFFBA7517),
-                        strokeWidth: 1.5,
-                        dashArray: [6, 4],
-                        label: HorizontalLineLabel(
-                          show: true,
-                          alignment: Alignment.topRight,
-                          padding: const EdgeInsets.only(right: 6, bottom: 4),
-                          style: const TextStyle(fontSize: 10, color: Color(0xFFBA7517), fontWeight: FontWeight.w600),
-                          labelResolver: (_) => 'Seuil ${cf.format(minY + (range == 0 ? 100 : range * 0.30))}',
-                        ),
-                      ),
-                    ],
-                  ),
-                  titlesData: FlTitlesData(
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 48,
-                        interval: range == 0 ? 100 : range / 4,
-                        getTitlesWidget: (value, meta) {
-                          if (value == meta.min || value == meta.max) return const SizedBox.shrink();
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Text(formatYLabel(value), style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color)),
-                          );
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 28,
-                        interval: _chartTimeframe == '1d' ? 6 : (_chartTimeframe == '1w' ? 2 : (_chartTimeframe == '1m' ? 7 : (_chartTimeframe == '6m' ? 6 : 3))),
-                        getTitlesWidget: (value, meta) {
-                          final idx = value.toInt();
-                          if (idx < 0 || idx >= numPoints) return const SizedBox.shrink();
-                          final pointTime = chartStart.add(Duration(milliseconds: (intervalMs * idx).round()));
-                          String label;
-                          if (_chartTimeframe == '1d') {
-                            label = DateFormat('HH:mm').format(pointTime);
-                          } else if (_chartTimeframe == '1w' || _chartTimeframe == '1m') {
-                            label = DateFormat('d MMM').format(pointTime);
-                          } else {
-                            label = DateFormat('MMM').format(pointTime);
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(label, style: TextStyle(fontSize: 9, color: Theme.of(context).textTheme.bodySmall?.color)),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  lineTouchData: LineTouchData(
-                    handleBuiltInTouches: true,
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipColor: (_) => const Color(0xFF1E2A38),
-                      tooltipRoundedRadius: 8,
-                      getTooltipItems: (touchedSpots) => touchedSpots.map((s) =>
-                        LineTooltipItem(cf.format(s.y), const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                      ).toList(),
-                    ),
-                  ),
-                  minY: (minY - yPadding).clamp(0.0, double.infinity),
-                  maxY: maxY + yPadding,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      curveSmoothness: 0.45,
-                      color: lineColor,
-                      barWidth: 2.5,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: false),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [lineColor.withOpacity(0.35), lineColor.withOpacity(0.0)],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _chartLegendDot(lineColor, chartLabel),
-                const SizedBox(width: 16),
-                _chartLegendDot(const Color(0xFFBA7517), 'Seuil'),
-              ],
-            ),
-          ],
-        ),
+      child: ModernChart(
+        title: chartLabel,
+        totalValue: totalAmount,
+        currency: provider.settings.currency,
+        spots: spots,
+        selectedPeriod: _chartTimeframe,
+        onPeriodChanged: (period) => setState(() => _chartTimeframe = period),
+        periods: const ['1D', '1W', '1M', '6M', '1Y'],
+        lineColor: lineColor,
+        chartStart: chartStart,
+        chartEnd: now,
       ),
     ).animate().fadeIn(duration: 400.ms, delay: 100.ms);
-  }
-
-  Widget _buildChartHeader(BuildContext context, String label, NumberFormat cf, double total, bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 2),
-            Text(cf.format(total), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-          ],
-        ),
-        Row(
-          children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
-            final isActive = _chartTimeframe == tf;
-            return Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: GestureDetector(
-                onTap: () => setState(() => _chartTimeframe = tf),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFF185FA5) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isActive ? const Color(0xFF185FA5) : const Color(0xFFCCCCCC),
-                    ),
-                  ),
-                  child: Text(
-                    tf.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isActive ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
   }
 
   Widget _chartLegendDot(Color color, String label) {
@@ -703,37 +532,44 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      if (t.expenseSubType != null) ...[
+                                      if (cat != null) ...[
                                         const SizedBox(width: 6),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: (t.expenseSubType == 'subscription' ? AppTheme.info : AppTheme.warning).withOpacity(0.15),
+                                            color: tColor.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
-                                            t.expenseSubType == 'subscription' ? 'Sub' : 'Bill',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                              color: t.expenseSubType == 'subscription' ? AppTheme.info : AppTheme.warning,
-                                            ),
+                                            cat.name,
+                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: tColor),
                                           ),
                                         ),
                                       ],
                                     ],
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    DateFormat('h:mm a').format(date),
+                                    t.description ?? '',
                                     style: Theme.of(context).textTheme.bodySmall,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
                             ),
-                            Text(
-                              cf.format(t.amount),
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: tColor),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: tColor),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  DateFormat('MMM d, h:mm a').format(date),
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -819,6 +655,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ),
                 const SizedBox(height: 20),
                 // Info rows
+                if (t.description != null && t.description!.isNotEmpty) _detailInfoRow(ctx, Icons.notes_rounded, 'Description', t.description!),
                 if (account != null) _detailInfoRow(ctx, Icons.account_balance_rounded, 'Account', account.name),
                 if (cat != null) _detailInfoRow(ctx, Icons.category_rounded, 'Category', cat.name),
                 if (t.expenseSubType != null) _detailInfoRow(ctx, Icons.label_rounded, 'Type', t.expenseSubType![0].toUpperCase() + t.expenseSubType!.substring(1)),
@@ -829,53 +666,126 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   Text('Receipt', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                   const SizedBox(height: 8),
                   GestureDetector(
-                    onTap: () => showDialog(
-                      context: ctx,
-                      builder: (_) => Dialog(
-                        backgroundColor: Colors.transparent,
-                        child: ClipRRect(
+                    onTap: () => _openReceiptViewer(ctx, t.imagePath!),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: t.imagePath!.startsWith('http')
-                              ? Image.network(t.imagePath!, fit: BoxFit.contain)
-                              : Image.file(File(t.imagePath!), fit: BoxFit.contain),
+                              ? Image.network(
+                                  t.imagePath!,
+                                  width: double.infinity, height: 180, fit: BoxFit.cover,
+                                  loadingBuilder: (_, child, progress) => progress == null
+                                      ? child
+                                      : Container(
+                                          height: 180,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(ctx).dividerColor.withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                        ),
+                                  errorBuilder: (_, __, ___) => Container(
+                                    height: 180, color: Colors.grey.withOpacity(0.1),
+                                    child: const Center(child: Icon(Icons.broken_image_rounded, size: 40)),
+                                  ),
+                                )
+                              : Image.file(File(t.imagePath!), width: double.infinity, height: 180, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    height: 180, color: Colors.grey.withOpacity(0.1),
+                                    child: const Center(child: Icon(Icons.broken_image_rounded, size: 40)),
+                                  )),
                         ),
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: t.imagePath!.startsWith('http')
-                          ? Image.network(t.imagePath!, width: double.infinity, height: 180, fit: BoxFit.cover)
-                          : Image.file(File(t.imagePath!), width: double.infinity, height: 180, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 180, color: Colors.grey.withOpacity(0.1),
-                                child: const Center(child: Icon(Icons.broken_image_rounded, size: 40)),
-                              )),
+                        // Zoom hint badge
+                        Positioned(
+                          bottom: 8, right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.55),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
+                                SizedBox(width: 4),
+                                Text('Tap to open', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
                 ],
-                // Edit button
-                SizedBox(
-                  width: double.infinity, height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => AddTransactionModal(initialTransaction: t),
-                      );
-                    },
-                    icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: const Text('Edit Transaction', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFB8860B),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
+                // Action buttons: Delete + Edit
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            showDialog<bool>(
+                              context: context,
+                              builder: (dCtx) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: const Text('Delete Transaction?'),
+                                content: Text('Delete "${t.note ?? _getTransactionTypeLabel(t.type)}"? This cannot be undone.'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(dCtx, true);
+                                      provider.deleteTransaction(t.id);
+                                    },
+                                    style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                          label: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w600)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.error,
+                            side: BorderSide(color: AppTheme.error.withOpacity(0.3)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => AddTransactionModal(initialTransaction: t),
+                            );
+                          },
+                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          label: const Text('Edit Transaction', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.goldPrimary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -895,6 +805,86 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Text('$label  ', style: Theme.of(context).textTheme.bodySmall),
           Flexible(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
         ],
+      ),
+    );
+  }
+
+  // ── Full-screen receipt viewer with pinch-to-zoom ──────────
+  void _openReceiptViewer(BuildContext context, String imagePath) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        barrierDismissible: true,
+        pageBuilder: (ctx, animation, _) => FadeTransition(
+          opacity: animation,
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Stack(
+              children: [
+                // Tap outside to close
+                GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(color: Colors.transparent),
+                ),
+                // Pinch-to-zoom image
+                Center(
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 6.0,
+                    child: imagePath.startsWith('http')
+                        ? Image.network(
+                            imagePath,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (_, child, progress) => progress == null
+                                ? child
+                                : const Center(child: CircularProgressIndicator(color: Colors.white)),
+                            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
+                          )
+                        : Image.file(
+                            File(imagePath),
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
+                          ),
+                  ),
+                ),
+                // Close button
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(ctx).pop(),
+                        child: Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Hint label
+                const SafeArea(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 24),
+                      child: Text(
+                        'Pinch to zoom  •  Tap outside to close',
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

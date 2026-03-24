@@ -179,11 +179,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _toggleMenu() {
-    setState(() => _isMenuOpen = !_isMenuOpen);
     if (_isMenuOpen) {
-      _menuAnimController.forward();
+      _closeMenu();
     } else {
-      _menuAnimController.reverse();
+      setState(() => _isMenuOpen = true);
+      _menuAnimController.forward();
     }
   }
 
@@ -195,7 +195,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _openTransactionModal(String type) {
-    _closeMenu();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -218,211 +217,269 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            PageView(
+      child: Stack(
+        children: [
+          // Scaffold — body is just the page view; nav bar is the pill
+          Scaffold(
+            extendBody: true,
+            body: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: _screens,
             ),
+            bottomNavigationBar: _buildPillNavBar(isDark),
+          ),
 
-            // Scrim overlay when menu is open
-            if (_isMenuOpen)
-              Positioned.fill(
+          // Scrim — above Scaffold (including nav bar)
+          AnimatedBuilder(
+            animation: _menuAnimation,
+            builder: (_, __) {
+              if (_menuAnimation.value == 0) return const SizedBox.shrink();
+              return Positioned.fill(
                 child: GestureDetector(
                   onTap: _closeMenu,
-                  child: AnimatedBuilder(
-                    animation: _menuAnimation,
-                    builder: (context, child) => Container(
-                      color: Colors.black.withOpacity(0.4 * _menuAnimation.value),
-                    ),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.4 * _menuAnimation.value),
                   ),
                 ),
-              ),
+              );
+            },
+          ),
 
-            // Speed Dial Menu Items + FAB (hidden on AI Coach tab)
-            if (_selectedIndex != 1)
-            Positioned(
-              right: 20,
-              bottom: 84,
-              child: AnimatedBuilder(
-                animation: _menuAnimation,
-                builder: (context, child) => Opacity(
-                  opacity: _menuAnimation.value,
-                  child: Transform.translate(
-                    offset: Offset(0, 20 * (1 - _menuAnimation.value)),
-                    child: IgnorePointer(
-                      ignoring: !_isMenuOpen,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildSpeedDialItem('Add Expense', Icons.receipt_long_rounded, AppTheme.error, () => _openTransactionModal('expense')),
-                          const SizedBox(height: 12),
-                          _buildSpeedDialItem('Add Income', Icons.arrow_downward_rounded, AppTheme.success, () => _openTransactionModal('income')),
-                          const SizedBox(height: 12),
-                          _buildSpeedDialItem('Withdrawal', Icons.account_balance_wallet_rounded, AppTheme.warning, () => _openTransactionModal('withdrawal')),
-                          const SizedBox(height: 12),
-                          _buildSpeedDialItem('Transfer', Icons.swap_horiz_rounded, AppTheme.info, () => _openTransactionModal('transfer')),
-                        ],
+          // Quick actions panel — above nav bar + bump
+          if (_selectedIndex != 1)
+          AnimatedBuilder(
+            animation: _menuAnimation,
+            builder: (_, __) {
+              if (_menuAnimation.value == 0) return const SizedBox.shrink();
+              return Positioned(
+                bottom: bottomPadding + 100,
+                left: 16,
+                right: 16,
+                child: Transform.translate(
+                  offset: Offset(0, 16 * (1 - _menuAnimation.value)),
+                  child: Opacity(
+                    opacity: _menuAnimation.value,
+                    child: _buildQuickActionsPanel(isDark),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Bump circle — same color as pill, merges seamlessly with nav bar
+          if (_selectedIndex != 1)
+          Positioned(
+            bottom: bottomPadding + 28,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ClipOval(
+                clipBehavior: Clip.antiAlias,
+                child: Container(
+                  width: 68,
+                  height: 68,
+                  color: isDark ? AppTheme.darkSurface : AppTheme.lightBackground,
+                ),
+              ),
+            ),
+          ),
+
+          // FAB — 25% above pill top edge, crisp anti-aliased circle
+          if (_selectedIndex != 1)
+          Positioned(
+            bottom: bottomPadding + 34,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: _toggleMenu,
+                child: AnimatedBuilder(
+                  animation: _menuAnimation,
+                  builder: (_, __) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.success.withOpacity(0.4),
+                          blurRadius: 16,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      clipBehavior: Clip.antiAlias,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        color: AppTheme.success,
+                        child: Center(
+                          child: AnimatedRotation(
+                            turns: _isMenuOpen ? 0.125 : 0,
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOutCubic,
+                            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-
-            if (_selectedIndex != 1)
-            // Floating + Button (bottom-right) — toggles speed dial
-            Positioned(
-              right: 20,
-              bottom: 20,
-              child: GestureDetector(
-                onTap: _toggleMenu,
-                child: AnimatedBuilder(
-                  animation: _menuAnimation,
-                  builder: (context, child) => Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppTheme.gold500,
-                      shape: BoxShape.circle,
-                      boxShadow: AppTheme.goldGlow,
-                    ),
-                    child: Transform.rotate(
-                      angle: _menuAnimation.value * 0.785, // 45 degrees
-                      child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            border: isDark
-                ? Border(top: BorderSide(color: Colors.white.withOpacity(0.06), width: 1))
-                : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.35 : 0.06),
-                blurRadius: 24,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(0, Icons.home_rounded, 'Home'),
-                  _buildNavItem(1, Icons.psychology_rounded, 'AI Coach'),
-                  _buildNavItem(2, Icons.pie_chart_rounded, 'Budgets'),
-                  _buildNavItem(3, Icons.trending_up_rounded, 'Wealth'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isActive = _selectedIndex == index;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: () => _onTabTapped(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isActive ? 20 : 16,
-          vertical: 10,
-        ),
-        decoration: BoxDecoration(
-          color: isActive
-              ? AppTheme.goldPrimary.withOpacity(0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedScale(
-              scale: isActive ? 1.05 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-              child: Icon(
-                icon,
-                size: 20,
-                color: isActive
-                    ? AppTheme.goldPrimary
-                    : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
-              ),
-            ),
-            if (isActive) ...[
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.goldPrimary,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSpeedDialItem(String label, IconData icon, Color color, VoidCallback onTap) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? AppTheme.darkSurface : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2)),
-              ],
-            ),
-            child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : AppTheme.lightTextPrimary)),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 42, height: 42,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(color: color.withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 2)),
-              ],
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildQuickActionsPanel(bool isDark) {
+    final bg = isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground;
+    final actions = [
+      ('Expense',  Icons.arrow_upward_rounded,     AppTheme.error,   'expense'),
+      ('Income',   Icons.arrow_downward_rounded,    AppTheme.success, 'income'),
+      ('Withdraw', Icons.account_balance_wallet_rounded, AppTheme.warning, 'withdrawal'),
+      ('Transfer', Icons.swap_horiz_rounded,        AppTheme.info,    'transfer'),
+    ];
+
+    return Center(
+      child: Container(
+        width: 220,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.5 : 0.14),
+              blurRadius: 32,
+              spreadRadius: 0,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(actions.length, (i) {
+            final (label, icon, color, type) = actions[i];
+            final isLast = i == actions.length - 1;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () { _closeMenu(); _openTransactionModal(type); },
+                    borderRadius: BorderRadius.vertical(
+                      top: i == 0 ? const Radius.circular(20) : Radius.zero,
+                      bottom: isLast ? const Radius.circular(20) : Radius.zero,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34, height: 34,
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(isDark ? 0.18 : 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(icon, color: color, size: 17),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : const Color(0xFF1C1C1E),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 6, height: 6,
+                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (!isLast)
+                  Divider(height: 1, indent: 62, endIndent: 16,
+                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.06)),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPillNavBar(bool isDark) {
+    final pillBg = isDark ? AppTheme.darkSurface : AppTheme.lightBackground;
+    final activeColor = AppTheme.success;
+    final inactiveColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF9CA3AF);
+
+    return Container(
+      color: Colors.transparent,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: pillBg,
+              borderRadius: BorderRadius.circular(40),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                  blurRadius: 24,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildPillNavItem(0, Icons.home_rounded, activeColor, inactiveColor),
+                _buildPillNavItem(1, Icons.auto_awesome_rounded, activeColor, inactiveColor),
+                // Center bump/FAB placeholder
+                const SizedBox(width: 72),
+                _buildPillNavItem(2, Icons.bar_chart_rounded, activeColor, inactiveColor),
+                _buildPillNavItem(3, Icons.account_balance_wallet_rounded, activeColor, inactiveColor),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPillNavItem(int index, IconData icon, Color activeColor, Color inactiveColor) {
+    final isActive = _selectedIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabTapped(index),
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: Icon(
+            icon,
+            size: 24,
+            color: isActive ? activeColor : inactiveColor,
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 // Quick Add Bill Modal — standalone modal for adding a recurring bill from the speed dial

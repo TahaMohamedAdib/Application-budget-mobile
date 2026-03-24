@@ -25,6 +25,7 @@ class AppProvider with ChangeNotifier {
   bool _supabaseLoadInProgress = false;
 
   bool _setupComplete = false;
+  String? _selectedAccountId; // null = all accounts (shared across screens)
 
   List<Account> get accounts => _accounts;
   List<Transaction> get transactions => _transactions;
@@ -37,6 +38,13 @@ class AppProvider with ChangeNotifier {
   bool get localDataLoaded => _localDataLoaded;
   bool get setupComplete => _setupComplete;
   bool get supabaseDataLoaded => _supabaseDataLoaded;
+  String? get selectedAccountId => _selectedAccountId;
+
+  void setSelectedAccount(String? accountId) {
+    if (_selectedAccountId == accountId) return;
+    _selectedAccountId = accountId;
+    notifyListeners();
+  }
 
   AppProvider() {
     loadData();
@@ -378,7 +386,7 @@ class AppProvider with ChangeNotifier {
         double newBalance = account.balance;
         if (transaction.type == 'expense' || transaction.type == 'withdrawal' || transaction.type == 'transfer') {
           newBalance -= transaction.amount;
-        } else if (transaction.type == 'income') {
+        } else if (transaction.type == 'income' || transaction.type == 'lending_collection') {
           newBalance += transaction.amount;
         }
         _accounts[idx] = account.copyWith(balance: newBalance);
@@ -429,7 +437,7 @@ class AppProvider with ChangeNotifier {
       if (ai != -1) {
         double bal = _accounts[ai].balance;
         if (old.type == 'expense' || old.type == 'withdrawal' || old.type == 'transfer') bal += old.amount;
-        else if (old.type == 'income') bal -= old.amount;
+        else if (old.type == 'income' || old.type == 'lending_collection') bal -= old.amount;
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
       }
     }
@@ -439,7 +447,7 @@ class AppProvider with ChangeNotifier {
       if (ai != -1) {
         double bal = _accounts[ai].balance;
         if (updated.type == 'expense' || updated.type == 'withdrawal' || updated.type == 'transfer') bal -= updated.amount;
-        else if (updated.type == 'income') bal += updated.amount;
+        else if (updated.type == 'income' || updated.type == 'lending_collection') bal += updated.amount;
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
       }
     }
@@ -788,7 +796,7 @@ class AppProvider with ChangeNotifier {
       } else if (t.accountId == cashOnHandId) {
         if (t.type == 'expense' || t.type == 'transfer' || t.type == 'goal_contribution' || t.type == 'debt_payment') {
           cash -= t.amount;
-        } else if (t.type == 'income') {
+        } else if (t.type == 'income' || t.type == 'lending_collection') {
           cash += t.amount;
         }
       }
@@ -828,7 +836,10 @@ class AppProvider with ChangeNotifier {
     final debtRemaining = _goals
         .where((g) => g.type == 'debt')
         .fold(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
-    return bankAssets + cash + investments - debtRemaining;
+    final personalDebtRemaining = _goals
+        .where((g) => g.type == 'personal_debt')
+        .fold(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
+    return bankAssets + cash + investments - debtRemaining + personalDebtRemaining;
   }
 
   Map<String, double> getBalanceForRange(String range) {

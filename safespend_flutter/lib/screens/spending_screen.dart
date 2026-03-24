@@ -151,16 +151,18 @@ class _SpendingScreenState extends State<SpendingScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: Container(
                       padding: const EdgeInsets.all(24),
-                      decoration: AppTheme.elevatedCard(context),
+                      decoration: AppTheme.goldCard(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Total Spending', style: Theme.of(context).textTheme.bodySmall),
+                          const Text('Total Spending',
+                            style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.2)),
                           const SizedBox(height: 4),
-                          Text(cf.format(totalSpending), style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1.5)),
-                          const SizedBox(height: 28),
+                          Text(cf.format(totalSpending),
+                            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1.0)),
+                          const SizedBox(height: 24),
                           SizedBox(
-                            height: 200,
+                            height: 180,
                             child: BarChart(
                               BarChartData(
                                 alignment: BarChartAlignment.spaceAround,
@@ -168,10 +170,11 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                 barTouchData: BarTouchData(
                                   enabled: true,
                                   touchTooltipData: BarTouchTooltipData(
-                                    getTooltipColor: (_) => isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightSurface,
+                                    getTooltipColor: (_) => const Color(0xFF2D2D2D),
                                     tooltipRoundedRadius: 8,
                                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                      return BarTooltipItem(cf.format(rod.toY), TextStyle(color: AppTheme.goldPrimary, fontWeight: FontWeight.w600, fontSize: 12));
+                                      return BarTooltipItem(cf.format(rod.toY),
+                                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12));
                                     },
                                   ),
                                 ),
@@ -188,7 +191,8 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                         if (idx < 0 || idx >= labels.length) return const SizedBox();
                                         return Padding(
                                           padding: const EdgeInsets.only(top: 8),
-                                          child: Text(labels[idx], style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color, fontWeight: FontWeight.w500)),
+                                          child: Text(labels[idx],
+                                            style: const TextStyle(fontSize: 11, color: Colors.white54, fontWeight: FontWeight.w500)),
                                         );
                                       },
                                     ),
@@ -203,7 +207,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                     barRods: [
                                       BarChartRodData(
                                         toY: entry.value > 0 ? entry.value : 0,
-                                        color: isHighlight ? AppTheme.goldPrimary : (isDark ? AppTheme.darkSurfaceElevated : const Color(0xFFE4E5EA)),
+                                        color: isHighlight ? AppTheme.goldPrimary : Colors.white.withOpacity(0.15),
                                         width: isWeek ? 28 : 40,
                                         borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                                       ),
@@ -254,6 +258,10 @@ class _SpendingScreenState extends State<SpendingScreen> {
                               children: expenseTransactions.take(15).toList().asMap().entries.map((entry) {
                                 final t = entry.value;
                                 final isLast = entry.key == (expenseTransactions.length > 15 ? 14 : expenseTransactions.length - 1);
+                                final cat = t.categoryId != null
+                                    ? provider.categories.where((c) => c.id == t.categoryId).firstOrNull
+                                    : null;
+                                final tDate = DateTime.parse(t.date);
                                 return Column(
                                   children: [
                                     Padding(
@@ -272,11 +280,32 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                               children: [
                                                 Text(t.note ?? 'Expense', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                                                 const SizedBox(height: 2),
-                                                Text(DateFormat('MMM d, yyyy').format(DateTime.parse(t.date)), style: Theme.of(context).textTheme.bodySmall),
+                                                Text(
+                                                  t.description ?? DateFormat('MMM d, yyyy').format(tDate),
+                                                  style: Theme.of(context).textTheme.bodySmall,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
                                               ],
                                             ),
                                           ),
-                                          Text('-${cf.format(t.amount)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.error)),
+                                          const SizedBox(width: 8),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Text('-${cf.format(t.amount)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.error)),
+                                              if (cat != null) ...[
+                                                const SizedBox(height: 3),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppTheme.error.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(cat.name, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.error)),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
                                         ],
                                       ),
                                     ),

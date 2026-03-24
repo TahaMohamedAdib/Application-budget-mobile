@@ -6,6 +6,7 @@ class Transaction {
   final double amount;
   final String date;
   final String? note;
+  final String? description;
   final String? categoryId;
   final String accountId;
   final String? toAccountId; // For transfers
@@ -19,6 +20,7 @@ class Transaction {
     required this.amount,
     required this.date,
     this.note,
+    this.description,
     this.categoryId,
     required this.accountId,
     this.toAccountId,
@@ -33,6 +35,7 @@ class Transaction {
     double? amount,
     String? date,
     String? note,
+    String? description,
     String? categoryId,
     String? accountId,
     String? toAccountId,
@@ -46,6 +49,7 @@ class Transaction {
       amount: amount ?? this.amount,
       date: date ?? this.date,
       note: note ?? this.note,
+      description: description ?? this.description,
       categoryId: categoryId ?? this.categoryId,
       accountId: accountId ?? this.accountId,
       toAccountId: toAccountId ?? this.toAccountId,
@@ -62,6 +66,7 @@ class Transaction {
       'amount': amount,
       'date': date,
       'note': note,
+      'description': description,
       'categoryId': categoryId,
       'accountId': accountId,
       'toAccountId': toAccountId,
@@ -78,6 +83,7 @@ class Transaction {
       amount: (json['amount'] as num).toDouble(),
       date: json['date'],
       note: json['note'],
+      description: json['description'],
       categoryId: json['categoryId'],
       accountId: json['accountId'],
       toAccountId: json['toAccountId'],

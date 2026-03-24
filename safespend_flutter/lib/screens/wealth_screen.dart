@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import 'accounts_screen.dart';
 import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
+import 'personal_debts_screen.dart';
 import 'portfolio_screen.dart';
 import 'settings_screen.dart';
 
@@ -20,8 +21,6 @@ class WealthScreen extends StatefulWidget {
 }
 
 class _WealthScreenState extends State<WealthScreen> {
-  String? _selectedAccountId; // null = all accounts
-
 
   Color _colorFromHex(String? hex) {
     if (hex == null || hex.isEmpty) return AppTheme.goldPrimary;
@@ -72,8 +71,8 @@ class _WealthScreenState extends State<WealthScreen> {
                 name: 'All Accounts',
                 sublabel: '${provider.accounts.length} accounts combined',
                 balance: provider.accounts.fold(0.0, (s, a) => s + a.balance),
-                isSelected: _selectedAccountId == null,
-                onTap: () { setState(() => _selectedAccountId = null); Navigator.pop(ctx); },
+                isSelected: provider.selectedAccountId == null,
+                onTap: () { provider.setSelectedAccount(null); Navigator.pop(ctx); },
               ),
               if (provider.accounts.isNotEmpty) Divider(height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
               ...provider.accounts.asMap().entries.map((e) {
@@ -88,9 +87,9 @@ class _WealthScreenState extends State<WealthScreen> {
                       name: a.name,
                       sublabel: a.bankName ?? (a.type[0].toUpperCase() + a.type.substring(1)),
                       balance: a.balance,
-                      isSelected: _selectedAccountId == a.id,
+                      isSelected: provider.selectedAccountId == a.id,
                       imagePath: a.imagePath,
-                      onTap: () { setState(() => _selectedAccountId = a.id); Navigator.pop(ctx); },
+                      onTap: () { provider.setSelectedAccount(a.id); Navigator.pop(ctx); },
                     ),
                     if (!isLast) Divider(height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
                   ],
@@ -161,8 +160,8 @@ class _WealthScreenState extends State<WealthScreen> {
   }
 
   String _getSelectedAccountName(AppProvider provider) {
-    if (_selectedAccountId == null) return 'All Accounts';
-    final a = provider.accounts.where((a) => a.id == _selectedAccountId);
+    if (provider.selectedAccountId == null) return 'All Accounts';
+    final a = provider.accounts.where((a) => a.id == provider.selectedAccountId);
     return a.isNotEmpty ? a.first.name : 'All Accounts';
   }
 
@@ -183,11 +182,14 @@ class _WealthScreenState extends State<WealthScreen> {
         final totalSavings = provider.totalSavingsGoals;
         final totalInvestments = provider.totalInvestmentValue;
         final totalDebt = provider.totalDebtRemaining;
+        final totalPersonalDebt = provider.goals
+            .where((g) => g.type == 'personal_debt')
+            .fold(0.0, (s, g) => s + (g.targetAmount - g.currentAmount));
 
         final now = DateTime.now();
         final monday = now.subtract(Duration(days: now.weekday - 1));
         final totalWeekSpending = provider.transactions
-            .where((t) => t.type == 'expense' && (_selectedAccountId == null || t.accountId == _selectedAccountId) && DateTime.parse(t.date).isAfter(DateTime(monday.year, monday.month, monday.day).subtract(const Duration(days: 1))))
+            .where((t) => t.type == 'expense' && (provider.selectedAccountId == null || t.accountId == provider.selectedAccountId) && DateTime.parse(t.date).isAfter(DateTime(monday.year, monday.month, monday.day).subtract(const Duration(days: 1))))
             .fold(0.0, (sum, t) => sum + t.amount);
 
         final cf = CurrencyHelper.formatter(provider.settings.currency);
@@ -322,8 +324,13 @@ class _WealthScreenState extends State<WealthScreen> {
                           ),
                           _buildBreakdownItem(
                             context: context, cf: cf, icon: '💳', label: 'Debt', sublabel: 'Loans & debts',
-                            amount: -totalDebt, color: const Color(0xFFEF4444), isLast: true,
+                            amount: -totalDebt, color: const Color(0xFFEF4444),
                             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtScreen())),
+                          ),
+                          _buildBreakdownItem(
+                            context: context, cf: cf, icon: '🤝', label: 'Personal Debts', sublabel: 'Money people owe me',
+                            amount: totalPersonalDebt, color: const Color(0xFFF97316), isLast: true,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PersonalDebtsScreen())),
                           ),
                         ],
                       ),

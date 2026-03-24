@@ -18,6 +18,10 @@ class AppTheme {
   static const Color gold100             = AppColors.gold100;
   static const Color gold50              = AppColors.gold50;
 
+  // ── AI accent (sky blue, ChatGPT-inspired) ────────────────────────────────
+  static const Color aiAccent     = AppColors.aiAccent;
+  static const Color aiAccentDeep = AppColors.aiAccentDeep;
+
   static const Color success = AppColors.success;
   static const Color error   = AppColors.error;
   static const Color warning = AppColors.warning;
@@ -43,22 +47,17 @@ class AppTheme {
   // ── Shadows ───────────────────────────────────────────────────────────────
   static List<BoxShadow> get cardShadowLight => [
     BoxShadow(
-      color: const Color(0xFF0F172A).withOpacity(0.04),
-      blurRadius: 12,
-      offset: const Offset(0, 4),
-    ),
-    BoxShadow(
-      color: const Color(0xFF0F172A).withOpacity(0.02),
-      blurRadius: 4,
-      offset: const Offset(0, 1),
+      color: const Color(0xFF000000).withOpacity(0.05),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
     ),
   ];
 
   static List<BoxShadow> get cardShadowDark => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.25),
-      blurRadius: 20,
-      offset: const Offset(0, 4),
+      color: Colors.black.withOpacity(0.15),
+      blurRadius: 12,
+      offset: const Offset(0, 2),
     ),
   ];
 
@@ -119,39 +118,40 @@ class AppTheme {
     highlightColor: goldPrimary.withOpacity(0.04),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFFF1F3F6),
+      fillColor: lightSurface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: lightBorder, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: lightBorder, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: goldPrimary, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: goldPrimary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: error, width: 1),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: error, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: error, width: 2),
       ),
-      labelStyle: const TextStyle(color: lightTextSecondary),
-      hintStyle: const TextStyle(color: lightTextTertiary),
+      labelStyle: const TextStyle(color: lightTextSecondary, fontSize: 14),
+      hintStyle: const TextStyle(color: lightTextTertiary, fontSize: 14),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: goldPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -227,39 +227,40 @@ class AppTheme {
     highlightColor: goldPrimary.withOpacity(0.05),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: darkSurfaceElevated,
+      fillColor: darkSurface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: darkBorder, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: darkBorder, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: goldPrimary, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: goldPrimary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: error, width: 1),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: error, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: error, width: 2),
       ),
-      labelStyle: const TextStyle(color: darkTextSecondary),
-      hintStyle: const TextStyle(color: darkTextTertiary),
+      labelStyle: const TextStyle(color: darkTextSecondary, fontSize: 14),
+      hintStyle: const TextStyle(color: darkTextTertiary, fontSize: 14),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: goldPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -309,10 +310,10 @@ class AppTheme {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
       color: isDark ? darkSurface : lightSurface,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       border: isDark
-          ? Border.all(color: Colors.white.withOpacity(0.07), width: 1)
-          : null,
+          ? Border.all(color: darkBorder, width: 1)
+          : Border.all(color: lightBorder, width: 1),
       boxShadow: isDark ? cardShadowDark : cardShadowLight,
     );
   }
@@ -322,46 +323,41 @@ class AppTheme {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
       color: isDark ? darkSurfaceElevated : lightSurface,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       border: isDark
-          ? Border.all(color: Colors.white.withOpacity(0.07), width: 1)
-          : null,
+          ? Border.all(color: darkBorder, width: 1)
+          : Border.all(color: lightBorder, width: 1),
       boxShadow: isDark ? cardShadowDark : elevatedShadowLight,
     );
   }
 
-  /// Slate gradient hero card with white neon edge glow.
+  /// ChatGPT-style hero card with teal accent.
   static BoxDecoration goldCard() {
     return BoxDecoration(
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF06080D)],
-        stops: [0.0, 0.55, 1.0],
+        colors: [Color(0xFF2F2F2F), Color(0xFF212121), Color(0xFF1A1A1A)],
+        stops: [0.0, 0.50, 1.0],
       ),
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       border: Border.all(
-        color: Colors.white.withOpacity(0.12),
-        width: 1.5,
+        color: Colors.white.withOpacity(0.08),
+        width: 1.0,
       ),
       boxShadow: [
-        // White neon edge glow — tight inner ring
+        // Soft teal glow — ChatGPT brand
         BoxShadow(
-          color: Colors.white.withOpacity(0.18),
-          blurRadius: 12,
+          color: const Color(0xFF10A37F).withOpacity(0.10),
+          blurRadius: 20,
           spreadRadius: 0,
+          offset: const Offset(0, 4),
         ),
-        // White neon edge glow — soft outer halo
+        // Subtle depth shadow
         BoxShadow(
-          color: Colors.white.withOpacity(0.07),
-          blurRadius: 32,
-          spreadRadius: 4,
-        ),
-        // Depth shadow underneath
-        BoxShadow(
-          color: Colors.black.withOpacity(0.35),
+          color: Colors.black.withOpacity(0.30),
           blurRadius: 24,
-          offset: const Offset(0, 10),
+          offset: const Offset(0, 8),
           spreadRadius: -4,
         ),
       ],
