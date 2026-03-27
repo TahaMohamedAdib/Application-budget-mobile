@@ -231,17 +231,17 @@ class _BalanceChartState extends State<BalanceChart> {
           isCurved: true,
           curveSmoothness: 0.45,
           color: lineColor,
-          barWidth: 2.5,
+          barWidth: 3,
+          isStrokeCapRound: true,
           dotData: _dotData(lineColor),
+          shadow: Shadow(color: lineColor.withOpacity(0.45), blurRadius: 10),
           belowBarData: BarAreaData(
             show: true,
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                gradientTop.withOpacity(0.35),
-                gradientTop.withOpacity(0.0),
-              ],
+              stops: const [0.0, 0.75],
+              colors: [gradientTop.withOpacity(0.30), gradientTop.withOpacity(0.0)],
             ),
           ),
         );
@@ -319,24 +319,31 @@ class _BalanceChartState extends State<BalanceChart> {
             ),
           ],
         ),
-        // ── Tooltip ───────────────────────────────────────────────────────
+        // ── Tooltip + Crosshair ───────────────────────────────────────────
         lineTouchData: LineTouchData(
           handleBuiltInTouches: true,
+          getTouchedSpotIndicator: (barData, spotIndexes) => spotIndexes.map((i) {
+            return TouchedSpotIndicatorData(
+              FlLine(color: barData.color?.withOpacity(0.5) ?? _kGreen.withOpacity(0.5),
+                strokeWidth: 1.5, dashArray: [4, 4]),
+              FlDotData(
+                getDotPainter: (_, __, bar, ___) => FlDotCirclePainter(
+                  radius: 5,
+                  color: bar.color ?? _kGreen,
+                  strokeWidth: 2.5,
+                  strokeColor: Colors.white,
+                ),
+              ),
+            );
+          }).toList(),
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF1E2A38),
-            tooltipRoundedRadius: 8,
-            getTooltipItems: (touchedSpots) {
-              return touchedSpots.map((s) {
-                return LineTooltipItem(
-                  _fmtMAD(s.y),
-                  const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                );
-              }).toList();
-            },
+            getTooltipColor: (_) => const Color(0xFF1C1C1E),
+            tooltipRoundedRadius: 10,
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
+              _fmtMAD(s.y),
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+            )).toList(),
           ),
         ),
         lineBarsData: lineBars,
@@ -369,7 +376,7 @@ class _MetricRow extends StatelessWidget {
         _MetricCard(
           label: 'Épargne nette',
           value: (savings >= 0 ? '+' : '') + _fmtMAD(savings),
-          valueColor: _kBlue,
+          valueColor: _kGreen,
         ),
       ],
     );
@@ -444,10 +451,10 @@ class _PeriodSelector extends StatelessWidget {
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: active ? _kBlue : Colors.transparent,
+                color: active ? _kGreen : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: active ? _kBlue : const Color(0xFFCCCCCC),
+                  color: active ? _kGreen : const Color(0xFFCCCCCC),
                 ),
               ),
               child: Text(

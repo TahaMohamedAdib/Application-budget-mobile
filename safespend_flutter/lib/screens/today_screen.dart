@@ -33,6 +33,18 @@ class HomeScreenState extends State<HomeScreen> {
   bool _balanceVisible = true;
   String _selectedTimeframe = '1m';
 
+  // Transactions inline filter state
+  final _txSearchController = TextEditingController();
+  String _txFilterType = 'all';
+  String _txSortBy = 'newest';
+  bool _txShowFilters = false;
+
+  @override
+  void dispose() {
+    _txSearchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -110,18 +122,7 @@ class HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 10),
                           _buildFilterPill('Accounts', 'accounts'),
                           const SizedBox(width: 10),
-                          GestureDetector(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionsScreen())),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: isDark ? [] : AppTheme.cardShadowLight,
-                              ),
-                              child: Text('Transactions', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodySmall?.color)),
-                            ),
-                          ),
+                          _buildFilterPill('Transactions', 'transactions'),
                         ],
                       ),
                     ),
@@ -462,19 +463,103 @@ class HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                // ── Recent Transactions ──
+                // ── Search & Filters (Transactions tab only) ──
+                if (_activeFilter == 'transactions')
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _txSearchController,
+                                  onChanged: (_) => setState(() {}),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search transactions...',
+                                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                                    filled: true,
+                                    fillColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => setState(() => _txShowFilters = !_txShowFilters),
+                                child: Container(
+                                  width: 48, height: 48,
+                                  decoration: BoxDecoration(
+                                    color: _txShowFilters
+                                        ? AppTheme.goldPrimary.withOpacity(0.15)
+                                        : (isDark ? AppTheme.darkSurface : AppTheme.lightSurface),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: _txShowFilters
+                                        ? Border.all(color: AppTheme.goldPrimary.withOpacity(0.5))
+                                        : null,
+                                  ),
+                                  child: Icon(
+                                    Icons.tune_rounded,
+                                    size: 20,
+                                    color: _txShowFilters ? AppTheme.goldPrimary : Theme.of(context).iconTheme.color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_txShowFilters) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTxDropdown(
+                                    'Type',
+                                    _txFilterType,
+                                    {'all': 'All', 'expense': 'Expenses', 'income': 'Income', 'transfer': 'Transfers', 'withdrawal': 'Withdrawals'},
+                                    (v) => setState(() => _txFilterType = v),
+                                    isDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildTxDropdown(
+                                    'Sort',
+                                    _txSortBy,
+                                    {'newest': 'Newest', 'oldest': 'Oldest', 'highest': 'Highest', 'lowest': 'Lowest'},
+                                    (v) => setState(() => _txSortBy = v),
+                                    isDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ).animate().fadeIn(duration: 400.ms),
+                  ),
+
+                // ── Recent Transactions / All Transactions ──
                 if (_activeFilter == 'all' || _activeFilter == 'transactions')
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+                      padding: EdgeInsets.fromLTRB(20, _activeFilter == 'transactions' ? 16 : 28, 20, 14),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Recent Transactions', style: Theme.of(context).textTheme.titleLarge),
-                          GestureDetector(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionsScreen())),
-                            child: Text('See all', style: TextStyle(fontSize: 13, color: AppTheme.goldPrimary, fontWeight: FontWeight.w500)),
+                          Text(
+                            _activeFilter == 'transactions' ? 'All Transactions' : 'Recent Transactions',
+                            style: Theme.of(context).textTheme.titleLarge,
                           ),
+                          if (_activeFilter == 'all')
+                            GestureDetector(
+                              onTap: () => setState(() => _activeFilter = 'transactions'),
+                              child: Text('See all', style: TextStyle(fontSize: 13, color: AppTheme.goldPrimary, fontWeight: FontWeight.w500)),
+                            ),
                         ],
                       ),
                     ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
@@ -483,7 +568,11 @@ class HomeScreenState extends State<HomeScreen> {
                 if (_activeFilter == 'all' || _activeFilter == 'transactions')
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: provider.transactions.isEmpty
+                    sliver: (() {
+                      final txList = _activeFilter == 'transactions'
+                          ? _getFilteredTransactions(provider)
+                          : provider.transactions.reversed.take(20).toList();
+                      return txList.isEmpty
                         ? SliverToBoxAdapter(
                             child: Container(
                               padding: const EdgeInsets.all(40),
@@ -499,20 +588,31 @@ class HomeScreenState extends State<HomeScreen> {
                                     child: Icon(Icons.receipt_long_rounded, size: 32, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
                                   ),
                                   const SizedBox(height: 18),
-                                  Text('No transactions yet', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                  Text(
+                                    _activeFilter == 'transactions' && (_txSearchController.text.isNotEmpty || _txFilterType != 'all')
+                                        ? 'No transactions found'
+                                        : 'No transactions yet',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
                                   const SizedBox(height: 6),
-                                  Text('Tap + to add your first transaction', style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+                                  Text(
+                                    _activeFilter == 'transactions' && (_txSearchController.text.isNotEmpty || _txFilterType != 'all')
+                                        ? 'Try adjusting your filters'
+                                        : 'Tap + to add your first transaction',
+                                    style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center,
+                                  ),
                                 ],
                               ),
                             ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
                           )
                         : SliverToBoxAdapter(
                             child: _buildGroupedTransactions(
-                              provider.transactions.reversed.take(20).toList(),
+                              txList,
                               currencyFormat, context, isDark,
                               provider: provider,
                             ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-                          ),
+                          );
+                    })(),
                   ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 110)),
@@ -618,12 +718,24 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         lineTouchData: LineTouchData(
           handleBuiltInTouches: true,
+          getTouchedSpotIndicator: (barData, spotIndexes) => spotIndexes.map((i) {
+            return TouchedSpotIndicatorData(
+              FlLine(color: Colors.white.withOpacity(0.5), strokeWidth: 1.5, dashArray: [4, 4]),
+              FlDotData(
+                getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                  radius: 5, color: Colors.white, strokeWidth: 2.5,
+                  strokeColor: Colors.white.withOpacity(0.3),
+                ),
+              ),
+            );
+          }).toList(),
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF2D2D2D),
-            tooltipRoundedRadius: 8,
+            getTooltipColor: (_) => const Color(0xFF1C1C1E),
+            tooltipRoundedRadius: 10,
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
               cf.format(s.y),
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
             )).toList(),
           ),
         ),
@@ -631,17 +743,19 @@ class HomeScreenState extends State<HomeScreen> {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            curveSmoothness: 0.40,
+            curveSmoothness: 0.42,
             color: Colors.white,
-            barWidth: 2.0,
+            barWidth: 3,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
+            shadow: Shadow(color: Colors.white.withOpacity(0.4), blurRadius: 12),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.white.withOpacity(0.10), Colors.white.withOpacity(0.0)],
+                stops: const [0.0, 0.75],
+                colors: [Colors.white.withOpacity(0.22), Colors.white.withOpacity(0.0)],
               ),
             ),
           ),
@@ -895,6 +1009,65 @@ class HomeScreenState extends State<HomeScreen> {
     if (diff == 1) return 'YESTERDAY';
     if (diff < 7) return DateFormat('EEEE').format(date).toUpperCase();
     return DateFormat('MMM d').format(date).toUpperCase();
+  }
+
+  // ── Transactions inline filter helpers ──
+  List<dynamic> _getFilteredTransactions(AppProvider provider) {
+    var list = provider.transactions.toList();
+
+    // Filter by type
+    if (_txFilterType != 'all') {
+      list = list.where((t) => t.type == _txFilterType).toList();
+    }
+
+    // Filter by search
+    if (_txSearchController.text.isNotEmpty) {
+      final q = _txSearchController.text.toLowerCase();
+      list = list.where((t) {
+        final note = (t.note ?? '').toLowerCase();
+        final desc = (t.description ?? '').toLowerCase();
+        final amount = t.amount.toString();
+        return note.contains(q) || desc.contains(q) || amount.contains(q);
+      }).toList();
+    }
+
+    // Sort
+    list.sort((a, b) {
+      switch (_txSortBy) {
+        case 'newest': return DateTime.parse(b.date).compareTo(DateTime.parse(a.date));
+        case 'oldest': return DateTime.parse(a.date).compareTo(DateTime.parse(b.date));
+        case 'highest': return b.amount.compareTo(a.amount);
+        case 'lowest': return a.amount.compareTo(b.amount);
+        default: return 0;
+      }
+    });
+
+    return list;
+  }
+
+  Widget _buildTxDropdown(String label, String value, Map<String, String> options, ValueChanged<String> onChanged, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            underline: const SizedBox(),
+            borderRadius: BorderRadius.circular(12),
+            items: options.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 13)))).toList(),
+            onChanged: (v) { if (v != null) onChanged(v); },
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildGroupedTransactions(

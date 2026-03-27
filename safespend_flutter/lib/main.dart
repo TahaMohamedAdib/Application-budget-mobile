@@ -27,7 +27,12 @@ void main() async {
     statusBarIconBrightness: Brightness.dark,
   ));
 
-  await SupabaseConfig.initialize();
+  // Catch any init errors so runApp always executes
+  try {
+    await SupabaseConfig.initialize();
+  } catch (e) {
+    print('[main] Supabase init failed: $e');
+  }
 
   runApp(
     MultiProvider(
@@ -44,15 +49,23 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   Widget _buildHome(BuildContext context, AuthService auth, AppProvider provider) {
+    print('[_buildHome] auth.loading=${auth.loading} localDataLoaded=${provider.localDataLoaded} isAuth=${auth.isAuthenticated} supaLoaded=${provider.supabaseDataLoaded} setupComplete=${provider.setupComplete} accounts=${provider.accounts.length}');
     // Still loading local data or auth state
-    if (auth.loading || !provider.localDataLoaded) return const _SplashScreen();
+    if (auth.loading || !provider.localDataLoaded) {
+      print('[_buildHome] → SplashScreen (loading)');
+      return const _SplashScreen();
+    }
 
     // Not authenticated → show login
-    if (!auth.isAuthenticated) return const AuthScreen();
+    if (!auth.isAuthenticated) {
+      print('[_buildHome] → AuthScreen');
+      return const AuthScreen();
+    }
 
     // Authenticated but Supabase data not loaded yet → trigger load + show splash
     if (!provider.supabaseDataLoaded) {
       final uid = auth.userId;
+      print('[_buildHome] → SplashScreen (supabase loading, uid=$uid)');
       if (uid != null) {
         Future.microtask(() => provider.loadFromSupabase(uid));
       }
@@ -60,8 +73,12 @@ class MyApp extends StatelessWidget {
     }
 
     // Has data → skip onboarding if accounts exist
-    if (provider.setupComplete || provider.accounts.isNotEmpty) return const MainScreen();
+    if (provider.setupComplete || provider.accounts.isNotEmpty) {
+      print('[_buildHome] → MainScreen');
+      return const MainScreen();
+    }
 
+    print('[_buildHome] → OnboardingFlow');
     return OnboardingFlow(onComplete: () => provider.markSetupComplete());
   }
 

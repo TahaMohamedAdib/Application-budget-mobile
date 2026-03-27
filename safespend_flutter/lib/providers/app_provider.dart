@@ -136,50 +136,68 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   Future<void> loadData() async {
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    final accountsJson = prefs.getString('accounts');
-    if (accountsJson != null) {
-      _accounts = (jsonDecode(accountsJson) as List).map((j) => Account.fromJson(j)).toList();
+      try {
+        final accountsJson = prefs.getString('accounts');
+        if (accountsJson != null) {
+          _accounts = (jsonDecode(accountsJson) as List).map((j) => Account.fromJson(j)).toList();
+        }
+      } catch (e) { print('[AppProvider] Error loading accounts: $e'); }
+
+      try {
+        final transactionsJson = prefs.getString('transactions');
+        if (transactionsJson != null) {
+          _transactions = (jsonDecode(transactionsJson) as List).map((j) => Transaction.fromJson(j)).toList();
+        }
+      } catch (e) { print('[AppProvider] Error loading transactions: $e'); }
+
+      try {
+        final settingsJson = prefs.getString('settings');
+        if (settingsJson != null) {
+          _settings = Settings.fromJson(jsonDecode(settingsJson));
+        }
+      } catch (e) { print('[AppProvider] Error loading settings: $e'); }
+
+      try {
+        final recurringRulesJson = prefs.getString('recurringRules');
+        if (recurringRulesJson != null) {
+          _recurringRules = (jsonDecode(recurringRulesJson) as List).map((j) => RecurringRule.fromJson(j)).toList();
+        }
+      } catch (e) { print('[AppProvider] Error loading recurring rules: $e'); }
+
+      try {
+        final holdingsJson = prefs.getString('holdings');
+        if (holdingsJson != null) {
+          _holdings = (jsonDecode(holdingsJson) as List).map((j) => Holding.fromJson(j)).toList();
+        }
+      } catch (e) { print('[AppProvider] Error loading holdings: $e'); }
+
+      try {
+        final goalsJson = prefs.getString('goals');
+        if (goalsJson != null) {
+          _goals = (jsonDecode(goalsJson) as List).map((j) => Goal.fromJson(j)).toList();
+        }
+      } catch (e) { print('[AppProvider] Error loading goals: $e'); }
+
+      try {
+        final categoriesJson = prefs.getString('categories');
+        if (categoriesJson != null) {
+          _categories = (jsonDecode(categoriesJson) as List).map((j) => Category.fromJson(j)).toList();
+        }
+      } catch (e) { print('[AppProvider] Error loading categories: $e'); }
+
+      _setupComplete = prefs.getBool('setup_complete') ?? false;
+    } catch (e) {
+      print('[AppProvider] Critical error in loadData: $e');
+    } finally {
+      _isLoading = false;
+      _localDataLoaded = true;
+      notifyListeners();
+      processSalaries();
+      processSubscriptions();
     }
-
-    final transactionsJson = prefs.getString('transactions');
-    if (transactionsJson != null) {
-      _transactions = (jsonDecode(transactionsJson) as List).map((j) => Transaction.fromJson(j)).toList();
-    }
-
-    final settingsJson = prefs.getString('settings');
-    if (settingsJson != null) {
-      _settings = Settings.fromJson(jsonDecode(settingsJson));
-    }
-
-    final recurringRulesJson = prefs.getString('recurringRules');
-    if (recurringRulesJson != null) {
-      _recurringRules = (jsonDecode(recurringRulesJson) as List).map((j) => RecurringRule.fromJson(j)).toList();
-    }
-
-    final holdingsJson = prefs.getString('holdings');
-    if (holdingsJson != null) {
-      _holdings = (jsonDecode(holdingsJson) as List).map((j) => Holding.fromJson(j)).toList();
-    }
-
-    final goalsJson = prefs.getString('goals');
-    if (goalsJson != null) {
-      _goals = (jsonDecode(goalsJson) as List).map((j) => Goal.fromJson(j)).toList();
-    }
-
-    final categoriesJson = prefs.getString('categories');
-    if (categoriesJson != null) {
-      _categories = (jsonDecode(categoriesJson) as List).map((j) => Category.fromJson(j)).toList();
-    }
-
-    _setupComplete = prefs.getBool('setup_complete') ?? false;
-
-    _isLoading = false;
-    _localDataLoaded = true;
-    notifyListeners();
-    processSalaries();
-    processSubscriptions();
   }
 
   Future<void> markSetupComplete() async {
@@ -384,9 +402,14 @@ class AppProvider with ChangeNotifier {
       if (idx != -1) {
         final account = _accounts[idx];
         double newBalance = account.balance;
-        if (transaction.type == 'expense' || transaction.type == 'withdrawal' || transaction.type == 'transfer') {
-          newBalance -= transaction.amount;
-        } else if (transaction.type == 'income' || transaction.type == 'lending_collection') {
+        // Deduct: expense, withdrawal, transfer, goal_contribution, debt_payment
+        if (transaction.type == 'expense' || transaction.type == 'withdrawal' ||
+            transaction.type == 'transfer' || transaction.type == 'goal_contribution' ||
+            transaction.type == 'debt_payment') {
+          newBalance -= transaction.totalWithFees; // amount + bank fees
+        }
+        // Add: income, lending_collection
+        else if (transaction.type == 'income' || transaction.type == 'lending_collection') {
           newBalance += transaction.amount;
         }
         _accounts[idx] = account.copyWith(balance: newBalance);
@@ -436,8 +459,12 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == old.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (old.type == 'expense' || old.type == 'withdrawal' || old.type == 'transfer') bal += old.amount;
-        else if (old.type == 'income' || old.type == 'lending_collection') bal -= old.amount;
+        if (old.type == 'expense' || old.type == 'withdrawal' || old.type == 'transfer' ||
+            old.type == 'goal_contribution' || old.type == 'debt_payment') {
+          bal += old.totalWithFees;
+        } else if (old.type == 'income' || old.type == 'lending_collection') {
+          bal -= old.amount;
+        }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
       }
     }
@@ -446,8 +473,12 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == updated.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (updated.type == 'expense' || updated.type == 'withdrawal' || updated.type == 'transfer') bal -= updated.amount;
-        else if (updated.type == 'income' || updated.type == 'lending_collection') bal += updated.amount;
+        if (updated.type == 'expense' || updated.type == 'withdrawal' || updated.type == 'transfer' ||
+            updated.type == 'goal_contribution' || updated.type == 'debt_payment') {
+          bal -= updated.totalWithFees;
+        } else if (updated.type == 'income' || updated.type == 'lending_collection') {
+          bal += updated.amount;
+        }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
       }
     }
@@ -792,10 +823,10 @@ class AppProvider with ChangeNotifier {
     double cash = 0;
     for (final t in _transactions) {
       if (t.type == 'withdrawal') {
-        cash += t.amount;
+        cash += t.amount; // Cash received (fees already deducted from bank)
       } else if (t.accountId == cashOnHandId) {
         if (t.type == 'expense' || t.type == 'transfer' || t.type == 'goal_contribution' || t.type == 'debt_payment') {
-          cash -= t.amount;
+          cash -= t.totalWithFees;
         } else if (t.type == 'income' || t.type == 'lending_collection') {
           cash += t.amount;
         }

@@ -166,6 +166,7 @@ class DebtScreen extends StatelessWidget {
                               final remaining = goal.targetAmount - goal.currentAmount;
                               final progress = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) : 0.0;
                               final hasDeadline = goal.targetDate != null;
+                              final isPaidOff = remaining <= 0;
 
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
@@ -195,8 +196,9 @@ class DebtScreen extends StatelessWidget {
                                             ]),
                                           ),
                                           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                            Text(cf.format(remaining), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppTheme.error)),
-                                            Text('remaining', style: Theme.of(context).textTheme.bodySmall),
+                                            Text(isPaidOff ? 'PAID OFF' : cf.format(remaining),
+                                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: isPaidOff ? AppTheme.success : AppTheme.error)),
+                                            Text(isPaidOff ? '' : 'remaining', style: Theme.of(context).textTheme.bodySmall),
                                           ]),
                                         ],
                                       ),
@@ -223,22 +225,23 @@ class DebtScreen extends StatelessWidget {
                                       const SizedBox(height: 14),
                                       // Action buttons
                                       Row(children: [
-                                        Expanded(
-                                          flex: 2,
-                                          child: GestureDetector(
-                                            onTap: () => _showPayDebtModal(context, provider, goal, cf),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 9),
-                                              decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(10)),
-                                              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                                Icon(Icons.payments_rounded, color: Colors.white, size: 15),
-                                                SizedBox(width: 5),
-                                                Text('Pay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                                              ]),
+                                        if (!isPaidOff)
+                                          Expanded(
+                                            flex: 2,
+                                            child: GestureDetector(
+                                              onTap: () => _showPayDebtModal(context, provider, goal, cf),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                                decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(10)),
+                                                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                                  Icon(Icons.payments_rounded, color: Colors.white, size: 15),
+                                                  SizedBox(width: 5),
+                                                  Text('Pay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                                                ]),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
+                                        if (!isPaidOff) const SizedBox(width: 8),
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () => _showEditDebtModal(context, provider, goal),
@@ -320,31 +323,46 @@ class DebtScreen extends StatelessWidget {
                             final t = entry.value;
                             final isLast = entry.key == (debtTransactions.length > 20 ? 19 : debtTransactions.length - 1);
                             final date = DateTime.parse(t.date);
+                            // Resolve source account name
+                            String sourceLabel = 'External';
+                            if (t.accountId == AppProvider.cashOnHandId) {
+                              sourceLabel = 'Cash';
+                            } else if (t.accountId != 'none') {
+                              final acc = provider.accounts.where((a) => a.id == t.accountId);
+                              if (acc.isNotEmpty) sourceLabel = acc.first.name;
+                            }
                             return Column(children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 child: Row(children: [
                                   Container(
-                                    width: 44, height: 44,
+                                    width: 40, height: 40,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF8B5CF6).withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(14),
+                                      color: AppTheme.success.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Icon(Icons.credit_card_rounded, color: Color(0xFF8B5CF6), size: 20),
+                                    child: Icon(Icons.payments_rounded, color: AppTheme.success, size: 18),
                                   ),
-                                  const SizedBox(width: 14),
+                                  const SizedBox(width: 12),
                                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                     Text(t.note ?? 'Debt payment',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 2),
-                                    Text(DateFormat('MMM d, yyyy').format(date),
-                                      style: Theme.of(context).textTheme.bodySmall),
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 3),
+                                    Text('$sourceLabel  •  ${DateFormat('MMM d, h:mm a').format(date)}',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11),
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
                                   ])),
-                                  Text('-${cf.format(t.amount)}',
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF8B5CF6))),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    flex: 0,
+                                    child: Text('-${cf.format(t.amount)}',
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.success),
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  ),
                                 ]),
                               ),
-                              if (!isLast) Divider(height: 1, indent: 76, color: Theme.of(context).dividerColor),
+                              if (!isLast) Divider(height: 1, indent: 68, color: Theme.of(context).dividerColor),
                             ]);
                           }).toList(),
                         ),
@@ -427,21 +445,33 @@ class DebtScreen extends StatelessWidget {
                     ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
                     return;
                   }
-                  final newPaid = (goal.currentAmount + amount).clamp(0, goal.targetAmount).toDouble();
-                  provider.updateGoal(goal.copyWith(currentAmount: newPaid));
+                  final remaining = goal.targetAmount - goal.currentAmount;
+                  final clampedAmount = amount.clamp(0, remaining).toDouble();
+                  final accountId = selectedAccountId ?? 'none';
                   if (selectedAccountId != null) {
+                    provider.payDebt(goal.id, clampedAmount, selectedAccountId!);
+                  } else {
+                    // Update goal + always create transaction for history
+                    final newPaid = (goal.currentAmount + clampedAmount).clamp(0, goal.targetAmount).toDouble();
+                    provider.updateGoal(goal.copyWith(currentAmount: newPaid));
                     provider.addTransaction(Transaction(
                       id: const Uuid().v4(),
                       type: 'debt_payment',
-                      amount: amount,
+                      amount: clampedAmount,
                       date: DateTime.now().toIso8601String(),
                       note: 'Payment: ${goal.name}',
-                      accountId: selectedAccountId!,
+                      description: 'No account deduction',
+                      accountId: accountId,
                     ));
                   }
                   Navigator.pop(ctx);
+                  final isPaidOff = (goal.currentAmount + clampedAmount) >= goal.targetAmount;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${cf.format(amount)} paid on ${goal.name}'), backgroundColor: AppTheme.success),
+                    SnackBar(
+                      content: Text(isPaidOff
+                        ? '${goal.name} is fully paid off!'
+                        : '${cf.format(clampedAmount)} paid on ${goal.name}'),
+                      backgroundColor: AppTheme.success),
                   );
                 },
                 style: ElevatedButton.styleFrom(

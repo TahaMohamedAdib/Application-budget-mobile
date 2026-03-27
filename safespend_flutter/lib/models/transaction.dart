@@ -4,6 +4,7 @@ class Transaction {
   final String id;
   final String type; // 'expense', 'income', 'transfer', 'withdrawal'
   final double amount;
+  final double fees; // Bank fees added on top of amount
   final String date;
   final String? note;
   final String? description;
@@ -14,10 +15,14 @@ class Transaction {
   final String? imagePath;
   final String? expenseSubType; // 'subscription' | 'bill' | null (expense only)
 
+  /// Total deducted from account = amount + fees
+  double get totalWithFees => amount + fees;
+
   Transaction({
     required this.id,
     required this.type,
     required this.amount,
+    this.fees = 0,
     required this.date,
     this.note,
     this.description,
@@ -33,6 +38,7 @@ class Transaction {
     String? id,
     String? type,
     double? amount,
+    double? fees,
     String? date,
     String? note,
     String? description,
@@ -47,6 +53,7 @@ class Transaction {
       id: id ?? this.id,
       type: type ?? this.type,
       amount: amount ?? this.amount,
+      fees: fees ?? this.fees,
       date: date ?? this.date,
       note: note ?? this.note,
       description: description ?? this.description,
@@ -64,6 +71,7 @@ class Transaction {
       'id': id,
       'type': type,
       'amount': amount,
+      'fees': fees,
       'date': date,
       'note': note,
       'description': description,
@@ -81,6 +89,7 @@ class Transaction {
       id: json['id'],
       type: json['type'],
       amount: (json['amount'] as num).toDouble(),
+      fees: (json['fees'] as num?)?.toDouble() ?? 0,
       date: json['date'],
       note: json['note'],
       description: json['description'],
@@ -94,6 +103,6 @@ class Transaction {
   }
 
   String toJsonString() => jsonEncode(toJson());
-  
+
   factory Transaction.fromJsonString(String str) => Transaction.fromJson(jsonDecode(str));
 }

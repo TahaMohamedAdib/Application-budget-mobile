@@ -3,8 +3,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 
-/// Modern chart widget matching ChatGPT-style UI
-/// Features: smooth curves, subtle gradients, time period filters, dark theme optimized
 class ModernChart extends StatelessWidget {
   final String title;
   final double totalValue;
@@ -40,16 +38,17 @@ class ModernChart extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cf = NumberFormat.currency(symbol: currency, decimalDigits: 2);
 
-    // Calculate Y-axis bounds
     double minY = spots.isEmpty ? 0 : spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     double maxY = spots.isEmpty ? 100 : spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final range = maxY - minY;
-    final padding = range * 0.15;
-    minY = (minY - padding).clamp(0.0, double.infinity);
-    maxY = maxY + padding;
+    final pad = range * 0.18;
+    minY = (minY - pad).clamp(0.0, double.infinity);
+    maxY = maxY + pad;
+
+    final labelColor = isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
         borderRadius: BorderRadius.circular(20),
@@ -61,197 +60,150 @@ class ModernChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with title, value, and period filters
+          // ── Header ──────────────────────────────────────────────────────
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title and value
               Expanded(
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: labelColor,
+                        letterSpacing: 0.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    cf.format(totalValue),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                    const SizedBox(height: 4),
+                    Text(
+                      cf.format(totalValue),
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                        color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              ),
-              // Period filters
-              Row(
-                children: periods.map((period) {
-                  final isActive = selectedPeriod == period;
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: GestureDetector(
-                      onTap: () => onPeriodChanged(period),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              // Period selector
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkBackground : const Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: periods.map((p) {
+                    final active = selectedPeriod == p;
+                    return GestureDetector(
+                      onTap: () => onPeriodChanged(p),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: isActive
-                              ? (isDark ? AppTheme.darkSurfaceElevated : const Color(0xFFF0F0F0))
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
+                          color: active ? lineColor : Colors.transparent,
+                          borderRadius: BorderRadius.circular(7),
                         ),
                         child: Text(
-                          period,
+                          p,
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                            color: isActive
-                                ? (isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary)
-                                : (isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: active ? Colors.white : labelColor,
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          // Chart
+          const SizedBox(height: 20),
+          // ── Chart ───────────────────────────────────────────────────────
           SizedBox(
             height: 200,
             child: spots.isEmpty
-                ? Center(
-                    child: Text(
-                      'No data available',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  )
+                ? Center(child: Text('No data available', style: Theme.of(context).textTheme.bodySmall))
                 : LineChart(
                     LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: (maxY - minY) / 4,
-                        getDrawingHorizontalLine: (_) => FlLine(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.05)
-                              : Colors.black.withOpacity(0.05),
-                          strokeWidth: 1,
-                        ),
-                      ),
+                      gridData: const FlGridData(show: false),
+                      borderData: FlBorderData(show: false),
+                      minY: minY,
+                      maxY: maxY,
+                      // ── Axes ──────────────────────────────────────────
                       titlesData: FlTitlesData(
                         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 50,
-                            interval: (maxY - minY) / 4,
-                            getTitlesWidget: (value, meta) {
-                              if (value == meta.min || value == meta.max) {
-                                return const SizedBox.shrink();
-                              }
-                              final formatted = formatYAxis != null
-                                  ? formatYAxis!(value)
-                                  : _formatCompact(value);
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: Text(
-                                  formatted,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isDark
-                                        ? AppTheme.darkTextTertiary
-                                        : AppTheme.lightTextTertiary,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 24,
+                            reservedSize: 22,
                             interval: spots.length > 1 ? (spots.length - 1) / 3 : 1,
                             getTitlesWidget: (value, meta) {
                               final idx = value.toInt();
-                              if (idx < 0 || idx >= spots.length) {
-                                return const SizedBox.shrink();
-                              }
-                              
-                              // Calculate date for this spot
-                              final totalDuration = chartEnd.difference(chartStart);
-                              final pointDuration = totalDuration * (idx / (spots.length - 1).clamp(1, double.infinity));
-                              final pointDate = chartStart.add(pointDuration);
-                              
-                              final formatted = formatXAxis != null
+                              if (idx < 0 || idx >= spots.length) return const SizedBox.shrink();
+                              final totalDur = chartEnd.difference(chartStart);
+                              final pointDate = chartStart.add(totalDur * (idx / (spots.length - 1).clamp(1, double.infinity)));
+                              final label = formatXAxis != null
                                   ? formatXAxis!(pointDate)
                                   : _formatDate(pointDate, selectedPeriod);
-                              
                               return Padding(
                                 padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  formatted,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isDark
-                                        ? AppTheme.darkTextTertiary
-                                        : AppTheme.lightTextTertiary,
-                                  ),
-                                ),
+                                child: Text(label, style: TextStyle(fontSize: 10, color: labelColor)),
                               );
                             },
                           ),
                         ),
                       ),
-                      borderData: FlBorderData(show: false),
+                      // ── Crosshair touch ───────────────────────────────
                       lineTouchData: LineTouchData(
                         handleBuiltInTouches: true,
-                        touchTooltipData: LineTouchTooltipData(
-                          getTooltipColor: (_) => isDark
-                              ? AppTheme.darkSurfaceElevated
-                              : const Color(0xFF2D2D2D),
-                          tooltipRoundedRadius: 8,
-                          tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          getTooltipItems: (touchedSpots) => touchedSpots.map((s) {
-                            return LineTooltipItem(
-                              cf.format(s.y),
-                              const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                        getTouchedSpotIndicator: (barData, spotIndexes) => spotIndexes.map((i) {
+                          return TouchedSpotIndicatorData(
+                            FlLine(color: lineColor.withOpacity(0.5), strokeWidth: 1.5, dashArray: [4, 4]),
+                            FlDotData(
+                              getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                                radius: 5,
+                                color: lineColor,
+                                strokeWidth: 2.5,
+                                strokeColor: isDark ? AppTheme.darkSurface : Colors.white,
                               ),
-                            );
-                          }).toList(),
+                            ),
+                          );
+                        }).toList(),
+                        touchTooltipData: LineTouchTooltipData(
+                          getTooltipColor: (_) => isDark ? AppTheme.darkSurfaceElevated : const Color(0xFF1C1C1E),
+                          tooltipRoundedRadius: 10,
+                          tooltipPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
+                            cf.format(s.y),
+                            const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                          )).toList(),
                         ),
                       ),
-                      minY: minY,
-                      maxY: maxY,
+                      // ── Line ──────────────────────────────────────────
                       lineBarsData: [
                         LineChartBarData(
                           spots: spots,
                           isCurved: true,
-                          curveSmoothness: 0.4,
+                          curveSmoothness: 0.42,
                           color: lineColor,
-                          barWidth: 2.5,
+                          barWidth: 3,
                           isStrokeCapRound: true,
                           dotData: const FlDotData(show: false),
+                          shadow: Shadow(color: lineColor.withOpacity(0.4), blurRadius: 10),
                           belowBarData: BarAreaData(
                             show: true,
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                lineColor.withOpacity(0.2),
-                                lineColor.withOpacity(0.0),
-                              ],
+                              stops: const [0.0, 0.75],
+                              colors: [lineColor.withOpacity(0.28), lineColor.withOpacity(0.0)],
                             ),
                           ),
                         ),
@@ -264,27 +216,12 @@ class ModernChart extends StatelessWidget {
     );
   }
 
-  String _formatCompact(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}K';
-    }
-    return value.toStringAsFixed(0);
-  }
-
   String _formatDate(DateTime date, String period) {
     switch (period) {
-      case '1D':
-        return DateFormat('HH:mm').format(date);
+      case '1D': return DateFormat('HH:mm').format(date);
       case '1W':
-      case '1M':
-        return DateFormat('d MMM').format(date);
-      case '6M':
-      case '1Y':
-        return DateFormat('MMM').format(date);
-      default:
-        return DateFormat('d MMM').format(date);
+      case '1M': return DateFormat('d MMM').format(date);
+      default:   return DateFormat('MMM').format(date);
     }
   }
 }

@@ -24,11 +24,11 @@ class SupabaseConfig {
         authOptions: const FlutterAuthClientOptions(
           authFlowType: AuthFlowType.pkce,
         ),
-      );
+      ).timeout(const Duration(seconds: 5));
       isAvailable = true;
     } catch (e) {
       isAvailable = false;
-      // Supabase unavailable — app will run in local-only mode
+      // Supabase unavailable or timed out — app will run in local-only mode
     }
   }
 }

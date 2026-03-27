@@ -166,15 +166,16 @@ class _SpendingScreenState extends State<SpendingScreen> {
                             child: BarChart(
                               BarChartData(
                                 alignment: BarChartAlignment.spaceAround,
-                                maxY: data.reduce((a, b) => a > b ? a : b).clamp(10, double.infinity) * 1.3,
+                                maxY: data.reduce((a, b) => a > b ? a : b).clamp(10, double.infinity) * 1.35,
                                 barTouchData: BarTouchData(
                                   enabled: true,
                                   touchTooltipData: BarTouchTooltipData(
-                                    getTooltipColor: (_) => const Color(0xFF2D2D2D),
-                                    tooltipRoundedRadius: 8,
+                                    getTooltipColor: (_) => const Color(0xFF1C1C1E),
+                                    tooltipRoundedRadius: 10,
+                                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                                       return BarTooltipItem(cf.format(rod.toY),
-                                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12));
+                                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13));
                                     },
                                   ),
                                 ),
@@ -186,13 +187,14 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                   bottomTitles: AxisTitles(
                                     sideTitles: SideTitles(
                                       showTitles: true,
+                                      reservedSize: 28,
                                       getTitlesWidget: (value, meta) {
                                         final idx = value.toInt();
                                         if (idx < 0 || idx >= labels.length) return const SizedBox();
                                         return Padding(
                                           padding: const EdgeInsets.only(top: 8),
                                           child: Text(labels[idx],
-                                            style: const TextStyle(fontSize: 11, color: Colors.white54, fontWeight: FontWeight.w500)),
+                                            style: const TextStyle(fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w500)),
                                         );
                                       },
                                     ),
@@ -201,15 +203,38 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                 gridData: const FlGridData(show: false),
                                 borderData: FlBorderData(show: false),
                                 barGroups: data.asMap().entries.map((entry) {
-                                  final isHighlight = isWeek ? entry.key == DateTime.now().weekday - 1 : entry.key == ((DateTime.now().day - 1) / 7).floor().clamp(0, 4);
+                                  final isHighlight = isWeek
+                                      ? entry.key == DateTime.now().weekday - 1
+                                      : entry.key == ((DateTime.now().day - 1) / 7).floor().clamp(0, 4);
                                   return BarChartGroupData(
                                     x: entry.key,
                                     barRods: [
                                       BarChartRodData(
                                         toY: entry.value > 0 ? entry.value : 0,
-                                        color: isHighlight ? AppTheme.goldPrimary : Colors.white.withOpacity(0.15),
-                                        width: isWeek ? 28 : 40,
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                        gradient: isHighlight
+                                            ? LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  AppTheme.success,
+                                                  AppTheme.success.withOpacity(0.6),
+                                                ],
+                                              )
+                                            : LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.white.withOpacity(0.22),
+                                                  Colors.white.withOpacity(0.06),
+                                                ],
+                                              ),
+                                        width: isWeek ? 26 : 36,
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                                        backDrawRodData: BackgroundBarChartRodData(
+                                          show: true,
+                                          toY: data.reduce((a, b) => a > b ? a : b).clamp(10, double.infinity) * 1.35,
+                                          color: Colors.white.withOpacity(0.04),
+                                        ),
                                       ),
                                     ],
                                   );

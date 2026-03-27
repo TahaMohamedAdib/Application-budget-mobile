@@ -7,6 +7,7 @@ import '../utils/currency_helper.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../models/goal.dart';
+import '../models/transaction.dart';
 
 // ── PersonalDebtsScreen ────────────────────────────────────────────────────
 // Tracks informal money the user owes to people (friends, family, etc.).
@@ -150,6 +151,9 @@ class PersonalDebtsScreen extends StatelessWidget {
                         ),
                       ),
 
+                // ── Return History ──
+                ..._buildReturnHistory(context, provider, cf, isDark),
+
                 const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
             ),
@@ -159,6 +163,69 @@ class PersonalDebtsScreen extends StatelessWidget {
     );
   }
 
+  List<Widget> _buildReturnHistory(BuildContext context, AppProvider provider, NumberFormat cf, bool isDark) {
+    final returnTransactions = provider.transactions
+        .where((t) => t.type == 'personal_debt_return')
+        .toList()
+      ..sort((a, b) => DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
+
+    if (returnTransactions.isEmpty) return [];
+
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Text('Return History', style: Theme.of(context).textTheme.titleLarge),
+        ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
+      ),
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        sliver: SliverToBoxAdapter(
+          child: Container(
+            decoration: AppTheme.premiumCard(context),
+            child: Column(
+              children: returnTransactions.take(20).toList().asMap().entries.map((entry) {
+                final t = entry.value;
+                final isLast = entry.key == (returnTransactions.length > 20 ? 19 : returnTransactions.length - 1);
+                final date = DateTime.parse(t.date);
+                return Column(children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    child: Row(children: [
+                      Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          color: AppTheme.success.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(Icons.undo_rounded, color: AppTheme.success, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(t.note ?? 'Money returned',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 3),
+                        Row(children: [
+                          Icon(Icons.access_time_rounded, size: 12, color: Theme.of(context).textTheme.bodySmall?.color),
+                          const SizedBox(width: 4),
+                          Text(DateFormat('MMM d, h:mm a').format(date),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11)),
+                        ]),
+                      ])),
+                      Text('-${cf.format(t.amount)}',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.success)),
+                    ]),
+                  ),
+                  if (!isLast) Divider(height: 1, indent: 76, color: Theme.of(context).dividerColor),
+                ]);
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
   // ── Entry card ──
   Widget _buildCard(BuildContext context, AppProvider provider, Goal goal,
       NumberFormat cf, bool isDark, Color accent, int index) {
@@ -166,6 +233,7 @@ class PersonalDebtsScreen extends StatelessWidget {
     final remaining = goal.targetAmount - returned;
     final progress  = goal.targetAmount > 0 ? (returned / goal.targetAmount) : 0.0;
     final reason    = goal.categoryId; // reused field for storing reason text
+    final isFullyReturned = remaining <= 0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -179,7 +247,7 @@ class PersonalDebtsScreen extends StatelessWidget {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: accent.withOpacity(0.12),
+                color: (isFullyReturned ? AppTheme.success : accent).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Center(child: Text(goal.icon, style: const TextStyle(fontSize: 20))),
@@ -194,9 +262,9 @@ class PersonalDebtsScreen extends StatelessWidget {
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(cf.format(remaining),
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: accent)),
-              Text('remaining', style: Theme.of(context).textTheme.bodySmall),
+              Text(isFullyReturned ? 'RETURNED' : cf.format(remaining),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: isFullyReturned ? AppTheme.success : accent)),
+              Text(isFullyReturned ? '' : 'remaining', style: Theme.of(context).textTheme.bodySmall),
             ]),
           ]),
 
@@ -225,22 +293,23 @@ class PersonalDebtsScreen extends StatelessWidget {
           // Action buttons
           Row(children: [
             // Return money button
-            Expanded(
-              flex: 2,
-              child: GestureDetector(
-                onTap: () => _showReturnModal(context, provider, goal, cf),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(10)),
-                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.undo_rounded, color: Colors.white, size: 15),
-                    SizedBox(width: 5),
-                    Text('Returned', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                  ]),
+            if (!isFullyReturned)
+              Expanded(
+                flex: 2,
+                child: GestureDetector(
+                  onTap: () => _showReturnModal(context, provider, goal, cf),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(10)),
+                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.undo_rounded, color: Colors.white, size: 15),
+                      SizedBox(width: 5),
+                      Text('Returned', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                    ]),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
+            if (!isFullyReturned) const SizedBox(width: 8),
             // Edit
             Expanded(
               child: GestureDetector(
@@ -352,11 +421,26 @@ class PersonalDebtsScreen extends StatelessWidget {
                   ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
                   return;
                 }
-                final newReturned = (goal.currentAmount + amount).clamp(0, goal.targetAmount).toDouble();
+                final clampedAmount = amount.clamp(0, remaining).toDouble();
+                final newReturned = (goal.currentAmount + clampedAmount).clamp(0, goal.targetAmount).toDouble();
                 provider.updateGoal(goal.copyWith(currentAmount: newReturned));
+                // Always create a transaction for history tracking
+                provider.addTransaction(Transaction(
+                  id: const Uuid().v4(),
+                  type: 'personal_debt_return',
+                  amount: clampedAmount,
+                  date: DateTime.now().toIso8601String(),
+                  note: 'Returned to ${goal.name}',
+                  description: goal.categoryId,
+                  accountId: 'personal',
+                ));
                 Navigator.pop(ctx);
+                final isFullyReturned = newReturned >= goal.targetAmount;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${cf.format(amount)} returned recorded for ${goal.name}'),
+                  SnackBar(
+                    content: Text(isFullyReturned
+                      ? 'Fully returned to ${goal.name}!'
+                      : '${cf.format(clampedAmount)} returned to ${goal.name}'),
                     backgroundColor: AppTheme.success),
                 );
               },

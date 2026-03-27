@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../models/holding.dart';
@@ -17,12 +19,13 @@ class PortfolioScreen extends StatefulWidget {
   State<PortfolioScreen> createState() => _PortfolioScreenState();
 }
 
-class _PortfolioScreenState extends State<PortfolioScreen> {
+class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProviderStateMixin {
   bool _refreshing = false;
   List<PortfolioPoint> _chartPoints = [];
   Map<String, List<PortfolioPoint>> _holdingHistories = {};
   bool _chartLoading = false;
   String _chartRange = '1mo'; // '5d' | '1mo' | '3mo' | '1y'
+  bool _showChartView = true; // Toggle between chart and top assets view
 
   @override
   void initState() {
@@ -74,315 +77,717 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final totalValue = provider.getTotalPortfolioValue();
         final totalCost = provider.getTotalPortfolioCost();
         final gainLoss = provider.getTotalPortfolioGainLoss();
         final gainLossPercent = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0.0;
-
-        // Card color: green when up, red when down, neutral purple when empty
-        final cardColor = provider.holdings.isEmpty
-            ? const Color(0xFF7C3AED)
-            : gainLoss >= 0
-                ? const Color(0xFF16A34A) // deep green
-                : const Color(0xFFDC2626); // deep red
+        final isPositive = gainLoss >= 0;
 
         return Scaffold(
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Theme.of(context).scaffoldBackgroundColor,
-                  Theme.of(context).scaffoldBackgroundColor,
-                ],
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // Header
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Theme.of(context).dividerColor.withOpacity(0.1),
-                        ),
-                      ),
-                    ),
+          backgroundColor: isDark ? const Color(0xFF0D0D0D) : const Color(0xFFF8F9FB),
+          body: SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                // ─── HEADER ───
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                     child: Row(
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Theme.of(context).dividerColor),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.arrow_back, size: 20),
-                            onPressed: () => Navigator.pop(context),
-                            padding: EdgeInsets.zero,
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 42, height: 42,
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                            ),
+                            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Text('Portfolio', style: Theme.of(context).textTheme.headlineSmall),
-                        const Spacer(),
-                        // Refresh prices button
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Portfolio', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                              if (provider.holdings.isNotEmpty)
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 8, height: 8,
+                                      decoration: BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text('Live prices', style: TextStyle(fontSize: 12, color: AppTheme.success, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
                         if (provider.holdings.isNotEmpty)
-                          Container(
-                            width: 40,
-                            height: 40,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Theme.of(context).dividerColor),
+                          GestureDetector(
+                            onTap: () => _refreshAll(provider),
+                            child: Container(
+                              width: 42, height: 42,
+                              margin: const EdgeInsets.only(right: 10),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                              ),
+                              child: _refreshing
+                                  ? const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(Icons.refresh_rounded, size: 20),
                             ),
-                            child: _refreshing
-                                ? const Padding(
-                                    padding: EdgeInsets.all(10),
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : IconButton(
-                                    icon: const Icon(Icons.refresh, size: 20),
-                                    tooltip: 'Refresh live prices',
-                                    onPressed: () => _refreshAll(provider),
-                                    padding: EdgeInsets.zero,
-                                  ),
                           ),
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppTheme.goldPrimary,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.add, size: 20, color: Colors.white),
-                            onPressed: () => _showAddHoldingModal(context, provider),
-                            padding: EdgeInsets.zero,
+                        GestureDetector(
+                          onTap: () => _showAddHoldingModal(context, provider),
+                          child: Container(
+                            width: 42, height: 42,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [AppTheme.success, AppTheme.success.withOpacity(0.8)]),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.add_rounded, size: 22, color: Colors.white),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                  ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.1, end: 0),
+                ),
 
-                  // Portfolio Summary Card
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 600),
-                      curve: Curves.easeInOut,
-                      padding: const EdgeInsets.all(24),
-                      decoration: AppTheme.accentCard(cardColor),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.pie_chart, color: Colors.white, size: 24),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Total Value',
-                                style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16),
-                              ),
-                              const Spacer(),
-                              if (provider.holdings.isNotEmpty)
-                                GestureDetector(
-                                  onTap: () => _refreshAll(provider),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.bolt, color: Colors.white.withOpacity(0.9), size: 12),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Live',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.9),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '\$${totalValue.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
+                // ─── STATS CARDS ROW ───
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 148,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                      children: [
+                        _buildStatCard(
+                          context: context,
+                          isDark: isDark,
+                          title: 'Total Value',
+                          value: '\$${_formatNumber(totalValue)}',
+                          change: gainLossPercent,
+                          chartData: _generateSparklineData(isPositive),
+                          chartColor: isPositive ? AppTheme.success : AppTheme.error,
+                          width: 170,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildStatCard(
+                          context: context,
+                          isDark: isDark,
+                          title: 'Total Gain/Loss',
+                          value: '${isPositive ? '+' : ''}\$${_formatNumber(gainLoss.abs())}',
+                          change: gainLossPercent,
+                          chartData: _generateSparklineData(isPositive),
+                          chartColor: isPositive ? AppTheme.success : AppTheme.error,
+                          width: 160,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildStatCard(
+                          context: context,
+                          isDark: isDark,
+                          title: 'Holdings',
+                          value: '${provider.holdings.length}',
+                          subtitle: 'Active positions',
+                          showBarChart: true,
+                          barData: provider.holdings.take(6).map((h) => h.currentValue / (totalValue > 0 ? totalValue : 1)).toList(),
+                          width: 140,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildStatCard(
+                          context: context,
+                          isDark: isDark,
+                          title: 'Total Cost',
+                          value: '\$${_formatNumber(totalCost)}',
+                          subtitle: 'Invested amount',
+                          chartData: _generateSparklineData(true),
+                          chartColor: const Color(0xFF6366F1),
+                          width: 160,
+                        ),
+                      ],
+                    ),
+                  ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+                ),
+
+                // ─── MAIN PORTFOLIO CHART ───
+                if (provider.holdings.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+                              blurRadius: 20,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(height: 1, color: Colors.white.withOpacity(0.2)),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Chart header
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Total Cost',
-                                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                                  Row(
+                                    children: [
+                                      Text('My Portfolio', style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : Colors.black54, fontWeight: FontWeight.w500)),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: (isPositive ? AppTheme.success : AppTheme.error).withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '${isPositive ? '+' : ''}${gainLossPercent.toStringAsFixed(1)}%',
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isPositive ? AppTheme.success : AppTheme.error),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    '\$${totalCost.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '\$${_formatNumber(totalValue)}',
+                                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+                                      ),
+                                      const Spacer(),
+                                      // View toggle
+                                      Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF3F4F6),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _buildToggleButton('Assets', !_showChartView, () => setState(() => _showChartView = false), isDark),
+                                            _buildToggleButton('Chart', _showChartView, () => setState(() => _showChartView = true), isDark),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text('Gain/Loss',
-                                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${gainLoss >= 0 ? '+' : ''}\$${gainLoss.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      '${gainLossPercent >= 0 ? '+' : ''}${gainLossPercent.toStringAsFixed(2)}%',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
+                            ),
+                            // Time range selector
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                              child: Row(
+                                children: ['5d', '1mo', '3mo', '1y'].map((range) {
+                                  final isSelected = _chartRange == range;
+                                  final label = range == '5d' ? '1W' : range == '1mo' ? '1M' : range == '3mo' ? '3M' : '1Y';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: GestureDetector(
+                                      onTap: () => _changeRange(range, provider.holdings),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? AppTheme.success : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: isSelected ? AppTheme.success : (isDark ? Colors.white24 : const Color(0xFFE5E7EB))),
+                                        ),
+                                        child: Text(
+                                          label,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  );
+                                }).toList(),
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                            // Chart
+                            SizedBox(
+                              height: 200,
+                              child: _showChartView
+                                  ? _buildMainChart(isDark, isPositive)
+                                  : _buildTopAssetsView(provider.holdings, totalValue, isDark),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.05, end: 0),
                   ),
 
-                  // Chart
-                  if (provider.holdings.isNotEmpty)
-                    _PortfolioChart(
-                      points: _chartPoints,
-                      holdingHistories: _holdingHistories,
-                      holdings: provider.holdings,
-                      loading: _chartLoading,
-                      range: _chartRange,
-                      onRangeChanged: (r) =>
-                          _changeRange(r, provider.holdings),
+                // ─── ASSETS SECTION HEADER ───
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Assets',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${provider.holdings.length}',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text('Sort By', style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : Colors.black45)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? Colors.white54 : Colors.black45),
+                      ],
                     ),
+                  ),
+                ),
 
-                  // Holdings List
-                  Expanded(
-                    child: provider.holdings.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.show_chart, size: 64,
-                                    color: Theme.of(context).textTheme.bodySmall?.color),
-                                const SizedBox(height: 16),
-                                Text('No holdings yet',
-                                    style: Theme.of(context).textTheme.titleLarge),
-                                const SizedBox(height: 8),
-                                Text('Tap + to add a stock, ETF or crypto',
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                    textAlign: TextAlign.center),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: provider.holdings.length,
-                            itemBuilder: (context, index) {
-                              final holding = provider.holdings[index];
-                              final isGain = holding.gainLoss >= 0;
-
-                              return Dismissible(
-                                key: Key(holding.id),
-                                direction: DismissDirection.endToStart,
-                                background: Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.delete_outline,
-                                        color: Colors.white, size: 22),
-                                  ),
+                // ─── ASSETS LIST ───
+                provider.holdings.isEmpty
+                    ? SliverFillRemaining(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 80, height: 80,
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF3F4F6),
+                                  borderRadius: BorderRadius.circular(24),
                                 ),
-                                confirmDismiss: (_) async {
-                                  return await showDialog(
+                                child: Icon(Icons.show_chart_rounded, size: 40, color: isDark ? Colors.white38 : Colors.black26),
+                              ),
+                              const SizedBox(height: 20),
+                              Text('No holdings yet', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              Text('Tap + to add a stock, ETF or crypto', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: isDark ? Colors.white54 : Colors.black45)),
+                            ],
+                          ),
+                        ),
+                      )
+                    : SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final holding = provider.holdings[index];
+                              return _buildAssetCard(
+                                context: context,
+                                holding: holding,
+                                totalValue: totalValue,
+                                isDark: isDark,
+                                onTap: () => _showEditHoldingModal(context, provider, holding),
+                                onSell: () => _showSellModal(context, provider, holding),
+                                onDelete: () async {
+                                  final confirm = await showDialog<bool>(
                                     context: context,
                                     builder: (ctx) => AlertDialog(
                                       title: const Text('Delete Holding?'),
                                       content: Text('Remove ${holding.symbol} from your portfolio?'),
                                       actions: [
-                                        TextButton(
-                                            onPressed: () => Navigator.pop(ctx, false),
-                                            child: const Text('Cancel')),
-                                        TextButton(
-                                            onPressed: () => Navigator.pop(ctx, true),
-                                            style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                            child: const Text('Delete')),
+                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                        TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
                                       ],
                                     ),
                                   );
+                                  if (confirm == true) {
+                                    provider.deleteHolding(holding.id);
+                                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${holding.symbol} removed')));
+                                  }
                                 },
-                                onDismissed: (_) {
-                                  provider.deleteHolding(holding.id);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${holding.symbol} removed')),
-                                  );
-                                },
-                                child: _HoldingCard(
-                                  holding: holding,
-                                  isGain: isGain,
-                                  onTap: () => _showEditHoldingModal(context, provider, holding),
-                                  onSell: () => _showSellModal(context, provider, holding),
-                                ),
-                              );
+                              ).animate().fadeIn(duration: 300.ms, delay: Duration(milliseconds: 50 * index)).slideX(begin: 0.05, end: 0);
                             },
+                            childCount: provider.holdings.length,
                           ),
-                  ),
-                ],
-              ),
+                        ),
+                      ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  // ─── HELPER WIDGETS ───
+
+  String _formatNumber(double value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(2)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(2)}K';
+    return value.toStringAsFixed(2);
+  }
+
+  List<double> _generateSparklineData(bool isPositive) {
+    final random = math.Random(42);
+    final data = <double>[];
+    double value = 50;
+    for (int i = 0; i < 20; i++) {
+      value += (random.nextDouble() - (isPositive ? 0.35 : 0.65)) * 10;
+      value = value.clamp(10, 100);
+      data.add(value);
+    }
+    return data;
+  }
+
+  Widget _buildStatCard({
+    required BuildContext context,
+    required bool isDark,
+    required String title,
+    required String value,
+    double? change,
+    String? subtitle,
+    List<double>? chartData,
+    Color? chartColor,
+    bool showBarChart = false,
+    List<double>? barData,
+    required double width,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white60 : Colors.black54), overflow: TextOverflow.ellipsis),
+              ),
+              if (change != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: (change >= 0 ? AppTheme.success : AppTheme.error).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}%',
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: change >= 0 ? AppTheme.success : AppTheme.error),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)),
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(subtitle, style: TextStyle(fontSize: 9, color: isDark ? Colors.white38 : Colors.black38)),
+            ),
+          const Spacer(),
+          if (showBarChart && barData != null)
+            SizedBox(
+              height: 26,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: List.generate(
+                  barData.length.clamp(0, 6),
+                  (i) => Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      height: 6 + (barData[i] * 18).clamp(4, 18),
+                      decoration: BoxDecoration(
+                        color: _getBarColor(i).withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else if (chartData != null)
+            SizedBox(
+              height: 26,
+              child: CustomPaint(
+                size: const Size(double.infinity, 26),
+                painter: _SparklinePainter(data: chartData, color: chartColor ?? AppTheme.success, isDark: isDark),
+              ),
+            )
+          else
+            const SizedBox(height: 26),
+        ],
+      ),
+    );
+  }
+
+  Color _getBarColor(int index) {
+    const colors = [Color(0xFF10B981), Color(0xFF6366F1), Color(0xFFF59E0B), Color(0xFF06B6D4), Color(0xFFEC4899), Color(0xFF8B5CF6)];
+    return colors[index % colors.length];
+  }
+
+  Widget _buildToggleButton(String label, bool isSelected, VoidCallback onTap, bool isDark) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? (isDark ? Colors.white.withOpacity(0.1) : Colors.white) : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+          boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.white38 : Colors.black38),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainChart(bool isDark, bool isPositive) {
+    if (_chartLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (_chartPoints.length < 2) {
+      return Center(child: Text('No chart data', style: TextStyle(color: isDark ? Colors.white38 : Colors.black38)));
+    }
+
+    final lineColor = isPositive ? AppTheme.success : AppTheme.error;
+    final points = _chartPoints;
+    double minY = points.map((p) => p.value).reduce((a, b) => a < b ? a : b);
+    double maxY = points.map((p) => p.value).reduce((a, b) => a > b ? a : b);
+    final pad = (maxY - minY) * 0.15;
+    minY = (minY - pad).clamp(0, double.infinity);
+    maxY = maxY + pad;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 16, 16, 16),
+      child: LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: (points.length - 1).toDouble(),
+          minY: minY,
+          maxY: maxY,
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: (maxY - minY) / 4,
+            getDrawingHorizontalLine: (_) => FlLine(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05), strokeWidth: 1),
+          ),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            show: true,
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 48,
+                getTitlesWidget: (value, meta) => Text(
+                  '\$${_formatNumber(value)}',
+                  style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+                ),
+              ),
+            ),
+            bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => isDark ? const Color(0xFF2D2D2D) : Colors.white,
+              tooltipRoundedRadius: 10,
+              getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
+                '\$${s.y.toStringAsFixed(2)}',
+                TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
+              )).toList(),
+            ),
+          ),
+          lineBarsData: [
+            LineChartBarData(
+              spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
+              isCurved: true,
+              curveSmoothness: 0.35,
+              color: lineColor,
+              barWidth: 2.5,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [lineColor.withOpacity(0.2), lineColor.withOpacity(0.0)],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopAssetsView(List<Holding> holdings, double totalValue, bool isDark) {
+    final sorted = List<Holding>.from(holdings)..sort((a, b) => b.currentValue.compareTo(a.currentValue));
+    final top = sorted.take(5).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: List.generate(top.length, (i) {
+          final h = top[i];
+          final pct = totalValue > 0 ? (h.currentValue / totalValue * 100) : 0.0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                StockLogo(symbol: h.symbol, size: 28),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(h.symbol, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+                      Text('${pct.toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45)),
+                    ],
+                  ),
+                ),
+                Text('\$${_formatNumber(h.currentValue)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildAssetCard({
+    required BuildContext context,
+    required Holding holding,
+    required double totalValue,
+    required bool isDark,
+    required VoidCallback onTap,
+    required VoidCallback onSell,
+    required VoidCallback onDelete,
+  }) {
+    final isGain = holding.gainLoss >= 0;
+    final gainColor = isGain ? AppTheme.success : AppTheme.error;
+    final allocation = totalValue > 0 ? holding.currentValue / totalValue : 0.0;
+
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onDelete,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 12, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          children: [
+            StockLogo(symbol: holding.symbol, size: 42),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    holding.title ?? holding.symbol,
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        '${holding.shares} shares',
+                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45),
+                      ),
+                      const SizedBox(width: 8),
+                      // Mini progress bar
+                      Expanded(
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: allocation.clamp(0.05, 1.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: gainColor,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: gainColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                '${isGain ? '+' : ''}${holding.gainLossPercent.toStringAsFixed(1)}%',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: gainColor),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '\$${_formatNumber(holding.currentValue)}',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+                ),
+                Text(
+                  '@\$${holding.currentPrice.toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1920,6 +2325,71 @@ class _SummaryRow extends StatelessWidget {
                 const TextStyle(fontWeight: FontWeight.w600)),
       ],
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sparkline Painter for mini charts in stat cards
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SparklinePainter extends CustomPainter {
+  final List<double> data;
+  final Color color;
+  final bool isDark;
+
+  _SparklinePainter({required this.data, required this.color, required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.length < 2) return;
+
+    final minVal = data.reduce((a, b) => a < b ? a : b);
+    final maxVal = data.reduce((a, b) => a > b ? a : b);
+    final range = maxVal - minVal;
+    if (range == 0) return;
+
+    final path = Path();
+    final fillPath = Path();
+    
+    for (int i = 0; i < data.length; i++) {
+      final x = (i / (data.length - 1)) * size.width;
+      final y = size.height - ((data[i] - minVal) / range) * size.height;
+      
+      if (i == 0) {
+        path.moveTo(x, y);
+        fillPath.moveTo(x, size.height);
+        fillPath.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+        fillPath.lineTo(x, y);
+      }
+    }
+    
+    fillPath.lineTo(size.width, size.height);
+    fillPath.close();
+
+    // Draw gradient fill
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawPath(fillPath, fillPaint);
+
+    // Draw line
+    final linePaint = Paint()
+      ..color = color
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SparklinePainter oldDelegate) {
+    return oldDelegate.data != data || oldDelegate.color != color;
   }
 }
 

@@ -32,6 +32,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     if (widget.initialTransaction != null) {
       final t = widget.initialTransaction!;
       _amountController.text = t.amount.toString();
+      if (t.fees > 0) _feesController.text = t.fees.toString();
       _noteController.text = t.note ?? '';
       _descriptionController.text = t.description ?? '';
       _selectedCategoryId = t.categoryId;
@@ -42,6 +43,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   }
 
   final _amountController = TextEditingController();
+  final _feesController = TextEditingController();
   final _noteController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _recipientController = TextEditingController();
@@ -60,6 +62,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   @override
   void dispose() {
     _amountController.dispose();
+    _feesController.dispose();
     _noteController.dispose();
     _descriptionController.dispose();
     _recipientController.dispose();
@@ -202,6 +205,23 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     autofocus: true,
                   ),
                   const SizedBox(height: 16),
+
+                  // Bank fees (for expense, withdrawal, transfer)
+                  if (_selectedType == 'expense' || _selectedType == 'withdrawal' || _selectedType == 'transfer') ...[
+                    TextField(
+                      controller: _feesController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Bank Fees',
+                        hintText: '0.00',
+                        prefixText: '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                        filled: true,
+                        prefixIcon: const Icon(Icons.account_balance_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Category (for expenses only)
                   if (_selectedType == 'expense') ...[
@@ -918,6 +938,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     }
 
     final amount = double.tryParse(_amountController.text) ?? 0;
+    final fees = double.tryParse(_feesController.text) ?? 0;
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
       return;
@@ -967,6 +988,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
         id: widget.initialTransaction!.id,
         type: _selectedType,
         amount: amount,
+        fees: fees,
         date: _selectedDate.toIso8601String(),
         note: note,
         description: description,
@@ -1053,6 +1075,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       id: const Uuid().v4(),
       type: _selectedType,
       amount: amount,
+      fees: fees,
       date: _selectedDate.toIso8601String(),
       note: note,
       description: description,
