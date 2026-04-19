@@ -44,44 +44,28 @@ class AppTheme {
   static const Color darkBorder           = AppColors.darkBorder;
   static const Color darkDivider          = AppColors.darkDivider;
 
-  // ── Shadows ───────────────────────────────────────────────────────────────
-  static List<BoxShadow> get cardShadowLight => [
-    BoxShadow(
-      color: const Color(0xFF000000).withOpacity(0.05),
-      blurRadius: 8,
-      offset: const Offset(0, 2),
-    ),
+  // ── Shadows (cached — avoids re-allocation on every access) ────────────────
+  static const _black05 = Color(0x0D000000); // black @ 5%
+  static const _black15 = Color(0x26000000); // black @ 15%
+  static const _black18 = Color(0x2E000000); // black @ 18%
+  static const _slate08 = Color(0x140F172A); // 0F172A @ 8%
+  static const _slate04 = Color(0x0A0F172A); // 0F172A @ 4%
+
+  static final List<BoxShadow> cardShadowLight = const [
+    BoxShadow(color: _black05, blurRadius: 8, offset: Offset(0, 2)),
   ];
 
-  static List<BoxShadow> get cardShadowDark => [
-    BoxShadow(
-      color: Colors.black.withOpacity(0.15),
-      blurRadius: 12,
-      offset: const Offset(0, 2),
-    ),
+  static final List<BoxShadow> cardShadowDark = const [
+    BoxShadow(color: _black15, blurRadius: 12, offset: Offset(0, 2)),
   ];
 
-  static List<BoxShadow> get elevatedShadowLight => [
-    BoxShadow(
-      color: const Color(0xFF0F172A).withOpacity(0.08),
-      blurRadius: 24,
-      offset: const Offset(0, 8),
-      spreadRadius: -2,
-    ),
-    BoxShadow(
-      color: const Color(0xFF0F172A).withOpacity(0.04),
-      blurRadius: 8,
-      offset: const Offset(0, 2),
-    ),
+  static final List<BoxShadow> elevatedShadowLight = const [
+    BoxShadow(color: _slate08, blurRadius: 24, offset: Offset(0, 8), spreadRadius: -2),
+    BoxShadow(color: _slate04, blurRadius: 8, offset: Offset(0, 2)),
   ];
 
-  static List<BoxShadow> get goldGlow => [
-    BoxShadow(
-      color: Colors.black.withOpacity(0.18),
-      blurRadius: 20,
-      offset: const Offset(0, 6),
-      spreadRadius: -2,
-    ),
+  static final List<BoxShadow> goldGlow = const [
+    BoxShadow(color: _black18, blurRadius: 20, offset: Offset(0, 6), spreadRadius: -2),
   ];
 
   // ── ThemeData ─────────────────────────────────────────────────────────────
@@ -348,7 +332,7 @@ class AppTheme {
       boxShadow: [
         // Soft teal glow — ChatGPT brand
         BoxShadow(
-          color: const Color(0xFF10A37F).withOpacity(0.10),
+          color: const Color(0xFF0B715F).withOpacity(0.15),
           blurRadius: 20,
           spreadRadius: 0,
           offset: const Offset(0, 4),

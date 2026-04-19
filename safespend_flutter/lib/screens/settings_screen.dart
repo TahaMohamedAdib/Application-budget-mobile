@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../models/settings.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_helper.dart';
+import '../l10n/app_localizations.dart';
+import 'account_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -13,9 +16,12 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
-    return Consumer<AppProvider>(
-      builder: (context, provider, _) {
-        final isDark = provider.settings.isDarkMode;
+    return Selector<AppProvider, Settings>(
+      selector: (_, p) => p.settings,
+      builder: (context, settings, _) {
+        final provider = context.read<AppProvider>();
+        final isDark = settings.isDarkMode;
+        final s = S.of(context);
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -29,21 +35,17 @@ class SettingsScreen extends StatelessWidget {
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(
-                            color: isDarkTheme ? AppTheme.darkSurface : AppTheme.lightSurface,
-                            shape: BoxShape.circle,
-                            boxShadow: isDarkTheme ? [] : AppTheme.cardShadowLight,
-                          ),
-                          child: const Icon(Icons.arrow_back_rounded, size: 18),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(Icons.arrow_back_rounded, size: 22,
+                              color: isDarkTheme ? Colors.white : Colors.black),
                         ),
                       ),
                       const SizedBox(width: 14),
-                      Text('Settings', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(s.settings, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                     ],
                   ),
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
+                ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut).slideY(begin: -0.05, end: 0, curve: Curves.easeOut),
 
                 // Content
                 Expanded(
@@ -58,20 +60,20 @@ class SettingsScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Appearance', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                            Text(s.appearance, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                _buildThemeOption(context, icon: Icons.light_mode_rounded, label: 'Light', isSelected: !isDark, onTap: () { if (isDark) provider.toggleTheme(); }),
+                                _buildThemeOption(context, icon: Icons.light_mode_rounded, label: s.light, isSelected: settings.themeMode == 'light', onTap: () => provider.setThemeMode('light')),
                                 const SizedBox(width: 10),
-                                _buildThemeOption(context, icon: Icons.dark_mode_rounded, label: 'Dark', isSelected: isDark, onTap: () { if (!isDark) provider.toggleTheme(); }),
+                                _buildThemeOption(context, icon: Icons.dark_mode_rounded, label: s.dark, isSelected: settings.themeMode == 'dark', onTap: () => provider.setThemeMode('dark')),
                                 const SizedBox(width: 10),
-                                _buildThemeOption(context, icon: Icons.smartphone_rounded, label: 'System', isSelected: false, onTap: () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('System theme coming soon'))); }),
+                                _buildThemeOption(context, icon: Icons.smartphone_rounded, label: s.system, isSelected: settings.themeMode == 'system', onTap: () => provider.setThemeMode('system')),
                               ],
                             ),
                           ],
                         ),
-                      ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
+                      ).animate().fadeIn(duration: 280.ms, delay: 80.ms, curve: Curves.easeOut),
 
                       const SizedBox(height: 16),
 
@@ -96,7 +98,7 @@ class SettingsScreen extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Currency', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                    Text(s.currency, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                                     const SizedBox(height: 2),
                                     Text(
                                       '${CurrencyHelper.getSymbol(provider.settings.currency)} · ${provider.settings.currency} · ${CurrencyHelper.getName(provider.settings.currency)}',
@@ -113,21 +115,61 @@ class SettingsScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
+                      // Language
+                      GestureDetector(
+                        onTap: () => _showLanguagePicker(context, provider),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: AppTheme.premiumCard(context),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44, height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    S.flagForLocale(settings.locale),
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(s.language, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 2),
+                                    Text(S.displayNameForLocale(settings.locale), style: Theme.of(context).textTheme.bodySmall),
+                                  ],
+                                ),
+                              ),
+                              Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(context).textTheme.bodySmall?.color),
+                            ],
+                          ),
+                        ),
+                      ).animate().fadeIn(duration: 500.ms, delay: 170.ms),
+
+                      const SizedBox(height: 16),
+
                       // Menu Items
                       Container(
                         decoration: AppTheme.premiumCard(context),
                         child: Column(
                           children: [
-                            _buildMenuItem(context, icon: Icons.person_rounded, label: 'Account', onTap: () => _showAccountDialog(context)),
+                            _buildMenuItem(context, icon: Icons.person_rounded, label: s.account, onTap: () => _showAccountDialog(context)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.notifications_rounded, label: 'Notifications', onTap: () => _showNotificationsDialog(context, provider)),
+                            _buildMenuItem(context, icon: Icons.notifications_rounded, label: s.notifications, onTap: () => _showNotificationsDialog(context, provider)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.shield_rounded, label: 'Privacy', onTap: () => _showPrivacyDialog(context)),
+                            _buildMenuItem(context, icon: Icons.shield_rounded, label: s.privacy, onTap: () => _showPrivacyDialog(context)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.help_outline_rounded, label: 'Help & Support', onTap: () => _showHelpDialog(context)),
+                            _buildMenuItem(context, icon: Icons.help_outline_rounded, label: s.helpAndSupport, onTap: () => _showHelpDialog(context)),
                           ],
                         ),
-                      ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                      ).animate().fadeIn(duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
 
                       const SizedBox(height: 16),
 
@@ -141,17 +183,17 @@ class SettingsScreen extends StatelessWidget {
                             children: [
                               Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
                               const SizedBox(width: 14),
-                              Text('Log Out', style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.error, fontSize: 15)),
+                              Text(s.logOut, style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.error, fontSize: 15)),
                             ],
                           ),
                         ),
-                      ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
+                      ).animate().fadeIn(duration: 280.ms, delay: 160.ms, curve: Curves.easeOut),
 
                       const SizedBox(height: 32),
 
                       Center(
-                        child: Text('SafeSpend v1.0.0', style: Theme.of(context).textTheme.bodySmall),
-                      ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
+                        child: Text(s.version, style: Theme.of(context).textTheme.bodySmall),
+                      ).animate().fadeIn(duration: 280.ms, delay: 200.ms, curve: Curves.easeOut),
                     ],
                   ),
                 ),
@@ -222,43 +264,20 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showAccountDialog(BuildContext context) {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final email = auth.user?.email ?? 'Local mode';
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(Icons.person_rounded, color: AppTheme.goldPrimary),
-          SizedBox(width: 10),
-          Text('Account', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Email', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-            const SizedBox(height: 4),
-            Text(email, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-            const SizedBox(height: 16),
-            Text('To change your password, use the "Forgot Password" option on the login screen.', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-          ],
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen()));
   }
 
   void _showNotificationsDialog(BuildContext context, AppProvider provider) {
+    final s = S.of(context);
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(children: [
-            Icon(Icons.notifications_rounded, color: AppTheme.goldPrimary),
-            SizedBox(width: 10),
-            Text('Notifications', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          title: Row(children: [
+            const Icon(Icons.notifications_rounded, color: AppTheme.goldPrimary),
+            const SizedBox(width: 10),
+            Text(s.notifications, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           ]),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -269,73 +288,73 @@ class SettingsScreen extends StatelessWidget {
                   provider.updateSettings(provider.settings.copyWith(notificationsEnabled: v));
                   setS(() {});
                 },
-                title: const Text('Push Notifications'),
-                subtitle: const Text('Reminders for bills and budgets'),
+                title: Text(s.pushNotifications),
+                subtitle: Text(s.remindersForBills),
                 activeColor: AppTheme.goldPrimary,
                 contentPadding: EdgeInsets.zero,
               ),
             ],
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done'))],
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.done))],
         ),
       ),
     );
   }
 
   void _showPrivacyDialog(BuildContext context) {
+    final s = S.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(Icons.shield_rounded, color: AppTheme.goldPrimary),
-          SizedBox(width: 10),
-          Text('Privacy', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Row(children: [
+          const Icon(Icons.shield_rounded, color: AppTheme.goldPrimary),
+          const SizedBox(width: 10),
+          Text(s.privacy, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         ]),
-        content: const Text(
-          'Your financial data is stored securely in Supabase with row-level security. Only you can access your data.\n\nNo data is shared with third parties. Transaction data never leaves your secure account.',
-          style: TextStyle(height: 1.5, fontSize: 13),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it'))],
+        content: Text(s.privacyDesc, style: const TextStyle(height: 1.5, fontSize: 13)),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.gotIt))],
       ),
     );
   }
 
   void _showHelpDialog(BuildContext context) {
+    final s = S.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(Icons.help_outline_rounded, color: AppTheme.goldPrimary),
-          SizedBox(width: 10),
-          Text('Help & Support', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Row(children: [
+          const Icon(Icons.help_outline_rounded, color: AppTheme.goldPrimary),
+          const SizedBox(width: 10),
+          Text(s.helpAndSupport, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         ]),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _HelpItem(q: 'How do I add a transaction?', a: 'Tap the + button at the bottom right of the home screen.'),
-            SizedBox(height: 12),
-            _HelpItem(q: 'How do subscriptions work?', a: 'Add a subscription via the + button → Expense → Subscription. It auto-deducts from your account on the due date.'),
-            SizedBox(height: 12),
-            _HelpItem(q: 'How is net worth calculated?', a: 'Net worth = all bank accounts + cash + investments − outstanding debt.'),
+            _HelpItem(q: s.helpQ1, a: s.helpA1),
+            const SizedBox(height: 12),
+            _HelpItem(q: s.helpQ2, a: s.helpA2),
+            const SizedBox(height: 12),
+            _HelpItem(q: s.helpQ3, a: s.helpA3),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close))],
       ),
     );
   }
 
   void _confirmLogOut(BuildContext context, AppProvider provider) {
+    final s = S.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Log Out?', style: TextStyle(fontWeight: FontWeight.w700)),
-        content: const Text('You will need to sign in again to access your data.'),
+        title: Text(s.logOutConfirm, style: const TextStyle(fontWeight: FontWeight.w700)),
+        content: Text(s.logOutDesc),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.cancel)),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -347,10 +366,93 @@ class SettingsScreen extends StatelessWidget {
               }
             },
             style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-            child: const Text('Log Out'),
+            child: Text(s.logOut),
           ),
         ],
       ),
+    );
+  }
+
+  void _showLanguagePicker(BuildContext context, AppProvider provider) {
+    final s = S.of(context);
+    final currentLocale = S.normalizeLocaleCode(provider.settings.locale);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Text(s.selectLanguage, style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                  children: S.localeDisplayNames.entries.map((entry) {
+                    final code = entry.key;
+                    final name = entry.value;
+                    final flag = S.flagForLocale(code);
+                    final isSelected = code == currentLocale;
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        provider.setLocale(code);
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.goldPrimary.withOpacity(isDark ? 0.15 : 0.08) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                          border: isSelected ? Border.all(color: AppTheme.goldPrimary, width: 1.5) : null,
+                        ),
+                        child: Row(
+                          children: [
+                            Text(flag, style: const TextStyle(fontSize: 24)),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(name, style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : null)),
+                                  Text(code.toUpperCase(), style: Theme.of(ctx).textTheme.bodySmall),
+                                ],
+                              ),
+                            ),
+                            if (isSelected)
+                              const Icon(Icons.check_circle_rounded, color: AppTheme.goldPrimary, size: 22),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -400,6 +502,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -418,7 +521,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Text('Select Currency', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(s.selectCurrency, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                     const Spacer(),
                     IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(context)),
                   ],
@@ -429,8 +532,13 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                   controller: _searchController,
                   onChanged: (v) => setState(() => _query = v.toLowerCase()),
                   decoration: InputDecoration(
-                    hintText: 'Search currency...',
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    hintText: s.searchCurrency,
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: 14, right: 8),
+                      child: Icon(Icons.search_rounded, size: 18,
+                          color: isDark ? Colors.white38 : Colors.black38),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
                     suffixIcon: _query.isNotEmpty ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18), onPressed: () { _searchController.clear(); setState(() => _query = ''); }) : null,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
                     filled: true,
@@ -457,6 +565,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
 
   List<Widget> _buildSections(bool isDark) {
     final widgets = <Widget>[];
+    final s = S.of(context);
 
     for (final entry in _sections.entries) {
       final sectionName = entry.key;
@@ -528,7 +637,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
     if (widgets.isEmpty) {
       widgets.add(Padding(
         padding: const EdgeInsets.only(top: 60),
-        child: Center(child: Text('No currencies found', style: Theme.of(context).textTheme.bodySmall)),
+        child: Center(child: Text(s.noCurrenciesFound, style: Theme.of(context).textTheme.bodySmall)),
       ));
     }
 

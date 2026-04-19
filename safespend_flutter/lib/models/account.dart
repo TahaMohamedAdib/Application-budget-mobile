@@ -9,11 +9,17 @@ class Account {
   final String? color;
   final bool includeInNetWorth;
   final String? imagePath;
+  final String? addedAt;
 
   // Salary auto-credit
   final double? salaryAmount; // monthly salary to auto-add
   final int? salaryDay;       // day of month (1–31)
   final String? lastSalaryDate; // 'yyyy-MM' — month salary was last credited
+
+  // Debt monthly payment (only for type == 'debt')
+  final double? debtPaymentAmount;    // fixed monthly instalment
+  final int? debtPaymentDay;          // day of month (1–31)
+  final String? debtPaymentSourceId;  // account ID to debit from
 
   Account({
     required this.id,
@@ -24,9 +30,13 @@ class Account {
     this.color,
     this.includeInNetWorth = true,
     this.imagePath,
+    this.addedAt,
     this.salaryAmount,
     this.salaryDay,
     this.lastSalaryDate,
+    this.debtPaymentAmount,
+    this.debtPaymentDay,
+    this.debtPaymentSourceId,
   });
 
   Account copyWith({
@@ -38,9 +48,13 @@ class Account {
     String? color,
     bool? includeInNetWorth,
     String? imagePath,
+    String? addedAt,
     double? salaryAmount,
     int? salaryDay,
     String? lastSalaryDate,
+    double? debtPaymentAmount,
+    int? debtPaymentDay,
+    String? debtPaymentSourceId,
   }) {
     return Account(
       id: id ?? this.id,
@@ -51,9 +65,13 @@ class Account {
       color: color ?? this.color,
       includeInNetWorth: includeInNetWorth ?? this.includeInNetWorth,
       imagePath: imagePath ?? this.imagePath,
+      addedAt: addedAt ?? this.addedAt,
       salaryAmount: salaryAmount ?? this.salaryAmount,
       salaryDay: salaryDay ?? this.salaryDay,
       lastSalaryDate: lastSalaryDate ?? this.lastSalaryDate,
+      debtPaymentAmount: debtPaymentAmount ?? this.debtPaymentAmount,
+      debtPaymentDay: debtPaymentDay ?? this.debtPaymentDay,
+      debtPaymentSourceId: debtPaymentSourceId ?? this.debtPaymentSourceId,
     );
   }
 
@@ -67,9 +85,13 @@ class Account {
       'color': color,
       'includeInNetWorth': includeInNetWorth,
       'imagePath': imagePath,
+      'addedAt': addedAt,
       'salaryAmount': salaryAmount,
       'salaryDay': salaryDay,
       'lastSalaryDate': lastSalaryDate,
+      'debtPaymentAmount': debtPaymentAmount,
+      'debtPaymentDay': debtPaymentDay,
+      'debtPaymentSourceId': debtPaymentSourceId,
     };
   }
 
@@ -83,9 +105,13 @@ class Account {
       color: json['color'],
       includeInNetWorth: json['includeInNetWorth'] ?? true,
       imagePath: json['imagePath'],
+      addedAt: json['addedAt'],
       salaryAmount: (json['salaryAmount'] as num?)?.toDouble(),
       salaryDay: json['salaryDay'] as int?,
       lastSalaryDate: json['lastSalaryDate'],
+      debtPaymentAmount: (json['debtPaymentAmount'] as num?)?.toDouble(),
+      debtPaymentDay: json['debtPaymentDay'] as int?,
+      debtPaymentSourceId: json['debtPaymentSourceId'] as String?,
     );
   }
 

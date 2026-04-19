@@ -44,6 +44,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# --- Secrets & Environment Files ---
+.env
+.env.*
+*.env.local
+
 # --- Custom Large Files & Environments ---
 # Bloque le patch de 478Mo et tous les autres fichiers .patch
 fix-user-data-loading.patch

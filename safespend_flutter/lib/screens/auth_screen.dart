@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../services/auth_service.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -15,6 +17,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLogin = true;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -45,46 +48,53 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (result.success && auth.userId != null) {
-      await appProvider.loadFromSupabase(auth.userId!);
-    } else if (result.success && !_isLogin) {
-      // Sign-up success but email confirmation needed
+    // Sign-up succeeded but email confirmation is required
+    if (result.error == 'email_confirmation_required') {
       if (!mounted) return;
       _showEmailConfirmationDialog(email);
+    } else if (result.success && auth.userId != null) {
+      // Fully authenticated — load cloud data
+      await appProvider.loadFromSupabase(auth.userId!);
     } else if (result.error != null) {
       if (!mounted) return;
-      final isEmailNotConfirmed = result.error!.toLowerCase().contains('email not confirmed') ||
-          result.error!.toLowerCase().contains('not confirmed');
+      final isEmailNotConfirmed =
+          result.error!.toLowerCase().contains('email not confirmed') ||
+              result.error!.toLowerCase().contains('not confirmed');
       if (isEmailNotConfirmed) {
         _showEmailConfirmationDialog(email);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.error!), backgroundColor: AppTheme.error),
+          SnackBar(
+              content: Text(result.error!), backgroundColor: AppTheme.error),
         );
       }
     }
   }
 
   void _showEmailConfirmationDialog(String email) {
+    final s = S.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.mark_email_unread_rounded, color: AppTheme.goldPrimary),
-            SizedBox(width: 10),
-            Text('Confirm your email', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            const Icon(Icons.mark_email_unread_rounded,
+                color: AppTheme.goldPrimary),
+            const SizedBox(width: 10),
+            Text(s.confirmEmail,
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           ],
         ),
         content: Text(
-          'We sent a confirmation link to:\n$email\n\nPlease check your inbox (and spam folder) and click the link to activate your account.',
+          s.checkInbox.replaceAll('{email}', email),
           style: const TextStyle(height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text(s.ok),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -93,17 +103,21 @@ class _AuthScreenState extends State<AuthScreen> {
               final result = await auth.resendConfirmationEmail(email);
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(result.success ? 'Confirmation email resent!' : (result.error ?? 'Failed to resend')),
-                backgroundColor: result.success ? AppTheme.success : AppTheme.error,
+                content: Text(result.success
+                    ? s.confirmationEmailResent
+                    : (result.error ?? s.failedToResend)),
+                backgroundColor:
+                    result.success ? AppTheme.success : AppTheme.error,
               ));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.goldPrimary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
               elevation: 0,
             ),
-            child: const Text('Resend email'),
+            child: Text(s.resendEmail),
           ),
         ],
       ),
@@ -135,9 +149,11 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
+      backgroundColor:
+          isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -155,8 +171,16 @@ class _AuthScreenState extends State<AuthScreen> {
                     color: AppTheme.goldPrimary.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.account_balance_wallet_rounded, size: 40, color: AppTheme.goldPrimary),
-                ),
+                  child: const Icon(Icons.account_balance_wallet_rounded,
+                      size: 40, color: AppTheme.goldPrimary),
+                )
+                    .animate()
+                    .fadeIn(duration: 260.ms, curve: Curves.easeOut)
+                    .scaleXY(
+                        begin: 0.85,
+                        end: 1.0,
+                        duration: 300.ms,
+                        curve: Curves.easeOut),
                 const SizedBox(height: 20),
 
                 // Title
@@ -168,15 +192,22 @@ class _AuthScreenState extends State<AuthScreen> {
                     color: AppTheme.goldPrimary,
                     letterSpacing: -0.5,
                   ),
-                ),
+                )
+                    .animate()
+                    .fadeIn(
+                        duration: 260.ms, delay: 60.ms, curve: Curves.easeOut)
+                    .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
                 const SizedBox(height: 6),
                 Text(
-                  _isLogin ? 'Welcome back' : 'Create your account',
+                  _isLogin ? 'Welcome back' : s.createAccount,
                   style: TextStyle(
                     fontSize: 16,
-                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                    color: isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.lightTextSecondary,
                   ),
-                ),
+                ).animate().fadeIn(
+                    duration: 260.ms, delay: 100.ms, curve: Curves.easeOut),
                 const SizedBox(height: 36),
 
                 // Form
@@ -190,14 +221,20 @@ class _AuthScreenState extends State<AuthScreen> {
                         keyboardType: TextInputType.emailAddress,
                         autocorrect: false,
                         decoration: InputDecoration(
-                          labelText: 'Email',
+                          labelText: s.email,
                           hintText: 'you@example.com',
                           prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Email is required';
-                          if (!v.contains('@')) return 'Enter a valid email';
+                          if (v == null || v.trim().isEmpty)
+                            return 'Email is required';
+                          final email = v.trim();
+                          final emailRegex = RegExp(
+                              r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                          if (!emailRegex.hasMatch(email))
+                            return 'Enter a valid email';
                           return null;
                         },
                       ),
@@ -208,18 +245,29 @@ class _AuthScreenState extends State<AuthScreen> {
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         decoration: InputDecoration(
-                          labelText: 'Password',
+                          labelText: s.password,
                           hintText: '••••••••',
                           prefixIcon: const Icon(Icons.lock_outline_rounded),
                           suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            icon: Icon(_obscurePassword
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded),
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
                           ),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14)),
                         ),
                         validator: (v) {
-                          if (v == null || v.isEmpty) return 'Password is required';
-                          if (v.length < 6) return 'At least 6 characters';
+                          if (v == null || v.isEmpty)
+                            return 'Password is required';
+                          if (v.length < 8) return 'At least 8 characters';
+                          if (!RegExp(r'[A-Z]').hasMatch(v))
+                            return 'Include an uppercase letter';
+                          if (!RegExp(r'[0-9]').hasMatch(v))
+                            return 'Include a number';
+                          if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(v))
+                            return 'Include a special character';
                           return null;
                         },
                       ),
@@ -229,15 +277,24 @@ class _AuthScreenState extends State<AuthScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _confirmPasswordController,
-                          obscureText: true,
+                          obscureText: _obscureConfirmPassword,
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             hintText: '••••••••',
                             prefixIcon: const Icon(Icons.lock_outline_rounded),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureConfirmPassword
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded),
+                              onPressed: () => setState(
+                                  () => _obscureConfirmPassword = !_obscureConfirmPassword),
+                            ),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14)),
                           ),
                           validator: (v) {
-                            if (v != _passwordController.text) return 'Passwords do not match';
+                            if (v != _passwordController.text)
+                              return 'Passwords do not match';
                             return null;
                           },
                         ),
@@ -254,20 +311,37 @@ class _AuthScreenState extends State<AuthScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.goldPrimary,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
                             elevation: 0,
                           ),
                           child: _isLoading
-                              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5, color: Colors.white))
                               : Text(
-                                  _isLogin ? 'Sign In' : 'Create Account',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                  _isLogin ? s.signIn : s.createAccount,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700),
                                 ),
                         ),
-                      ),
+                      )
+                          .animate()
+                          .fadeIn(
+                              duration: 280.ms,
+                              delay: 200.ms,
+                              curve: Curves.easeOut)
+                          .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
                     ],
                   ),
-                ),
+                )
+                    .animate()
+                    .fadeIn(
+                        duration: 280.ms, delay: 140.ms, curve: Curves.easeOut)
+                    .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
 
                 const SizedBox(height: 28),
 
@@ -276,8 +350,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _isLogin ? "Don't have an account?" : 'Already have an account?',
-                      style: TextStyle(color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                      _isLogin ? s.dontHaveAccount : s.alreadyHaveAccount,
+                      style: TextStyle(
+                          color: isDark
+                              ? AppTheme.darkTextSecondary
+                              : AppTheme.lightTextSecondary),
                     ),
                     TextButton(
                       onPressed: () => setState(() {
@@ -285,8 +362,10 @@ class _AuthScreenState extends State<AuthScreen> {
                         _formKey.currentState?.reset();
                       }),
                       child: Text(
-                        _isLogin ? 'Sign Up' : 'Sign In',
-                        style: const TextStyle(color: AppTheme.goldPrimary, fontWeight: FontWeight.w700),
+                        _isLogin ? s.signUp : s.signIn,
+                        style: const TextStyle(
+                            color: AppTheme.goldPrimary,
+                            fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],

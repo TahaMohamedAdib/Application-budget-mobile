@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_theme.dart';
 
 class MessageBubble extends StatelessWidget {
   final String text;
@@ -185,7 +186,7 @@ class MessageBubble extends StatelessWidget {
         h3: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: strongColor, height: 1.4),
         code: GoogleFonts.firaCode(
           fontSize: 13,
-          color: const Color(0xFF10A37F),
+          color: AppTheme.goldPrimary,
           backgroundColor: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
         ),
         codeblockDecoration: BoxDecoration(

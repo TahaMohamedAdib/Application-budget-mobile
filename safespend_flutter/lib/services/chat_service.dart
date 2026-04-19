@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'env_config.dart';
 
 /// A single message in the conversation.
 class ChatMessage {
@@ -36,9 +38,9 @@ class ChatMessage {
 }
 
 class ChatService {
-  static const String _apiKey = 'AIzaSyChWIPoUbvCGEpwKUvqLJkLfJX5mmC9TbI';
+  static String get _apiKey => EnvConfig.geminiApiKey;
   static const String _model = 'gemini-2.5-flash';
-  static const String _baseUrl =
+  static String get _baseUrl =>
       'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
 
   // ── System prompt ────────────────────────────────────────────
@@ -75,7 +77,14 @@ USER'S LIVE FINANCIAL SNAPSHOT:
 $lines
 
 Use this data to give personalized, specific advice — not generic tips.
-''';
+${ctx.containsKey('project_context') ? '''
+
+PROJECT CONTEXT:
+This conversation belongs to a project. The user groups related conversations together under projects.
+You have access to summaries of other conversations in this project. Use this context to understand what the user has previously discussed and provide continuity — if the user refers to something from another conversation in the project, you should know about it.
+
+${ctx['project_context']}
+''' : ''}''';
   }
 
   // ── Send message ─────────────────────────────────────────────
@@ -86,6 +95,10 @@ Use this data to give personalized, specific advice — not generic tips.
     String? attachmentBase64,
     String? attachmentMimeType,
   }) async {
+    if (_apiKey.isEmpty) {
+      return 'SafeSpend AI is not configured yet. Please contact support.';
+    }
+
     final uri = Uri.parse('$_baseUrl?key=$_apiKey');
 
     // Build contents: apply attachment only to the last (current) user message
@@ -147,7 +160,7 @@ Use this data to give personalized, specific advice — not generic tips.
 
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode != 200) {
-      print('Gemini API error [${response.statusCode}]: ${response.body}');
+      if (kDebugMode) debugPrint('Gemini API error [${response.statusCode}]: ${response.body}');
     }
 
     if (response.statusCode == 200) {
@@ -169,9 +182,22 @@ Use this data to give personalized, specific advice — not generic tips.
       }
       return 'No response received.';
     } else {
-      final error =
-          decoded['error']?['message'] ?? 'HTTP ${response.statusCode}';
-      throw Exception(error);
+      final errorMsg = decoded['error']?['message'] as String? ?? '';
+      // Map API errors to user-friendly messages
+      if (response.statusCode == 400 && errorMsg.contains('API key')) {
+        return 'SafeSpend AI is temporarily unavailable. The service is being updated — please try again later.';
+      }
+      if (response.statusCode == 403 || errorMsg.toLowerCase().contains('leaked') || errorMsg.toLowerCase().contains('revoked')) {
+        return 'SafeSpend AI is temporarily unavailable. The service is being updated — please try again later.';
+      }
+      if (response.statusCode == 429) {
+        return 'SafeSpend AI is busy right now. Please wait a moment and try again.';
+      }
+      if (response.statusCode >= 500) {
+        return 'The AI service is experiencing issues. Please try again in a few minutes.';
+      }
+      // Generic fallback — never expose raw API details to the user
+      return 'Something went wrong. Please try again later.';
     }
   }
 }

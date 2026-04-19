@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 class SpendingScreen extends StatefulWidget {
   const SpendingScreen({super.key});
@@ -57,6 +58,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        final s = S.of(context);
         final cf = CurrencyHelper.formatter(provider.settings.currency);
 
         final weeklySpending = _getWeeklySpending(provider);
@@ -100,10 +102,10 @@ class _SpendingScreenState extends State<SpendingScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text('Spending', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(s.spending, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms),
+                  ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut),
                 ),
 
                 // Range Toggle
@@ -132,7 +134,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    r == 'week' ? 'This Week' : 'This Month',
+                                    r == 'week' ? s.thisWeek : s.thisMonth,
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: active ? Colors.white : Theme.of(context).textTheme.bodySmall?.color),
                                   ),
                                 ),
@@ -142,7 +144,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                         }).toList(),
                       ),
                     ),
-                  ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+                  ).animate().fadeIn(duration: 260.ms, delay: 80.ms, curve: Curves.easeOut),
                 ),
 
                 // Total + Chart
@@ -155,8 +157,8 @@ class _SpendingScreenState extends State<SpendingScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Total Spending',
-                            style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.2)),
+                          Text(s.spending,
+                            style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.2)),
                           const SizedBox(height: 4),
                           Text(cf.format(totalSpending),
                             style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1.0)),
@@ -245,15 +247,15 @@ class _SpendingScreenState extends State<SpendingScreen> {
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                  ).animate().fadeIn(duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
                 ),
 
                 // Recent Expenses Header
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
-                    child: Text('Recent Expenses', style: Theme.of(context).textTheme.titleLarge),
-                  ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
+                    child: Text(s.expenses, style: Theme.of(context).textTheme.titleLarge),
+                  ).animate().fadeIn(duration: 280.ms, delay: 160.ms, curve: Curves.easeOut),
                 ),
 
                 // Recent Expenses List

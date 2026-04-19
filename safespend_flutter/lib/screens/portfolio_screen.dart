@@ -6,11 +6,24 @@ import 'package:uuid/uuid.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:iconify_flutter/iconify_flutter.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_icons.dart';
 import '../models/holding.dart';
 import '../models/account.dart';
 import '../services/stock_price_service.dart';
+import '../utils/currency_helper.dart';
+import '../widgets/app_picker_field.dart';
+import '../l10n/app_localizations.dart';
+
+enum _PortfolioSortOption {
+  totalValueHigh,
+  totalValueLow,
+  newest,
+  oldest,
+  name,
+}
 
 class PortfolioScreen extends StatefulWidget {
   const PortfolioScreen({super.key});
@@ -19,21 +32,30 @@ class PortfolioScreen extends StatefulWidget {
   State<PortfolioScreen> createState() => _PortfolioScreenState();
 }
 
-class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProviderStateMixin {
+class _PortfolioScreenState extends State<PortfolioScreen>
+    with SingleTickerProviderStateMixin {
   bool _refreshing = false;
   List<PortfolioPoint> _chartPoints = [];
   Map<String, List<PortfolioPoint>> _holdingHistories = {};
   bool _chartLoading = false;
   String _chartRange = '1mo'; // '5d' | '1mo' | '3mo' | '1y'
-  bool _showChartView = true; // Toggle between chart and top assets view
+  bool _showChartView = true;
+  _PortfolioSortOption _assetSort = _PortfolioSortOption.totalValueHigh;
+  double _fxRate = 1.0; // USD → user's currency rate
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<AppProvider>();
+      _fetchFxRate(provider.settings.currency);
       if (provider.holdings.isNotEmpty) _loadChart(provider.holdings);
     });
+  }
+
+  Future<void> _fetchFxRate(String currency) async {
+    final rate = await StockPriceService.fetchUsdRate(currency);
+    if (mounted) setState(() => _fxRate = rate);
   }
 
   Future<void> _loadChart(List<Holding> holdings) async {
@@ -60,35 +82,117 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     if (_refreshing || provider.holdings.isEmpty) return;
     setState(() => _refreshing = true);
     try {
-      final symbols = provider.holdings.map((h) => h.symbol).toSet().toList();
-      final quotes = await StockPriceService.fetchMultiple(symbols);
-      for (final h in provider.holdings) {
-        final q = quotes[h.symbol];
-        if (q != null && q.price != h.currentPrice) {
-          provider.updateHolding(h.copyWith(currentPrice: q.price));
-        }
-      }
-      // Also reload chart with fresh data
+      // Refresh FX rate and prices in parallel
+      await Future.wait([
+        _fetchFxRate(provider.settings.currency),
+        () async {
+          final symbols =
+              provider.holdings.map((h) => h.symbol).toSet().toList();
+          final quotes = await StockPriceService.fetchMultiple(symbols);
+          for (final h in provider.holdings) {
+            final q = quotes[h.symbol];
+            if (q != null && q.price != h.currentPrice) {
+              provider.updateHolding(h.copyWith(currentPrice: q.price));
+            }
+          }
+        }(),
+      ]);
       await _loadChart(provider.holdings);
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
   }
 
+  String _holdingDisplayName(Holding holding) {
+    final title = holding.title?.trim();
+    if (title != null && title.isNotEmpty) return title;
+    return holding.symbol.trim();
+  }
+
+  int _compareHoldingNames(Holding a, Holding b) {
+    final byName = _holdingDisplayName(a)
+        .toLowerCase()
+        .compareTo(_holdingDisplayName(b).toLowerCase());
+    if (byName != 0) return byName;
+    return a.symbol.toLowerCase().compareTo(b.symbol.toLowerCase());
+  }
+
+  int _comparePurchaseDate(Holding a, Holding b, {required bool newestFirst}) {
+    final aDate =
+        a.purchaseDate == null ? null : DateTime.tryParse(a.purchaseDate!);
+    final bDate =
+        b.purchaseDate == null ? null : DateTime.tryParse(b.purchaseDate!);
+
+    if (aDate != null && bDate != null) {
+      final byDate = newestFirst
+          ? bDate.compareTo(aDate)
+          : aDate.compareTo(bDate);
+      if (byDate != 0) return byDate;
+    } else if (aDate == null && bDate != null) {
+      return 1;
+    } else if (aDate != null && bDate == null) {
+      return -1;
+    }
+
+    return _compareHoldingNames(a, b);
+  }
+
+  List<Holding> _sortedHoldings(List<Holding> holdings) {
+    final sorted = List<Holding>.from(holdings);
+    sorted.sort((a, b) {
+      switch (_assetSort) {
+        case _PortfolioSortOption.totalValueHigh:
+          final byValue = b.currentValue.compareTo(a.currentValue);
+          return byValue != 0 ? byValue : _compareHoldingNames(a, b);
+        case _PortfolioSortOption.totalValueLow:
+          final byValue = a.currentValue.compareTo(b.currentValue);
+          return byValue != 0 ? byValue : _compareHoldingNames(a, b);
+        case _PortfolioSortOption.newest:
+          return _comparePurchaseDate(a, b, newestFirst: true);
+        case _PortfolioSortOption.oldest:
+          return _comparePurchaseDate(a, b, newestFirst: false);
+        case _PortfolioSortOption.name:
+          return _compareHoldingNames(a, b);
+      }
+    });
+    return sorted;
+  }
+
+  String _sortLabel(S s, _PortfolioSortOption option) {
+    switch (option) {
+      case _PortfolioSortOption.totalValueHigh:
+        return '${s.totalValue} · ${s.sortHighest}';
+      case _PortfolioSortOption.totalValueLow:
+        return '${s.totalValue} · ${s.sortLowest}';
+      case _PortfolioSortOption.newest:
+        return s.sortNewest;
+      case _PortfolioSortOption.oldest:
+        return s.sortOldest;
+      case _PortfolioSortOption.name:
+        return s.name;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final s = S.of(context);
+
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final totalValue = provider.getTotalPortfolioValue();
-        final totalCost = provider.getTotalPortfolioCost();
-        final gainLoss = provider.getTotalPortfolioGainLoss();
-        final gainLossPercent = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0.0;
+        final sym = CurrencyHelper.getSymbol(provider.settings.currency);
+        final fx = _fxRate; // USD → user currency multiplier
+        final totalValue = provider.getTotalPortfolioValue() * fx;
+        final totalCost = provider.getTotalPortfolioCost() * fx;
+        final gainLoss = provider.getTotalPortfolioGainLoss() * fx;
+        final gainLossPercent =
+            totalCost > 0 ? (gainLoss / totalCost) * 100 : 0.0;
         final isPositive = gainLoss >= 0;
+        final sortedHoldings = _sortedHoldings(provider.holdings);
 
         return Scaffold(
-          backgroundColor: isDark ? const Color(0xFF0D0D0D) : const Color(0xFFF8F9FB),
+          backgroundColor:
+              isDark ? const Color(0xFF0D0D0D) : const Color(0xFFF8F9FB),
           body: SafeArea(
             child: CustomScrollView(
               slivers: [
@@ -100,14 +204,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                       children: [
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
-                          child: Container(
-                            width: 42, height: 42,
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-                            ),
-                            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Iconify(AppIcons.back,
+                                size: 22,
+                                color: isDark ? Colors.white : Colors.black),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -115,16 +216,27 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Portfolio', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                              Text(s.portfolio,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700)),
                               if (provider.holdings.isNotEmpty)
                                 Row(
                                   children: [
                                     Container(
-                                      width: 8, height: 8,
-                                      decoration: BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                          color: AppTheme.success,
+                                          shape: BoxShape.circle),
                                     ),
                                     const SizedBox(width: 6),
-                                    Text('Live prices', style: TextStyle(fontSize: 12, color: AppTheme.success, fontWeight: FontWeight.w500)),
+                                    Text(s.livePrices,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppTheme.success,
+                                            fontWeight: FontWeight.w500)),
                                   ],
                                 ),
                             ],
@@ -133,33 +245,35 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         if (provider.holdings.isNotEmpty)
                           GestureDetector(
                             onTap: () => _refreshAll(provider),
-                            child: Container(
-                              width: 42, height: 42,
-                              margin: const EdgeInsets.only(right: 10),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-                              ),
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 10),
                               child: _refreshing
-                                  ? const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const Icon(Icons.refresh_rounded, size: 20),
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2))
+                                  : Iconify(AppIcons.refresh,
+                                      size: 22,
+                                      color:
+                                          isDark ? Colors.white : Colors.black),
                             ),
                           ),
                         GestureDetector(
                           onTap: () => _showAddHoldingModal(context, provider),
-                          child: Container(
-                            width: 42, height: 42,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [AppTheme.success, AppTheme.success.withOpacity(0.8)]),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(Icons.add_rounded, size: 22, color: Colors.white),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Iconify(AppIcons.add,
+                                size: 24,
+                                color: isDark ? Colors.white : Colors.black),
                           ),
                         ),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.1, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 240.ms, curve: Curves.easeOut)
+                      .slideY(begin: -0.05, end: 0, curve: Curves.easeOut),
                 ),
 
                 // ─── STATS CARDS ROW ───
@@ -173,49 +287,58 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         _buildStatCard(
                           context: context,
                           isDark: isDark,
-                          title: 'Total Value',
-                          value: '\$${_formatNumber(totalValue)}',
+                          title: s.totalValue,
+                          value: '$sym${_formatNumber(totalValue)}',
                           change: gainLossPercent,
                           chartData: _generateSparklineData(isPositive),
-                          chartColor: isPositive ? AppTheme.success : AppTheme.error,
+                          chartColor:
+                              isPositive ? AppTheme.success : AppTheme.error,
                           width: 170,
                         ),
                         const SizedBox(width: 12),
                         _buildStatCard(
                           context: context,
                           isDark: isDark,
-                          title: 'Total Gain/Loss',
-                          value: '${isPositive ? '+' : ''}\$${_formatNumber(gainLoss.abs())}',
+                          title: s.gainLoss,
+                          value:
+                              '${isPositive ? '+' : ''}$sym${_formatNumber(gainLoss.abs())}',
                           change: gainLossPercent,
                           chartData: _generateSparklineData(isPositive),
-                          chartColor: isPositive ? AppTheme.success : AppTheme.error,
+                          chartColor:
+                              isPositive ? AppTheme.success : AppTheme.error,
                           width: 160,
                         ),
                         const SizedBox(width: 12),
                         _buildStatCard(
                           context: context,
                           isDark: isDark,
-                          title: 'Holdings',
+                          title: s.holdings,
                           value: '${provider.holdings.length}',
-                          subtitle: 'Active positions',
+                          subtitle: s.activePositions,
                           showBarChart: true,
-                          barData: provider.holdings.take(6).map((h) => h.currentValue / (totalValue > 0 ? totalValue : 1)).toList(),
+                          barData: provider.holdings
+                              .take(6)
+                              .map((h) =>
+                                  (h.currentValue * fx) /
+                                  (totalValue > 0 ? totalValue : 1))
+                              .toList(),
                           width: 140,
                         ),
                         const SizedBox(width: 12),
                         _buildStatCard(
                           context: context,
                           isDark: isDark,
-                          title: 'Total Cost',
-                          value: '\$${_formatNumber(totalCost)}',
-                          subtitle: 'Invested amount',
+                          title: s.totalCost,
+                          value: '$sym${_formatNumber(totalCost)}',
+                          subtitle: s.investedAmount,
                           chartData: _generateSparklineData(true),
                           chartColor: const Color(0xFF6366F1),
                           width: 160,
                         ),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+                  ).animate().fadeIn(
+                      duration: 260.ms, delay: 80.ms, curve: Curves.easeOut),
                 ),
 
                 // ─── MAIN PORTFOLIO CHART ───
@@ -225,12 +348,17 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                          color:
+                              isDark ? const Color(0xFF1C1C1E) : Colors.white,
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
+                          border: Border.all(
+                              color: isDark
+                                  ? Colors.white10
+                                  : const Color(0xFFE8EAED)),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+                              color:
+                                  Colors.black.withOpacity(isDark ? 0.3 : 0.04),
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
@@ -247,17 +375,33 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                                 children: [
                                   Row(
                                     children: [
-                                      Text('My Portfolio', style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : Colors.black54, fontWeight: FontWeight.w500)),
+                                      Text(s.myPortfolio,
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              color: isDark
+                                                  ? Colors.white60
+                                                  : Colors.black54,
+                                              fontWeight: FontWeight.w500)),
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: (isPositive ? AppTheme.success : AppTheme.error).withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(6),
+                                          color: (isPositive
+                                                  ? AppTheme.success
+                                                  : AppTheme.error)
+                                              .withOpacity(0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                         ),
                                         child: Text(
                                           '${isPositive ? '+' : ''}${gainLossPercent.toStringAsFixed(1)}%',
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isPositive ? AppTheme.success : AppTheme.error),
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isPositive
+                                                  ? AppTheme.success
+                                                  : AppTheme.error),
                                         ),
                                       ),
                                     ],
@@ -266,22 +410,40 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                                   Row(
                                     children: [
                                       Text(
-                                        '\$${_formatNumber(totalValue)}',
-                                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+                                        '$sym${_formatNumber(totalValue)}',
+                                        style: TextStyle(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black87),
                                       ),
                                       const Spacer(),
                                       // View toggle
                                       Container(
                                         padding: const EdgeInsets.all(3),
                                         decoration: BoxDecoration(
-                                          color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF3F4F6),
-                                          borderRadius: BorderRadius.circular(8),
+                                          color: isDark
+                                              ? Colors.white.withOpacity(0.06)
+                                              : const Color(0xFFF3F4F6),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            _buildToggleButton('Assets', !_showChartView, () => setState(() => _showChartView = false), isDark),
-                                            _buildToggleButton('Chart', _showChartView, () => setState(() => _showChartView = true), isDark),
+                                            _buildToggleButton(
+                                                'Assets',
+                                                !_showChartView,
+                                                () => setState(() =>
+                                                    _showChartView = false),
+                                                isDark),
+                                            _buildToggleButton(
+                                                'Chart',
+                                                _showChartView,
+                                                () => setState(() =>
+                                                    _showChartView = true),
+                                                isDark),
                                           ],
                                         ),
                                       ),
@@ -294,26 +456,48 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                             Padding(
                               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                               child: Row(
-                                children: ['5d', '1mo', '3mo', '1y'].map((range) {
+                                children:
+                                    ['5d', '1mo', '3mo', '1y'].map((range) {
                                   final isSelected = _chartRange == range;
-                                  final label = range == '5d' ? '1W' : range == '1mo' ? '1M' : range == '3mo' ? '3M' : '1Y';
+                                  final label = range == '5d'
+                                      ? '1W'
+                                      : range == '1mo'
+                                          ? '1M'
+                                          : range == '3mo'
+                                              ? '3M'
+                                              : '1Y';
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 8),
                                     child: GestureDetector(
-                                      onTap: () => _changeRange(range, provider.holdings),
+                                      onTap: () => _changeRange(
+                                          range, provider.holdings),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
                                         decoration: BoxDecoration(
-                                          color: isSelected ? AppTheme.success : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: isSelected ? AppTheme.success : (isDark ? Colors.white24 : const Color(0xFFE5E7EB))),
+                                          color: isSelected
+                                              ? AppTheme.success
+                                              : Colors.transparent,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                              color: isSelected
+                                                  ? AppTheme.success
+                                                  : (isDark
+                                                      ? Colors.white24
+                                                      : const Color(
+                                                          0xFFE5E7EB))),
                                         ),
                                         child: Text(
                                           label,
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
-                                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
+                                            color: isSelected
+                                                ? Colors.white
+                                                : (isDark
+                                                    ? Colors.white70
+                                                    : Colors.black54),
                                           ),
                                         ),
                                       ),
@@ -326,13 +510,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                             SizedBox(
                               height: 200,
                               child: _showChartView
-                                  ? _buildMainChart(isDark, isPositive)
-                                  : _buildTopAssetsView(provider.holdings, totalValue, isDark),
+                                  ? _buildMainChart(isDark, isPositive, fx, sym)
+                                  : _buildTopAssetsView(provider.holdings,
+                                      totalValue, isDark, fx, sym),
                             ),
                           ],
                         ),
                       ),
-                    ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.05, end: 0),
+                    )
+                        .animate()
+                        .fadeIn(
+                            duration: 260.ms,
+                            delay: 120.ms,
+                            curve: Curves.easeOut)
+                        .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
                   ),
 
                 // ─── ASSETS SECTION HEADER ───
@@ -342,25 +533,76 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                     child: Row(
                       children: [
                         Text(
-                          'Assets',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+                          s.assets,
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : Colors.black87),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6),
+                            color: isDark
+                                ? Colors.white.withOpacity(0.08)
+                                : const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             '${provider.holdings.length}',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    isDark ? Colors.white70 : Colors.black54),
                           ),
                         ),
                         const Spacer(),
-                        Text('Sort By', style: TextStyle(fontSize: 13, color: isDark ? Colors.white54 : Colors.black45)),
-                        const SizedBox(width: 4),
-                        Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? Colors.white54 : Colors.black45),
+                        PopupMenuButton<_PortfolioSortOption>(
+                          initialValue: _assetSort,
+                          tooltip: s.sortBy,
+                          onSelected: (value) =>
+                              setState(() => _assetSort = value),
+                          itemBuilder: (context) => _PortfolioSortOption.values
+                              .map(
+                                (option) =>
+                                    PopupMenuItem<_PortfolioSortOption>(
+                                  value: option,
+                                  child: Text(_sortLabel(s, option)),
+                                ),
+                              )
+                              .toList(),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                s.sortBy,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.black45),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _sortLabel(s, _assetSort),
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : Colors.black87),
+                              ),
+                              const SizedBox(width: 4),
+                              Iconify(AppIcons.caretDown,
+                                  size: 18,
+                                  color: isDark
+                                      ? Colors.white54
+                                      : Colors.black45),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -374,17 +616,35 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Container(
-                                width: 80, height: 80,
+                                width: 80,
+                                height: 80,
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF3F4F6),
+                                  color: isDark
+                                      ? Colors.white.withOpacity(0.06)
+                                      : const Color(0xFFF3F4F6),
                                   borderRadius: BorderRadius.circular(24),
                                 ),
-                                child: Icon(Icons.show_chart_rounded, size: 40, color: isDark ? Colors.white38 : Colors.black26),
+                                child: Iconify(AppIcons.chartLine,
+                                    size: 40,
+                                    color: isDark
+                                        ? Colors.white38
+                                        : Colors.black26),
                               ),
                               const SizedBox(height: 20),
-                              Text('No holdings yet', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+                              Text(s.noHoldings,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
-                              Text('Tap + to add a stock, ETF or crypto', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: isDark ? Colors.white54 : Colors.black45)),
+                              Text(s.addHoldingDesc,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                          color: isDark
+                                              ? Colors.white54
+                                              : Colors.black45)),
                             ],
                           ),
                         ),
@@ -394,34 +654,60 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              final holding = provider.holdings[index];
+                              final holding = sortedHoldings[index];
                               return _buildAssetCard(
                                 context: context,
                                 holding: holding,
                                 totalValue: totalValue,
                                 isDark: isDark,
-                                onTap: () => _showEditHoldingModal(context, provider, holding),
-                                onSell: () => _showSellModal(context, provider, holding),
+                                fx: fx,
+                                sym: sym,
+                                onTap: () => _showEditHoldingModal(
+                                    context, provider, holding),
+                                onSell: () =>
+                                    _showSellModal(context, provider, holding),
                                 onDelete: () async {
                                   final confirm = await showDialog<bool>(
                                     context: context,
                                     builder: (ctx) => AlertDialog(
-                                      title: const Text('Delete Holding?'),
-                                      content: Text('Remove ${holding.symbol} from your portfolio?'),
+                                      title: Text(s.deleteHolding),
+                                      content: Text(
+                                          '${s.remove} ${holding.symbol} ${s.fromPortfolio}?'),
                                       actions: [
-                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                        TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: Text(s.cancel)),
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            style: TextButton.styleFrom(
+                                                foregroundColor: Colors.red),
+                                            child: Text(s.delete)),
                                       ],
                                     ),
                                   );
                                   if (confirm == true) {
                                     provider.deleteHolding(holding.id);
-                                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${holding.symbol} removed')));
+                                    if (context.mounted)
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(SnackBar(
+                                              content: Text(
+                                                  '${holding.symbol} ${s.removed}')));
                                   }
                                 },
-                              ).animate().fadeIn(duration: 300.ms, delay: Duration(milliseconds: 50 * index)).slideX(begin: 0.05, end: 0);
+                              )
+                                  .animate()
+                                  .fadeIn(
+                                      duration: 240.ms,
+                                      delay: Duration(milliseconds: 40 * index),
+                                      curve: Curves.easeOut)
+                                  .slideX(
+                                      begin: 0.03,
+                                      end: 0,
+                                      curve: Curves.easeOut);
                             },
-                            childCount: provider.holdings.length,
+                            childCount: sortedHoldings.length,
                           ),
                         ),
                       ),
@@ -472,9 +758,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
+        border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
       clipBehavior: Clip.hardEdge,
@@ -484,28 +774,45 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
           Row(
             children: [
               Expanded(
-                child: Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white60 : Colors.black54), overflow: TextOverflow.ellipsis),
+                child: Text(title,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white60 : Colors.black54),
+                    overflow: TextOverflow.ellipsis),
               ),
               if (change != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
-                    color: (change >= 0 ? AppTheme.success : AppTheme.error).withOpacity(0.12),
+                    color: (change >= 0 ? AppTheme.success : AppTheme.error)
+                        .withOpacity(0.12),
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
                     '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}%',
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: change >= 0 ? AppTheme.success : AppTheme.error),
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: change >= 0 ? AppTheme.success : AppTheme.error),
                   ),
                 ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87)),
           if (subtitle != null)
             Padding(
               padding: const EdgeInsets.only(top: 1),
-              child: Text(subtitle, style: TextStyle(fontSize: 9, color: isDark ? Colors.white38 : Colors.black38)),
+              child: Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 9,
+                      color: isDark ? Colors.white38 : Colors.black38)),
             ),
           const Spacer(),
           if (showBarChart && barData != null)
@@ -533,7 +840,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
               height: 26,
               child: CustomPaint(
                 size: const Size(double.infinity, 26),
-                painter: _SparklinePainter(data: chartData, color: chartColor ?? AppTheme.success, isDark: isDark),
+                painter: _SparklinePainter(
+                    data: chartData,
+                    color: chartColor ?? AppTheme.success,
+                    isDark: isDark),
               ),
             )
           else
@@ -544,42 +854,64 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   }
 
   Color _getBarColor(int index) {
-    const colors = [Color(0xFF10B981), Color(0xFF6366F1), Color(0xFFF59E0B), Color(0xFF06B6D4), Color(0xFFEC4899), Color(0xFF8B5CF6)];
+    const colors = [
+      const Color(0xFF0B715F),
+      Color(0xFF6366F1),
+      Color(0xFFF59E0B),
+      Color(0xFF06B6D4),
+      Color(0xFFEC4899),
+      Color(0xFF8B5CF6)
+    ];
     return colors[index % colors.length];
   }
 
-  Widget _buildToggleButton(String label, bool isSelected, VoidCallback onTap, bool isDark) {
+  Widget _buildToggleButton(
+      String label, bool isSelected, VoidCallback onTap, bool isDark) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? (isDark ? Colors.white.withOpacity(0.1) : Colors.white) : Colors.transparent,
+          color: isSelected
+              ? (isDark ? Colors.white.withOpacity(0.1) : Colors.white)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
-          boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.05), blurRadius: 4)
+                ]
+              : null,
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.white38 : Colors.black38),
+            color: isSelected
+                ? (isDark ? Colors.white : Colors.black87)
+                : (isDark ? Colors.white38 : Colors.black38),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMainChart(bool isDark, bool isPositive) {
+  Widget _buildMainChart(bool isDark, bool isPositive, double fx, String sym) {
     if (_chartLoading) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_chartPoints.length < 2) {
-      return Center(child: Text('No chart data', style: TextStyle(color: isDark ? Colors.white38 : Colors.black38)));
+      return Center(
+          child: Text('No chart data',
+              style:
+                  TextStyle(color: isDark ? Colors.white38 : Colors.black38)));
     }
 
     final lineColor = isPositive ? AppTheme.success : AppTheme.error;
-    final points = _chartPoints;
+    // Scale chart points by fx so chart shows values in user's currency
+    final points =
+        _chartPoints.map((p) => PortfolioPoint(p.date, p.value * fx)).toList();
     double minY = points.map((p) => p.value).reduce((a, b) => a < b ? a : b);
     double maxY = points.map((p) => p.value).reduce((a, b) => a > b ? a : b);
     final pad = (maxY - minY) * 0.15;
@@ -588,71 +920,92 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 16, 16, 16),
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: (points.length - 1).toDouble(),
-          minY: minY,
-          maxY: maxY,
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: (maxY - minY) / 4,
-            getDrawingHorizontalLine: (_) => FlLine(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05), strokeWidth: 1),
-          ),
-          borderData: FlBorderData(show: false),
-          titlesData: FlTitlesData(
-            show: true,
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 48,
-                getTitlesWidget: (value, meta) => Text(
-                  '\$${_formatNumber(value)}',
-                  style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+      child: RepaintBoundary(
+        child: LineChart(
+          LineChartData(
+            minX: 0,
+            maxX: (points.length - 1).toDouble(),
+            minY: minY,
+            maxY: maxY,
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: (maxY - minY) / 4,
+              getDrawingHorizontalLine: (_) => FlLine(
+                  color:
+                      isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+                  strokeWidth: 1),
+            ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              show: true,
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 48,
+                  getTitlesWidget: (value, meta) => Text(
+                    '$sym${_formatNumber(value)}',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.white38 : Colors.black38),
+                  ),
                 ),
               ),
+              bottomTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             ),
-            bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => isDark ? const Color(0xFF2D2D2D) : Colors.white,
-              tooltipRoundedRadius: 10,
-              getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
-                '\$${s.y.toStringAsFixed(2)}',
-                TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
-              )).toList(),
-            ),
-          ),
-          lineBarsData: [
-            LineChartBarData(
-              spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
-              isCurved: true,
-              curveSmoothness: 0.35,
-              color: lineColor,
-              barWidth: 2.5,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [lineColor.withOpacity(0.2), lineColor.withOpacity(0.0)],
-                ),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipColor: (_) =>
+                    isDark ? const Color(0xFF2D2D2D) : Colors.white,
+                tooltipRoundedRadius: 10,
+                getTooltipItems: (spots) => spots
+                    .map((s) => LineTooltipItem(
+                          '$sym${s.y.toStringAsFixed(2)}',
+                          TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600),
+                        ))
+                    .toList(),
               ),
             ),
-          ],
+            lineBarsData: [
+              LineChartBarData(
+                spots: List.generate(points.length,
+                    (i) => FlSpot(i.toDouble(), points[i].value)),
+                isCurved: true,
+                curveSmoothness: 0.35,
+                color: lineColor,
+                barWidth: 2.5,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(
+                  show: true,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      lineColor.withOpacity(0.2),
+                      lineColor.withOpacity(0.0)
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTopAssetsView(List<Holding> holdings, double totalValue, bool isDark) {
-    final sorted = List<Holding>.from(holdings)..sort((a, b) => b.currentValue.compareTo(a.currentValue));
+  Widget _buildTopAssetsView(List<Holding> holdings, double totalValue,
+      bool isDark, double fx, String sym) {
+    final sorted = List<Holding>.from(holdings)
+      ..sort((a, b) => b.currentValue.compareTo(a.currentValue));
     final top = sorted.take(5).toList();
 
     return Padding(
@@ -660,7 +1013,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       child: Column(
         children: List.generate(top.length, (i) {
           final h = top[i];
-          final pct = totalValue > 0 ? (h.currentValue / totalValue * 100) : 0.0;
+          final pct =
+              totalValue > 0 ? (h.currentValue / totalValue * 100) : 0.0;
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
@@ -671,12 +1025,23 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(h.symbol, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
-                      Text('${pct.toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45)),
+                      Text(h.symbol,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87)),
+                      Text('${pct.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white54 : Colors.black45)),
                     ],
                   ),
                 ),
-                Text('\$${_formatNumber(h.currentValue)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+                Text('$sym${_formatNumber(h.currentValue * fx)}',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87)),
               ],
             ),
           );
@@ -690,6 +1055,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     required Holding holding,
     required double totalValue,
     required bool isDark,
+    required double fx,
+    required String sym,
     required VoidCallback onTap,
     required VoidCallback onSell,
     required VoidCallback onDelete,
@@ -698,95 +1065,172 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     final gainColor = isGain ? AppTheme.success : AppTheme.error;
     final allocation = totalValue > 0 ? holding.currentValue / totalValue : 0.0;
 
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onDelete,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 12, offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          children: [
-            StockLogo(symbol: holding.symbol, size: 42),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE8EAED)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        children: [
+          // ── Main row ──────────────────────────────────────────────
+          GestureDetector(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
                 children: [
-                  Text(
-                    holding.title ?? holding.symbol,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  StockLogo(symbol: holding.symbol, size: 42),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          holding.title ?? holding.symbol,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${holding.shares} shares${holding.purchaseDate != null ? '  ·  ${holding.purchaseDate}' : ''}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white54 : Colors.black45),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
+                  const SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: gainColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(7)),
+                    child: Text(
+                      '${isGain ? '+' : ''}${holding.gainLossPercent.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: gainColor),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${holding.shares} shares',
-                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45),
+                        '$sym${_formatNumber(holding.currentValue * fx)}',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : Colors.black87),
                       ),
-                      const SizedBox(width: 8),
-                      // Mini progress bar
-                      Expanded(
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: allocation.clamp(0.05, 1.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: gainColor,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                        ),
+                      Text(
+                        '@$sym${(holding.currentPrice * fx).toStringAsFixed(2)}',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? Colors.white38 : Colors.black38),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: gainColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Text(
-                '${isGain ? '+' : ''}${holding.gainLossPercent.toStringAsFixed(1)}%',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: gainColor),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '\$${_formatNumber(holding.currentValue)}',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+          ),
+
+          // ── Action buttons ─────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Row(children: [
+              // Sell
+              Expanded(
+                flex: 2,
+                child: GestureDetector(
+                  onTap: onSell,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      color: AppTheme.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: AppTheme.error.withOpacity(0.3)),
+                    ),
+                    child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Iconify(AppIcons.sell,
+                              color: AppTheme.error, size: 14),
+                          SizedBox(width: 5),
+                          Text('Sell',
+                              style: TextStyle(
+                                  color: AppTheme.error,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13)),
+                        ]),
+                  ),
                 ),
-                Text(
-                  '@\$${holding.currentPrice.toStringAsFixed(2)}',
-                  style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+              ),
+              const SizedBox(width: 8),
+              // Edit
+              Expanded(
+                child: GestureDetector(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      color: AppTheme.goldPrimary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: AppTheme.goldPrimary.withOpacity(0.3)),
+                    ),
+                    child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Iconify(AppIcons.edit,
+                              color: AppTheme.goldPrimary, size: 14),
+                          SizedBox(width: 5),
+                          Text('Edit',
+                              style: TextStyle(
+                                  color: AppTheme.goldPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13)),
+                        ]),
+                  ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+              const SizedBox(width: 8),
+              // Delete
+              GestureDetector(
+                onTap: onDelete,
+                child: Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                  ),
+                  child: Iconify(AppIcons.delete,
+                      color: isDark ? Colors.white38 : Colors.black38,
+                      size: 16),
+                ),
+              ),
+            ]),
+          ),
+        ],
       ),
     );
   }
@@ -797,17 +1241,28 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddHoldingModal(
+        fxRate: _fxRate,
         onSave: (h) {
           provider.addHolding(h);
           Navigator.pop(context);
+          final sourceMatches = h.sourceAccountId == null
+              ? const <Account>[]
+              : provider.accounts.where((a) => a.id == h.sourceAccountId).toList();
+          final sourceName =
+              sourceMatches.isEmpty ? null : sourceMatches.first.name;
+          final message = h.affectsSourceBalance && sourceName != null
+              ? '${h.symbol} added and funded from $sourceName'
+              : '${h.symbol} added as an existing holding';
           ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('${h.symbol} added')));
+              .showSnackBar(SnackBar(content: Text(message)));
         },
       ),
     );
   }
 
-  void _showSellModal(BuildContext context, AppProvider provider, Holding holding) {
+  void _showSellModal(
+      BuildContext context, AppProvider provider, Holding holding) {
+    final sym = CurrencyHelper.getSymbol(provider.settings.currency);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -815,6 +1270,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       builder: (_) => SellHoldingModal(
         holding: holding,
         accounts: provider.accounts,
+        cashBalance: provider.totalCash,
+        currencySymbol: sym,
+        fxRate: _fxRate,
         onSell: ({
           required double sharesToSell,
           required double sellPrice,
@@ -829,23 +1287,34 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
             transactionId: transactionId,
           );
           Navigator.pop(context);
-          final proceeds = sharesToSell * sellPrice;
+          final proceeds = sharesToSell *
+              sellPrice *
+              _fxRate; // convert USD proceeds to local currency for display
+          final dest = accountId == AppProvider.cashOnHandId
+              ? 'Cash'
+              : provider.accounts
+                  .firstWhere((a) => a.id == accountId,
+                      orElse: () => provider.accounts.first)
+                  .name;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                'Sold $sharesToSell × ${holding.symbol} for \$${proceeds.toStringAsFixed(2)}'),
+                'Sold $sharesToSell × ${holding.symbol} for $sym${proceeds.toStringAsFixed(2)} → $dest'),
+            backgroundColor: AppTheme.success,
           ));
         },
       ),
     );
   }
 
-  void _showEditHoldingModal(BuildContext context, AppProvider provider, Holding holding) {
+  void _showEditHoldingModal(
+      BuildContext context, AppProvider provider, Holding holding) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AddHoldingModal(
         holding: holding,
+        fxRate: _fxRate,
         onSave: (h) {
           provider.updateHolding(h);
           Navigator.pop(context);
@@ -894,7 +1363,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
 
   static const _palette = [
     Color(0xFF6366F1),
-    Color(0xFF10B981),
+    Color(0xFF0B715F),
     Color(0xFFF59E0B),
     Color(0xFF06B6D4),
     Color(0xFF8B5CF6),
@@ -1042,12 +1511,17 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                         onTap: () => widget.onRangeChanged(r),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: selected ? const Color(0xFF185FA5) : Colors.transparent,
+                            color: selected
+                                ? const Color(0xFF185FA5)
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: selected ? const Color(0xFF185FA5) : const Color(0xFFCCCCCC),
+                              color: selected
+                                  ? const Color(0xFF185FA5)
+                                  : const Color(0xFFCCCCCC),
                             ),
                           ),
                           child: Text(
@@ -1055,7 +1529,12 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: selected ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+                              color: selected
+                                  ? Colors.white
+                                  : Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.color,
                             ),
                           ),
                         ),
@@ -1123,7 +1602,8 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                     )
                   : _isCompare
                       ? _buildCompareChart(compareBounds!, isDark)
-                      : _buildSingleChart(points, minY, maxY, lineColor, isDark),
+                      : _buildSingleChart(
+                          points, minY, maxY, lineColor, isDark),
             ),
 
             // ── Bottom row: legend (compare) or date+% (single)
@@ -1151,7 +1631,8 @@ class _PortfolioChartState extends State<_PortfolioChart> {
       );
     }
     final range = maxY - minY;
-    final allSpots = List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value));
+    final allSpots = List.generate(
+        points.length, (i) => FlSpot(i.toDouble(), points[i].value));
 
     return LineChart(
       LineChartData(
@@ -1174,13 +1655,19 @@ class _PortfolioChartState extends State<_PortfolioChart> {
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (_) => const Color(0xFF2D2D2D),
             tooltipRoundedRadius: 8,
-            getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
-              '\$${s.y.toStringAsFixed(2)}',
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-            )).toList(),
+            getTooltipItems: (touchedSpots) => touchedSpots
+                .map((s) => LineTooltipItem(
+                      '\$${s.y.toStringAsFixed(2)}',
+                      const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13),
+                    ))
+                .toList(),
           ),
           touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
-            if (response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
+            if (response?.lineBarSpots != null &&
+                response!.lineBarSpots!.isNotEmpty) {
               final idx = response.lineBarSpots!.first.x.round();
               if (idx >= 0 && idx < points.length) {
                 setState(() {
@@ -1188,7 +1675,9 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                   _hoveredPoint = points[idx];
                 });
               }
-            } else if (event is FlTapUpEvent || event is FlLongPressEnd || event is FlPanEndEvent) {
+            } else if (event is FlTapUpEvent ||
+                event is FlLongPressEnd ||
+                event is FlPanEndEvent) {
               setState(() {
                 _touchedIndex = null;
                 _hoveredPoint = null;
@@ -1219,7 +1708,10 @@ class _PortfolioChartState extends State<_PortfolioChart> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [lineColor.withOpacity(0.12), lineColor.withOpacity(0.0)],
+                colors: [
+                  lineColor.withOpacity(0.12),
+                  lineColor.withOpacity(0.0)
+                ],
               ),
             ),
           ),
@@ -1261,8 +1753,10 @@ class _PortfolioChartState extends State<_PortfolioChart> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(DateFormat('MMM d').format(points.first.date),
-              style:
-                  Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(fontSize: 10)),
           if (points.first.value > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1272,10 +1766,9 @@ class _PortfolioChartState extends State<_PortfolioChart> {
               ),
               child: Text(
                 () {
-                  final change =
-                      ((points.last.value - points.first.value) /
-                              points.first.value) *
-                          100;
+                  final change = ((points.last.value - points.first.value) /
+                          points.first.value) *
+                      100;
                   return '${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)}%';
                 }(),
                 style: TextStyle(
@@ -1285,8 +1778,10 @@ class _PortfolioChartState extends State<_PortfolioChart> {
               ),
             ),
           Text(DateFormat('MMM d').format(points.last.date),
-              style:
-                  Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(fontSize: 10)),
         ],
       ),
     );
@@ -1313,10 +1808,8 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                   ),
                   const SizedBox(width: 5),
                   Text(sym,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontSize: 11, fontWeight: FontWeight.w600)),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
               ),
             );
@@ -1373,6 +1866,283 @@ class _ChartFilterChip extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Market country model + data
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MarketCountry {
+  final String name;
+  final String flag;
+  final String suffix; // Yahoo Finance exchange suffix, '' = US/global
+
+  const _MarketCountry(this.name, this.flag, this.suffix);
+}
+
+const _kAllCountries = [
+  // ── Global / US (no suffix) ──────────────────────────────────────────
+  _MarketCountry('Global / US', '🌍', ''),
+  // ── Africa ──────────────────────────────────────────────────────────
+  _MarketCountry('Morocco', '🇲🇦', '.CS'),
+  _MarketCountry('Egypt', '🇪🇬', '.CA'),
+  _MarketCountry('South Africa', '🇿🇦', '.JO'),
+  _MarketCountry('Nigeria', '🇳🇬', '.LA'),
+  _MarketCountry('Kenya', '🇰🇪', '.NR'),
+  // ── Middle East ─────────────────────────────────────────────────────
+  _MarketCountry('Saudi Arabia', '🇸🇦', '.SR'),
+  _MarketCountry('UAE', '🇦🇪', '.AE'),
+  _MarketCountry('Qatar', '🇶🇦', '.QA'),
+  _MarketCountry('Kuwait', '🇰🇼', '.KW'),
+  _MarketCountry('Bahrain', '🇧🇭', '.BH'),
+  _MarketCountry('Israel', '🇮🇱', '.TA'),
+  _MarketCountry('Turkey', '🇹🇷', '.IS'),
+  // ── Europe ──────────────────────────────────────────────────────────
+  _MarketCountry('France', '🇫🇷', '.PA'),
+  _MarketCountry('Germany', '🇩🇪', '.DE'),
+  _MarketCountry('United Kingdom', '🇬🇧', '.L'),
+  _MarketCountry('Spain', '🇪🇸', '.MC'),
+  _MarketCountry('Italy', '🇮🇹', '.MI'),
+  _MarketCountry('Netherlands', '🇳🇱', '.AS'),
+  _MarketCountry('Belgium', '🇧🇪', '.BR'),
+  _MarketCountry('Portugal', '🇵🇹', '.LS'),
+  _MarketCountry('Switzerland', '🇨🇭', '.SW'),
+  _MarketCountry('Sweden', '🇸🇪', '.ST'),
+  _MarketCountry('Norway', '🇳🇴', '.OL'),
+  _MarketCountry('Denmark', '🇩🇰', '.CO'),
+  _MarketCountry('Finland', '🇫🇮', '.HE'),
+  _MarketCountry('Austria', '🇦🇹', '.VI'),
+  _MarketCountry('Poland', '🇵🇱', '.WA'),
+  _MarketCountry('Czech Republic', '🇨🇿', '.PR'),
+  _MarketCountry('Hungary', '🇭🇺', '.BD'),
+  _MarketCountry('Russia', '🇷🇺', '.ME'),
+  _MarketCountry('Greece', '🇬🇷', '.AT'),
+  // ── Americas ────────────────────────────────────────────────────────
+  _MarketCountry('Canada', '🇨🇦', '.TO'),
+  _MarketCountry('Brazil', '🇧🇷', '.SA'),
+  _MarketCountry('Mexico', '🇲🇽', '.MX'),
+  _MarketCountry('Argentina', '🇦🇷', '.BA'),
+  _MarketCountry('Chile', '🇨🇱', '.SN'),
+  _MarketCountry('Colombia', '🇨🇴', '.BC'),
+  _MarketCountry('Peru', '🇵🇪', '.LM'),
+  // ── Asia Pacific ────────────────────────────────────────────────────
+  _MarketCountry('Japan', '🇯🇵', '.T'),
+  _MarketCountry('China (Shanghai)', '🇨🇳', '.SS'),
+  _MarketCountry('China (Shenzhen)', '🇨🇳', '.SZ'),
+  _MarketCountry('Hong Kong', '🇭🇰', '.HK'),
+  _MarketCountry('South Korea', '🇰🇷', '.KS'),
+  _MarketCountry('India (NSE)', '🇮🇳', '.NS'),
+  _MarketCountry('India (BSE)', '🇮🇳', '.BO'),
+  _MarketCountry('Australia', '🇦🇺', '.AX'),
+  _MarketCountry('New Zealand', '🇳🇿', '.NZ'),
+  _MarketCountry('Singapore', '🇸🇬', '.SI'),
+  _MarketCountry('Malaysia', '🇲🇾', '.KL'),
+  _MarketCountry('Thailand', '🇹🇭', '.BK'),
+  _MarketCountry('Indonesia', '🇮🇩', '.JK'),
+  _MarketCountry('Philippines', '🇵🇭', '.PS'),
+  _MarketCountry('Vietnam', '🇻🇳', '.VN'),
+  _MarketCountry('Taiwan', '🇹🇼', '.TW'),
+  _MarketCountry('Pakistan', '🇵🇰', '.KA'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Country picker bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CountryPickerSheet extends StatefulWidget {
+  final _MarketCountry? selected;
+  const _CountryPickerSheet({this.selected});
+
+  @override
+  State<_CountryPickerSheet> createState() => _CountryPickerSheetState();
+}
+
+class _CountryPickerSheetState extends State<_CountryPickerSheet> {
+  final _ctrl = TextEditingController();
+  List<_MarketCountry> _filtered = _kAllCountries;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(() {
+      final q = _ctrl.text.toLowerCase();
+      setState(() {
+        _filtered = q.isEmpty
+            ? _kAllCountries
+            : _kAllCountries
+                .where((c) =>
+                    c.name.toLowerCase().contains(q) ||
+                    c.suffix.toLowerCase().contains(q))
+                .toList();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(children: [
+        const SizedBox(height: 12),
+        Center(
+            child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Theme.of(context).dividerColor,
+                    borderRadius: BorderRadius.circular(2)))),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(children: [
+            const Text('Select Market',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            IconButton(
+                icon: const Iconify(AppIcons.close),
+                onPressed: () => Navigator.pop(context)),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: TextField(
+            controller: _ctrl,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: 'Search country...',
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(left: 14, right: 8),
+                child: Iconify(AppIcons.search,
+                    size: 16,
+                    color: Theme.of(context).textTheme.bodySmall?.color),
+              ),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 38, minHeight: 38),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              filled: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              isDense: true,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _filtered.length,
+            itemBuilder: (ctx, i) {
+              final c = _filtered[i];
+              final isSelected = widget.selected?.suffix == c.suffix;
+              return InkWell(
+                onTap: () => Navigator.pop(context, c),
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  margin: const EdgeInsets.symmetric(vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFF7C3AED).withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: isSelected
+                        ? Border.all(
+                            color: const Color(0xFF7C3AED).withOpacity(0.4))
+                        : null,
+                  ),
+                  child: Row(children: [
+                    Text(c.flag, style: const TextStyle(fontSize: 24)),
+                    const SizedBox(width: 14),
+                    Expanded(
+                        child: Text(c.name,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color:
+                                  isSelected ? const Color(0xFF7C3AED) : null,
+                            ))),
+                    if (c.suffix.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black)
+                              .withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(c.suffix,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color)),
+                      ),
+                    if (isSelected) ...[
+                      const SizedBox(width: 8),
+                      const Iconify(AppIcons.checkCircle,
+                          color: Color(0xFF7C3AED), size: 18),
+                    ],
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exchange filter chip
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ExchangeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ExchangeChip(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = Color(0xFF7C3AED);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? accent : accent.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border:
+              Border.all(color: selected ? accent : accent.withOpacity(0.25)),
+        ),
+        child: Text(label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : accent,
+            )),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Stock Logo Widget
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1383,8 +2153,7 @@ class StockLogo extends StatelessWidget {
   const StockLogo({super.key, required this.symbol, this.size = 44});
 
   /// Strip exchange suffixes: BTC-USD → BTC, AIR.PA → AIR
-  String get _clean =>
-      symbol.toUpperCase().split('-').first.split('.').first;
+  String get _clean => symbol.toUpperCase().split('-').first.split('.').first;
 
   String get _logoUrl =>
       'https://assets.parqet.com/logos/symbol/$_clean?format=jpg';
@@ -1465,21 +2234,31 @@ class _HoldingCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (holding.title != null && holding.title!.isNotEmpty) ...[
+                        if (holding.title != null &&
+                            holding.title!.isNotEmpty) ...[
                           Text(
                             holding.title!,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             holding.symbol.toUpperCase(),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).textTheme.bodySmall?.color,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.color,
+                                ),
                           ),
                         ] else ...[
                           Text(holding.symbol.toUpperCase(),
@@ -1498,10 +2277,12 @@ class _HoldingCard extends StatelessWidget {
                     children: [
                       Text(
                         '\$${holding.currentValue.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: isGain
                               ? AppTheme.success.withOpacity(0.15)
@@ -1527,11 +2308,16 @@ class _HoldingCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _StatCol(label: 'Avg Cost', value: '\$${holding.costBasis.toStringAsFixed(2)}'),
-                  _StatCol(label: 'Live Price', value: '\$${holding.currentPrice.toStringAsFixed(2)}'),
+                  _StatCol(
+                      label: 'Avg Cost',
+                      value: '\$${holding.costBasis.toStringAsFixed(2)}'),
+                  _StatCol(
+                      label: 'Live Price',
+                      value: '\$${holding.currentPrice.toStringAsFixed(2)}'),
                   _StatCol(
                     label: 'Gain/Loss',
-                    value: '${isGain ? '+' : ''}\$${holding.gainLoss.toStringAsFixed(2)}',
+                    value:
+                        '${isGain ? '+' : ''}\$${holding.gainLoss.toStringAsFixed(2)}',
                     valueColor: isGain ? AppTheme.success : AppTheme.error,
                     alignEnd: true,
                   ),
@@ -1554,11 +2340,12 @@ class _HoldingCard extends StatelessWidget {
                 height: 38,
                 child: OutlinedButton.icon(
                   onPressed: onSell,
-                  icon: const Icon(Icons.sell_outlined, size: 16),
+                  icon: const Iconify(AppIcons.sell, size: 16),
                   label: const Text('Sell'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.error,
-                    side: BorderSide(color: AppTheme.error.withValues(alpha: 0.5)),
+                    side: BorderSide(
+                        color: AppTheme.error.withValues(alpha: 0.5)),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     textStyle: const TextStyle(
@@ -1590,7 +2377,8 @@ class _StatCol extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
         Text(
@@ -1609,8 +2397,14 @@ class _StatCol extends StatelessWidget {
 class AddHoldingModal extends StatefulWidget {
   final Holding? holding;
   final Function(Holding) onSave;
+  final double fxRate;
 
-  const AddHoldingModal({super.key, this.holding, required this.onSave});
+  const AddHoldingModal({
+    super.key,
+    this.holding,
+    required this.onSave,
+    this.fxRate = 1.0,
+  });
 
   @override
   State<AddHoldingModal> createState() => _AddHoldingModalState();
@@ -1622,6 +2416,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
   final _sharesCtrl = TextEditingController();
   final _costCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  DateTime _purchaseDate = DateTime.now();
+  String? _sourceAccountId;
 
   double? _livePrice;
   String? _companyName;
@@ -1632,6 +2428,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
   List<StockSearchResult> _searchResults = [];
   bool _searching = false;
   Timer? _searchDebounce;
+  String? _exchangeFilter; // null = all
+  _MarketCountry _selectedCountry = _kAllCountries.first; // Global/US default
 
   @override
   void initState() {
@@ -1644,6 +2442,10 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
       _costCtrl.text = h.costBasis.toString();
       _notesCtrl.text = h.notes ?? '';
       _livePrice = h.currentPrice > 0 ? h.currentPrice : null;
+      if (h.purchaseDate != null) {
+        _purchaseDate = DateTime.tryParse(h.purchaseDate!) ?? DateTime.now();
+      }
+      _sourceAccountId = h.sourceAccountId;
     }
     _symbolCtrl.addListener(_onSymbolChanged);
   }
@@ -1661,7 +2463,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
       });
       return;
     }
-    _searchDebounce = Timer(const Duration(milliseconds: 400), _searchCompanies);
+    _searchDebounce =
+        Timer(const Duration(milliseconds: 400), _searchCompanies);
     _debounce = Timer(const Duration(milliseconds: 900), _fetchPrice);
   }
 
@@ -1669,11 +2472,15 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
     final query = _symbolCtrl.text.trim();
     if (query.length < 2) return;
     setState(() => _searching = true);
-    final results = await StockPriceService.searchSymbols(query);
+    final suffix =
+        _selectedCountry.suffix.isEmpty ? null : _selectedCountry.suffix;
+    final results =
+        await StockPriceService.searchSymbols(query, preferredSuffix: suffix);
     if (!mounted) return;
     setState(() {
       _searchResults = results;
       _searching = false;
+      _exchangeFilter = null;
     });
   }
 
@@ -1696,6 +2503,30 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
     _costCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
+  }
+
+  DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+  List<Account> _fundingAccounts(AppProvider provider) => provider.accounts
+      .where((a) => a.type == 'bank' || a.type == 'savings')
+      .toList();
+
+  Account? _selectedFundingAccount(AppProvider provider) {
+    if (_sourceAccountId == null) return null;
+    final matches =
+        _fundingAccounts(provider).where((a) => a.id == _sourceAccountId).toList();
+    return matches.isEmpty ? null : matches.first;
+  }
+
+  DateTime _accountTrackingStart(Account account) {
+    final parsed = DateTime.tryParse(account.addedAt ?? '');
+    return _dateOnly(parsed ?? DateTime.now());
+  }
+
+  bool _shouldDeductFromSource(AppProvider provider) {
+    final account = _selectedFundingAccount(provider);
+    if (account == null) return false;
+    return !_dateOnly(_purchaseDate).isBefore(_accountTrackingStart(account));
   }
 
   Future<void> _fetchPrice() async {
@@ -1735,13 +2566,24 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
     }
     final shares = double.tryParse(_sharesCtrl.text) ?? 0;
     if (shares <= 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Enter a valid number of shares')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a valid number of shares')));
       return;
     }
     final costBasis = double.tryParse(_costCtrl.text) ?? 0;
     final currentPrice = _livePrice ?? 0;
+    final provider = context.read<AppProvider>();
+    final selectedFundingAccount =
+        widget.holding == null ? _selectedFundingAccount(provider) : null;
+    final affectsSourceBalance = widget.holding?.affectsSourceBalance ??
+        (selectedFundingAccount != null && _shouldDeductFromSource(provider));
+    final sourceAmount = widget.holding?.sourceAmount ??
+        (selectedFundingAccount == null
+            ? null
+            : shares * costBasis * widget.fxRate);
 
+    final pdStr =
+        '${_purchaseDate.year}-${_purchaseDate.month.toString().padLeft(2, '0')}-${_purchaseDate.day.toString().padLeft(2, '0')}';
     widget.onSave(Holding(
       id: widget.holding?.id ?? const Uuid().v4(),
       symbol: sym,
@@ -1750,17 +2592,40 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
       costBasis: costBasis,
       currentPrice: currentPrice,
       notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
+      purchaseDate: pdStr,
+      sourceAccountId: widget.holding?.sourceAccountId ?? selectedFundingAccount?.id,
+      affectsSourceBalance: affectsSourceBalance,
+      sourceAmount: sourceAmount,
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
+    final provider = context.watch<AppProvider>();
+    final currencySymbol = CurrencyHelper.getSymbol(provider.settings.currency);
+    final isEditing = widget.holding != null;
+    final selectedFundingAccount = _selectedFundingAccount(provider);
+    final trackedPurchase = !isEditing && _shouldDeductFromSource(provider);
+    final formattedTrackingStart = selectedFundingAccount == null
+        ? null
+        : DateFormat('MMM d, yyyy').format(
+            _accountTrackingStart(selectedFundingAccount),
+          );
+    final estimatedSourceAmount = (() {
+      final shares = double.tryParse(_sharesCtrl.text) ?? 0;
+      final costBasis = double.tryParse(_costCtrl.text) ?? 0;
+      return shares > 0 && costBasis > 0
+          ? shares * costBasis * widget.fxRate
+          : null;
+    })();
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -1772,111 +2637,309 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    widget.holding == null ? 'Add Holding' : 'Edit Holding',
+                    widget.holding == null ? s.addHolding : s.editHolding,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: const Iconify(AppIcons.close),
                       onPressed: () => Navigator.pop(context)),
                 ],
               ),
               const SizedBox(height: 24),
 
-              // Symbol + Fetch button
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _symbolCtrl,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        labelText: 'Ticker Symbol',
-                        hintText: 'AAPL · ATW.CS · AIR.PA · BTC-USD · IAM.CS',
-                        helperText: 'Type ticker or company name — any exchange worldwide',
-                        helperMaxLines: 1,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.show_chart),
-                        suffixIcon: _fetching
-                            ? const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              )
-                            : null,
-                      ),
-                      onSubmitted: (_) => _fetchPrice(),
-                    ),
+              // Country / market selector
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showModalBottomSheet<_MarketCountry>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) =>
+                        _CountryPickerSheet(selected: _selectedCountry),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedCountry = picked;
+                      _searchResults = [];
+                      _exchangeFilter = null;
+                    });
+                    // Re-trigger search with new country
+                    if (_symbolCtrl.text.trim().length >= 2) _searchCompanies();
+                  }
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: const Color(0xFF7C3AED).withOpacity(0.3)),
                   ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    height: 56,
-                    child: Tooltip(
-                      message: 'Refresh price',
-                      child: ElevatedButton(
-                        onPressed: _fetching ? null : _fetchPrice,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          minimumSize: const Size(52, 56),
+                  child: Row(children: [
+                    Text(_selectedCountry.flag,
+                        style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(s.market,
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF7C3AED))),
+                          Text(_selectedCountry.name,
+                              style: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ])),
+                    if (_selectedCountry.suffix.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C3AED).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.refresh, size: 22),
+                        child: Text(_selectedCountry.suffix,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF7C3AED))),
                       ),
-                    ),
-                  ),
-                ],
+                    const Iconify(AppIcons.caretDown,
+                        color: Color(0xFF7C3AED), size: 20),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Search bar
+              TextField(
+                controller: _symbolCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: s.searchByTickerOrName,
+                  hintText: 'e.g., Apple, AAPL, ATW.CS, BTC-USD',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                  prefixIcon: _searching
+                      ? const Padding(
+                          padding: EdgeInsets.only(left: 14, right: 8),
+                          child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.only(left: 14, right: 8),
+                          child: Iconify(AppIcons.search,
+                              size: 16,
+                              color:
+                                  Theme.of(context).textTheme.bodySmall?.color),
+                        ),
+                  prefixIconConstraints:
+                      const BoxConstraints(minWidth: 38, minHeight: 38),
+                  suffixIcon: _symbolCtrl.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Iconify(AppIcons.close, size: 18),
+                          onPressed: () {
+                            _symbolCtrl.clear();
+                            setState(() {
+                              _searchResults = [];
+                              _livePrice = null;
+                              _companyName = null;
+                            });
+                          },
+                        )
+                      : null,
+                ),
+                onSubmitted: (_) => _fetchPrice(),
               ),
 
-              // Company search results
-              if (_searching) ...[
+              // Search results dropdown
+              if (_searchResults.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const LinearProgressIndicator(minHeight: 2),
-              ] else if (_searchResults.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Theme.of(context).dividerColor),
-                  ),
-                  child: Column(
-                    children: _searchResults.map((r) {
-                      final typeIcon = r.type == 'CRYPTOCURRENCY'
-                          ? Icons.currency_bitcoin
-                          : r.type == 'ETF'
-                              ? Icons.pie_chart_outline
-                              : r.type == 'CURRENCY'
-                                  ? Icons.currency_exchange
-                                  : Icons.show_chart;
-                      return InkWell(
-                        onTap: () => _selectResult(r),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          child: Row(
-                            children: [
-                              Icon(typeIcon, size: 18, color: AppTheme.goldPrimary),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(r.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    Text('${r.symbol}  ·  ${r.exchange}', style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color)),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.chevron_right, size: 16),
-                            ],
-                          ),
+                // Exchange filter chips
+                Builder(builder: (ctx) {
+                  final exchanges = _searchResults
+                      .map((r) => r.exchange)
+                      .where((e) => e.isNotEmpty)
+                      .toSet()
+                      .toList()
+                    ..sort();
+                  if (exchanges.length <= 1) return const SizedBox.shrink();
+                  return SizedBox(
+                    height: 32,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _ExchangeChip(
+                          label: 'All',
+                          selected: _exchangeFilter == null,
+                          onTap: () => setState(() => _exchangeFilter = null),
                         ),
-                      );
-                    }).toList(),
+                        ...exchanges.map((e) => _ExchangeChip(
+                              label: e,
+                              selected: _exchangeFilter == e,
+                              onTap: () => setState(() => _exchangeFilter =
+                                  _exchangeFilter == e ? null : e),
+                            )),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 6),
+                Builder(builder: (ctx) {
+                  final filtered = _exchangeFilter == null
+                      ? _searchResults
+                      : _searchResults
+                          .where((r) => r.exchange == _exchangeFilter)
+                          .toList();
+                  return Container(
+                    constraints: const BoxConstraints(maxHeight: 320),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => Divider(
+                            height: 1, color: Theme.of(context).dividerColor),
+                        itemBuilder: (ctx, i) {
+                          final r = filtered[i];
+                          final (typeLabel, typeColor) = switch (r.type) {
+                            'CRYPTOCURRENCY' => (
+                                'CRYPTO',
+                                const Color(0xFFF59E0B)
+                              ),
+                            'ETF' => ('ETF', const Color(0xFF8B5CF6)),
+                            'CURRENCY' => ('FOREX', const Color(0xFF06B6D4)),
+                            'MUTUALFUND' => ('FUND', const Color(0xFF0B715F)),
+                            _ => ('STOCK', const Color(0xFF3B82F6)),
+                          };
+                          return InkWell(
+                            onTap: () => _selectResult(r),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 11),
+                              child: Row(children: [
+                                // Logo
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: SizedBox(
+                                    width: 40,
+                                    height: 40,
+                                    child:
+                                        StockLogo(symbol: r.symbol, size: 40),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Name + symbol + exchange
+                                Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(r.name,
+                                            style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis),
+                                        const SizedBox(height: 2),
+                                        Row(children: [
+                                          Text(r.symbol,
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: typeColor)),
+                                          if (r.exchange.isNotEmpty) ...[
+                                            Text('  ·  ',
+                                                style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.color)),
+                                            Flexible(
+                                                child: Text(r.exchange,
+                                                    style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: Theme.of(context)
+                                                            .textTheme
+                                                            .bodySmall
+                                                            ?.color),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis)),
+                                          ],
+                                        ]),
+                                      ]),
+                                ),
+                                const SizedBox(width: 8),
+                                // Type badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: typeColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(typeLabel,
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: typeColor)),
+                                ),
+                              ]),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                }),
+              ] else if (!_searching &&
+                  _symbolCtrl.text.trim().length >= 2 &&
+                  _livePrice == null) ...[
+                const SizedBox(height: 8),
+                // Fetch price button (shown when user has typed a ticker and no results)
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: OutlinedButton.icon(
+                    onPressed: _fetching ? null : _fetchPrice,
+                    icon: _fetching
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Iconify(AppIcons.refresh, size: 18),
+                    label: Text(_fetching
+                        ? 'Fetching...'
+                        : 'Fetch Live Price for "${_symbolCtrl.text.trim().toUpperCase()}"'),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      foregroundColor: const Color(0xFF7C3AED),
+                      side: const BorderSide(color: Color(0xFF7C3AED)),
+                    ),
                   ),
                 ),
               ],
@@ -1885,15 +2948,17 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
               if (_livePrice != null) ...[
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppTheme.success.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.success.withOpacity(0.3)),
+                    border:
+                        Border.all(color: AppTheme.success.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle_outline,
+                      Iconify(AppIcons.checkCircle,
                           color: AppTheme.success, size: 18),
                       const SizedBox(width: 8),
                       Expanded(
@@ -1924,7 +2989,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
               if (_fetchError != null) ...[
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: AppTheme.error.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -1932,11 +2998,13 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: AppTheme.error, size: 18),
+                      Icon(Icons.error_outline,
+                          color: AppTheme.error, size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(_fetchError!,
-                            style: TextStyle(color: AppTheme.error, fontSize: 12)),
+                            style:
+                                TextStyle(color: AppTheme.error, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -1951,7 +3019,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                 decoration: InputDecoration(
                   labelText: 'Title (optional)',
                   hintText: 'e.g., Apple Stock, Bitcoin Investment',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.title),
                 ),
               ),
@@ -1960,11 +3029,13 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
               // Shares
               TextField(
                 controller: _sharesCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Quantity (shares / units)',
                   hintText: '0',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.numbers),
                 ),
               ),
@@ -1973,15 +3044,125 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
               // Avg cost
               TextField(
                 controller: _costCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Avg Buy Price per Unit',
                   hintText: '0.00',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.attach_money),
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Purchase date
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _purchaseDate,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) setState(() => _purchaseDate = picked);
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Purchase Date',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.calendar_today_rounded),
+                  ),
+                  child: Text(
+                    DateFormat('MMM d, yyyy').format(_purchaseDate),
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              if (!isEditing) ...[
+                AppPickerField<String>(
+                  label: s.sourceAccount,
+                  value: _sourceAccountId,
+                  prefixIcon: AppIcons.bank,
+                  helperText:
+                      'Optional. Pick the account that funded this buy. Older purchases are imported without changing balances.',
+                  items: _fundingAccounts(provider)
+                      .map(
+                        (account) => AppPickerItem(
+                          value: account.id,
+                          label: account.name,
+                          subtitle:
+                              '$currencySymbol${account.balance.toStringAsFixed(2)} available · tracked from ${DateFormat('MMM d, yyyy').format(_accountTrackingStart(account))}',
+                          leadingIcon: AppIcons.bank,
+                          iconColor: const Color(0xFF3B82F6),
+                          imagePath: account.imagePath,
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => _sourceAccountId = value),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: selectedFundingAccount == null
+                        ? Theme.of(context).cardColor
+                        : (trackedPurchase
+                                ? AppTheme.success
+                                : AppTheme.warning)
+                            .withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: selectedFundingAccount == null
+                          ? Theme.of(context).dividerColor.withOpacity(0.4)
+                          : (trackedPurchase
+                                  ? AppTheme.success
+                                  : AppTheme.warning)
+                              .withOpacity(0.28),
+                    ),
+                  ),
+                  child: Text(
+                    selectedFundingAccount == null
+                        ? 'No source account selected. This holding will be added without changing any tracked account balance.'
+                        : trackedPurchase
+                            ? 'This purchase will deduct ${estimatedSourceAmount == null ? 'the entered buy amount' : '$currencySymbol${estimatedSourceAmount.toStringAsFixed(2)}'} from ${selectedFundingAccount.name} because the purchase date is on or after $formattedTrackingStart.'
+                            : 'This purchase happened before ${selectedFundingAccount.name} started being tracked on $formattedTrackingStart, so the holding will be imported without changing that balance.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          height: 1.4,
+                          color: selectedFundingAccount == null
+                              ? Theme.of(context).textTheme.bodySmall?.color
+                              : (trackedPurchase
+                                  ? AppTheme.success
+                                  : AppTheme.warning),
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Theme.of(context).dividerColor.withOpacity(0.4),
+                    ),
+                  ),
+                  child: Text(
+                    widget.holding?.affectsSourceBalance == true
+                        ? 'This holding already adjusted its source account when it was first added. Editing it here will not move money again.'
+                        : 'This holding was imported without changing a source account balance.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(height: 1.4),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Notes
               TextField(
@@ -1990,7 +3171,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                 decoration: InputDecoration(
                   labelText: 'Notes (optional)',
                   hintText: 'e.g., Long-term hold, Roth IRA',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.note),
                 ),
               ),
@@ -2004,11 +3186,13 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.goldPrimary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
-                    widget.holding == null ? 'Add Holding' : 'Save Changes',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    widget.holding == null ? s.addHolding : s.saveChanges,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -2027,6 +3211,9 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
 class SellHoldingModal extends StatefulWidget {
   final Holding holding;
   final List<Account> accounts;
+  final double cashBalance;
+  final String currencySymbol;
+  final double fxRate; // USD → user currency multiplier
   final void Function({
     required double sharesToSell,
     required double sellPrice,
@@ -2038,6 +3225,9 @@ class SellHoldingModal extends StatefulWidget {
     super.key,
     required this.holding,
     required this.accounts,
+    required this.cashBalance,
+    required this.currencySymbol,
+    this.fxRate = 1.0,
     required this.onSell,
   });
 
@@ -2048,20 +3238,15 @@ class SellHoldingModal extends StatefulWidget {
 class _SellHoldingModalState extends State<SellHoldingModal> {
   final _sharesCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
-  String? _selectedAccountId;
+  String _selectedAccountId = AppProvider.cashOnHandId; // default: cash
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill with current live price
     if (widget.holding.currentPrice > 0) {
-      _priceCtrl.text = widget.holding.currentPrice.toStringAsFixed(2);
+      _priceCtrl.text =
+          (widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2);
     }
-    // Default to first bank/savings account
-    final bankAccounts = widget.accounts
-        .where((a) => a.type == 'bank' || a.type == 'savings')
-        .toList();
-    if (bankAccounts.isNotEmpty) _selectedAccountId = bankAccounts.first.id;
   }
 
   @override
@@ -2072,10 +3257,24 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
   }
 
   double get _sharesToSell => double.tryParse(_sharesCtrl.text) ?? 0;
-  double get _sellPrice => double.tryParse(_priceCtrl.text) ?? 0;
+  double get _sellPrice =>
+      double.tryParse(_priceCtrl.text) ?? 0; // in user's currency
+  double get _sellPriceUsd => widget.fxRate > 0
+      ? _sellPrice / widget.fxRate
+      : _sellPrice; // back to USD for storage
   double get _proceeds => _sharesToSell * _sellPrice;
   double get _profitLoss =>
-      _sharesToSell * (_sellPrice - widget.holding.costBasis);
+      _sharesToSell * (_sellPrice - widget.holding.costBasis * widget.fxRate);
+  String get _sym => widget.currencySymbol;
+
+  String _destLabel() {
+    if (_selectedAccountId == AppProvider.cashOnHandId) {
+      return 'Cash on Hand · ${_sym}${widget.cashBalance.toStringAsFixed(0)}';
+    }
+    final a = widget.accounts.firstWhere((a) => a.id == _selectedAccountId,
+        orElse: () => widget.accounts.first);
+    return '${a.name} · ${_sym}${a.balance.toStringAsFixed(0)}';
+  }
 
   void _confirm() {
     if (_sharesToSell <= 0) {
@@ -2085,8 +3284,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
     }
     if (_sharesToSell > widget.holding.shares) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'You only hold ${widget.holding.shares} shares')));
+          content: Text('You only hold ${widget.holding.shares} shares')));
       return;
     }
     if (_sellPrice <= 0) {
@@ -2094,208 +3292,302 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
           .showSnackBar(const SnackBar(content: Text('Enter a sell price')));
       return;
     }
-    if (_selectedAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Choose a destination account')));
-      return;
-    }
     widget.onSell(
       sharesToSell: _sharesToSell,
-      sellPrice: _sellPrice,
-      accountId: _selectedAccountId!,
+      sellPrice: _sellPriceUsd, // store in USD internally
+      accountId: _selectedAccountId,
       transactionId: const Uuid().v4(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isProfit = _profitLoss >= 0;
     final profitColor = isProfit ? AppTheme.success : AppTheme.error;
 
+    // Build dropdown items: Cash first, then non-investment accounts
+    final destItems = <DropdownMenuItem<String>>[
+      DropdownMenuItem(
+        value: AppProvider.cashOnHandId,
+        child: Row(children: [
+          const Icon(Icons.payments_rounded,
+              size: 18, color: AppTheme.goldPrimary),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Text(
+            'Cash on Hand  ·  ${_sym}${widget.cashBalance.toStringAsFixed(0)}',
+            overflow: TextOverflow.ellipsis,
+          )),
+        ]),
+      ),
+      ...widget.accounts.where((a) => a.type != 'investment').map(
+            (a) => DropdownMenuItem(
+              value: a.id,
+              child: Row(children: [
+                const Icon(Icons.account_balance_rounded,
+                    size: 18, color: Color(0xFF3B82F6)),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Text(
+                  '${a.name}  ·  ${_sym}${a.balance.toStringAsFixed(0)}',
+                  overflow: TextOverflow.ellipsis,
+                )),
+              ]),
+            ),
+          ),
+    ];
+
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: isDark ? AppTheme.darkSurface : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Drag handle
+              Center(
+                  child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                          color: Theme.of(context).dividerColor,
+                          borderRadius: BorderRadius.circular(3)))),
+              const SizedBox(height: 20),
+
               // Header
-              Row(
-                children: [
-                  StockLogo(symbol: widget.holding.symbol, size: 44),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Sell ${widget.holding.symbol}',
-                          style: Theme.of(context).textTheme.headlineSmall),
+              Row(children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: StockLogo(symbol: widget.holding.symbol, size: 48),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       Text(
-                        '${widget.holding.shares} shares available',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
+                          'Sell ${widget.holding.title ?? widget.holding.symbol}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text(
+                          '${widget.holding.shares} shares available  ·  ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)} live',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ])),
+                IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(context)),
+              ]),
               const SizedBox(height: 24),
 
-              // Shares to sell
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _sharesCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        labelText: 'Shares to sell',
-                        hintText: 'Max ${widget.holding.shares}',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.numbers),
-                        suffixText: '/ ${widget.holding.shares}',
-                      ),
+              // ── Shares ───────────────────────────────────────────────
+              Text('How many shares?',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: TextField(
+                    controller: _sharesCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: '0',
+                      suffixText: '/ ${widget.holding.shares}',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      prefixIcon: const Icon(Icons.candlestick_chart_rounded),
+                      filled: true,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _sharesCtrl.text =
-                            widget.holding.shares.toString();
+                ),
+                const SizedBox(width: 10),
+                // Quick-fill buttons
+                Column(children: [
+                  _QuickFillButton(
+                      label: '½',
+                      onTap: () {
+                        _sharesCtrl.text = (widget.holding.shares / 2)
+                            .toStringAsFixed(widget.holding.shares ==
+                                    widget.holding.shares.roundToDouble()
+                                ? 0
+                                : 2);
+                        setState(() {});
+                      }),
+                  const SizedBox(height: 6),
+                  _QuickFillButton(
+                      label: 'All',
+                      onTap: () {
+                        _sharesCtrl.text = widget.holding.shares.toString();
                         setState(() {});
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            AppTheme.error.withValues(alpha: 0.12),
-                        foregroundColor: AppTheme.error,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                      ),
-                      child: const Text('All',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
+                      color: AppTheme.error),
+                ]),
+              ]),
               const SizedBox(height: 16),
 
-              // Sell price
+              // ── Sell price ───────────────────────────────────────────
+              Text('Sell price per share',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
               TextField(
                 controller: _priceCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  labelText: 'Sell price per share',
                   hintText: '0.00',
+                  prefixText: '$_sym ',
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.attach_money),
+                      borderRadius: BorderRadius.circular(14)),
+                  prefixIcon: const Icon(Icons.sell_rounded),
+                  filled: true,
                   helperText: widget.holding.currentPrice > 0
-                      ? 'Live: \$${widget.holding.currentPrice.toStringAsFixed(2)}'
+                      ? 'Live price: ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)}  ·  tap to use'
+                      : null,
+                  helperStyle: const TextStyle(
+                      color: AppTheme.goldPrimary, fontSize: 11),
+                  suffixIcon: widget.holding.currentPrice > 0
+                      ? IconButton(
+                          icon: const Icon(Icons.flash_on_rounded,
+                              size: 18, color: AppTheme.goldPrimary),
+                          tooltip: 'Use live price',
+                          onPressed: () {
+                            _priceCtrl.text =
+                                (widget.holding.currentPrice * widget.fxRate)
+                                    .toStringAsFixed(2);
+                            setState(() {});
+                          },
+                        )
                       : null,
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Destination account
-              DropdownButtonFormField<String>(
+              // ── Destination ──────────────────────────────────────────
+              AppPickerField<String>(
+                label: 'Proceeds go to',
                 value: _selectedAccountId,
-                decoration: InputDecoration(
-                  labelText: 'Proceeds go to',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.account_balance),
-                ),
-                items: widget.accounts
-                    .where((a) => a.type != 'investment')
-                    .map((a) => DropdownMenuItem<String>(
+                prefixIcon: AppIcons.wallet,
+                items: [
+                  AppPickerItem(
+                    value: AppProvider.cashOnHandId,
+                    label: 'Cash on Hand',
+                    subtitle:
+                        '${_sym}${widget.cashBalance.toStringAsFixed(2)} available',
+                    leadingIcon: AppIcons.money,
+                    iconColor: AppTheme.goldPrimary,
+                  ),
+                  ...widget.accounts.where((a) => a.type != 'investment').map(
+                        (a) => AppPickerItem(
                           value: a.id,
-                          child: Text('${a.name} · \$${a.balance.toStringAsFixed(0)}'),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedAccountId = v),
+                          label: a.name,
+                          subtitle:
+                              '${_sym}${a.balance.toStringAsFixed(2)} available',
+                          leadingIcon: AppIcons.bank,
+                          iconColor: const Color(0xFF3B82F6),
+                          imagePath: a.imagePath,
+                        ),
+                      ),
+                ],
+                onChanged: (v) => setState(
+                    () => _selectedAccountId = v ?? AppProvider.cashOnHandId),
               ),
               const SizedBox(height: 20),
 
-              // Summary box
+              // ── Summary box ──────────────────────────────────────────
               if (_sharesToSell > 0 && _sellPrice > 0) ...[
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(14),
+                    color: isDark
+                        ? AppTheme.darkSurfaceElevated
+                        : const Color(0xFFF8F9FB),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: Theme.of(context)
-                            .dividerColor
-                            .withValues(alpha: 0.2)),
+                        color: Theme.of(context).dividerColor.withOpacity(0.3)),
                   ),
-                  child: Column(
-                    children: [
-                      _SummaryRow(
-                        label: 'Total proceeds',
-                        value: '\$${_proceeds.toStringAsFixed(2)}',
-                        valueStyle: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      _SummaryRow(
-                        label: 'Cost basis (${_sharesToSell} shares)',
-                        value:
-                            '\$${(_sharesToSell * widget.holding.costBasis).toStringAsFixed(2)}',
-                      ),
-                      const Divider(height: 16),
-                      _SummaryRow(
-                        label: isProfit ? 'Profit' : 'Loss',
-                        value:
-                            '${isProfit ? '+' : ''}\$${_profitLoss.toStringAsFixed(2)}',
-                        valueStyle: TextStyle(
-                          fontWeight: FontWeight.bold,
+                  child: Column(children: [
+                    _SummaryRow(
+                      label: 'Shares × Price',
+                      value:
+                          '${_sharesToSell} × ${_sym}${_sellPrice.toStringAsFixed(2)}',
+                    ),
+                    const SizedBox(height: 10),
+                    _SummaryRow(
+                      label: 'Total proceeds',
+                      value: '${_sym}${_proceeds.toStringAsFixed(2)}',
+                      valueStyle: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 17),
+                    ),
+                    const SizedBox(height: 10),
+                    _SummaryRow(
+                      label: 'Cost basis',
+                      value:
+                          '${_sym}${(_sharesToSell * widget.holding.costBasis * widget.fxRate).toStringAsFixed(2)}',
+                      valueStyle: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color),
+                    ),
+                    Divider(
+                        height: 20,
+                        color: Theme.of(context).dividerColor.withOpacity(0.4)),
+                    _SummaryRow(
+                      label: isProfit ? '📈 Profit' : '📉 Loss',
+                      value:
+                          '${isProfit ? '+' : ''}${_sym}${_profitLoss.toStringAsFixed(2)}',
+                      valueStyle: TextStyle(
+                          fontWeight: FontWeight.w700,
                           color: profitColor,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
+                          fontSize: 15),
+                    ),
+                    const SizedBox(height: 8),
+                    _SummaryRow(
+                      label: 'Destination',
+                      value: _destLabel(),
+                      valueStyle: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                  ]),
                 ),
                 const SizedBox(height: 20),
               ],
 
-              // Confirm button
+              // ── Confirm ──────────────────────────────────────────────
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: _confirm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.error,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
                   ),
                   child: Text(
                     _sharesToSell > 0 && _sellPrice > 0
-                        ? 'Sell for \$${_proceeds.toStringAsFixed(2)}'
+                        ? 'Sell for ${_sym}${_proceeds.toStringAsFixed(2)}'
                         : 'Confirm Sale',
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                        fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -2307,12 +3599,42 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
   }
 }
 
+class _QuickFillButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+  const _QuickFillButton(
+      {required this.label, required this.onTap, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppTheme.goldPrimary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 25,
+        decoration: BoxDecoration(
+          color: c.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: c.withOpacity(0.3)),
+        ),
+        child: Center(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: c))),
+      ),
+    );
+  }
+}
+
 class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final TextStyle? valueStyle;
 
-  const _SummaryRow({required this.label, required this.value, this.valueStyle});
+  const _SummaryRow(
+      {required this.label, required this.value, this.valueStyle});
 
   @override
   Widget build(BuildContext context) {
@@ -2321,8 +3643,7 @@ class _SummaryRow extends StatelessWidget {
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
         Text(value,
-            style: valueStyle ??
-                const TextStyle(fontWeight: FontWeight.w600)),
+            style: valueStyle ?? const TextStyle(fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -2337,7 +3658,8 @@ class _SparklinePainter extends CustomPainter {
   final Color color;
   final bool isDark;
 
-  _SparklinePainter({required this.data, required this.color, required this.isDark});
+  _SparklinePainter(
+      {required this.data, required this.color, required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2350,11 +3672,11 @@ class _SparklinePainter extends CustomPainter {
 
     final path = Path();
     final fillPath = Path();
-    
+
     for (int i = 0; i < data.length; i++) {
       final x = (i / (data.length - 1)) * size.width;
       final y = size.height - ((data[i] - minVal) / range) * size.height;
-      
+
       if (i == 0) {
         path.moveTo(x, y);
         fillPath.moveTo(x, size.height);
@@ -2364,7 +3686,7 @@ class _SparklinePainter extends CustomPainter {
         fillPath.lineTo(x, y);
       }
     }
-    
+
     fillPath.lineTo(size.width, size.height);
     fillPath.close();
 
@@ -2392,4 +3714,3 @@ class _SparklinePainter extends CustomPainter {
     return oldDelegate.data != data || oldDelegate.color != color;
   }
 }
-

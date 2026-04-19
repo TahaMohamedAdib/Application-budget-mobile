@@ -71,15 +71,16 @@ final List<Category> defaultCategories = [
   Category(id: 'subscriptions', name: 'Subscriptions', group: 'fixed', icon: 'tv', color: '#ec4899'),
   Category(id: 'insurance', name: 'Insurance', group: 'fixed', icon: 'shield', color: '#06b6d4'),
   Category(id: 'loans', name: 'Loans', group: 'fixed', icon: 'credit_card', color: '#64748b'),
+  Category(id: 'debt_payment', name: 'Debt Payment', group: 'fixed', icon: 'money_off', color: '#dc2626'),
   
   // Variable
   Category(id: 'subscriptions_budget', name: 'Subscriptions', group: 'variable', icon: 'autorenew', color: '#ec4899'),
-  Category(id: 'groceries', name: 'Groceries', group: 'variable', icon: 'shopping_cart', color: '#10B981'),
+  Category(id: 'groceries', name: 'Groceries', group: 'variable', icon: 'shopping_cart', color: '#0b715f'),
   Category(id: 'fuel', name: 'Fuel/Transport', group: 'variable', icon: 'car', color: '#3b82f6'),
   Category(id: 'eating-out', name: 'Dining Out', group: 'variable', icon: 'restaurant', color: '#f59e0b'),
   Category(id: 'shopping', name: 'Shopping', group: 'variable', icon: 'shopping_bag', color: '#a855f7'),
   Category(id: 'health', name: 'Health & Fitness', group: 'variable', icon: 'favorite', color: '#ef4444'),
-  Category(id: 'entertainment', name: 'Entertainment', group: 'variable', icon: 'sports_esports', color: '#10b981'),
+  Category(id: 'entertainment', name: 'Entertainment', group: 'variable', icon: 'sports_esports', color: '#0b715f'),
   Category(id: 'personal', name: 'Personal Care', group: 'variable', icon: 'face', color: '#ec4899'),
   Category(id: 'education', name: 'Education', group: 'variable', icon: 'school', color: '#3b82f6'),
   Category(id: 'travel', name: 'Travel', group: 'variable', icon: 'flight', color: '#06b6d4'),

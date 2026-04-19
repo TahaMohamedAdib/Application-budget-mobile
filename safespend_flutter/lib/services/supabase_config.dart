@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'env_config.dart';
 
 class SupabaseConfig {
-  static const String supabaseUrl = 'https://timctayytkcvxvpukvlq.supabase.co';
-  static const String supabaseAnonKey = 'sb_publishable_YdjX8DrHstJGUlO7chqPLA_GUhjL-pv';
-  static const String authCallbackUrl = 'io.supabase.timctayytkcvxvpukvlq://login-callback/';
+  static String get supabaseUrl => EnvConfig.supabaseUrl;
+  static String get supabaseAnonKey => EnvConfig.supabaseAnonKey;
+  static String get authCallbackUrl => EnvConfig.supabaseAuthCallback;
 
   static bool isAvailable = false;
 
@@ -17,6 +19,11 @@ class SupabaseConfig {
   }
 
   static Future<void> initialize() async {
+    if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+      if (kDebugMode) debugPrint('[SupabaseConfig] URL or key empty — skipping init');
+      isAvailable = false;
+      return;
+    }
     try {
       await Supabase.initialize(
         url: supabaseUrl,
@@ -24,11 +31,12 @@ class SupabaseConfig {
         authOptions: const FlutterAuthClientOptions(
           authFlowType: AuthFlowType.pkce,
         ),
-      ).timeout(const Duration(seconds: 5));
+      );
       isAvailable = true;
+      if (kDebugMode) debugPrint('[SupabaseConfig] initialized OK — url=$supabaseUrl');
     } catch (e) {
+      if (kDebugMode) debugPrint('[SupabaseConfig] init failed: $e');
       isAvailable = false;
-      // Supabase unavailable or timed out — app will run in local-only mode
     }
   }
 }

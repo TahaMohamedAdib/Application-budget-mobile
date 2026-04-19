@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafeSpend — UI Redesign</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold:       #B8860B;
+    --gold-light: #D4A017;
+    --gold-dim:   rgba(184,134,11,0.15);
+    --oxford:     #1A2232;
+    --oxford-mid: #212A37;
+    --surface:    #26303F;
+    --surface-hi: #2E3A4C;
+    --text-1:     #FFFFFF;
+    --text-2:     rgba(255,255,255,0.65);
+    --text-3:     rgba(255,255,255,0.38);
+    --divider:    rgba(255,255,255,0.07);
+    --success:    #34D399;
+    --error:      #F87171;
+    --purple:     #A78BFA;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0D1117;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 60px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Page Label ── */
+  .page-label {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 6px 18px;
+    color: var(--text-2);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
+  }
+  .page-label span { color: var(--gold-light); font-weight: 600; }
+
+  /* ── Phone Shell ── */
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .phone-caption {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .phone {
+    width: 375px;
+    height: 812px;
+    background: var(--oxford);
+    border-radius: 50px;
+    border: 10px solid #1C2230;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 40px 120px rgba(0,0,0,0.7),
+      0 0 80px rgba(184,134,11,0.08);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Notch */
+  .notch {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 30px;
+    background: #1C2230;
+    border-radius: 0 0 20px 20px;
+    z-index: 99;
+  }
+
+  /* ── Screen Scroll ── */
+  .screen {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 36px;
+    scrollbar-width: none;
+  }
+  .screen::-webkit-scrollbar { display: none; }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px 0;
+  }
+  .account-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 14px;
+    padding: 9px 14px;
+  }
+  .account-pill .dot {
+    width: 16px; height: 16px;
+    background: var(--gold-dim);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+  }
+  .account-pill span { font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+  .account-pill .chevron { font-size: 11px; color: var(--text-3); margin-left: 2px; }
+  .icon-btn {
+    width: 40px; height: 40px;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  /* ── Filter Pills ── */
+  .filter-row {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px 4px;
+  }
+  .pill {
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+  }
+  .pill.active {
+    background: var(--gold-dim);
+    border-color: rgba(184,134,11,0.4);
+    color: var(--gold-light);
+  }
+  .pill.inactive {
+    background: var(--surface);
+    border-color: var(--divider);
+    color: var(--text-2);
+  }
+
+  /* ── Gold Card ── */
+  .gold-card {
+    margin: 16px 20px 0;
+    background: linear-gradient(135deg, #B8860B 0%, #8B6508 40%, #6B4E08 100%);
+    border-radius: 24px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(184,134,11,0.3);
+  }
+  .gold-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+  .gold-card::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; right: 20px;
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 50%;
+  }
+  .card-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.3px;
+  }
+  .card-amount {
+    font-size: 34px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -1.5px;
+    margin: 6px 0 4px;
+    line-height: 1;
+  }
+  .card-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+  }
+  .card-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .card-stat {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .card-stat-label { font-size: 10px; color: rgba(255,255,255,0.55); margin-bottom: 3px; }
+  .card-stat-val { font-size: 14px; font-weight: 700; color: #fff; }
+  .card-stat-val.pos { color: #86EFAC; }
+  .card-stat-val.neg { color: #FCA5A5; }
+
+  /* ── Chart Card ── */
+  .chart-section {
+    margin: 18px 20px 0;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 24px;
+    padding: 18px 20px 16px;
+  }
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .section-title { font-size: 12px; color: var(--text-3); margin-bottom: 3px; letter-spacing: 0.2px; }
+  .section-val { font-size: 20px; font-weight: 700; color: var(--text-1); letter-spacing: -0.5px; }
+  .time-pills { display: flex; gap: 4px; }
+  .tp {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .tp.active { background: var(--gold); color: #fff; }
+  .tp.inactive { background: rgba(255,255,255,0.07); color: var(--text-3); }
+
+  /* SVG chart */
+  .chart-svg { width: 100%; height: 130px; }
+
+  /* ── Section label + see-all row ── */
+  .row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 20px 10px;
+  }
+  .row-title { font-size: 16px; font-weight: 700; color: var(--text-1); }
+  .see-all { font-size: 13px; font-weight: 500; color: var(--gold-light); }
+
+  /* ── Subscriptions Card ── */
+  .card-block {
+    margin: 0 20px;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .sub-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+  }
+  .sub-row + .sub-row { border-top: 1px solid var(--divider); }
+  .sub-icon {
+    width: 44px; height: 44px;
+    background: var(--gold-dim);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .sub-name { font-size: 14px; font-weight: 600; color: var(--text-1); }
+  .sub-date { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .sub-amount { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--text-1); }
+
+  /* ── Transactions ── */
+  .tx-date-label {
+    padding: 20px 20px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .tx-card { margin: 0 20px 10px; background: var(--surface); border:1px solid var(--divider); border-radius: 18px; overflow: hidden; }
+  .tx-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 16px;
+  }
+  .tx-row + .tx-row { border-top: 1px solid var(--divider); }
+  .tx-icon {
+    width: 40px; height: 40px;
+    border-radius: 13px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .tx-icon.food     { background: rgba(251,191, 36,0.13); }
+  .tx-icon.shop     { background: rgba(167,139,250,0.13); }
+  .tx-icon.income   { background: rgba( 52,211,153,0.13); }
+  .tx-icon.transport{ background: rgba(248,113,113,0.13); }
+  .tx-icon.sub      { background: rgba(184,134, 11,0.13); }
+
+  .tx-name  { font-size: 14px; font-weight: 600; color: var(--text-1); }
+  .tx-cat   { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+  .tx-right { margin-left: auto; text-align: right; }
+  .tx-amt   { font-size: 14px; font-weight: 700; }
+  .tx-amt.neg { color: var(--text-1); }
+  .tx-amt.pos { color: var(--success); }
+  .tx-time  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+  /* ── Bottom Nav ── */
+  .bottom-nav {
+    flex-shrink: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--divider);
+    display: flex;
+    align-items: center;
+    padding: 10px 10px 20px;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .nav-icon { font-size: 22px; }
+  .nav-label { font-size: 10px; font-weight: 500; }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 8px var(--gold)); }
+  .nav-item.active .nav-label { color: var(--gold-light); font-weight: 600; }
+  .nav-item.inactive .nav-label { color: var(--text-3); }
+
+  /* ── FAB ── */
+  .fab-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .fab {
+    width: 54px; height: 54px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(184,134,11,0.4);
+    margin-top: -20px;
+  }
+
+  /* ── Glow ambient behind phones ── */
+  .glow {
+    position: fixed;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+  }
+  .glow-gold { background: rgba(184,134,11,0.12); top: -100px; left: 30%; }
+  .glow-blue { background: rgba(33,42,55,0.6); bottom: -100px; right: 20%; }
+
+  /* Second phone — light / marble theme */
+  .phone.light { background: #F2F8FC; }
+  .phone.light .notch { background: #E5EEF5; }
+  .phone.light .account-pill { background: #fff; border-color: #DEE9F0; }
+  .phone.light .account-pill span { color: #1A2232; }
+  .phone.light .account-pill .chevron { color: #9EB0BF; }
+  .phone.light .icon-btn { background:#fff; border-color:#DEE9F0; }
+  .phone.light .pill.inactive { background: #fff; border-color: #DEE9F0; color: #5A7186; }
+  .phone.light .chart-section,
+  .phone.light .card-block,
+  .phone.light .tx-card { background: #fff; border-color: #DEE9F0; }
+  .phone.light .section-val { color: #1A2232; }
+  .phone.light .section-title { color: #9EB0BF; }
+  .phone.light .row-title { color: #1A2232; }
+  .phone.light .tx-date-label { color: #9EB0BF; }
+  .phone.light .sub-name, .phone.light .tx-name { color: #1A2232; }
+  .phone.light .sub-date, .phone.light .tx-cat { color: #9EB0BF; }
+  .phone.light .sub-amount, .phone.light .tx-amt.neg { color: #1A2232; }
+  .phone.light .bottom-nav { background: #fff; border-color: #DEE9F0; }
+  .phone.light .nav-item.inactive .nav-label { color: #9EB0BF; }
+  .phone.light .tp.inactive { background: #F0F5F9; color: #9EB0BF; }
+  .phone.light .tx-icon.food     { background: rgba(251,191, 36,0.1); }
+  .phone.light .tx-icon.shop     { background: rgba(167,139,250,0.1); }
+  .phone.light .tx-icon.income   { background: rgba( 52,211,153,0.1); }
+  .phone.light .tx-icon.sub      { background: rgba(184,134, 11,0.1); }
+</style>
+</head>
+<body>
+
+<div class="glow glow-gold"></div>
+<div class="glow glow-blue"></div>
+<div class="page-label">SafeSpend — <span>UI Redesign Concept</span></div>
+
+<!-- ═══════════════ DARK PHONE ═══════════════ -->
+<div class="phone-wrap">
+  <div class="phone">
+    <div class="notch"></div>
+
+    <div class="screen">
+      <!-- Header -->
+      <div class="header">
+        <div class="account-pill">
+          <div class="dot">💼</div>
+          <span>All Accounts</span>
+          <span class="chevron">⌄</span>
+        </div>
+        <div class="icon-btn">⚙</div>
+      </div>
+
+      <!-- Filter Pills -->
+      <div class="filter-row">
+        <div class="pill active">All</div>
+        <div class="pill inactive">Accounts</div>
+        <div class="pill inactive">Transactions</div>
+      </div>
+
+      <!-- Gold Balance Card -->
+      <div class="gold-card">
+        <div class="card-label">Account Balance</div>
+        <div class="card-amount">$12,438<span style="font-size:22px;opacity:.7">.50</span></div>
+        <div class="card-sub">All accounts combined</div>
+        <div class="card-row">
+          <div class="card-stat">
+            <div class="card-stat-label">This month in</div>
+            <div class="card-stat-val pos">+$3,240</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-label">This month out</div>
+            <div class="card-stat-val neg">−$1,890</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-label">Net change</div>
+            <div class="card-stat-val pos">+$1,350</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Balance Evolution Chart -->
+      <div class="chart-section">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Balance Evolution</div>
+            <div class="section-val">$12,438</div>
+          </div>
+          <div class="time-pills">
+            <div class="tp inactive">1D</div>
+            <div class="tp inactive">1W</div>
+            <div class="tp active">1M</div>
+            <div class="tp inactive">6M</div>
+            <div class="tp inactive">1Y</div>
+          </div>
+        </div>
+        <!-- Inline SVG chart -->
+        <svg class="chart-svg" viewBox="0 0 320 130" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="grd" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+            </linearGradient>
+            <filter id="glow-line">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- Grid lines -->
+          <line x1="0" y1="32"  x2="320" y2="32"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+          <line x1="0" y1="65"  x2="320" y2="65"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+          <line x1="0" y1="98"  x2="320" y2="98"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+          <!-- Area fill -->
+          <path d="M0,95 C30,88 50,80 80,70 C110,60 130,55 160,48 C190,41 210,38 240,32 C265,28 290,30 320,25 L320,130 L0,130 Z"
+                fill="url(#grd)"/>
+          <!-- Line -->
+          <path d="M0,95 C30,88 50,80 80,70 C110,60 130,55 160,48 C190,41 210,38 240,32 C265,28 290,30 320,25"
+                fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" filter="url(#glow-line)"/>
+          <!-- End dot -->
+          <circle cx="320" cy="25" r="5" fill="white"/>
+          <circle cx="320" cy="25" r="9" fill="rgba(255,255,255,0.2)"/>
+          <!-- X labels -->
+          <text x="0"   y="128" font-size="9" fill="rgba(255,255,255,0.4)" font-family="Inter">Mar 1</text>
+          <text x="65"  y="128" font-size="9" fill="rgba(255,255,255,0.4)" font-family="Inter">Mar 8</text>
+          <text x="133" y="128" font-size="9" fill="rgba(255,255,255,0.4)" font-family="Inter">Mar 15</text>
+          <text x="200" y="128" font-size="9" fill="rgba(255,255,255,0.4)" font-family="Inter">Mar 22</text>
+          <text x="275" y="128" font-size="9" fill="rgba(255,255,255,0.4)" font-family="Inter">Mar 27</text>
+        </svg>
+      </div>
+
+      <!-- Upcoming Subscriptions -->
+      <div class="row-header">
+        <div class="row-title">Upcoming Subscriptions</div>
+        <div class="see-all">See all</div>
+      </div>
+      <div class="card-block">
+        <div class="sub-row">
+          <div class="sub-icon">🎵</div>
+          <div>
+            <div class="sub-name">Spotify Premium</div>
+            <div class="sub-date">Due Apr 1</div>
+          </div>
+          <div class="sub-amount">$9.99</div>
+        </div>
+        <div class="sub-row">
+          <div class="sub-icon" style="background:rgba(248,113,113,0.13)">📺</div>
+          <div>
+            <div class="sub-name">Netflix</div>
+            <div class="sub-date">Due Apr 5</div>
+          </div>
+          <div class="sub-amount">$15.49</div>
+        </div>
+        <div class="sub-row">
+          <div class="sub-icon" style="background:rgba(167,139,250,0.13)">☁️</div>
+          <div>
+            <div class="sub-name">iCloud 200GB</div>
+            <div class="sub-date">Due Apr 9</div>
+          </div>
+          <div class="sub-amount">$2.99</div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="row-header">
+        <div class="row-title">Recent Transactions</div>
+        <div class="see-all">See all</div>
+      </div>
+
+      <div class="tx-date-label">Today</div>
+      <div class="tx-card">
+        <div class="tx-row">
+          <div class="tx-icon food">🥗</div>
+          <div>
+            <div class="tx-name">Sweetgreen</div>
+            <div class="tx-cat">Food & Dining</div>
+          </div>
+          <div class="tx-right">
+            <div class="tx-amt neg">−$14.50</div>
+            <div class="tx-time">2:30 PM</div>
+          </div>
+        </div>
+        <div class="tx-row">
+          <div class="tx-icon shop">🛍</div>
+          <div>
+            <div class="tx-name">Amazon</div>
+            <div class="tx-cat">Shopping</div>
+          </div>
+          <div class="tx-right">
+            <div class="tx-amt neg">−$39.99</div>
+            <div class="tx-time">10:15 AM</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tx-date-label">Yesterday</div>
+      <div class="tx-card">
+        <div class="tx-row">
+          <div class="tx-icon income">💰</div>
+          <div>
+            <div class="tx-name">Salary</div>
+            <div class="tx-cat">Income</div>
+          </div>
+          <div class="tx-right">
+            <div class="tx-amt pos">+$3,240.00</div>
+            <div class="tx-time">9:00 AM</div>
+          </div>
+        </div>
+        <div class="tx-row">
+          <div class="tx-icon transport">🚌</div>
+          <div>
+            <div class="tx-name">Uber</div>
+            <div class="tx-cat">Transport</div>
+          </div>
+          <div class="tx-right">
+            <div class="tx-amt neg">−$11.20</div>
+            <div class="tx-time">8:42 AM</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:20px"></div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="bottom-nav">
+      <div class="nav-item active">
+        <div class="nav-icon">🏠</div>
+        <div class="nav-label" style="color:var(--gold-light)">Today</div>
+      </div>
+      <div class="nav-item inactive">
+        <div class="nav-icon">📋</div>
+        <div class="nav-label">Plan</div>
+      </div>
+      <div class="fab-wrap">
+        <div class="fab">＋</div>
+      </div>
+      <div class="nav-item inactive">
+        <div class="nav-icon">📈</div>
+        <div class="nav-label">Wealth</div>
+      </div>
+      <div class="nav-item inactive">
+        <div class="nav-icon">🤖</div>
+        <div class="nav-label">Coach</div>
+      </div>
+    </div>
+  </div>
+  <div class="phone-caption">Dark Mode — Oxford Blue</div>
+</div>
+
+<!-- ═══════════════ LIGHT PHONE ═══════════════ -->
+<div class="phone-wrap">
+  <div class="phone light">
+    <div class="notch"></div>
+
+    <div class="screen">
+      <div class="header">
+        <div class="account-pill">
+          <div class="dot">💳</div>
+          <span>Chase Checking</span>
+          <span class="chevron">⌄</span>
+        </div>
+        <div class="icon-btn">⚙</div>
+      </div>
+
+      <div class="filter-row">
+        <div class="pill active">All</div>
+        <div class="pill inactive">Accounts</div>
+        <div class="pill inactive">Transactions</div>
+      </div>
+
+      <!-- Gold Balance Card — same gradient, always premium -->
+      <div class="gold-card">
+        <div class="card-label">Account Balance</div>
+        <div class="card-amount">$8,205<span style="font-size:22px;opacity:.7">.00</span></div>
+        <div class="card-sub">Chase Checking · ••4892</div>
+        <div class="card-row">
+          <div class="card-stat">
+            <div class="card-stat-label">This month in</div>
+            <div class="card-stat-val pos">+$3,240</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-label">This month out</div>
+            <div class="card-stat-val neg">−$1,420</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-label">Net change</div>
+            <div class="card-stat-val pos">+$1,820</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="chart-section">
+        <div class="section-header">
+          <div>
+            <div class="section-title" style="color:#9EB0BF">Balance Evolution</div>
+            <div class="section-val" style="color:#1A2232">$8,205</div>
+          </div>
+          <div class="time-pills">
+            <div class="tp inactive">1D</div>
+            <div class="tp inactive">1W</div>
+            <div class="tp active">1M</div>
+            <div class="tp inactive">6M</div>
+            <div class="tp inactive">1Y</div>
+          </div>
+        </div>
+        <svg class="chart-svg" viewBox="0 0 320 130" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="grd2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(184,134,11,0.18)"/>
+              <stop offset="100%" stop-color="rgba(184,134,11,0)"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="32"  x2="320" y2="32"  stroke="rgba(26,34,50,0.07)" stroke-width="1"/>
+          <line x1="0" y1="65"  x2="320" y2="65"  stroke="rgba(26,34,50,0.07)" stroke-width="1"/>
+          <line x1="0" y1="98"  x2="320" y2="98"  stroke="rgba(26,34,50,0.07)" stroke-width="1"/>
+          <path d="M0,100 C30,90 50,82 80,72 C110,62 130,58 160,50 C190,43 210,40 240,33 C265,29 290,31 320,26 L320,130 L0,130 Z"
+                fill="url(#grd2)"/>
+          <path d="M0,100 C30,90 50,82 80,72 C110,62 130,58 160,50 C190,43 210,40 240,33 C265,29 290,31 320,26"
+                fill="none" stroke="#B8860B" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="320" cy="26" r="5" fill="#B8860B"/>
+          <circle cx="320" cy="26" r="9" fill="rgba(184,134,11,0.2)"/>
+          <text x="0"   y="128" font-size="9" fill="#9EB0BF" font-family="Inter">Mar 1</text>
+          <text x="65"  y="128" font-size="9" fill="#9EB0BF" font-family="Inter">Mar 8</text>
+          <text x="133" y="128" font-size="9" fill="#9EB0BF" font-family="Inter">Mar 15</text>
+          <text x="200" y="128" font-size="9" fill="#9EB0BF" font-family="Inter">Mar 22</text>
+          <text x="275" y="128" font-size="9" fill="#9EB0BF" font-family="Inter">Mar 27</text>
+        </svg>
+      </div>
+
+      <div class="row-header">
+        <div class="row-title">Upcoming Subscriptions</div>
+        <div class="see-all">See all</div>
+      </div>
+      <div class="card-block">
+        <div class="sub-row">
+          <div class="sub-icon">🎵</div>
+          <div>
+            <div class="sub-name">Spotify Premium</div>
+            <div class="sub-date">Due Apr 1</div>
+          </div>
+          <div class="sub-amount">$9.99</div>
+        </div>
+        <div class="sub-row">
+          <div class="sub-icon" style="background:rgba(248,113,113,0.1)">📺</div>
+          <div>
+            <div class="sub-name">Netflix</div>
+            <div class="sub-date">Due Apr 5</div>
+          </div>
+          <div class="sub-amount">$15.49</div>
+        </div>
+      </div>
+
+      <div class="row-header">
+        <div class="row-title">Recent Transactions</div>
+        <div class="see-all">See all</div>
+      </div>
+
+      <div class="tx-date-label">Today</div>
+      <div class="tx-card">
+        <div class="tx-row">
+          <div class="tx-icon food">🥗</div>
+          <div>
+            <div class="tx-name">Sweetgreen</div>
+            <div class="tx-cat">Food & Dining</div>
+          </div>
+          <div class="tx-right">
+            <div class="tx-amt neg">−$14.50</div>
+            <div class="tx-time">2:30 PM</div>
+          </div>
+        </div>
+        <div class="tx-row">
+          <div class="tx-icon income">💰</div>
+          <div>
+            <div class="tx-name">Client Payment</div>
+            <div class="tx-cat">Income</div>
+          </div>
+          <div class="tx-right">
+            <div class="tx-amt pos">+$850.00</div>
+            <div class="tx-time">11:00 AM</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:20px"></div>
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-item active">
+        <div class="nav-icon">🏠</div>
+        <div class="nav-label" style="color:var(--gold-light)">Today</div>
+      </div>
+      <div class="nav-item inactive">
+        <div class="nav-icon">📋</div>
+        <div class="nav-label">Plan</div>
+      </div>
+      <div class="fab-wrap">
+        <div class="fab">＋</div>
+      </div>
+      <div class="nav-item inactive">
+        <div class="nav-icon">📈</div>
+        <div class="nav-label">Wealth</div>
+      </div>
+      <div class="nav-item inactive">
+        <div class="nav-icon">🤖</div>
+        <div class="nav-label">Coach</div>
+      </div>
+    </div>
+  </div>
+  <div class="phone-caption">Light Mode — Marble White</div>
+</div>
+
+</body>
+</html>

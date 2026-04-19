@@ -1,15 +1,22 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'l10n/app_localizations.dart';
 import 'utils/currency_helper.dart';
+import 'widgets/app_picker_field.dart';
 import 'package:uuid/uuid.dart';
 import 'providers/app_provider.dart';
 import 'services/supabase_config.dart';
+import 'services/supabase_sync_service.dart';
 import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
+import 'theme/app_icons.dart';
+import 'package:iconify_flutter/iconify_flutter.dart';
 import 'models/transaction.dart';
 import 'models/recurring_rule.dart';
 import 'screens/today_screen.dart' show HomeScreen, HomeScreenState;
@@ -31,7 +38,13 @@ void main() async {
   try {
     await SupabaseConfig.initialize();
   } catch (e) {
-    print('[main] Supabase init failed: $e');
+    if (kDebugMode) debugPrint('[main] Supabase init failed: $e');
+  }
+
+  try {
+    await SupabaseSyncService.initializeOfflineSync();
+  } catch (e) {
+    if (kDebugMode) debugPrint('[main] Offline sync init failed: $e');
   }
 
   runApp(
@@ -48,51 +61,82 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  Widget _buildHome(BuildContext context, AuthService auth, AppProvider provider) {
-    print('[_buildHome] auth.loading=${auth.loading} localDataLoaded=${provider.localDataLoaded} isAuth=${auth.isAuthenticated} supaLoaded=${provider.supabaseDataLoaded} setupComplete=${provider.setupComplete} accounts=${provider.accounts.length}');
+  Widget _buildHome(
+      BuildContext context, AuthService auth, AppProvider provider) {
+    if (kDebugMode)
+      debugPrint(
+          '[_buildHome] auth.loading=${auth.loading} localDataLoaded=${provider.localDataLoaded} isAuth=${auth.isAuthenticated} supaLoaded=${provider.supabaseDataLoaded} setupComplete=${provider.setupComplete} accounts=${provider.accounts.length}');
     // Still loading local data or auth state
     if (auth.loading || !provider.localDataLoaded) {
-      print('[_buildHome] → SplashScreen (loading)');
       return const _SplashScreen();
     }
 
     // Not authenticated → show login
     if (!auth.isAuthenticated) {
-      print('[_buildHome] → AuthScreen');
       return const AuthScreen();
     }
 
     // Authenticated but Supabase data not loaded yet → trigger load + show splash
     if (!provider.supabaseDataLoaded) {
       final uid = auth.userId;
-      print('[_buildHome] → SplashScreen (supabase loading, uid=$uid)');
       if (uid != null) {
-        Future.microtask(() => provider.loadFromSupabase(uid));
+        // Schedule after the current frame to avoid calling setState during build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          provider.loadFromSupabase(uid);
+        });
       }
       return const _SplashScreen();
     }
 
     // Has data → skip onboarding if accounts exist
     if (provider.setupComplete || provider.accounts.isNotEmpty) {
-      print('[_buildHome] → MainScreen');
       return const MainScreen();
     }
 
-    print('[_buildHome] → OnboardingFlow');
     return OnboardingFlow(onComplete: () => provider.markSetupComplete());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<AppProvider, AuthService>(
-      builder: (context, provider, auth, _) {
+    // Only rebuild MaterialApp when theme mode changes
+    return Selector<AppProvider, ({String themeMode, String locale})>(
+      selector: (_, p) =>
+          (themeMode: p.settings.themeMode, locale: p.settings.locale),
+      builder: (context, settings, child) {
+        final themeMode = settings.themeMode;
+        final locale = S.normalizeLocaleCode(settings.locale);
+        ThemeMode resolvedThemeMode;
+        switch (themeMode) {
+          case 'light':
+            resolvedThemeMode = ThemeMode.light;
+            break;
+          case 'dark':
+            resolvedThemeMode = ThemeMode.dark;
+            break;
+          case 'system':
+          default:
+            resolvedThemeMode = ThemeMode.system;
+            break;
+        }
         return MaterialApp(
           title: 'SafeSpend',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
-          themeMode: provider.settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: _buildHome(context, auth, provider),
+          themeMode: resolvedThemeMode,
+          locale: Locale(locale),
+          supportedLocales: S.supportedLocales,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          // Home screen routing consumes only the fields it needs
+          home: Consumer2<AppProvider, AuthService>(
+            builder: (context, provider, auth, _) {
+              return _buildHome(context, auth, provider);
+            },
+          ),
         );
       },
     );
@@ -106,14 +150,20 @@ class _SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
+      backgroundColor:
+          isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_rounded, size: 64, color: AppTheme.goldPrimary),
+            Icon(Icons.account_balance_wallet_rounded,
+                size: 64, color: AppTheme.goldPrimary),
             const SizedBox(height: 16),
-            Text('SafeSpend', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppTheme.goldPrimary)),
+            Text('SafeSpend',
+                style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.goldPrimary)),
             const SizedBox(height: 24),
             const CircularProgressIndicator(color: AppTheme.goldPrimary),
           ],
@@ -155,13 +205,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    _menuAnimation = CurvedAnimation(parent: _menuAnimController, curve: Curves.easeOutCubic);
+    _menuAnimation = CurvedAnimation(
+        parent: _menuAnimController, curve: Curves.easeOutCubic);
 
     // Load user data from Supabase on mount (only if not already loaded this session)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = Provider.of<AuthService>(context, listen: false);
       final appProvider = Provider.of<AppProvider>(context, listen: false);
-      if (auth.isAuthenticated && auth.userId != null && !appProvider.supabaseDataLoaded) {
+      if (auth.isAuthenticated &&
+          auth.userId != null &&
+          !appProvider.supabaseDataLoaded) {
         appProvider.loadFromSupabase(auth.userId!);
       }
     });
@@ -269,78 +322,82 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
           // Quick actions panel — above nav bar + bump
           if (_selectedIndex != 1)
-          AnimatedBuilder(
-            animation: _menuAnimation,
-            builder: (_, __) {
-              if (_menuAnimation.value == 0) return const SizedBox.shrink();
-              return Positioned(
-                bottom: bottomPadding + 100,
-                left: 16,
-                right: 16,
-                child: Transform.translate(
-                  offset: Offset(0, 16 * (1 - _menuAnimation.value)),
-                  child: Opacity(
-                    opacity: _menuAnimation.value,
-                    child: _buildQuickActionsPanel(isDark),
+            AnimatedBuilder(
+              animation: _menuAnimation,
+              builder: (_, __) {
+                if (_menuAnimation.value == 0) return const SizedBox.shrink();
+                return Positioned(
+                  bottom: bottomPadding + 100,
+                  left: 16,
+                  right: 16,
+                  child: Transform.translate(
+                    offset: Offset(0, 16 * (1 - _menuAnimation.value)),
+                    child: Opacity(
+                      opacity: _menuAnimation.value,
+                      child: _buildQuickActionsPanel(isDark),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
 
           // Bump circle — same color as pill, merges seamlessly with nav bar
           if (_selectedIndex != 1)
-          Positioned(
-            bottom: bottomPadding + 28,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ClipOval(
-                clipBehavior: Clip.antiAlias,
-                child: Container(
-                  width: 68,
-                  height: 68,
-                  color: isDark ? AppTheme.darkSurface : AppTheme.lightBackground,
+            Positioned(
+              bottom: bottomPadding + 28,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ClipOval(
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    width: 68,
+                    height: 68,
+                    color: isDark
+                        ? AppTheme.darkSurface
+                        : AppTheme.lightBackground,
+                  ),
                 ),
               ),
             ),
-          ),
 
           // FAB — 25% above pill top edge, crisp anti-aliased circle
           if (_selectedIndex != 1)
-          Positioned(
-            bottom: bottomPadding + 34,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: GestureDetector(
-                onTap: _toggleMenu,
-                child: AnimatedBuilder(
-                  animation: _menuAnimation,
-                  builder: (_, __) => DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.success.withOpacity(0.4),
-                          blurRadius: 16,
-                          spreadRadius: 1,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      clipBehavior: Clip.antiAlias,
-                      child: Container(
-                        width: 56,
-                        height: 56,
-                        color: AppTheme.success,
-                        child: Center(
-                          child: AnimatedRotation(
-                            turns: _isMenuOpen ? 0.125 : 0,
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeOutCubic,
-                            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+            Positioned(
+              bottom: bottomPadding + 34,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: _toggleMenu,
+                  child: AnimatedBuilder(
+                    animation: _menuAnimation,
+                    builder: (_, __) => DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.success.withOpacity(0.4),
+                            blurRadius: 16,
+                            spreadRadius: 1,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        clipBehavior: Clip.antiAlias,
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          color: AppTheme.success,
+                          child: Center(
+                            child: AnimatedRotation(
+                              turns: _isMenuOpen ? 0.125 : 0,
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOutCubic,
+                              child: const Icon(Icons.add_rounded,
+                                  color: Colors.white, size: 28),
+                            ),
                           ),
                         ),
                       ),
@@ -349,7 +406,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -358,10 +414,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildQuickActionsPanel(bool isDark) {
     final bg = isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground;
     final actions = [
-      ('Expense',  Icons.arrow_upward_rounded,     AppTheme.error,   'expense'),
-      ('Income',   Icons.arrow_downward_rounded,    AppTheme.success, 'income'),
-      ('Withdraw', Icons.account_balance_wallet_rounded, AppTheme.warning, 'withdrawal'),
-      ('Transfer', Icons.swap_horiz_rounded,        AppTheme.info,    'transfer'),
+      ('Expense', Icons.arrow_upward_rounded, AppTheme.error, 'expense'),
+      ('Income', Icons.arrow_downward_rounded, AppTheme.success, 'income'),
+      (
+        'Withdraw',
+        Icons.account_balance_wallet_rounded,
+        AppTheme.warning,
+        'withdrawal'
+      ),
+      ('Transfer', Icons.swap_horiz_rounded, AppTheme.info, 'transfer'),
     ];
 
     return Center(
@@ -390,17 +451,22 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () { _closeMenu(); _openTransactionModal(type); },
+                    onTap: () {
+                      _closeMenu();
+                      _openTransactionModal(type);
+                    },
                     borderRadius: BorderRadius.vertical(
                       top: i == 0 ? const Radius.circular(20) : Radius.zero,
                       bottom: isLast ? const Radius.circular(20) : Radius.zero,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 13),
                       child: Row(
                         children: [
                           Container(
-                            width: 34, height: 34,
+                            width: 34,
+                            height: 34,
                             decoration: BoxDecoration(
                               color: color.withOpacity(isDark ? 0.18 : 0.12),
                               borderRadius: BorderRadius.circular(10),
@@ -414,13 +480,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : const Color(0xFF1C1C1E),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1C1C1E),
                               ),
                             ),
                           ),
                           Container(
-                            width: 6, height: 6,
-                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                                color: color, shape: BoxShape.circle),
                           ),
                         ],
                       ),
@@ -428,8 +498,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 if (!isLast)
-                  Divider(height: 1, indent: 62, endIndent: 16,
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.06)),
+                  Divider(
+                      height: 1,
+                      indent: 62,
+                      endIndent: 16,
+                      color: (isDark ? Colors.white : Colors.black)
+                          .withOpacity(0.06)),
               ],
             );
           }),
@@ -441,7 +515,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildPillNavBar(bool isDark) {
     final pillBg = isDark ? AppTheme.darkSurface : AppTheme.lightBackground;
     final activeColor = AppTheme.success;
-    final inactiveColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF9CA3AF);
+    final inactiveColor =
+        isDark ? const Color(0xFF8E8E93) : const Color(0xFF9CA3AF);
 
     return Container(
       color: Colors.transparent,
@@ -466,12 +541,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildPillNavItem(0, Icons.home_rounded, activeColor, inactiveColor),
-                _buildPillNavItem(1, Icons.auto_awesome_rounded, activeColor, inactiveColor),
+                _buildPillNavItem(0, AppIcons.home, activeColor, inactiveColor),
+                _buildPillNavItem(
+                    1, AppIcons.aiCoach, activeColor, inactiveColor),
                 // Center bump/FAB placeholder
                 const SizedBox(width: 72),
-                _buildPillNavItem(2, Icons.bar_chart_rounded, activeColor, inactiveColor),
-                _buildPillNavItem(3, Icons.account_balance_wallet_rounded, activeColor, inactiveColor),
+                _buildPillNavItem(
+                    2, AppIcons.budgets, activeColor, inactiveColor),
+                _buildPillNavItem(
+                    3, AppIcons.wealth, activeColor, inactiveColor),
               ],
             ),
           ),
@@ -480,14 +558,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildPillNavItem(int index, IconData icon, Color activeColor, Color inactiveColor) {
+  Widget _buildPillNavItem(
+      int index, String icon, Color activeColor, Color inactiveColor) {
     final isActive = _selectedIndex == index;
     return Expanded(
-      child: GestureDetector(
+      child: _PressScaleDetector(
         onTap: () => _onTabTapped(index),
-        behavior: HitTestBehavior.opaque,
         child: Center(
-          child: Icon(
+          child: Iconify(
             icon,
             size: 24,
             color: isActive ? activeColor : inactiveColor,
@@ -496,7 +574,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
 }
 
 // Quick Add Bill Modal — standalone modal for adding a recurring bill from the speed dial
@@ -509,11 +586,18 @@ class _QuickAddBillModal extends StatefulWidget {
 }
 
 class _QuickAddBillModalState extends State<_QuickAddBillModal> {
+  late final S s;
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
   String _selectedFrequency = 'monthly';
   DateTime _nextDate = DateTime.now();
   String? _selectedAccountId;
+
+  @override
+  void initState() {
+    super.initState();
+    s = S.of(context);
+  }
 
   @override
   void dispose() {
@@ -527,7 +611,9 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final provider = widget.provider;
     if (_selectedAccountId == null) {
-      _selectedAccountId = provider.accounts.isNotEmpty ? provider.accounts.first.id : AppProvider.cashOnHandId;
+      _selectedAccountId = provider.accounts.isNotEmpty
+          ? provider.accounts.first.id
+          : AppProvider.cashOnHandId;
     }
     final cf = CurrencyHelper.formatter(provider.settings.currency);
 
@@ -536,7 +622,8 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -544,16 +631,27 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(2)))),
+              Center(
+                  child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: Theme.of(context).dividerColor,
+                          borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 20),
-              Text('Add Bill', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+              Text(s.addBill,
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 24),
               TextField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: 'Bill Name',
+                  labelText: s.billName,
                   hintText: 'e.g., Rent, Netflix, Electric',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
                   prefixIcon: const Icon(Icons.receipt_long_rounded),
                 ),
               ),
@@ -562,77 +660,81 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                 controller: _amountController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'Amount',
+                  labelText: s.billAmount,
                   hintText: '0.00',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
                   prefixIcon: const Icon(Icons.attach_money_rounded),
                 ),
               ),
               const SizedBox(height: 16),
               // Account picker with Cash on Hand
-              DropdownButtonFormField<String>(
-                value: _selectedAccountId,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: 'Pay From',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  filled: true,
-                  prefixIcon: const Icon(Icons.account_balance_wallet_rounded),
-                ),
+              AppPickerField<String>(
+                label: s.payFrom,
+                value: _selectedAccountId ?? AppProvider.cashOnHandId,
+                prefixIcon: AppIcons.wallet,
                 items: [
-                  DropdownMenuItem(
+                  AppPickerItem(
                     value: AppProvider.cashOnHandId,
-                    child: Row(children: [
-                      const Icon(Icons.payments_rounded, size: 18, color: AppTheme.warning),
-                      const SizedBox(width: 8),
-                      const Text('Cash'),
-                      const Spacer(),
-                      Text(cf.format(provider.totalCash), style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
-                    ]),
+                    label: 'Cash on Hand',
+                    subtitle: cf.format(provider.totalCash),
+                    leadingIcon: AppIcons.money,
+                    iconColor: AppTheme.warning,
                   ),
-                  ...provider.accounts.map((a) => DropdownMenuItem(
-                    value: a.id,
-                    child: Row(children: [
-                      SizedBox(
-                        width: 22, height: 22,
-                        child: a.imagePath != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(5),
-                                child: Image.file(File(a.imagePath!), fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 18, color: AppTheme.goldPrimary)),
-                              )
-                            : Icon(_accountIcon(a.type), size: 18, color: AppTheme.goldPrimary),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(a.name),
-                      const Spacer(),
-                      Text(cf.format(a.balance), style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color)),
-                    ]),
-                  )),
+                  ...provider.accounts.map((a) => AppPickerItem(
+                        value: a.id,
+                        label: a.name,
+                        subtitle: cf.format(a.balance),
+                        leadingIcon: _accountIcon(a.type),
+                        iconColor: AppTheme.goldPrimary,
+                      )),
                 ],
                 onChanged: (v) => setState(() => _selectedAccountId = v),
               ),
               const SizedBox(height: 24),
-              Text('Frequency', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              Text(s.frequency,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 12),
               Row(
-                children: ['daily', 'weekly', 'monthly', 'yearly'].map((f) {
-                  final isSelected = _selectedFrequency == f;
+                children: [
+                  {'key': 'daily', 'label': s.daily},
+                  {'key': 'weekly', 'label': s.weekly},
+                  {'key': 'monthly', 'label': s.monthly},
+                  {'key': 'yearly', 'label': s.yearly},
+                ].map((f) {
+                  final isSelected = _selectedFrequency == f['key'];
                   return Expanded(
                     child: GestureDetector(
-                      onTap: () => setState(() => _selectedFrequency = f),
+                      onTap: () =>
+                          setState(() => _selectedFrequency = f['key']!),
                       child: Container(
                         margin: const EdgeInsets.only(right: 8),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.goldPrimary : Colors.transparent,
+                          color: isSelected
+                              ? AppTheme.goldPrimary
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: isSelected ? AppTheme.goldPrimary : Theme.of(context).dividerColor),
+                          border: Border.all(
+                              color: isSelected
+                                  ? AppTheme.goldPrimary
+                                  : Theme.of(context).dividerColor),
                         ),
                         child: Center(
                           child: Text(
-                            f[0].toUpperCase() + f.substring(1),
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : Theme.of(context).textTheme.bodySmall?.color),
+                            f['label']!,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color),
                           ),
                         ),
                       ),
@@ -643,7 +745,11 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () async {
-                  final date = await showDatePicker(context: context, initialDate: _nextDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
+                  final date = await showDatePicker(
+                      context: context,
+                      initialDate: _nextDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)));
                   if (date != null) setState(() => _nextDate = date);
                 },
                 child: Container(
@@ -651,25 +757,44 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                   decoration: AppTheme.borderedCard(context),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 18, color: Theme.of(context).textTheme.bodySmall?.color),
+                      Icon(Icons.calendar_today_rounded,
+                          size: 18,
+                          color: Theme.of(context).textTheme.bodySmall?.color),
                       const SizedBox(width: 12),
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Next Due Date', style: Theme.of(context).textTheme.bodySmall),
-                        Text(DateFormat('MMM d, yyyy').format(_nextDate), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                      ]),
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(s.nextDueDate,
+                                style: Theme.of(context).textTheme.bodySmall),
+                            Text(DateFormat('MMM d, yyyy').format(_nextDate),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600)),
+                          ]),
                       const Spacer(),
-                      Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(context).textTheme.bodySmall?.color),
+                      Icon(Icons.chevron_right_rounded,
+                          size: 20,
+                          color: Theme.of(context).textTheme.bodySmall?.color),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
               SizedBox(
-                width: double.infinity, height: 52,
+                width: double.infinity,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: _saveBill,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.goldPrimary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
-                  child: const Text('Add Bill', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.goldPrimary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      elevation: 0),
+                  child: Text(s.addBill,
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -679,24 +804,31 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
     );
   }
 
-  IconData _accountIcon(String type) {
+  String _accountIcon(String type) {
     switch (type) {
-      case 'bank': return Icons.account_balance_rounded;
-      case 'savings': return Icons.savings_rounded;
-      case 'investment': return Icons.trending_up_rounded;
-      case 'debt': return Icons.credit_card_rounded;
-      default: return Icons.account_balance_wallet_rounded;
+      case 'bank':
+        return AppIcons.bank;
+      case 'savings':
+        return AppIcons.savings;
+      case 'investment':
+        return AppIcons.trendUp;
+      case 'debt':
+        return AppIcons.creditCard;
+      default:
+        return AppIcons.wallet;
     }
   }
 
   void _saveBill() {
     if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a bill name')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(s.pleaseEnterName)));
       return;
     }
     final amount = double.tryParse(_amountController.text) ?? 0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(s.pleaseEnterAmount)));
       return;
     }
     final accountId = _selectedAccountId ?? AppProvider.cashOnHandId;
@@ -718,7 +850,42 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
     widget.provider.addRecurringRule(bill);
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Bill "${_nameController.text}" added'), backgroundColor: AppTheme.goldPrimary),
+      SnackBar(
+          content: Text(s.billAdded.replaceAll('{name}', _nameController.text)),
+          backgroundColor: AppTheme.goldPrimary),
+    );
+  }
+}
+
+// ─── Press Scale Feedback ────────────────────────────────────────────────────
+// Wraps any widget with Emil-style scale(0.97) press feedback.
+// Uses AnimatedScale for hardware-accelerated, interruptible animation.
+class _PressScaleDetector extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _PressScaleDetector({required this.child, required this.onTap});
+
+  @override
+  State<_PressScaleDetector> createState() => _PressScaleDetectorState();
+}
+
+class _PressScaleDetectorState extends State<_PressScaleDetector> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.92 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
     );
   }
 }

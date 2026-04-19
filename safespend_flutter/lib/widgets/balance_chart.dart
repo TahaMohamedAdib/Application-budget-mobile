@@ -257,7 +257,8 @@ class _BalanceChartState extends State<BalanceChart> {
     final minY = (_spots.map((s) => s.y).reduce(min) - 200).clamp(0.0, 800.0);
     final maxY = _spots.map((s) => s.y).reduce(max) + 300;
 
-    return LineChart(
+    return RepaintBoundary(
+      child: LineChart(
       LineChartData(
         minX: 0,
         maxX: (days - 1).toDouble(),
@@ -348,6 +349,7 @@ class _BalanceChartState extends State<BalanceChart> {
         ),
         lineBarsData: lineBars,
       ),
+    ),
     );
   }
 }

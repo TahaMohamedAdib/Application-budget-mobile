@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 /// Handles compression of all images before they are uploaded
@@ -30,16 +31,14 @@ class ImageService {
       if (result != null && result.isNotEmpty) {
         final original = await File(localPath).length();
         final saved = original - result.length;
-        // ignore: avoid_print
-        print('[ImageService] Compressed receipt: '
+        if (kDebugMode) debugPrint('[ImageService] Compressed receipt: '
             '${(original / 1024).toStringAsFixed(0)} KB → '
             '${(result.length / 1024).toStringAsFixed(0)} KB '
             '(saved ${(saved / 1024).toStringAsFixed(0)} KB)');
         return result;
       }
     } catch (e) {
-      // ignore: avoid_print
-      print('[ImageService] Compression failed, uploading original: $e');
+      if (kDebugMode) debugPrint('[ImageService] Compression failed, uploading original: $e');
     }
     // Fallback — return original bytes unchanged
     return File(localPath).readAsBytes();

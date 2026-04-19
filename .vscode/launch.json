@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "SafeSpend (debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "safespend_flutter/lib/main.dart",
+      "cwd": "${workspaceFolder}/safespend_flutter",
+      "args": [
+        "--dart-define-from-file=.env.local"
+      ]
+    },
+    {
+      "name": "SafeSpend (release)",
+      "request": "launch",
+      "type": "dart",
+      "program": "safespend_flutter/lib/main.dart",
+      "cwd": "${workspaceFolder}/safespend_flutter",
+      "flutterMode": "release",
+      "args": [
+        "--dart-define-from-file=.env.local"
+      ]
+    }
+  ]
+}

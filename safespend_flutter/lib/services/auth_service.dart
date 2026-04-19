@@ -24,33 +24,42 @@ class AuthService with ChangeNotifier {
   Future<void> _init() async {
     // If Supabase is not available, run in local-only mode
     if (!SupabaseConfig.isAvailable || _client == null) {
+      if (kDebugMode) debugPrint('[AuthService] Supabase not available — local mode');
       _localMode = true;
       _loading = false;
       notifyListeners();
       return;
     }
 
-    try {
-      final session = _client!.auth.currentSession;
-      _session = session;
-      _user = session?.user;
-    } catch (e) {
-      // Can't reach Supabase — fall back to local mode
-      _localMode = true;
-    } finally {
-      _loading = false;
-      notifyListeners();
+    // Eagerly recover the persisted session that Supabase.initialize()
+    // already restored from secure storage.  This makes the user
+    // authenticated *immediately* — no waiting for the stream.
+    final restored = _client!.auth.currentSession;
+    if (restored != null) {
+      if (kDebugMode) debugPrint('[AuthService] restored session for ${restored.user.email}');
+      _session = restored;
+      _user = restored.user;
+      _localMode = false;
     }
+    _loading = false;
+    notifyListeners();
 
-    try {
-      _client!.auth.onAuthStateChange.listen((data) {
+    // Keep listening for future auth events (sign-in, sign-out, token
+    // refresh) so the UI stays in sync.
+    _client!.auth.onAuthStateChange.listen(
+      (data) {
+        if (kDebugMode) {
+          debugPrint('[AuthService] event=${data.event} user=${data.session?.user.email}');
+        }
         _session = data.session;
         _user = data.session?.user;
-        _localMode = false;
-        _loading = false;
+        if (_user != null) _localMode = false;
         notifyListeners();
-      });
-    } catch (_) {}
+      },
+      onError: (error) {
+        if (kDebugMode) debugPrint('[AuthService] auth stream error: $error');
+      },
+    );
   }
 
   // Email + Password sign up
@@ -58,12 +67,17 @@ class AuthService with ChangeNotifier {
     if (_client == null) return (success: false, error: 'No connection to server. App is running in local mode.');
     try {
       final response = await _client!.auth.signUp(email: email, password: password);
-      if (response.user != null) {
+      if (response.session != null) {
+        // Immediately signed in (email confirmation is disabled)
         _user = response.user;
         _session = response.session;
         _localMode = false;
         notifyListeners();
         return (success: true, error: null);
+      } else if (response.user != null) {
+        // User created but email confirmation is required — do NOT set
+        // _user/_session so the app stays on the login screen.
+        return (success: true, error: 'email_confirmation_required');
       }
       return (success: false, error: 'Sign up failed');
     } on AuthException catch (e) {
@@ -134,6 +148,51 @@ class AuthService with ChangeNotifier {
       return (success: false, error: e.toString());
     }
   }
+
+  // Change password (requires current password verification)
+  Future<({bool success, String? error})> changePassword(String currentPassword, String newPassword) async {
+    if (_client == null) return (success: false, error: 'No connection to server.');
+    if (_user?.email == null) return (success: false, error: 'No user logged in.');
+    
+    try {
+      // First verify current password by re-authenticating
+      final verifyResponse = await _client!.auth.signInWithPassword(
+        email: _user!.email!,
+        password: currentPassword,
+      );
+      if (verifyResponse.user == null) {
+        return (success: false, error: 'Current password is incorrect.');
+      }
+      
+      // Now update to new password
+      await _client!.auth.updateUser(UserAttributes(password: newPassword));
+      return (success: true, error: null);
+    } on AuthException catch (e) {
+      if (e.message.toLowerCase().contains('invalid') || e.message.toLowerCase().contains('password')) {
+        return (success: false, error: 'Current password is incorrect.');
+      }
+      return (success: false, error: e.message);
+    } catch (e) {
+      return (success: false, error: e.toString());
+    }
+  }
+
+  // Update user display name
+  Future<({bool success, String? error})> updateDisplayName(String displayName) async {
+    if (_client == null) return (success: false, error: 'No connection to server.');
+    try {
+      await _client!.auth.updateUser(UserAttributes(data: {'display_name': displayName}));
+      notifyListeners();
+      return (success: true, error: null);
+    } on AuthException catch (e) {
+      return (success: false, error: e.message);
+    } catch (e) {
+      return (success: false, error: e.toString());
+    }
+  }
+
+  // Get display name
+  String? get displayName => _user?.userMetadata?['display_name'] as String?;
 
   // Sign out
   Future<void> signOut() async {

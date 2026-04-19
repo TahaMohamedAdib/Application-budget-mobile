@@ -87,16 +87,56 @@ class StockPriceService {
     }
   }
 
-  /// Search for stocks/ETFs/crypto by company name or ticker — worldwide.
-  /// Uses Yahoo Finance autocomplete; supports any exchange (Casablanca, Euronext, TSE, etc.).
-  static Future<List<StockSearchResult>> searchSymbols(String query) async {
-    final q = query.trim();
-    if (q.length < 2) return [];
+  /// Returns the exchange rate from USD to [targetCurrency].
+  /// Uses Yahoo Finance forex symbol e.g. USDMAD=X.
+  /// Returns 1.0 (no conversion) if the currency is USD or fetch fails.
+  static final Map<String, double> _fxCache = {};
+  static DateTime? _fxCacheTime;
+
+  static Future<double> fetchUsdRate(String targetCurrency) async {
+    final cur = targetCurrency.toUpperCase().trim();
+    if (cur == 'USD' || cur.isEmpty) return 1.0;
+
+    // Use cached rate if < 30 minutes old
+    if (_fxCacheTime != null &&
+        DateTime.now().difference(_fxCacheTime!).inMinutes < 30 &&
+        _fxCache.containsKey(cur)) {
+      return _fxCache[cur]!;
+    }
+
     try {
-      final uri = Uri.parse(
-        'https://query1.finance.yahoo.com/v1/finance/search'
-        '?q=${Uri.encodeComponent(q)}&quotesCount=10&newsCount=0&listsCount=0',
-      );
+      // Yahoo Finance forex symbol: USD→MAD = "USDMAD=X"
+      final symbol = 'USD${cur}=X';
+      final uri = Uri.parse('$_baseUrl/$symbol?interval=1d&range=1d');
+      final response = await http.get(uri, headers: _headers).timeout(_timeout);
+      if (response.statusCode != 200) return _fxCache[cur] ?? 1.0;
+
+      final data = jsonDecode(response.body);
+      final result = data['chart']?['result'];
+      if (result == null || result.isEmpty) return _fxCache[cur] ?? 1.0;
+
+      final meta = result[0]['meta'] as Map<String, dynamic>;
+      final rate = (meta['regularMarketPrice'] as num?)?.toDouble();
+      if (rate == null || rate == 0) return _fxCache[cur] ?? 1.0;
+
+      _fxCache[cur] = rate;
+      _fxCacheTime = DateTime.now();
+      return rate;
+    } catch (_) {
+      return _fxCache[cur] ?? 1.0;
+    }
+  }
+
+  // Exchange suffix boosters — when user types a bare ticker, also probe these
+  // common non-US suffixes so local exchanges surface at the top.
+  static const _boostSuffixes = ['.CS', '.PA', '.MC', '.L', '.DE', '.MI', '.AS'];
+
+  static Future<List<StockSearchResult>> _querySingle(String q) async {
+    final uri = Uri.parse(
+      'https://query1.finance.yahoo.com/v1/finance/search'
+      '?q=${Uri.encodeComponent(q)}&quotesCount=8&newsCount=0&listsCount=0',
+    );
+    try {
       final response = await http.get(uri, headers: _headers).timeout(_timeout);
       if (response.statusCode != 200) return [];
       final data = jsonDecode(response.body);
@@ -117,6 +157,58 @@ class StockPriceService {
     } catch (_) {
       return [];
     }
+  }
+
+  /// Search for stocks/ETFs/crypto by company name or ticker — worldwide.
+  ///
+  /// [preferredSuffix] — when provided (e.g. ".CS" for Morocco) results from
+  /// that exchange are sorted to the top and the suffixed variant is also
+  /// queried explicitly so local tickers are never missed.
+  static Future<List<StockSearchResult>> searchSymbols(
+    String query, {
+    String? preferredSuffix,
+  }) async {
+    final q = query.trim();
+    if (q.length < 2) return [];
+
+    final isBareSymbol = !q.contains(' ') && !q.contains('.') && q.length <= 8;
+
+    final futures = <Future<List<StockSearchResult>>>[_querySingle(q)];
+
+    // Always probe the preferred market explicitly
+    if (preferredSuffix != null && preferredSuffix.isNotEmpty && isBareSymbol) {
+      futures.add(_querySingle('$q$preferredSuffix'));
+    }
+
+    // Also probe the generic boost suffixes when no dot present
+    if (isBareSymbol) {
+      for (final suffix in _boostSuffixes) {
+        if (suffix != preferredSuffix) futures.add(_querySingle('$q$suffix'));
+      }
+    }
+
+    final all = (await Future.wait(futures)).expand((r) => r).toList();
+
+    // De-duplicate by symbol, preserving first-seen order
+    final seen = <String>{};
+    final merged = <StockSearchResult>[];
+    for (final r in all) {
+      if (seen.add(r.symbol)) merged.add(r);
+    }
+
+    final upper = q.toUpperCase();
+    merged.sort((a, b) {
+      // 1. Preferred suffix wins
+      final aPref = (preferredSuffix != null && a.symbol.toUpperCase().endsWith(preferredSuffix.toUpperCase())) ? 0 : 1;
+      final bPref = (preferredSuffix != null && b.symbol.toUpperCase().endsWith(preferredSuffix.toUpperCase())) ? 0 : 1;
+      if (aPref != bPref) return aPref.compareTo(bPref);
+      // 2. Symbol starts with query
+      final aStarts = a.symbol.toUpperCase().startsWith(upper) ? 0 : 1;
+      final bStarts = b.symbol.toUpperCase().startsWith(upper) ? 0 : 1;
+      return aStarts.compareTo(bStarts);
+    });
+
+    return merged;
   }
 
   /// Fetch live prices for multiple symbols in parallel.
@@ -171,6 +263,7 @@ class StockPriceService {
   }
 
   /// Compute portfolio value history over [range] for a list of holdings.
+  /// Only counts each holding from its [purchaseDate] onward.
   /// Returns daily [PortfolioPoint]s sorted ascending.
   static Future<List<PortfolioPoint>> fetchPortfolioHistory(
       List<Holding> holdings, String range) async {
@@ -199,6 +292,11 @@ class StockPriceService {
     for (final dateStr in sortedDates) {
       double total = 0;
       for (final holding in holdings) {
+        // Skip dates before the user actually bought this holding
+        if (holding.purchaseDate != null &&
+            dateStr.compareTo(holding.purchaseDate!) < 0) {
+          continue;
+        }
         final sym = holding.symbol;
         final symHistory = historyMap[sym] ?? {};
         // Use this date's price, or the last known price before this date
@@ -261,10 +359,12 @@ class StockPriceService {
 
     final sortedDates = allDates.toList()..sort();
 
-    // Sum shares per symbol (user may have same symbol entered multiple times)
-    final symbolShares = <String, double>{};
+    // Sum shares per symbol, respecting purchase dates.
+    // Build a map of symbol → list of (shares, purchaseDate) for date filtering.
+    final symbolHoldings = <String, List<({double shares, String? purchaseDate})>>{};
     for (final h in holdings) {
-      symbolShares[h.symbol] = (symbolShares[h.symbol] ?? 0) + h.shares;
+      symbolHoldings.putIfAbsent(h.symbol, () => []);
+      symbolHoldings[h.symbol]!.add((shares: h.shares, purchaseDate: h.purchaseDate));
     }
 
     final combinedPoints = <PortfolioPoint>[];
@@ -288,7 +388,15 @@ class StockPriceService {
           if (priorDates.isNotEmpty) price = symHistory[priorDates.last];
         }
         if (price != null) {
-          final value = (symbolShares[sym] ?? 0) * price;
+          // Only count shares the user already owned on this date
+          double activeShares = 0;
+          for (final entry in symbolHoldings[sym] ?? []) {
+            if (entry.purchaseDate == null ||
+                dateStr.compareTo(entry.purchaseDate!) >= 0) {
+              activeShares += entry.shares;
+            }
+          }
+          final value = activeShares * price;
           total += value;
           if (value > 0) perSymbol[sym]!.add(PortfolioPoint(date, value));
         }

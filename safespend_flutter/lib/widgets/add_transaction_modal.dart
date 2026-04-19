@@ -9,8 +9,11 @@ import '../providers/app_provider.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/supabase_config.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_icons.dart';
 import '../models/transaction.dart';
+import 'app_picker_field.dart';
 import '../models/recurring_rule.dart';
+import '../l10n/app_localizations.dart';
 
 class AddTransactionModal extends StatefulWidget {
   final String? initialType;
@@ -69,22 +72,24 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     super.dispose();
   }
 
-  String get _title {
+  String _title(BuildContext context) {
+    final s = S.of(context);
     switch (_selectedType) {
-      case 'income': return 'Add Income';
-      case 'transfer': return 'Transfer Money';
-      case 'withdrawal': return 'Withdraw';
-      case 'expense': return 'Add Expense';
-      default: return 'Add Transaction';
+      case 'income': return s.addIncome;
+      case 'transfer': return s.transferMoney;
+      case 'withdrawal': return s.withdraw;
+      case 'expense': return s.addExpense;
+      default: return s.addTransaction;
     }
   }
 
-  String get _subtitle {
+  String _subtitle(BuildContext context) {
+    final s = S.of(context);
     switch (_selectedType) {
-      case 'income': return 'Record money coming in';
-      case 'transfer': return 'Move money between accounts';
-      case 'withdrawal': return 'Withdraw cash — adds to Cash';
-      case 'expense': return 'Record a purchase or payment';
+      case 'income': return s.recordMoneyComingIn;
+      case 'transfer': return s.moveMoneyBetweenAccounts;
+      case 'withdrawal': return s.withdrawCash;
+      case 'expense': return s.recordPurchaseOrPayment;
       default: return '';
     }
   }
@@ -154,11 +159,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                widget.initialTransaction != null ? 'Edit Transaction' : _title,
+                                widget.initialTransaction != null ? S.of(context).editTransaction : _title(context),
                                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 2),
-                              Text(_subtitle, style: Theme.of(context).textTheme.bodySmall),
+                              Text(_subtitle(context), style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
                         ),
@@ -170,7 +175,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Add Transaction', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(S.of(context).addTransaction, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                         IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(context)),
                       ],
                     ),
@@ -178,13 +183,13 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     // Type Selector (only when NOT opened from speed dial)
                     Row(
                       children: [
-                        Expanded(child: _buildTypeChip('expense', 'Expense', Icons.arrow_upward_rounded, AppTheme.error)),
+                        Expanded(child: _buildTypeChip('expense', S.of(context).expense, Icons.arrow_upward_rounded, AppTheme.error)),
                         const SizedBox(width: 8),
-                        Expanded(child: _buildTypeChip('income', 'Income', Icons.arrow_downward_rounded, AppTheme.success)),
+                        Expanded(child: _buildTypeChip('income', S.of(context).incomeLabel, Icons.arrow_downward_rounded, AppTheme.success)),
                         const SizedBox(width: 8),
-                        Expanded(child: _buildTypeChip('transfer', 'Transfer', Icons.swap_horiz_rounded, AppTheme.info)),
+                        Expanded(child: _buildTypeChip('transfer', S.of(context).transfer, Icons.swap_horiz_rounded, AppTheme.info)),
                         const SizedBox(width: 8),
-                        Expanded(child: _buildTypeChip('withdrawal', 'Withdrawal', Icons.account_balance_wallet_rounded, AppTheme.warning)),
+                        Expanded(child: _buildTypeChip('withdrawal', S.of(context).withdrawal, Icons.account_balance_wallet_rounded, AppTheme.warning)),
                       ],
                     ),
                   ],
@@ -225,28 +230,17 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
 
                   // Category (for expenses only)
                   if (_selectedType == 'expense') ...[
-                    DropdownButtonFormField<String>(
+                    AppPickerField<String>(
+                      label: 'Category',
                       value: _selectedCategoryId,
-                      decoration: InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                        filled: true,
-                        prefixIcon: const Icon(Icons.category_rounded),
-                      ),
-                      hint: const Text('Select category'),
-                      items: provider.categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category.id,
-                          child: Row(
-                            children: [
-                              Icon(_categoryIconData(category.icon), size: 18, color: AppTheme.goldPrimary),
-                              const SizedBox(width: 10),
-                              Text(category.name),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) => setState(() => _selectedCategoryId = value),
+                      prefixIcon: AppIcons.categoryIcon,
+                      items: provider.categories.map((cat) => AppPickerItem(
+                        value: cat.id,
+                        label: cat.name,
+                        leadingIcon: _categoryIconData(cat.icon),
+                        iconColor: AppTheme.goldPrimary,
+                      )).toList(),
+                      onChanged: (v) => setState(() => _selectedCategoryId = v),
                     ),
                     const SizedBox(height: 12),
                     // Expense sub-type selector
@@ -626,8 +620,8 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                       ),
                       child: Text(
                         widget.initialTransaction != null
-                            ? 'Save Changes'
-                            : (_isLocked ? _title : 'Add ${_getTypeLabel()}'),
+                            ? S.of(context).saveChanges
+                            : (_isLocked ? _title(context) : '${S.of(context).add} ${_getTypeLabel(context)}'),
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -720,8 +714,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
         selIcon = acc.imagePath != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(5),
-                child: Image.file(File(acc.imagePath!), width: 20, height: 20, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary)),
+                child: acc.imagePath!.startsWith('http')
+                    ? Image.network(acc.imagePath!, width: 20, height: 20, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary))
+                    : Image.file(File(acc.imagePath!), width: 20, height: 20, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary)),
               )
             : Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary);
       }
@@ -824,8 +821,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                 final iconW = a.imagePath != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image.file(File(a.imagePath!), width: 22, height: 22, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary)),
+                        child: a.imagePath!.startsWith('http')
+                            ? Image.network(a.imagePath!, width: 22, height: 22, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary))
+                            : Image.file(File(a.imagePath!), width: 22, height: 22, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary)),
                       )
                     : Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary);
                 return _buildAccountSheetRow(
@@ -903,31 +903,31 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     }
   }
 
-  IconData _categoryIconData(String iconName) {
+  String _categoryIconData(String iconName) {
     switch (iconName) {
-      case 'home': return Icons.home_rounded;
-      case 'flash': return Icons.flash_on_rounded;
-      case 'phone': return Icons.phone_android_rounded;
-      case 'tv': return Icons.tv_rounded;
-      case 'shield': return Icons.shield_rounded;
-      case 'credit_card': return Icons.credit_card_rounded;
-      case 'shopping_cart': return Icons.shopping_cart_rounded;
-      case 'car': return Icons.directions_car_rounded;
-      case 'restaurant': return Icons.restaurant_rounded;
-      case 'shopping_bag': return Icons.shopping_bag_rounded;
-      case 'favorite': return Icons.favorite_rounded;
-      case 'sports_esports': return Icons.sports_esports_rounded;
-      case 'face': return Icons.face_rounded;
-      case 'school': return Icons.school_rounded;
-      case 'flight': return Icons.flight_rounded;
-      case 'card_giftcard': return Icons.card_giftcard_rounded;
-      case 'pets': return Icons.pets_rounded;
-      case 'autorenew': return Icons.autorenew_rounded;
-      case 'fitness_center': return Icons.fitness_center_rounded;
-      case 'local_cafe': return Icons.local_cafe_rounded;
-      case 'child_care': return Icons.child_care_rounded;
-      case 'build': return Icons.build_rounded;
-      default: return Icons.category_rounded;
+      case 'home': return AppIcons.home;
+      case 'flash': return AppIcons.lightning;
+      case 'phone': return AppIcons.phone;
+      case 'tv': return AppIcons.tv;
+      case 'shield': return AppIcons.shield;
+      case 'credit_card': return AppIcons.creditCard;
+      case 'shopping_cart': return AppIcons.cart;
+      case 'car': return AppIcons.car;
+      case 'restaurant': return AppIcons.food;
+      case 'shopping_bag': return AppIcons.shoppingBag;
+      case 'favorite': return AppIcons.heart;
+      case 'sports_esports': return AppIcons.gaming;
+      case 'face': return AppIcons.personal;
+      case 'school': return AppIcons.education;
+      case 'flight': return AppIcons.travel;
+      case 'card_giftcard': return AppIcons.gift;
+      case 'pets': return AppIcons.pets;
+      case 'autorenew': return AppIcons.autoRenew;
+      case 'fitness_center': return AppIcons.gym;
+      case 'local_cafe': return AppIcons.coffee;
+      case 'child_care': return AppIcons.baby;
+      case 'build': return AppIcons.tools;
+      default: return AppIcons.categoryIcon;
     }
   }
 
@@ -941,6 +941,14 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     final fees = double.tryParse(_feesController.text) ?? 0;
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
+      return;
+    }
+    if (amount > 999999999) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Amount exceeds maximum limit')));
+      return;
+    }
+    if (fees < 0 || fees > 999999) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid fees')));
       return;
     }
 
@@ -1090,17 +1098,18 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_getTypeLabel()} added successfully'), backgroundColor: AppTheme.goldPrimary),
+      SnackBar(content: Text('${_getTypeLabel(context)} added successfully'), backgroundColor: AppTheme.goldPrimary),
     );
   }
 
-  String _getTypeLabel() {
+  String _getTypeLabel(BuildContext context) {
+    final s = S.of(context);
     switch (_selectedType) {
-      case 'expense': return 'Expense';
-      case 'income': return 'Income';
-      case 'transfer': return 'Transfer';
-      case 'withdrawal': return 'Withdrawal';
-      default: return 'Transaction';
+      case 'expense': return s.expense;
+      case 'income': return s.incomeLabel;
+      case 'transfer': return s.transfer;
+      case 'withdrawal': return s.withdrawal;
+      default: return s.transaction;
     }
   }
 }

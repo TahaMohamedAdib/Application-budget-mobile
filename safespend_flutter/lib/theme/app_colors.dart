@@ -5,26 +5,26 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // ── Teal/Emerald palette (ChatGPT-inspired primary) ───────────────────────
-  static const Color goldPrimary = Color(0xFF10A37F); // ChatGPT teal
-  static const Color gold600     = Color(0xFF0D8A6B); // darker teal
-  static const Color gold700     = Color(0xFF0A7158); // deep teal
-  static const Color gold500     = Color(0xFF10A37F); // ChatGPT teal
-  static const Color gold400     = Color(0xFF19C497); // lighter teal
-  static const Color gold300     = Color(0xFF5DD9B5); // soft teal
-  static const Color gold200     = Color(0xFFA0E7D3); // pale teal
-  static const Color gold100     = Color(0xFFD1F4E8); // very pale teal
-  static const Color gold50      = Color(0xFFECFBF6); // teal tint
+  // ── Teal-Green palette ───────────────────────────────────────────────────
+  static const Color goldPrimary = Color(0xFF0B715F); // rich teal-green
+  static const Color gold600     = Color(0xFF095C4D); // darker teal
+  static const Color gold700     = Color(0xFF07443A); // deep teal
+  static const Color gold500     = Color(0xFF0B715F); // rich teal-green
+  static const Color gold400     = Color(0xFF0D8A74); // slightly lighter
+  static const Color gold300     = Color(0xFF11A88E); // medium teal
+  static const Color gold200     = Color(0xFF5ECFBC); // soft teal
+  static const Color gold100     = Color(0xFFC2EDE7); // pale teal
+  static const Color gold50      = Color(0xFFE8F9F7); // very pale teal
 
   // ── AI accent (ChatGPT purple for premium features) ───────────────────────
   static const Color aiAccent      = Color(0xFFAB68FF); // ChatGPT purple
   static const Color aiAccentDeep  = Color(0xFF8E4EC6); // deep purple
 
   // ── Semantic ─────────────────────────────────────────────────────────────
-  static const Color success = Color(0xFF10A37F); // ChatGPT teal — positive
+  static const Color success = Color(0xFF0B715F); // teal-green — positive
   static const Color error   = Color(0xFFEF4444); // red-500
   static const Color warning = Color(0xFFFBBF24); // amber-400
-  static const Color info    = Color(0xFF10A37F); // teal — matches primary
+  static const Color info    = Color(0xFF0B715F); // teal-green — matches primary
 
   // ── Light theme (ChatGPT-inspired clean white) ────────────────────────────
   static const Color lightBackground    = Color(0xFFFFFFFF); // pure white like ChatGPT

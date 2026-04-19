@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'welcome_screen.dart';
+import 'language_selection_screen.dart';
 import 'hook_screen.dart';
 import 'aha_screen.dart';
 import 'preview_screen.dart';
@@ -18,7 +19,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int _currentScreen = 0;
 
   void _nextScreen() {
-    if (_currentScreen < 4) {
+    if (_currentScreen < 5) {
       setState(() => _currentScreen++);
     }
   }
@@ -35,12 +36,14 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       case 0:
         return WelcomeScreen(onNext: _nextScreen);
       case 1:
-        return HookScreen(onNext: _nextScreen, onBack: _previousScreen);
+        return LanguageSelectionScreen(onNext: _nextScreen, onBack: _previousScreen);
       case 2:
-        return AhaScreen(onNext: _nextScreen, onBack: _previousScreen);
+        return HookScreen(onNext: _nextScreen, onBack: _previousScreen);
       case 3:
-        return PreviewScreen(onNext: _nextScreen, onBack: _previousScreen);
+        return AhaScreen(onNext: _nextScreen, onBack: _previousScreen);
       case 4:
+        return PreviewScreen(onNext: _nextScreen, onBack: _previousScreen);
+      case 5:
         return SetupScreen(onComplete: widget.onComplete, onBack: _previousScreen);
       default:
         return WelcomeScreen(onNext: _nextScreen);

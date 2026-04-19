@@ -59,7 +59,7 @@ class CashOnHandScreen extends StatelessWidget {
                         Text('Cash', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms),
+                  ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut),
                 ),
 
                 // Total Cash Card
@@ -89,7 +89,7 @@ class CashOnHandScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
+                  ).animate().fadeIn(duration: 280.ms, delay: 80.ms, curve: Curves.easeOut),
                 ),
 
                 // Transaction History Header
@@ -103,7 +103,7 @@ class CashOnHandScreen extends StatelessWidget {
                         Text('${cashTransactions.length} total', style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                  ).animate().fadeIn(duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
                 ),
 
                 // Transaction List

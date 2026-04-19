@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../utils/currency_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:iconify_flutter/iconify_flutter.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_icons.dart';
 import 'accounts_screen.dart';
 import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
@@ -16,6 +18,7 @@ import 'spending_screen.dart';
 import 'transactions_screen.dart';
 import 'all_subscriptions_screen.dart';
 import '../widgets/add_transaction_modal.dart';
+import '../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,6 +33,7 @@ class HomeScreenState extends State<HomeScreen> {
   void resetToAll() {
     setState(() => _activeFilter = 'all');
   }
+
   bool _balanceVisible = true;
   String _selectedTimeframe = '1m';
 
@@ -48,11 +52,13 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final totalCash = provider.totalCash;
-        final currencyFormat = CurrencyHelper.formatter(provider.settings.currency);
+        final currencyFormat =
+            CurrencyHelper.formatter(provider.settings.currency);
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -69,44 +75,59 @@ class HomeScreenState extends State<HomeScreen> {
                         GestureDetector(
                           onTap: () => _showAccountPicker(context, provider),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                              color: isDark
+                                  ? AppTheme.darkSurface
+                                  : AppTheme.lightSurface,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isDark ? Colors.white.withOpacity(0.08) : AppTheme.lightBorder,
+                                color: isDark
+                                    ? Colors.white.withOpacity(0.08)
+                                    : AppTheme.lightBorder,
                               ),
                               boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  provider.selectedAccountId == null ? Icons.account_balance_wallet_rounded : _getAccountIcon(provider),
-                                  size: 16, color: AppTheme.goldPrimary,
-                                ),
+                                _buildHeaderAccountIcon(provider),
                                 const SizedBox(width: 8),
                                 Text(
                                   _getSelectedAccountName(provider),
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                                    color: isDark
+                                        ? AppTheme.darkTextPrimary
+                                        : AppTheme.lightTextPrimary,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Icon(Icons.unfold_more_rounded, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+                                Iconify(AppIcons.caretUpDown,
+                                    size: 16,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color),
                               ],
                             ),
                           ),
                         ),
                         const Spacer(),
-                        _headerIcon(Icons.settings_rounded, () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                        _headerIcon(AppIcons.settings, () {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen()));
                         }),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
+                  )
+                      .animate()
+                      .fadeIn(duration: 260.ms, curve: Curves.easeOut)
+                      .slideY(begin: -0.05, end: 0, curve: Curves.easeOut),
                 ),
 
                 // Filter pills
@@ -118,15 +139,16 @@ class HomeScreenState extends State<HomeScreen> {
                       physics: const BouncingScrollPhysics(),
                       child: Row(
                         children: [
-                          _buildFilterPill('All', 'all'),
+                          _buildFilterPill(s.all, 'all'),
                           const SizedBox(width: 10),
-                          _buildFilterPill('Accounts', 'accounts'),
+                          _buildFilterPill(s.accounts, 'accounts'),
                           const SizedBox(width: 10),
-                          _buildFilterPill('Transactions', 'transactions'),
+                          _buildFilterPill(s.transactions, 'transactions'),
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 450.ms, delay: 80.ms),
+                  ).animate().fadeIn(
+                      duration: 280.ms, delay: 60.ms, curve: Curves.easeOut),
                 ),
 
                 // ── Account Balance Card ──
@@ -140,21 +162,42 @@ class HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Account Balance', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),
+                            Text(s.totalBalance,
+                                style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500)),
                             const SizedBox(height: 8),
                             Text(
-                              _balanceVisible ? currencyFormat.format(_getAccountBalance(provider)) : '••••••',
-                              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: -1),
+                              _balanceVisible
+                                  ? currencyFormat
+                                      .format(_getAccountBalance(provider))
+                                  : '••••••',
+                              style: const TextStyle(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: -1),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              provider.selectedAccountId == null ? 'All accounts combined' : _getSelectedAccountName(provider),
-                              style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.6)),
+                              provider.selectedAccountId == null
+                                  ? s.accountsCombined
+                                  : _getSelectedAccountName(provider),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.6)),
                             ),
                           ],
                         ),
                       ),
-                    ).animate().fadeIn(duration: 450.ms, delay: 160.ms).slideY(begin: 0.05, end: 0),
+                    )
+                        .animate()
+                        .fadeIn(
+                            duration: 280.ms,
+                            delay: 100.ms,
+                            curve: Curves.easeOut)
+                        .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
                   ),
 
                 // ── Balance Evolution Graph (All tab only) ──
@@ -174,10 +217,11 @@ class HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Balance Evolution',
+                                        s.balanceEvolution,
                                         style: const TextStyle(
                                           color: Colors.white60,
                                           fontSize: 12,
@@ -187,7 +231,8 @@ class HomeScreenState extends State<HomeScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        currencyFormat.format(_getAccountBalance(provider)),
+                                        currencyFormat.format(
+                                            _getAccountBalance(provider)),
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 22,
@@ -200,26 +245,33 @@ class HomeScreenState extends State<HomeScreen> {
                                 ),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: ['1d', '1w', '1m', '6m', '1y'].map((tf) {
+                                  children:
+                                      ['1d', '1w', '1m', '6m', '1y'].map((tf) {
                                     final isActive = _selectedTimeframe == tf;
                                     return GestureDetector(
-                                      onTap: () => setState(() => _selectedTimeframe = tf),
+                                      onTap: () => setState(
+                                          () => _selectedTimeframe = tf),
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 180),
+                                        duration:
+                                            const Duration(milliseconds: 180),
                                         margin: const EdgeInsets.only(left: 4),
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 5),
                                         decoration: BoxDecoration(
                                           color: isActive
                                               ? AppTheme.goldPrimary
                                               : Colors.white.withOpacity(0.08),
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                         ),
                                         child: Text(
                                           tf.toUpperCase(),
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
-                                            color: isActive ? Colors.white : Colors.white60,
+                                            color: isActive
+                                                ? Colors.white
+                                                : Colors.white60,
                                           ),
                                         ),
                                       ),
@@ -229,14 +281,22 @@ class HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             const SizedBox(height: 20),
-                            SizedBox(
-                              height: 200,
-                              child: _buildBalanceChart(provider, isDark),
+                            RepaintBoundary(
+                              child: SizedBox(
+                                height: 200,
+                                child: _buildBalanceChart(provider, isDark, s),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ).animate().fadeIn(duration: 450.ms, delay: 240.ms).slideY(begin: 0.05, end: 0),
+                    )
+                        .animate()
+                        .fadeIn(
+                            duration: 280.ms,
+                            delay: 140.ms,
+                            curve: Curves.easeOut)
+                        .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
                   ),
 
                 // ── Accounts Section (Accounts tab only) ──
@@ -249,52 +309,75 @@ class HomeScreenState extends State<HomeScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Accounts', style: Theme.of(context).textTheme.titleLarge),
+                              Text(s.accounts,
+                                  style:
+                                      Theme.of(context).textTheme.titleLarge),
                               GestureDetector(
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen())),
-                                child: Text('See all', style: TextStyle(fontSize: 13, color: AppTheme.goldPrimary, fontWeight: FontWeight.w500)),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const AccountsScreen())),
+                                child: Text(s.seeAll,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.goldPrimary,
+                                        fontWeight: FontWeight.w500)),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           ...provider.accounts.map((account) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _buildAccountRow(
-                              context: context,
-                              icon: _iconForAccountType(account.type),
-                              iconColor: _colorFromHex(account.color),
-                              label: account.name,
-                              sublabel: account.bankName ?? account.type[0].toUpperCase() + account.type.substring(1),
-                              amount: account.balance,
-                              cf: currencyFormat,
-                              imagePath: account.imagePath,
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen())),
-                            ),
-                          )),
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _buildAccountRow(
+                                  context: context,
+                                  icon: _iconForAccountType(account.type),
+                                  iconColor: _colorFromHex(account.color),
+                                  label: account.name,
+                                  sublabel: account.bankName ??
+                                      account.type[0].toUpperCase() +
+                                          account.type.substring(1),
+                                  amount: account.balance,
+                                  cf: currencyFormat,
+                                  imagePath: account.imagePath,
+                                  onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const AccountsScreen())),
+                                ),
+                              )),
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _buildAccountRow(
                               context: context,
-                              icon: Icons.payments_rounded,
+                              icon: AppIcons.money,
                               iconColor: AppTheme.warning,
-                              label: 'Cash',
+                              label: s.cashOnHand,
                               sublabel: 'From withdrawals',
                               amount: totalCash,
                               cf: currencyFormat,
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashOnHandScreen())),
+                              onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          const CashOnHandScreen())),
                             ),
                           ),
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _buildAccountRow(
                               context: context,
-                              icon: Icons.trending_up_rounded,
+                              icon: AppIcons.trendUp,
                               iconColor: const Color(0xFF8B5CF6),
-                              label: 'Investments',
+                              label: s.investments,
                               sublabel: '${provider.holdings.length} holdings',
                               amount: provider.totalInvestmentValue,
                               cf: currencyFormat,
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PortfolioScreen())),
+                              onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const PortfolioScreen())),
                             ),
                           ),
                           if (provider.totalDebtRemaining > 0)
@@ -302,14 +385,18 @@ class HomeScreenState extends State<HomeScreen> {
                               padding: const EdgeInsets.only(bottom: 8),
                               child: _buildAccountRow(
                                 context: context,
-                                icon: Icons.credit_card_rounded,
+                                icon: AppIcons.creditCard,
                                 iconColor: AppTheme.error,
-                                label: 'Debt',
-                                sublabel: '${provider.goals.where((g) => g.type == "debt").length} items',
+                                label: s.debt,
+                                sublabel:
+                                    '${provider.goals.where((g) => g.type == "debt").length} items',
                                 amount: -provider.totalDebtRemaining,
                                 cf: currencyFormat,
                                 isNegative: true,
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtScreen())),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => const DebtScreen())),
                               ),
                             ),
                           // Add Account button
@@ -334,7 +421,8 @@ class HomeScreenState extends State<HomeScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: AppTheme.goldPrimary.withOpacity(0.3),
+                                    color:
+                                        AppTheme.goldPrimary.withOpacity(0.3),
                                     width: 1.5,
                                     style: BorderStyle.solid,
                                   ),
@@ -342,16 +430,16 @@ class HomeScreenState extends State<HomeScreen> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Container(
-                                      width: 44, height: 44,
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.goldPrimary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: const Icon(Icons.add_rounded, color: AppTheme.goldPrimary, size: 22),
-                                    ),
+                                    const Iconify(AppIcons.add,
+                                        color: AppTheme.goldPrimary, size: 28),
                                     const SizedBox(width: 14),
-                                    Text('Add Account', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: AppTheme.goldPrimary)),
+                                    Text(s.addAccount,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                color: AppTheme.goldPrimary)),
                                   ],
                                 ),
                               ),
@@ -359,7 +447,13 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 300.ms).slideY(begin: 0.05, end: 0),
+                    )
+                        .animate()
+                        .fadeIn(
+                            duration: 300.ms,
+                            delay: 180.ms,
+                            curve: Curves.easeOut)
+                        .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
                   ),
 
                 // ── Upcoming Subscriptions (All tab) ──
@@ -369,7 +463,9 @@ class HomeScreenState extends State<HomeScreen> {
                       builder: (context) {
                         final _now = DateTime.now();
                         final activeRules = provider.recurringRules
-                            .where((r) => r.isActive && DateTime.parse(r.nextDate).isAfter(_now))
+                            .where((r) =>
+                                r.isActive &&
+                                DateTime.parse(r.nextDate).isAfter(_now))
                             .toList()
                           ..sort((a, b) => a.nextDate.compareTo(b.nextDate));
                         final upcoming = activeRules.take(3).toList();
@@ -378,12 +474,26 @@ class HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Upcoming Subscriptions', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                  Text(s.upcomingSubscriptions,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w600)),
                                   GestureDetector(
-                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AllSubscriptionsScreen())),
-                                    child: Text('See all', style: TextStyle(fontSize: 13, color: AppTheme.goldPrimary, fontWeight: FontWeight.w500)),
+                                    onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                const AllSubscriptionsScreen())),
+                                    child: Text(s.seeAll,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppTheme.goldPrimary,
+                                            fontWeight: FontWeight.w500)),
                                   ),
                                 ],
                               ),
@@ -393,64 +503,179 @@ class HomeScreenState extends State<HomeScreen> {
                                 child: upcoming.isEmpty
                                     ? Padding(
                                         padding: const EdgeInsets.all(32),
-                                        child: Center(child: Text('No subscriptions yet', style: Theme.of(context).textTheme.bodySmall)),
+                                        child: Center(
+                                            child: Text(s.noSubscriptionsYet,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall)),
                                       )
                                     : Column(
-                                        children: upcoming.asMap().entries.map((entry) {
+                                        children: upcoming
+                                            .asMap()
+                                            .entries
+                                            .map((entry) {
                                           final rule = entry.value;
-                                          final isLast = entry.key == upcoming.length - 1;
+                                          final isLast =
+                                              entry.key == upcoming.length - 1;
                                           return Column(
                                             children: [
                                               Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 20,
+                                                        vertical: 14),
                                                 child: Row(
                                                   children: [
                                                     Builder(builder: (_) {
-                                                      final cat = rule.templateTransaction.categoryId != null
-                                                          ? provider.categories.where((c) => c.id == rule.templateTransaction.categoryId).firstOrNull
+                                                      final cat = rule
+                                                                  .templateTransaction
+                                                                  .categoryId !=
+                                                              null
+                                                          ? provider.categories
+                                                              .where((c) =>
+                                                                  c.id ==
+                                                                  rule.templateTransaction
+                                                                      .categoryId)
+                                                              .firstOrNull
                                                           : null;
-                                                      final acct = provider.accounts.where((a) => a.id == rule.templateTransaction.accountId).firstOrNull;
-                                                      final imgPath = (cat != null && cat.icon.startsWith('img:')) ? cat.icon.substring(4) : acct?.imagePath;
+                                                      final acct = provider
+                                                          .accounts
+                                                          .where((a) =>
+                                                              a.id ==
+                                                              rule.templateTransaction
+                                                                  .accountId)
+                                                          .firstOrNull;
+                                                      final imgPath = (cat !=
+                                                                  null &&
+                                                              cat.icon
+                                                                  .startsWith(
+                                                                      'img:'))
+                                                          ? cat.icon
+                                                              .substring(4)
+                                                          : acct?.imagePath;
                                                       return Container(
-                                                        width: 44, height: 44,
-                                                        decoration: BoxDecoration(color: AppTheme.goldPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
+                                                        width: 44,
+                                                        height: 44,
+                                                        decoration: BoxDecoration(
+                                                            color: AppTheme
+                                                                .goldPrimary
+                                                                .withOpacity(
+                                                                    0.12),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        14)),
                                                         child: imgPath != null
                                                             ? ClipRRect(
-                                                                borderRadius: BorderRadius.circular(14),
-                                                                child: imgPath.startsWith('http')
-                                                                    ? Image.network(imgPath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20))
-                                                                    : Image.file(File(imgPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20)),
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            14),
+                                                                child: imgPath
+                                                                        .startsWith(
+                                                                            'http')
+                                                                    ? Image.network(
+                                                                        imgPath,
+                                                                        fit: BoxFit
+                                                                            .cover,
+                                                                        errorBuilder: (_, __, ___) => const Iconify(
+                                                                            AppIcons
+                                                                                .autoRenew,
+                                                                            color: AppTheme
+                                                                                .goldPrimary,
+                                                                            size:
+                                                                                20))
+                                                                    : Image.file(
+                                                                        File(imgPath),
+                                                                        fit: BoxFit.cover,
+                                                                        errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew, color: AppTheme.goldPrimary, size: 20)),
                                                               )
                                                             : cat != null
-                                                                ? Icon(_subCategoryIcon(cat.icon), color: AppTheme.goldPrimary, size: 20)
-                                                                : const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20),
+                                                                ? Iconify(
+                                                                    _subCategoryIcon(cat
+                                                                        .icon),
+                                                                    color: AppTheme
+                                                                        .goldPrimary,
+                                                                    size: 20)
+                                                                : const Iconify(
+                                                                    AppIcons
+                                                                        .autoRenew,
+                                                                    color: AppTheme
+                                                                        .goldPrimary,
+                                                                    size: 20),
                                                       );
                                                     }),
                                                     const SizedBox(width: 14),
                                                     Expanded(
                                                       child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
                                                         children: [
-                                                          Text(rule.templateTransaction.note ?? 'Subscription', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                                                          const SizedBox(height: 2),
-                                                          Builder(builder: (ctx) {
-                                            final nd = DateTime.parse(rule.nextDate);
-                                            final today = DateTime.now();
-                                            final isToday = nd.year == today.year && nd.month == today.month && nd.day == today.day;
-                                            return Text(
-                                              isToday ? 'Today · ${DateFormat('h:mm a').format(nd)}' : 'Due ${DateFormat('MMM d').format(nd)}',
-                                              style: Theme.of(context).textTheme.bodySmall,
-                                            );
-                                          }),
+                                                          Text(
+                                                              rule.templateTransaction
+                                                                      .note ??
+                                                                  'Subscription',
+                                                              style: Theme.of(
+                                                                      context)
+                                                                  .textTheme
+                                                                  .titleMedium
+                                                                  ?.copyWith(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600)),
+                                                          const SizedBox(
+                                                              height: 2),
+                                                          Builder(
+                                                              builder: (ctx) {
+                                                            final nd = DateTime
+                                                                .parse(rule
+                                                                    .nextDate);
+                                                            final today =
+                                                                DateTime.now();
+                                                            final isToday = nd
+                                                                        .year ==
+                                                                    today
+                                                                        .year &&
+                                                                nd.month ==
+                                                                    today
+                                                                        .month &&
+                                                                nd.day ==
+                                                                    today.day;
+                                                            return Text(
+                                                              isToday
+                                                                  ? 'Today · ${DateFormat('h:mm a').format(nd)}'
+                                                                  : 'Due ${DateFormat('MMM d').format(nd)}',
+                                                              style: Theme.of(
+                                                                      context)
+                                                                  .textTheme
+                                                                  .bodySmall,
+                                                            );
+                                                          }),
                                                         ],
                                                       ),
                                                     ),
                                                     const SizedBox(width: 8),
-                                                    Text(currencyFormat.format(rule.templateTransaction.amount), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                                    Text(
+                                                        currencyFormat.format(rule
+                                                            .templateTransaction
+                                                            .amount),
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .titleMedium
+                                                            ?.copyWith(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700)),
                                                   ],
                                                 ),
                                               ),
-                                              if (!isLast) Divider(height: 1, indent: 76, color: Theme.of(context).dividerColor),
+                                              if (!isLast)
+                                                Divider(
+                                                    height: 1,
+                                                    indent: 76,
+                                                    color: Theme.of(context)
+                                                        .dividerColor),
                                             ],
                                           );
                                         }).toList(),
@@ -458,7 +683,13 @@ class HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                        ).animate().fadeIn(duration: 500.ms, delay: 350.ms).slideY(begin: 0.05, end: 0);
+                        )
+                            .animate()
+                            .fadeIn(
+                                duration: 300.ms,
+                                delay: 200.ms,
+                                curve: Curves.easeOut)
+                            .slideY(begin: 0.03, end: 0, curve: Curves.easeOut);
                       },
                     ),
                   ),
@@ -477,36 +708,44 @@ class HomeScreenState extends State<HomeScreen> {
                                   controller: _txSearchController,
                                   onChanged: (_) => setState(() {}),
                                   decoration: InputDecoration(
-                                    hintText: 'Search transactions...',
-                                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                                    hintText: s.search + ' transactions...',
+                                    prefixIcon: Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 14, right: 8),
+                                      child: Iconify(AppIcons.search,
+                                          size: 16,
+                                          color: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.color),
+                                    ),
+                                    prefixIconConstraints: const BoxConstraints(
+                                        minWidth: 38, minHeight: 38),
                                     filled: true,
-                                    fillColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                                    fillColor: isDark
+                                        ? AppTheme.darkSurface
+                                        : AppTheme.lightSurface,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(14),
                                       borderSide: BorderSide.none,
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: () => setState(() => _txShowFilters = !_txShowFilters),
-                                child: Container(
-                                  width: 48, height: 48,
-                                  decoration: BoxDecoration(
+                                onTap: () => setState(
+                                    () => _txShowFilters = !_txShowFilters),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Iconify(
+                                    AppIcons.sliders,
+                                    size: 24,
                                     color: _txShowFilters
-                                        ? AppTheme.goldPrimary.withOpacity(0.15)
-                                        : (isDark ? AppTheme.darkSurface : AppTheme.lightSurface),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: _txShowFilters
-                                        ? Border.all(color: AppTheme.goldPrimary.withOpacity(0.5))
-                                        : null,
-                                  ),
-                                  child: Icon(
-                                    Icons.tune_rounded,
-                                    size: 20,
-                                    color: _txShowFilters ? AppTheme.goldPrimary : Theme.of(context).iconTheme.color,
+                                        ? AppTheme.goldPrimary
+                                        : Theme.of(context).iconTheme.color,
                                   ),
                                 ),
                               ),
@@ -518,9 +757,15 @@ class HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Expanded(
                                   child: _buildTxDropdown(
-                                    'Type',
+                                    s.type,
                                     _txFilterType,
-                                    {'all': 'All', 'expense': 'Expenses', 'income': 'Income', 'transfer': 'Transfers', 'withdrawal': 'Withdrawals'},
+                                    {
+                                      'all': s.all,
+                                      'expense': s.expenses,
+                                      'income': s.incomeLabel,
+                                      'transfer': s.transfer,
+                                      'withdrawal': s.withdrawal
+                                    },
                                     (v) => setState(() => _txFilterType = v),
                                     isDark,
                                   ),
@@ -528,9 +773,14 @@ class HomeScreenState extends State<HomeScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: _buildTxDropdown(
-                                    'Sort',
+                                    s.sort,
                                     _txSortBy,
-                                    {'newest': 'Newest', 'oldest': 'Oldest', 'highest': 'Highest', 'lowest': 'Lowest'},
+                                    {
+                                      'newest': s.sortNewest,
+                                      'oldest': s.sortOldest,
+                                      'highest': s.sortHighest,
+                                      'lowest': s.sortLowest
+                                    },
                                     (v) => setState(() => _txSortBy = v),
                                     isDark,
                                   ),
@@ -540,29 +790,38 @@ class HomeScreenState extends State<HomeScreen> {
                           ],
                         ],
                       ),
-                    ).animate().fadeIn(duration: 400.ms),
+                    ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut),
                   ),
 
                 // ── Recent Transactions / All Transactions ──
                 if (_activeFilter == 'all' || _activeFilter == 'transactions')
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(20, _activeFilter == 'transactions' ? 16 : 28, 20, 14),
+                      padding: EdgeInsets.fromLTRB(20,
+                          _activeFilter == 'transactions' ? 16 : 28, 20, 14),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _activeFilter == 'transactions' ? 'All Transactions' : 'Recent Transactions',
+                            _activeFilter == 'transactions'
+                                ? s.transactions
+                                : s.recentTransactions,
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           if (_activeFilter == 'all')
                             GestureDetector(
-                              onTap: () => setState(() => _activeFilter = 'transactions'),
-                              child: Text('See all', style: TextStyle(fontSize: 13, color: AppTheme.goldPrimary, fontWeight: FontWeight.w500)),
+                              onTap: () => setState(
+                                  () => _activeFilter = 'transactions'),
+                              child: Text(s.seeAll,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppTheme.goldPrimary,
+                                      fontWeight: FontWeight.w500)),
                             ),
                         ],
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
+                    ).animate().fadeIn(
+                        duration: 300.ms, delay: 220.ms, curve: Curves.easeOut),
                   ),
 
                 if (_activeFilter == 'all' || _activeFilter == 'transactions')
@@ -571,47 +830,76 @@ class HomeScreenState extends State<HomeScreen> {
                     sliver: (() {
                       final txList = _activeFilter == 'transactions'
                           ? _getFilteredTransactions(provider)
-                          : provider.transactions.reversed.take(20).toList();
+                          : provider.transactions.reversed.take(3).toList();
                       return txList.isEmpty
-                        ? SliverToBoxAdapter(
-                            child: Container(
-                              padding: const EdgeInsets.all(40),
-                              decoration: AppTheme.premiumCard(context),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 72, height: 72,
-                                    decoration: BoxDecoration(
-                                      color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
-                                      borderRadius: BorderRadius.circular(20),
+                          ? SliverToBoxAdapter(
+                              child: Container(
+                                padding: const EdgeInsets.all(40),
+                                decoration: AppTheme.premiumCard(context),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? AppTheme.darkSurfaceElevated
+                                            : AppTheme.lightBackground,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Iconify(AppIcons.receipt,
+                                          size: 32,
+                                          color: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.color
+                                              ?.withOpacity(0.5)),
                                     ),
-                                    child: Icon(Icons.receipt_long_rounded, size: 32, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  Text(
-                                    _activeFilter == 'transactions' && (_txSearchController.text.isNotEmpty || _txFilterType != 'all')
-                                        ? 'No transactions found'
-                                        : 'No transactions yet',
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    _activeFilter == 'transactions' && (_txSearchController.text.isNotEmpty || _txFilterType != 'all')
-                                        ? 'Try adjusting your filters'
-                                        : 'Tap + to add your first transaction',
-                                    style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-                          )
-                        : SliverToBoxAdapter(
-                            child: _buildGroupedTransactions(
-                              txList,
-                              currencyFormat, context, isDark,
-                              provider: provider,
-                            ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-                          );
+                                    const SizedBox(height: 18),
+                                    Text(
+                                      _activeFilter == 'transactions' &&
+                                              (_txSearchController
+                                                      .text.isNotEmpty ||
+                                                  _txFilterType != 'all')
+                                          ? s.noTransactionsFound
+                                          : s.noTransactions,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _activeFilter == 'transactions' &&
+                                              (_txSearchController
+                                                      .text.isNotEmpty ||
+                                                  _txFilterType != 'all')
+                                          ? s.tryAdjustingFilters
+                                          : s.tapToAddFirstTransaction,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ).animate().fadeIn(
+                                  duration: 300.ms,
+                                  delay: 240.ms,
+                                  curve: Curves.easeOut),
+                            )
+                          : SliverToBoxAdapter(
+                              child: _buildGroupedTransactions(
+                                txList,
+                                currencyFormat,
+                                context,
+                                isDark,
+                                provider: provider,
+                              ).animate().fadeIn(
+                                  duration: 300.ms,
+                                  delay: 240.ms,
+                                  curve: Curves.easeOut),
+                            );
                     })(),
                   ),
 
@@ -625,10 +913,12 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Balance Chart ──
-  Widget _buildBalanceChart(AppProvider provider, bool isDark) {
+  Widget _buildBalanceChart(AppProvider provider, bool isDark, S s) {
     final spots = _computeBalanceSpots(provider);
     if (spots.isEmpty || spots.length < 2) {
-      return Center(child: Text('Not enough data', style: const TextStyle(color: Colors.white54, fontSize: 13)));
+      return Center(
+          child: Text(s.notEnoughData,
+              style: const TextStyle(color: Colors.white54, fontSize: 13)));
     }
 
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
@@ -640,16 +930,28 @@ class HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     late DateTime chartStart;
     switch (_selectedTimeframe) {
-      case '1d': chartStart = now.subtract(const Duration(hours: 24)); break;
-      case '1w': chartStart = now.subtract(const Duration(days: 7)); break;
-      case '1m': chartStart = now.subtract(const Duration(days: 30)); break;
-      case '6m': chartStart = now.subtract(const Duration(days: 180)); break;
-      case '1y': chartStart = now.subtract(const Duration(days: 365)); break;
-      default: chartStart = now.subtract(const Duration(days: 30));
+      case '1d':
+        chartStart = now.subtract(const Duration(hours: 24));
+        break;
+      case '1w':
+        chartStart = now.subtract(const Duration(days: 7));
+        break;
+      case '1m':
+        chartStart = now.subtract(const Duration(days: 30));
+        break;
+      case '6m':
+        chartStart = now.subtract(const Duration(days: 180));
+        break;
+      case '1y':
+        chartStart = now.subtract(const Duration(days: 365));
+        break;
+      default:
+        chartStart = now.subtract(const Duration(days: 30));
     }
     final numPoints = spots.length;
     final totalDuration = now.difference(chartStart);
-    final intervalMs = numPoints > 1 ? totalDuration.inMilliseconds / (numPoints - 1) : 1.0;
+    final intervalMs =
+        numPoints > 1 ? totalDuration.inMilliseconds / (numPoints - 1) : 1.0;
 
     String formatYLabel(double v) {
       if (v.abs() >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
@@ -674,19 +976,23 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 46,
               interval: range == 0 ? 100 : range / 4,
               getTitlesWidget: (value, meta) {
-                if (value == meta.min || value == meta.max) return const SizedBox.shrink();
+                if (value == meta.min || value == meta.max)
+                  return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: Text(formatYLabel(value),
-                    style: const TextStyle(fontSize: 10, color: Colors.white54)),
+                      style:
+                          const TextStyle(fontSize: 10, color: Colors.white54)),
                 );
               },
             ),
@@ -695,22 +1001,32 @@ class HomeScreenState extends State<HomeScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 24,
-              interval: _selectedTimeframe == '1d' ? 6 : (_selectedTimeframe == '1w' ? 2 : (_selectedTimeframe == '1m' ? 7 : (_selectedTimeframe == '6m' ? 6 : 3))),
+              interval: _selectedTimeframe == '1d'
+                  ? 6
+                  : (_selectedTimeframe == '1w'
+                      ? 2
+                      : (_selectedTimeframe == '1m'
+                          ? 7
+                          : (_selectedTimeframe == '6m' ? 6 : 3))),
               getTitlesWidget: (value, meta) {
                 final idx = value.toInt();
                 if (idx < 0 || idx >= numPoints) return const SizedBox.shrink();
-                final pointTime = chartStart.add(Duration(milliseconds: (intervalMs * idx).round()));
+                final pointTime = chartStart
+                    .add(Duration(milliseconds: (intervalMs * idx).round()));
                 String label;
                 if (_selectedTimeframe == '1d') {
                   label = DateFormat('HH:mm').format(pointTime);
-                } else if (_selectedTimeframe == '1w' || _selectedTimeframe == '1m') {
+                } else if (_selectedTimeframe == '1w' ||
+                    _selectedTimeframe == '1m') {
                   label = DateFormat('d MMM').format(pointTime);
                 } else {
                   label = DateFormat('MMM').format(pointTime);
                 }
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(label, style: const TextStyle(fontSize: 9, color: Colors.white54)),
+                  child: Text(label,
+                      style:
+                          const TextStyle(fontSize: 9, color: Colors.white54)),
                 );
               },
             ),
@@ -718,12 +1034,18 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         lineTouchData: LineTouchData(
           handleBuiltInTouches: true,
-          getTouchedSpotIndicator: (barData, spotIndexes) => spotIndexes.map((i) {
+          getTouchedSpotIndicator: (barData, spotIndexes) =>
+              spotIndexes.map((i) {
             return TouchedSpotIndicatorData(
-              FlLine(color: Colors.white.withOpacity(0.5), strokeWidth: 1.5, dashArray: [4, 4]),
+              FlLine(
+                  color: Colors.white.withOpacity(0.5),
+                  strokeWidth: 1.5,
+                  dashArray: [4, 4]),
               FlDotData(
                 getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                  radius: 5, color: Colors.white, strokeWidth: 2.5,
+                  radius: 5,
+                  color: Colors.white,
+                  strokeWidth: 2.5,
                   strokeColor: Colors.white.withOpacity(0.3),
                 ),
               ),
@@ -732,11 +1054,17 @@ class HomeScreenState extends State<HomeScreen> {
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (_) => const Color(0xFF1C1C1E),
             tooltipRoundedRadius: 10,
-            tooltipPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
-              cf.format(s.y),
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
-            )).toList(),
+            tooltipPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            getTooltipItems: (touchedSpots) => touchedSpots
+                .map((s) => LineTooltipItem(
+                      cf.format(s.y),
+                      const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13),
+                    ))
+                .toList(),
           ),
         ),
         lineBarsData: [
@@ -748,14 +1076,18 @@ class HomeScreenState extends State<HomeScreen> {
             barWidth: 3,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
-            shadow: Shadow(color: Colors.white.withOpacity(0.4), blurRadius: 12),
+            shadow:
+                Shadow(color: Colors.white.withOpacity(0.4), blurRadius: 12),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 stops: const [0.0, 0.75],
-                colors: [Colors.white.withOpacity(0.22), Colors.white.withOpacity(0.0)],
+                colors: [
+                  Colors.white.withOpacity(0.22),
+                  Colors.white.withOpacity(0.0)
+                ],
               ),
             ),
           ),
@@ -797,7 +1129,8 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Get relevant transactions for selected account
     final txns = provider.transactions.where((t) {
-      if (provider.selectedAccountId != null && t.accountId != provider.selectedAccountId) return false;
+      if (provider.selectedAccountId != null &&
+          t.accountId != provider.selectedAccountId) return false;
       final d = DateTime.parse(t.date);
       return d.isAfter(start.subtract(const Duration(days: 1)));
     }).toList()
@@ -830,9 +1163,12 @@ class HomeScreenState extends State<HomeScreen> {
     final spots = <FlSpot>[];
 
     for (int i = 0; i < numPoints; i++) {
-      final pointTime = start.add(Duration(milliseconds: (intervalMs * i).round()));
+      final pointTime =
+          start.add(Duration(milliseconds: (intervalMs * i).round()));
       // Apply all transactions up to this point
-      while (txnIdx < txns.length && DateTime.parse(txns[txnIdx].date).isBefore(pointTime.add(const Duration(seconds: 1)))) {
+      while (txnIdx < txns.length &&
+          DateTime.parse(txns[txnIdx].date)
+              .isBefore(pointTime.add(const Duration(seconds: 1)))) {
         final t = txns[txnIdx];
         if (t.type == 'income') {
           runningBalance += t.amount;
@@ -853,18 +1189,16 @@ class HomeScreenState extends State<HomeScreen> {
     return spots;
   }
 
-  Widget _headerIcon(IconData icon, VoidCallback onTap) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _headerIcon(String icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          shape: BoxShape.circle,
-          boxShadow: isDark ? [] : AppTheme.cardShadowLight,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Iconify(
+          icon,
+          size: 24,
+          color: Theme.of(context).iconTheme.color,
         ),
-        child: Icon(icon, size: 18),
       ),
     );
   }
@@ -873,34 +1207,57 @@ class HomeScreenState extends State<HomeScreen> {
     if (provider.selectedAccountId == null) {
       return provider.accounts.fold(0.0, (sum, a) => sum + a.balance);
     }
-    final account = provider.accounts.where((a) => a.id == provider.selectedAccountId);
+    final account =
+        provider.accounts.where((a) => a.id == provider.selectedAccountId);
     return account.isNotEmpty ? account.first.balance : 0.0;
   }
 
-  IconData _subCategoryIcon(String iconName) {
+  String _subCategoryIcon(String iconName) {
     switch (iconName) {
-      case 'home': return Icons.home_rounded;
-      case 'flash': return Icons.flash_on_rounded;
-      case 'phone': return Icons.phone_android_rounded;
-      case 'tv': return Icons.tv_rounded;
-      case 'shield': return Icons.shield_rounded;
-      case 'credit_card': return Icons.credit_card_rounded;
-      case 'shopping_cart': return Icons.shopping_cart_rounded;
-      case 'car': return Icons.directions_car_rounded;
-      case 'restaurant': return Icons.restaurant_rounded;
-      case 'shopping_bag': return Icons.shopping_bag_rounded;
-      case 'favorite': return Icons.favorite_rounded;
-      case 'sports_esports': return Icons.sports_esports_rounded;
-      case 'face': return Icons.face_rounded;
-      case 'school': return Icons.school_rounded;
-      case 'flight': return Icons.flight_rounded;
-      case 'card_giftcard': return Icons.card_giftcard_rounded;
-      case 'pets': return Icons.pets_rounded;
-      case 'fitness_center': return Icons.fitness_center_rounded;
-      case 'local_cafe': return Icons.local_cafe_rounded;
-      case 'child_care': return Icons.child_care_rounded;
-      case 'build': return Icons.build_rounded;
-      default: return Icons.autorenew_rounded;
+      case 'home':
+        return AppIcons.home;
+      case 'flash':
+        return AppIcons.lightning;
+      case 'phone':
+        return AppIcons.phone;
+      case 'tv':
+        return AppIcons.tv;
+      case 'shield':
+        return AppIcons.shield;
+      case 'credit_card':
+        return AppIcons.creditCard;
+      case 'shopping_cart':
+        return AppIcons.cart;
+      case 'car':
+        return AppIcons.car;
+      case 'restaurant':
+        return AppIcons.food;
+      case 'shopping_bag':
+        return AppIcons.shoppingBag;
+      case 'favorite':
+        return AppIcons.heart;
+      case 'sports_esports':
+        return AppIcons.gaming;
+      case 'face':
+        return AppIcons.personal;
+      case 'school':
+        return AppIcons.education;
+      case 'flight':
+        return AppIcons.travel;
+      case 'card_giftcard':
+        return AppIcons.gift;
+      case 'pets':
+        return AppIcons.pets;
+      case 'fitness_center':
+        return AppIcons.gym;
+      case 'local_cafe':
+        return AppIcons.coffee;
+      case 'child_care':
+        return AppIcons.baby;
+      case 'build':
+        return AppIcons.tools;
+      default:
+        return AppIcons.autoRenew;
     }
   }
 
@@ -914,19 +1271,24 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  IconData _iconForAccountType(String type) {
+  String _iconForAccountType(String type) {
     switch (type) {
-      case 'bank': return Icons.account_balance_rounded;
-      case 'savings': return Icons.savings_rounded;
-      case 'investment': return Icons.trending_up_rounded;
-      case 'debt': return Icons.credit_card_rounded;
-      default: return Icons.account_balance_wallet_rounded;
+      case 'bank':
+        return AppIcons.bank;
+      case 'savings':
+        return AppIcons.savings;
+      case 'investment':
+        return AppIcons.trendUp;
+      case 'debt':
+        return AppIcons.creditCard;
+      default:
+        return AppIcons.wallet;
     }
   }
 
   Widget _buildAccountRow({
     required BuildContext context,
-    required IconData icon,
+    required String icon,
     required Color iconColor,
     required String label,
     required String sublabel,
@@ -943,26 +1305,40 @@ class HomeScreenState extends State<HomeScreen> {
         decoration: AppTheme.premiumCard(context),
         child: Row(
           children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
-              child: imagePath != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.file(
-                        File(imagePath),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(icon, color: iconColor, size: 20),
-                      ),
-                    )
-                  : Icon(icon, color: iconColor, size: 20),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: imagePath != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: imagePath.startsWith('http')
+                            ? Image.network(imagePath,
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    Iconify(icon, color: iconColor, size: 28))
+                            : Image.file(File(imagePath),
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    Iconify(icon, color: iconColor, size: 28)),
+                      )
+                    : Iconify(icon, color: iconColor, size: 28),
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(label,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(sublabel, style: Theme.of(context).textTheme.bodySmall),
                 ],
@@ -971,10 +1347,16 @@ class HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             Text(
               _balanceVisible ? cf.format(amount) : '••••••',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: isNegative ? AppTheme.error : Theme.of(context).textTheme.bodyMedium?.color),
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: isNegative
+                      ? AppTheme.error
+                      : Theme.of(context).textTheme.bodyMedium?.color),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded, size: 18, color: Theme.of(context).textTheme.bodySmall?.color),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: Theme.of(context).textTheme.bodySmall?.color),
           ],
         ),
       ),
@@ -990,12 +1372,24 @@ class HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.goldPrimary : (isDark ? AppTheme.darkSurface : AppTheme.lightSurface),
+          color: isActive
+              ? AppTheme.goldPrimary
+              : (isDark ? AppTheme.darkSurface : AppTheme.lightSurface),
           borderRadius: BorderRadius.circular(20),
-          border: isDark && !isActive ? Border.all(color: Colors.white.withOpacity(0.07), width: 1) : null,
-          boxShadow: isActive ? AppTheme.goldGlow : (isDark ? [] : AppTheme.cardShadowLight),
+          border: isDark && !isActive
+              ? Border.all(color: Colors.white.withOpacity(0.07), width: 1)
+              : null,
+          boxShadow: isActive
+              ? AppTheme.goldGlow
+              : (isDark ? [] : AppTheme.cardShadowLight),
         ),
-        child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isActive ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color)),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isActive
+                    ? Colors.white
+                    : Theme.of(context).textTheme.bodyMedium?.color)),
       ),
     );
   }
@@ -1034,22 +1428,36 @@ class HomeScreenState extends State<HomeScreen> {
     // Sort
     list.sort((a, b) {
       switch (_txSortBy) {
-        case 'newest': return DateTime.parse(b.date).compareTo(DateTime.parse(a.date));
-        case 'oldest': return DateTime.parse(a.date).compareTo(DateTime.parse(b.date));
-        case 'highest': return b.amount.compareTo(a.amount);
-        case 'lowest': return a.amount.compareTo(b.amount);
-        default: return 0;
+        case 'newest':
+          return DateTime.parse(b.date).compareTo(DateTime.parse(a.date));
+        case 'oldest':
+          return DateTime.parse(a.date).compareTo(DateTime.parse(b.date));
+        case 'highest':
+          return b.amount.compareTo(a.amount);
+        case 'lowest':
+          return a.amount.compareTo(b.amount);
+        default:
+          return 0;
       }
     });
 
     return list;
   }
 
-  Widget _buildTxDropdown(String label, String value, Map<String, String> options, ValueChanged<String> onChanged, bool isDark) {
+  Widget _buildTxDropdown(
+      String label,
+      String value,
+      Map<String, String> options,
+      ValueChanged<String> onChanged,
+      bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1062,8 +1470,14 @@ class HomeScreenState extends State<HomeScreen> {
             isExpanded: true,
             underline: const SizedBox(),
             borderRadius: BorderRadius.circular(12),
-            items: options.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 13)))).toList(),
-            onChanged: (v) { if (v != null) onChanged(v); },
+            items: options.entries
+                .map((e) => DropdownMenuItem(
+                    value: e.key,
+                    child: Text(e.value, style: const TextStyle(fontSize: 13))))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
           ),
         ),
       ],
@@ -1097,9 +1511,9 @@ class HomeScreenState extends State<HomeScreen> {
               child: Text(
                 _getDateGroupLabel(date),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
               ),
             ),
             Container(
@@ -1113,26 +1527,34 @@ class HomeScreenState extends State<HomeScreen> {
 
                   // Look up category for icon
                   final cat = (provider != null && t.categoryId != null)
-                      ? provider.categories.where((c) => c.id == t.categoryId).firstOrNull
+                      ? provider.categories
+                          .where((c) => c.id == t.categoryId)
+                          .firstOrNull
                       : null;
 
                   return Column(
                     children: [
                       GestureDetector(
-                        onTap: () => _showTransactionDetail(context, t, provider, cf, isDark),
+                        onTap: () => _showTransactionDetail(
+                            context, t, provider, cf, isDark),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
                           child: Row(
                             children: [
                               Container(
-                                width: 44, height: 44,
+                                width: 44,
+                                height: 44,
                                 decoration: BoxDecoration(
-                                  color: isDark ? tColor.withOpacity(0.12) : tColor.withOpacity(0.08),
+                                  color: isDark
+                                      ? tColor.withOpacity(0.12)
+                                      : tColor.withOpacity(0.08),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: cat != null
                                     ? _buildCategoryIcon(cat.icon, tColor)
-                                    : Icon(_getTransactionIcon(t.type), color: tColor, size: 20),
+                                    : Icon(_getTransactionIcon(t.type),
+                                        color: tColor, size: 20),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -1140,14 +1562,22 @@ class HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      t.note ?? cat?.name ?? _getTransactionTypeLabel(t.type),
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                      t.note ??
+                                          cat?.name ??
+                                          _getTransactionTypeLabel(t.type),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w600),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      t.description ?? DateFormat('h:mm a').format(tDate),
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                      t.description ??
+                                          DateFormat('h:mm a').format(tDate),
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
@@ -1170,20 +1600,27 @@ class HomeScreenState extends State<HomeScreen> {
                                   const SizedBox(height: 3),
                                   if (cat != null)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: tColor.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         cat.name,
-                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: tColor),
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w600,
+                                            color: tColor),
                                       ),
                                     )
                                   else
                                     Text(
                                       DateFormat('h:mm a').format(tDate),
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(fontSize: 10),
                                     ),
                                 ],
                               ),
@@ -1191,7 +1628,11 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      if (!isLast) Divider(height: 1, indent: 74, color: Theme.of(context).dividerColor),
+                      if (!isLast)
+                        Divider(
+                            height: 1,
+                            indent: 74,
+                            color: Theme.of(context).dividerColor),
                     ],
                   );
                 }).toList(),
@@ -1204,22 +1645,35 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   String _getTransactionTypeLabel(String type) {
+    final s = S.of(context);
     switch (type) {
-      case 'expense': return 'Expense';
-      case 'income': return 'Income';
-      case 'transfer': return 'Transfer';
-      case 'withdrawal': return 'Withdrawal';
-      default: return 'Transaction';
+      case 'expense':
+        return s.expense;
+      case 'income':
+        return s.incomeLabel;
+      case 'transfer':
+        return s.transfer;
+      case 'withdrawal':
+        return s.withdrawal;
+      case 'goal_contribution':
+        return s.goalContribution;
+      case 'debt_payment':
+        return s.debtPaymentLabel;
+      default:
+        return s.transaction;
     }
   }
 
-  void _showTransactionDetail(BuildContext context, dynamic t, AppProvider? provider, NumberFormat cf, bool isDark) {
+  void _showTransactionDetail(BuildContext context, dynamic t,
+      AppProvider? provider, NumberFormat cf, bool isDark) {
     final cat = (provider != null && t.categoryId != null)
         ? provider!.categories.where((c) => c.id == t.categoryId).firstOrNull
         : null;
-    final account = provider?.accounts.where((a) => a.id == t.accountId).firstOrNull;
+    final account =
+        provider?.accounts.where((a) => a.id == t.accountId).firstOrNull;
     final tColor = _getTransactionColor(t.type);
     final date = DateTime.parse(t.date);
+    final s = S.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -1227,7 +1681,8 @@ class HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
-          padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
+          padding: EdgeInsets.fromLTRB(
+              24, 12, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
           decoration: BoxDecoration(
             color: isDark ? AppTheme.darkSurface : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -1240,8 +1695,11 @@ class HomeScreenState extends State<HomeScreen> {
                 // Drag handle
                 Center(
                   child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -1249,11 +1707,15 @@ class HomeScreenState extends State<HomeScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 52, height: 52,
-                      decoration: BoxDecoration(color: tColor.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                          color: tColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16)),
                       child: cat != null
                           ? _buildCategoryIcon(cat.icon, tColor)
-                          : Icon(_getTransactionIcon(t.type), color: tColor, size: 24),
+                          : Icon(_getTransactionIcon(t.type),
+                              color: tColor, size: 24),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1261,51 +1723,87 @@ class HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            t.note ?? cat?.name ?? _getTransactionTypeLabel(t.type),
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                            t.note ??
+                                cat?.name ??
+                                _getTransactionTypeLabel(t.type),
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700),
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             DateFormat('MMM d, yyyy · h:mm a').format(date),
-                            style: TextStyle(fontSize: 13, color: Theme.of(ctx).textTheme.bodySmall?.color),
+                            style: TextStyle(
+                                fontSize: 13,
+                                color:
+                                    Theme.of(ctx).textTheme.bodySmall?.color),
                           ),
                         ],
                       ),
                     ),
                     Text(
                       '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: tColor),
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: tColor),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
                 // Info rows
                 if (t.description != null && t.description!.isNotEmpty)
-                  _detailInfoRow(ctx, Icons.notes_rounded, 'Description', t.description!),
+                  _detailInfoRow(
+                      ctx, Icons.notes_rounded, s.description, t.description!),
                 if (account != null)
-                  _detailInfoRow(ctx, Icons.account_balance_rounded, 'Account', account.name),
+                  _detailInfoRow(ctx, Icons.account_balance_rounded, s.account,
+                      account.name),
                 if (cat != null)
-                  _detailInfoRow(ctx, Icons.category_rounded, 'Category', cat.name),
+                  _detailInfoRow(
+                      ctx, Icons.category_rounded, s.category, cat.name),
                 if (t.type != null)
-                  _detailInfoRow(ctx, Icons.label_rounded, 'Type', _getTransactionTypeLabel(t.type)),
+                  _detailInfoRow(ctx, Icons.label_rounded, s.type,
+                      _getTransactionTypeLabel(t.type)),
                 if (t.expenseSubType != null)
-                  _detailInfoRow(ctx, Icons.repeat_rounded, 'Sub-type', t.expenseSubType![0].toUpperCase() + t.expenseSubType!.substring(1)),
+                  _detailInfoRow(
+                      ctx,
+                      Icons.repeat_rounded,
+                      s.subtype,
+                      t.expenseSubType![0].toUpperCase() +
+                          t.expenseSubType!.substring(1)),
                 if (t.isRecurring)
-                  _detailInfoRow(ctx, Icons.repeat_rounded, 'Recurring', 'Yes'),
+                  _detailInfoRow(ctx, Icons.repeat_rounded, s.recurring, s.yes),
 
                 // Receipt image
                 if (t.imagePath != null) ...[
                   const SizedBox(height: 8),
-                  Text('Receipt', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  Text(s.receipt,
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: t.imagePath!.startsWith('http')
-                        ? Image.network(t.imagePath!, width: double.infinity, height: 180, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(height: 180, color: Colors.grey.withOpacity(0.1), child: const Center(child: Icon(Icons.broken_image_rounded, size: 40))))
-                        : Image.file(File(t.imagePath!), width: double.infinity, height: 180, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(height: 180, color: Colors.grey.withOpacity(0.1), child: const Center(child: Icon(Icons.broken_image_rounded, size: 40)))),
+                        ? Image.network(t.imagePath!,
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                                height: 180,
+                                color: Colors.grey.withOpacity(0.1),
+                                child: const Center(
+                                    child: Icon(Icons.broken_image_rounded,
+                                        size: 40))))
+                        : Image.file(File(t.imagePath!),
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                                height: 180,
+                                color: Colors.grey.withOpacity(0.1),
+                                child: const Center(
+                                    child: Icon(Icons.broken_image_rounded,
+                                        size: 40)))),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -1325,30 +1823,42 @@ class HomeScreenState extends State<HomeScreen> {
                               showDialog<bool>(
                                 context: context,
                                 builder: (dCtx) => AlertDialog(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                  title: const Text('Delete Transaction?'),
-                                  content: Text('Delete "${t.note ?? _getTransactionTypeLabel(t.type)}"? This cannot be undone.'),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20)),
+                                  title: Text(s.deleteTransaction),
+                                  content: Text(s.deleteConfirm.replaceAll(
+                                      '{name}',
+                                      t.note ??
+                                          _getTransactionTypeLabel(t.type))),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dCtx, false),
+                                        child: Text(s.cancel)),
                                     TextButton(
                                       onPressed: () {
                                         Navigator.pop(dCtx, true);
                                         provider!.deleteTransaction(t.id);
                                       },
-                                      style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                                      child: const Text('Delete'),
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: AppTheme.error),
+                                      child: Text(s.delete),
                                     ),
                                   ],
                                 ),
                               );
                             }
                           },
-                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                          label: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w600)),
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18),
+                          label: const Text('Delete',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.error,
-                            side: BorderSide(color: AppTheme.error.withOpacity(0.3)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            side: BorderSide(
+                                color: AppTheme.error.withOpacity(0.3)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
                           ),
                         ),
                       ),
@@ -1365,15 +1875,21 @@ class HomeScreenState extends State<HomeScreen> {
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
-                              builder: (_) => AddTransactionModal(initialTransaction: t),
+                              builder: (_) =>
+                                  AddTransactionModal(initialTransaction: t),
                             );
                           },
                           icon: const Icon(Icons.edit_rounded, size: 18),
-                          label: const Text('Edit Transaction', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          label: Text(s.edit + ' ' + 'Transaction',
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight
+                                      .w700)), // TODO: improve localization
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.goldPrimary,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
                             elevation: 0,
                           ),
                         ),
@@ -1389,15 +1905,20 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _detailInfoRow(BuildContext context, IconData icon, String label, String value) {
+  Widget _detailInfoRow(
+      BuildContext context, IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+          Icon(icon,
+              size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
           const SizedBox(width: 8),
           Text('$label  ', style: Theme.of(context).textTheme.bodySmall),
-          Flexible(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+          Flexible(
+              child: Text(value,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
@@ -1410,9 +1931,11 @@ class HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(10),
         child: Image.file(
           File(path),
-          width: 40, height: 40,
+          width: 40,
+          height: 40,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Icon(Icons.category_rounded, color: color, size: 18),
+          errorBuilder: (_, __, ___) =>
+              Icon(Icons.category_rounded, color: color, size: 18),
         ),
       );
     }
@@ -1421,76 +1944,159 @@ class HomeScreenState extends State<HomeScreen> {
 
   IconData _categoryIconData(String iconName) {
     switch (iconName) {
-      case 'home': return Icons.home_rounded;
-      case 'flash': return Icons.flash_on_rounded;
-      case 'phone': return Icons.phone_android_rounded;
-      case 'tv': return Icons.tv_rounded;
-      case 'shield': return Icons.shield_rounded;
-      case 'credit_card': return Icons.credit_card_rounded;
-      case 'shopping_cart': return Icons.shopping_cart_rounded;
-      case 'car': return Icons.directions_car_rounded;
-      case 'restaurant': return Icons.restaurant_rounded;
-      case 'shopping_bag': return Icons.shopping_bag_rounded;
-      case 'favorite': return Icons.favorite_rounded;
-      case 'sports_esports': return Icons.sports_esports_rounded;
-      case 'face': return Icons.face_rounded;
-      case 'school': return Icons.school_rounded;
-      case 'flight': return Icons.flight_rounded;
-      case 'card_giftcard': return Icons.card_giftcard_rounded;
-      case 'pets': return Icons.pets_rounded;
-      case 'autorenew': return Icons.autorenew_rounded;
-      case 'fitness_center': return Icons.fitness_center_rounded;
-      case 'local_cafe': return Icons.local_cafe_rounded;
-      case 'child_care': return Icons.child_care_rounded;
-      case 'build': return Icons.build_rounded;
-      default: return Icons.category_rounded;
+      case 'home':
+        return Icons.home_rounded;
+      case 'flash':
+        return Icons.flash_on_rounded;
+      case 'phone':
+        return Icons.phone_android_rounded;
+      case 'tv':
+        return Icons.tv_rounded;
+      case 'shield':
+        return Icons.shield_rounded;
+      case 'credit_card':
+        return Icons.credit_card_rounded;
+      case 'shopping_cart':
+        return Icons.shopping_cart_rounded;
+      case 'car':
+        return Icons.directions_car_rounded;
+      case 'restaurant':
+        return Icons.restaurant_rounded;
+      case 'shopping_bag':
+        return Icons.shopping_bag_rounded;
+      case 'favorite':
+        return Icons.favorite_rounded;
+      case 'sports_esports':
+        return Icons.sports_esports_rounded;
+      case 'face':
+        return Icons.face_rounded;
+      case 'school':
+        return Icons.school_rounded;
+      case 'flight':
+        return Icons.flight_rounded;
+      case 'card_giftcard':
+        return Icons.card_giftcard_rounded;
+      case 'pets':
+        return Icons.pets_rounded;
+      case 'autorenew':
+        return Icons.autorenew_rounded;
+      case 'fitness_center':
+        return Icons.fitness_center_rounded;
+      case 'local_cafe':
+        return Icons.local_cafe_rounded;
+      case 'child_care':
+        return Icons.child_care_rounded;
+      case 'build':
+        return Icons.build_rounded;
+      default:
+        return Icons.category_rounded;
     }
   }
 
   IconData _getTransactionIcon(String type) {
     switch (type) {
-      case 'expense': return Icons.arrow_upward_rounded;
-      case 'income': return Icons.arrow_downward_rounded;
-      case 'transfer': return Icons.swap_horiz_rounded;
-      case 'withdrawal': return Icons.account_balance_wallet_rounded;
-      case 'goal_contribution': return Icons.savings_rounded;
-      case 'debt_payment': return Icons.credit_card_rounded;
-      default: return Icons.receipt_long_rounded;
+      case 'expense':
+        return Icons.arrow_upward_rounded;
+      case 'income':
+        return Icons.arrow_downward_rounded;
+      case 'transfer':
+        return Icons.swap_horiz_rounded;
+      case 'withdrawal':
+        return Icons.account_balance_wallet_rounded;
+      case 'goal_contribution':
+        return Icons.savings_rounded;
+      case 'debt_payment':
+        return Icons.credit_card_rounded;
+      default:
+        return Icons.receipt_long_rounded;
     }
   }
 
   Color _getTransactionColor(String type) {
     switch (type) {
-      case 'expense': return AppTheme.error;
-      case 'income': return AppTheme.success;
-      case 'transfer': return AppTheme.info;
-      case 'withdrawal': return AppTheme.warning;
-      case 'goal_contribution': return AppTheme.goldPrimary;
-      case 'debt_payment': return const Color(0xFF8B5CF6);
-      default: return AppTheme.lightTextTertiary;
+      case 'expense':
+        return AppTheme.error;
+      case 'income':
+        return AppTheme.success;
+      case 'transfer':
+        return AppTheme.info;
+      case 'withdrawal':
+        return AppTheme.warning;
+      case 'goal_contribution':
+        return AppTheme.goldPrimary;
+      case 'debt_payment':
+        return const Color(0xFF8B5CF6);
+      default:
+        return AppTheme.lightTextTertiary;
     }
   }
 
   String _getSelectedAccountName(AppProvider provider) {
     if (provider.selectedAccountId == null) return 'All Accounts';
-    final account = provider.accounts.where((a) => a.id == provider.selectedAccountId);
+    final account =
+        provider.accounts.where((a) => a.id == provider.selectedAccountId);
     return account.isNotEmpty ? account.first.name : 'All Accounts';
   }
 
+  Widget _buildHeaderAccountIcon(AppProvider provider) {
+    if (provider.selectedAccountId != null) {
+      final match =
+          provider.accounts.where((a) => a.id == provider.selectedAccountId);
+      if (match.isNotEmpty && match.first.imagePath != null) {
+        final path = match.first.imagePath!;
+        return SizedBox(
+          width: 18,
+          height: 18,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(5),
+            child: path.startsWith('http')
+                ? Image.network(path,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Icon(
+                        _getAccountIcon(provider),
+                        size: 16,
+                        color: AppTheme.goldPrimary))
+                : Image.file(File(path),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Icon(
+                        _getAccountIcon(provider),
+                        size: 16,
+                        color: AppTheme.goldPrimary)),
+          ),
+        );
+      }
+    }
+    return Icon(
+      provider.selectedAccountId == null
+          ? Icons.account_balance_wallet_rounded
+          : _getAccountIcon(provider),
+      size: 16,
+      color: AppTheme.goldPrimary,
+    );
+  }
+
   IconData _getAccountIcon(AppProvider provider) {
-    if (provider.selectedAccountId == null) return Icons.account_balance_wallet_rounded;
-    final account = provider.accounts.where((a) => a.id == provider.selectedAccountId);
+    if (provider.selectedAccountId == null)
+      return Icons.account_balance_wallet_rounded;
+    final account =
+        provider.accounts.where((a) => a.id == provider.selectedAccountId);
     if (account.isEmpty) return Icons.account_balance_wallet_rounded;
     switch (account.first.type) {
-      case 'bank': return Icons.account_balance_rounded;
-      case 'savings': return Icons.savings_rounded;
-      case 'investment': return Icons.trending_up_rounded;
-      case 'debt': return Icons.credit_card_rounded;
-      default: return Icons.account_balance_wallet_rounded;
+      case 'bank':
+        return Icons.account_balance_rounded;
+      case 'savings':
+        return Icons.savings_rounded;
+      case 'investment':
+        return Icons.trending_up_rounded;
+      case 'debt':
+        return Icons.credit_card_rounded;
+      default:
+        return Icons.account_balance_wallet_rounded;
     }
   }
 
   void _showAccountPicker(BuildContext context, AppProvider provider) {
+    final s = S.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -1505,30 +2111,58 @@ class HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 12),
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(2)))),
+              Center(
+                  child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: Theme.of(ctx).dividerColor,
+                          borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text('Select Account', style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                child: Text(s.selectAccount,
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
               ),
               const SizedBox(height: 16),
-              _buildAccountOption(ctx, null, 'All Accounts', Icons.account_balance_wallet_rounded, null, provider),
-              if (provider.accounts.isNotEmpty) Divider(height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
+              _buildAccountOption(ctx, null, s.allAccounts,
+                  Icons.account_balance_wallet_rounded, null, provider),
+              if (provider.accounts.isNotEmpty)
+                Divider(
+                    height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
               ...provider.accounts.asMap().entries.map((entry) {
                 final account = entry.value;
                 final isLast = entry.key == provider.accounts.length - 1;
                 IconData icon;
                 switch (account.type) {
-                  case 'bank': icon = Icons.account_balance_rounded; break;
-                  case 'savings': icon = Icons.savings_rounded; break;
-                  case 'investment': icon = Icons.trending_up_rounded; break;
-                  case 'debt': icon = Icons.credit_card_rounded; break;
-                  default: icon = Icons.account_balance_wallet_rounded;
+                  case 'bank':
+                    icon = Icons.account_balance_rounded;
+                    break;
+                  case 'savings':
+                    icon = Icons.savings_rounded;
+                    break;
+                  case 'investment':
+                    icon = Icons.trending_up_rounded;
+                    break;
+                  case 'debt':
+                    icon = Icons.credit_card_rounded;
+                    break;
+                  default:
+                    icon = Icons.account_balance_wallet_rounded;
                 }
                 return Column(
                   children: [
-                    _buildAccountOption(ctx, account.id, account.name, icon, account.balance, provider),
-                    if (!isLast) Divider(height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
+                    _buildAccountOption(ctx, account.id, account.name, icon,
+                        account.balance, provider,
+                        imagePath: account.imagePath),
+                    if (!isLast)
+                      Divider(
+                          height: 1,
+                          indent: 72,
+                          color: Theme.of(ctx).dividerColor),
                   ],
                 );
               }),
@@ -1545,6 +2179,7 @@ class HomeScreenState extends State<HomeScreen> {
     final cf = CurrencyHelper.formatter(provider.settings.currency);
     final allRules = provider.recurringRules.where((r) => r.isActive).toList()
       ..sort((a, b) => a.nextDate.compareTo(b.nextDate));
+    final s = S.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -1564,14 +2199,27 @@ class HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.12), borderRadius: BorderRadius.circular(2)))),
+              Center(
+                  child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.15)
+                              : Colors.black.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(2)))),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                 child: Row(
                   children: [
-                    Text('All Subscriptions', style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(s.allSubscriptions,
+                        style: Theme.of(ctx)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700)),
                     const Spacer(),
-                    Text('${allRules.length} active', style: Theme.of(ctx).textTheme.bodySmall),
+                    Text('${allRules.length} ' + s.active,
+                        style: Theme.of(ctx).textTheme.bodySmall),
                   ],
                 ),
               ),
@@ -1583,9 +2231,16 @@ class HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.autorenew_rounded, size: 48, color: Theme.of(ctx).textTheme.bodySmall?.color),
+                            Icon(Icons.autorenew_rounded,
+                                size: 48,
+                                color:
+                                    Theme.of(ctx).textTheme.bodySmall?.color),
                             const SizedBox(height: 16),
-                            Text('No subscriptions', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                            Text(s.noSubscriptions,
+                                style: Theme.of(ctx)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600)),
                           ],
                         ),
                       )
@@ -1593,33 +2248,58 @@ class HomeScreenState extends State<HomeScreen> {
                         controller: scrollController,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: allRules.length,
-                        separatorBuilder: (_, __) => Divider(height: 1, indent: 76, color: Theme.of(ctx).dividerColor),
+                        separatorBuilder: (_, __) => Divider(
+                            height: 1,
+                            indent: 76,
+                            color: Theme.of(ctx).dividerColor),
                         itemBuilder: (ctx, index) {
                           final rule = allRules[index];
                           return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 14),
                             child: Row(
                               children: [
                                 Container(
-                                  width: 42, height: 42,
+                                  width: 42,
+                                  height: 42,
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
+                                    color: isDark
+                                        ? AppTheme.darkSurfaceElevated
+                                        : AppTheme.lightBackground,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20),
+                                  child: const Icon(Icons.autorenew_rounded,
+                                      color: AppTheme.goldPrimary, size: 20),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(rule.templateTransaction.note ?? 'Subscription', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                      Text(
+                                          rule.templateTransaction.note ??
+                                              'Subscription',
+                                          style: Theme.of(ctx)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.w600)),
                                       const SizedBox(height: 2),
-                                      Text('Due ${DateFormat('MMM d').format(DateTime.parse(rule.nextDate))} · ${rule.frequency}', style: Theme.of(ctx).textTheme.bodySmall),
+                                      Text(
+                                          'Due ${DateFormat('MMM d').format(DateTime.parse(rule.nextDate))} · ${rule.frequency}',
+                                          style: Theme.of(ctx)
+                                              .textTheme
+                                              .bodySmall),
                                     ],
                                   ),
                                 ),
-                                Text(cf.format(rule.templateTransaction.amount), style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                Text(cf.format(rule.templateTransaction.amount),
+                                    style: Theme.of(ctx)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w700)),
                               ],
                             ),
                           );
@@ -1633,10 +2313,15 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAccountOption(BuildContext ctx, String? accountId, String name, IconData icon, double? balance, AppProvider provider) {
+  Widget _buildAccountOption(BuildContext ctx, String? accountId, String name,
+      IconData icon, double? balance, AppProvider provider,
+      {String? imagePath}) {
     final isSelected = provider.selectedAccountId == accountId;
     final isDark = Theme.of(ctx).brightness == Brightness.dark;
     final currencyFormat = CurrencyHelper.formatter(provider.settings.currency);
+    final iconColor = isSelected
+        ? AppTheme.goldPrimary
+        : Theme.of(ctx).textTheme.bodySmall?.color;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -1648,24 +2333,49 @@ class HomeScreenState extends State<HomeScreen> {
         child: Row(
           children: [
             Container(
-              width: 44, height: 44,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: isSelected ? AppTheme.goldPrimary.withOpacity(0.12) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+                color: isSelected
+                    ? AppTheme.goldPrimary.withOpacity(0.12)
+                    : (isDark
+                        ? AppTheme.darkSurfaceElevated
+                        : AppTheme.lightBackground),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 20, color: isSelected ? AppTheme.goldPrimary : Theme.of(ctx).textTheme.bodySmall?.color),
+              child: imagePath != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: imagePath.startsWith('http')
+                          ? Image.network(imagePath,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  Icon(icon, size: 20, color: iconColor))
+                          : Image.file(File(imagePath),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  Icon(icon, size: 20, color: iconColor)),
+                    )
+                  : Icon(icon, size: 20, color: iconColor),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : null)),
-                  if (balance != null) Text(currencyFormat.format(balance), style: Theme.of(ctx).textTheme.bodySmall),
+                  Text(name,
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? AppTheme.goldPrimary : null)),
+                  if (balance != null)
+                    Text(currencyFormat.format(balance),
+                        style: Theme.of(ctx).textTheme.bodySmall),
                 ],
               ),
             ),
-            if (isSelected) const Icon(Icons.check_circle_rounded, color: AppTheme.goldPrimary, size: 22),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded,
+                  color: AppTheme.goldPrimary, size: 22),
           ],
         ),
       ),

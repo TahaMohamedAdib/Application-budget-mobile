@@ -8,6 +8,11 @@ class Holding {
   final double costBasis;
   final double currentPrice;
   final String? notes;
+  /// ISO-8601 date string (yyyy-MM-dd) of when the user bought this holding.
+  final String? purchaseDate;
+  final String? sourceAccountId;
+  final bool affectsSourceBalance;
+  final double? sourceAmount;
 
   Holding({
     required this.id,
@@ -17,6 +22,10 @@ class Holding {
     required this.costBasis,
     this.currentPrice = 0,
     this.notes,
+    this.purchaseDate,
+    this.sourceAccountId,
+    this.affectsSourceBalance = false,
+    this.sourceAmount,
   });
 
   double get totalCost => shares * costBasis;
@@ -32,6 +41,10 @@ class Holding {
     double? costBasis,
     double? currentPrice,
     String? notes,
+    String? purchaseDate,
+    String? sourceAccountId,
+    bool? affectsSourceBalance,
+    double? sourceAmount,
   }) {
     return Holding(
       id: id ?? this.id,
@@ -41,6 +54,10 @@ class Holding {
       costBasis: costBasis ?? this.costBasis,
       currentPrice: currentPrice ?? this.currentPrice,
       notes: notes ?? this.notes,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
+      sourceAccountId: sourceAccountId ?? this.sourceAccountId,
+      affectsSourceBalance: affectsSourceBalance ?? this.affectsSourceBalance,
+      sourceAmount: sourceAmount ?? this.sourceAmount,
     );
   }
 
@@ -53,6 +70,10 @@ class Holding {
       'costBasis': costBasis,
       'currentPrice': currentPrice,
       'notes': notes,
+      'purchaseDate': purchaseDate,
+      'sourceAccountId': sourceAccountId,
+      'affectsSourceBalance': affectsSourceBalance,
+      'sourceAmount': sourceAmount,
     };
   }
 
@@ -65,6 +86,10 @@ class Holding {
       costBasis: (json['costBasis'] as num).toDouble(),
       currentPrice: (json['currentPrice'] as num?)?.toDouble() ?? 0,
       notes: json['notes'],
+      purchaseDate: json['purchaseDate'] as String?,
+      sourceAccountId: json['sourceAccountId'] as String?,
+      affectsSourceBalance: json['affectsSourceBalance'] ?? false,
+      sourceAmount: (json['sourceAmount'] as num?)?.toDouble(),
     );
   }
 

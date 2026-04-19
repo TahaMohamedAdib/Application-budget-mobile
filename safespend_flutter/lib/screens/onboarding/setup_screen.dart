@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:io';
+import '../../l10n/app_localizations.dart';
 import '../../providers/app_provider.dart';
 import '../../models/account.dart';
 import '../../theme/app_theme.dart';
@@ -105,6 +106,7 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
@@ -197,7 +199,7 @@ class _SetupScreenState extends State<SetupScreen> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                           )
                         : Text(
-                            _currentPage < 2 ? 'Continue' : 'Get Started',
+                            _currentPage < 2 ? s.next : s.getStarted,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -658,6 +660,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
@@ -674,7 +677,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Text('Select Currency', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(s.selectCurrency, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                     const Spacer(),
                     IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(context)),
                   ],
@@ -684,8 +687,13 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                   controller: _searchController,
                   onChanged: (v) => setState(() => _query = v.toLowerCase()),
                   decoration: InputDecoration(
-                    hintText: 'Search currency...',
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    hintText: s.searchCurrency,
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: 14, right: 8),
+                      child: Icon(Icons.search_rounded, size: 18,
+                          color: isDark ? Colors.white38 : Colors.black38),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
                     suffixIcon: _query.isNotEmpty
                         ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18), onPressed: () { _searchController.clear(); setState(() => _query = ''); })
                         : null,
@@ -713,6 +721,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
 
   List<Widget> _buildSections(bool isDark) {
     final widgets = <Widget>[];
+    final s = S.of(context);
     for (final entry in _sections.entries) {
       final codes = entry.value.where((code) {
         if (_query.isEmpty) return true;
@@ -775,6 +784,12 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
             );
           }).toList(),
         ),
+      ));
+    }
+    if (widgets.isEmpty) {
+      widgets.add(Padding(
+        padding: const EdgeInsets.only(top: 60),
+        child: Center(child: Text(s.noCurrenciesFound, style: Theme.of(context).textTheme.bodySmall)),
       ));
     }
     return widgets;

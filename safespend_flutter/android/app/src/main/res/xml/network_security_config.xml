@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Disallow cleartext (HTTP) traffic in production -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Pin certificates for our backend APIs -->
+    <domain-config>
+        <domain includeSubdomains="true">supabase.co</domain>
+        <pin-set expiration="2027-01-01">
+            <!-- Supabase uses Let's Encrypt / Cloudflare certs -->
+            <!-- ISRG Root X1 -->
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+            <!-- Backup: DigiCert Global Root G2 -->
+            <pin digest="SHA-256">i7WTqTvh0OioIruIfFR4kMPnBqrS2rdiVPl/s2uC/CY=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <pin-set expiration="2027-01-01">
+            <!-- GTS Root R1 (Google Trust Services) -->
+            <pin digest="SHA-256">hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=</pin>
+            <!-- Backup: GlobalSign Root CA -->
+            <pin digest="SHA-256">iie1VXtL7HzAMF+/PVEZ9dp2PGDVPYdqaVUzcDkd7WQ=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
