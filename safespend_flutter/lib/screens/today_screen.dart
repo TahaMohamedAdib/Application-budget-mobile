@@ -20,6 +20,7 @@ import 'transactions_screen.dart';
 import 'all_subscriptions_screen.dart';
 import '../widgets/add_transaction_modal.dart';
 import '../widgets/app_picker_field.dart';
+import '../widgets/storage_image.dart';
 import '../l10n/app_localizations.dart';
 import '../models/goal.dart';
 import '../models/recurring_rule.dart';
@@ -556,11 +557,13 @@ class HomeScreenState extends State<HomeScreen> {
                                                               rule.templateTransaction
                                                                   .accountId)
                                                           .firstOrNull;
-                                                      final imgPath = (cat !=
-                                                                  null &&
+                                                      final hasCategoryImage =
+                                                          cat != null &&
                                                               cat.icon
                                                                   .startsWith(
-                                                                      'img:'))
+                                                                      'img:');
+                                                      final imgPath =
+                                                          hasCategoryImage
                                                           ? cat.icon
                                                               .substring(4)
                                                           : acct?.imagePath;
@@ -582,24 +585,29 @@ class HomeScreenState extends State<HomeScreen> {
                                                                     BorderRadius
                                                                         .circular(
                                                                             14),
-                                                                child: imgPath
-                                                                        .startsWith(
-                                                                            'http')
-                                                                    ? Image.network(
-                                                                        imgPath,
-                                                                        fit: BoxFit
-                                                                            .cover,
-                                                                        errorBuilder: (_, __, ___) => const Iconify(
-                                                                            AppIcons
-                                                                                .autoRenew,
-                                                                            color: AppTheme
-                                                                                .brandPrimary,
-                                                                            size:
-                                                                                20))
-                                                                    : Image.file(
-                                                                        File(imgPath),
+                                                                child:
+                                                                    hasCategoryImage
+                                                                        ? (imgPath.startsWith('http')
+                                                                            ? Image.network(imgPath,
                                                                         fit: BoxFit.cover,
-                                                                        errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew, color: AppTheme.brandPrimary, size: 20)),
+                                                                                errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew, color: AppTheme.brandPrimary, size: 20))
+                                                                            : Image.file(File(imgPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew, color: AppTheme.brandPrimary, size: 20)))
+                                                                        : StorageImage(
+                                                                            stored:
+                                                                                imgPath,
+                                                                            width:
+                                                                                44,
+                                                                            height:
+                                                                                44,
+                                                                            fit:
+                                                                                BoxFit.cover,
+                                                                            errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew,
+                                                                                color: AppTheme.brandPrimary,
+                                                                                size: 20),
+                                                                            placeholder: const Iconify(AppIcons.autoRenew,
+                                                                                color: AppTheme.brandPrimary,
+                                                                                size: 20),
+                                                                          ),
                                                               )
                                                             : cat != null
                                                                 ? Iconify(
@@ -1048,12 +1056,14 @@ class HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                      color: AppTheme.brandPrimary.withOpacity(0.3), width: 1.5),
+                      color: AppTheme.brandPrimary.withOpacity(0.3),
+                      width: 1.5),
                 ),
                 child: Column(
                   children: [
                     Icon(Icons.flag_outlined,
-                        color: AppTheme.brandPrimary.withOpacity(0.5), size: 40),
+                        color: AppTheme.brandPrimary.withOpacity(0.5),
+                        size: 40),
                     const SizedBox(height: 12),
                     Text('No savings goals yet',
                         style: Theme.of(context)
@@ -1366,7 +1376,8 @@ class HomeScreenState extends State<HomeScreen> {
                                   height: 56,
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? AppTheme.brandPrimary.withOpacity(0.15)
+                                        ? AppTheme.brandPrimary
+                                            .withOpacity(0.15)
                                         : (isDark
                                             ? AppTheme.darkSurfaceElevated
                                             : const Color(0xFFF5F5F5)),
@@ -2395,19 +2406,15 @@ class HomeScreenState extends State<HomeScreen> {
                 child: imagePath != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: imagePath.startsWith('http')
-                            ? Image.network(imagePath,
+                        child: StorageImage(
+                          stored: imagePath,
                                 width: 44,
                                 height: 44,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) =>
-                                    Iconify(icon, color: iconColor, size: 28))
-                            : Image.file(File(imagePath),
-                                width: 44,
-                                height: 44,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    Iconify(icon, color: iconColor, size: 28)),
+                              Iconify(icon, color: iconColor, size: 28),
+                          placeholder: const SizedBox(width: 44, height: 44),
+                        ),
                       )
                     : Iconify(icon, color: iconColor, size: 28),
               ),
@@ -2866,8 +2873,8 @@ class HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: t.imagePath!.startsWith('http')
-                        ? Image.network(t.imagePath!,
+                    child: StorageImage(
+                      stored: t.imagePath!,
                             width: double.infinity,
                             height: 180,
                             fit: BoxFit.cover,
@@ -2875,18 +2882,11 @@ class HomeScreenState extends State<HomeScreen> {
                                 height: 180,
                                 color: Colors.grey.withOpacity(0.1),
                                 child: const Center(
-                                    child: Icon(Icons.broken_image_rounded,
-                                        size: 40))))
-                        : Image.file(File(t.imagePath!),
-                            width: double.infinity,
-                            height: 180,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                                height: 180,
-                                color: Colors.grey.withOpacity(0.1),
-                                child: const Center(
-                                    child: Icon(Icons.broken_image_rounded,
-                                        size: 40)))),
+                          child: Icon(Icons.broken_image_rounded, size: 40),
+                        ),
+                      ),
+                      placeholder: const SizedBox(height: 180),
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -3132,19 +3132,18 @@ class HomeScreenState extends State<HomeScreen> {
           height: 18,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(5),
-            child: path.startsWith('http')
-                ? Image.network(path,
+            child: StorageImage(
+              stored: path,
+              width: 18,
+              height: 18,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Icon(
                         _getAccountIcon(provider),
                         size: 16,
-                        color: AppTheme.brandPrimary))
-                : Image.file(File(path),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                        _getAccountIcon(provider),
-                        size: 16,
-                        color: AppTheme.brandPrimary)),
+                color: AppTheme.brandPrimary,
+              ),
+              placeholder: const SizedBox(width: 18, height: 18),
+            ),
           ),
         );
       }
@@ -3429,15 +3428,15 @@ class HomeScreenState extends State<HomeScreen> {
               child: imagePath != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: imagePath.startsWith('http')
-                          ? Image.network(imagePath,
+                      child: StorageImage(
+                        stored: imagePath,
+                        width: 44,
+                        height: 44,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) =>
-                                  Icon(icon, size: 20, color: iconColor))
-                          : Image.file(File(imagePath),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  Icon(icon, size: 20, color: iconColor)),
+                            Icon(icon, size: 20, color: iconColor),
+                        placeholder: const SizedBox(width: 44, height: 44),
+                      ),
                     )
                   : Icon(icon, size: 20, color: iconColor),
             ),

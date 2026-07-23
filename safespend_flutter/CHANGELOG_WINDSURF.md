@@ -589,3 +589,79 @@ Chaque test initialise `TestWidgetsFlutterBinding` et réinitialise
 - Tester manuellement chat texte, image, PDF et extraction transactionnelle.
 - Deno et Supabase CLI ne sont pas installés dans cet environnement : la
   fonction n'a pas été servie ni déployée réellement.
+
+## T2 — URLs signées pour les reçus/logos — 2026-07-23
+
+### Statut
+
+**TERMINÉ CÔTÉ CODE — passage des buckets en privé reste humain.**
+
+### Fichiers modifiés / créés
+
+- `lib/services/storage_url_resolver.dart` (nouveau)
+- `lib/widgets/storage_image.dart` (nouveau)
+- `lib/services/supabase_sync_service.dart`
+- `lib/screens/accounts_screen.dart`
+- `lib/screens/all_subscriptions_screen.dart`
+- `lib/screens/today_screen.dart`
+- `lib/screens/transactions_screen.dart`
+- `lib/screens/wealth_screen.dart`
+- `lib/screens/coach_screen.dart`
+- `lib/screens/onboarding/setup_screen.dart`
+- `lib/widgets/add_transaction_modal.dart`
+- `lib/widgets/app_picker_field.dart`
+- `supabase_migrations/20260723010000_secure_financial_storage.sql` (nouveau)
+- `supabase_complete_setup.sql`
+- `test/services/storage_url_resolver_test.dart` (nouveau)
+- `test/widgets/storage_image_test.dart` (nouveau)
+- `MIGRATIONS.md`, `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- `_uploadToStorage()` retourne désormais le chemin d'objet
+  `<bucket>/<uid>/<uuid>.jpg` (plus aucun `getPublicUrl()` dans `lib/`) ; c'est
+  ce chemin qui est persisté sur les modèles reçu/logo.
+- `SupabaseSyncService.getSignedUrl(stored, {expiresInSeconds = 3600})` délègue
+  à `StorageUrlResolver` : un chemin d'objet est signé via `createSignedUrl` ;
+  une ancienne URL Supabase publique/signée est reconvertie en `bucket/objet`
+  puis re-signée ; une URL externe ou un chemin local passe inchangé.
+- `StorageReferenceParser` restreint la reconnaissance aux buckets `receipts` et
+  `logos`, rejette les segments `.`/`..` et les échappements de chemin, et ne
+  reconnaît que l'origine Supabase configurée.
+- `StorageUrlResolver` met en cache par `(utilisateur|bucket/objet|durée)` avec
+  une marge de rafraîchissement proportionnelle, déduplique les signatures
+  concurrentes et purge le cache au changement d'utilisateur. Les URLs signées
+  ne sont jamais persistées.
+- Le widget `StorageImage` remplace les `Image.network` directs sur tous les
+  points d'affichage (reçus, logos de comptes) : il résout le chemin en URL
+  signée via `FutureBuilder`, affiche un placeholder pendant la résolution et
+  ne change pas l'apparence.
+- Migration `20260723010000_secure_financial_storage.sql` : buckets `receipts`
+  et `logos` en privé (`public = false`) avec `file_size_limit` et
+  `allowed_mime_types`, RLS activée sur `storage.objects`, politiques
+  propriétaire `auth.uid()::text = (storage.foldername(name))[1]`, et
+  neutralisation du trigger legacy pour les buckets financiers.
+
+### Décisions
+
+- Le resolver et le parseur sont des unités pures testables sans Supabase, ce
+  qui permet la couverture unitaire complète (parsing, cache, dédup, isolation
+  utilisateur).
+- Compatibilité héritée conservée : les anciennes URLs déjà stockées restent
+  affichables (re-signées), aucune migration de données n'est imposée.
+
+### Vérifications
+
+- `grep -rn "getPublicUrl" lib` : **0 occurrence**.
+- `flutter analyze --no-pub` : **557 issues**, 0 erreur, 37 warnings — aucun
+  nouveau diagnostic vs baseline (568).
+- `flutter test --no-pub` : **31 tests réussis, 100 % vert**.
+
+### Limites et étapes humaines
+
+- Appliquer `20260723010000_secure_financial_storage.sql` (voir `MIGRATIONS.md`).
+- Tant que les buckets ne sont pas privés en production, les anciennes URLs
+  publiques restent accessibles à quiconque les détient. Le passage en privé se
+  fait par la migration (ou le dashboard Storage).
+- Aucune vérification visuelle appareil n'a été effectuée : contrôler
+  l'affichage des reçus et logos après passage en privé.

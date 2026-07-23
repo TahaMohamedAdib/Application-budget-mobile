@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
@@ -17,6 +16,7 @@ import 'personal_debts_screen.dart';
 import 'portfolio_screen.dart';
 import 'daret_screen.dart';
 import 'settings_screen.dart';
+import '../widgets/storage_image.dart';
 
 class WealthScreen extends StatefulWidget {
   const WealthScreen({super.key});
@@ -169,15 +169,16 @@ class _WealthScreenState extends State<WealthScreen> {
               child: imagePath != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: (imagePath.startsWith('http')
-                          ? Image.network(imagePath,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  Iconify(icon, color: iconColor, size: 20))
-                          : Image.file(File(imagePath),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  Iconify(icon, color: iconColor, size: 20))),
+                      child: StorageImage(
+                        stored: imagePath,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            Iconify(icon, color: iconColor, size: 20),
+                        placeholder:
+                            Iconify(icon, color: iconColor, size: 20),
+                      ),
                     )
                   : Iconify(icon, color: iconColor, size: 20),
             ),
@@ -232,19 +233,20 @@ class _WealthScreenState extends State<WealthScreen> {
           height: 18,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(5),
-            child: path.startsWith('http')
-                ? Image.network(path,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                        _getAccountIcon(provider),
-                        size: 16,
-                        color: AppTheme.brandPrimary))
-                : Image.file(File(path),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                        _getAccountIcon(provider),
-                        size: 16,
-                        color: AppTheme.brandPrimary)),
+            child: StorageImage(
+              stored: path,
+              width: 18,
+              height: 18,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Icon(
+                  _getAccountIcon(provider),
+                  size: 16,
+                  color: AppTheme.brandPrimary),
+              placeholder: Icon(
+                  _getAccountIcon(provider),
+                  size: 16,
+                  color: AppTheme.brandPrimary),
+            ),
           ),
         );
       }

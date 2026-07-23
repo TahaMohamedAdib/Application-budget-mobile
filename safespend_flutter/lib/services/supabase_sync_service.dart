@@ -9,6 +9,7 @@ import 'image_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'supabase_config.dart';
+import 'storage_url_resolver.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
 import '../models/goal.dart';
@@ -73,6 +74,16 @@ class _QueuedSyncOperation {
 
 class SupabaseSyncService {
   static SupabaseClient? get _client => SupabaseConfig.client;
+
+  static final StorageUrlResolver _storageUrlResolver = StorageUrlResolver(
+    createSignedUrl: (bucket, objectPath, expiresInSeconds) {
+      return _db.storage
+          .from(bucket)
+          .createSignedUrl(objectPath, expiresInSeconds);
+    },
+    currentUserId: () => currentUserId,
+    supabaseUrl: () => SupabaseConfig.supabaseUrl,
+  );
 
   /// Throws if Supabase is unavailable — callers must be wrapped in try-catch.
   static SupabaseClient get _db {
@@ -655,13 +666,13 @@ class SupabaseSyncService {
   // ============================================
 
   /// Uploads a local image file to Supabase Storage bucket 'receipts'.
-  /// Returns the public URL on success, or null if upload fails.
+  /// Returns the stored bucket/object path on success, or null if upload fails.
   static Future<String?> uploadReceipt(String userId, String localPath) async {
     return _uploadToStorage(userId, localPath, 'receipts');
   }
 
   /// Uploads a local image file to Supabase Storage bucket 'logos'.
-  /// Returns the public URL on success, or null if upload fails.
+  /// Returns the stored bucket/object path on success, or null if upload fails.
   static Future<String?> uploadAccountLogo(
       String userId, String localPath) async {
     return _uploadToStorage(userId, localPath, 'logos');
@@ -682,17 +693,44 @@ class SupabaseSyncService {
       await _db.storage.from(bucket).uploadBinary(
             fileName,
             bytes,
-            fileOptions: FileOptions(
-              contentType: 'image/$ext',
-              upsert: true,
-            ),
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
-      return _db.storage.from(bucket).getPublicUrl(fileName);
+      return '$bucket/$fileName';
     } catch (e) {
       if (kDebugMode)
         debugPrint('[Supabase Storage] Error uploading to $bucket: $e');
       return null;
     }
+  }
+
+  /// Resolves private financial Storage objects to short-lived signed URLs.
+  ///
+  /// New `receipts/...` and `logos/...` paths, plus legacy public/signed
+  /// Supabase URLs, are signed. External HTTP URLs and local paths pass through
+  /// unchanged. Signed URLs are cached in memory and never persisted.
+  static Future<String?> getSignedUrl(
+    String stored, {
+    int expiresInSeconds = 3600,
+  }) async {
+    try {
+      return await _storageUrlResolver.resolve(
+        stored,
+        expiresInSeconds: expiresInSeconds,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Supabase Storage] Error creating signed URL: $e');
+      }
+      return null;
+    }
+  }
+
+  static bool isFinancialStorageReference(String stored) {
+    return StorageReferenceParser.parse(
+          stored,
+          supabaseUrl: SupabaseConfig.supabaseUrl,
+        ) !=
+        null;
   }
 
   // ============================================

@@ -23,6 +23,12 @@ Ordre chronologique des fichiers avec préfixe timestamp :
 - [ ] `20260723000000_add_transaction_goal_id.sql` — appliquée en production :
   **NON** — ajoute `transactions.goal_id`, clé étrangère UUID nullable vers
   `public.goals(id)` avec `ON DELETE SET NULL`, ainsi qu'un index.
+- [ ] `20260723010000_secure_financial_storage.sql` — appliquée en production :
+  **NON** (T2) — passe les buckets `receipts` et `logos` en privé avec
+  `file_size_limit` et `allowed_mime_types`, active RLS sur `storage.objects` et
+  installe des politiques propriétaire (`auth.uid()` = premier segment du
+  chemin), puis neutralise le trigger legacy pour les buckets financiers afin
+  qu'il ne devine plus le reçu/compte d'après l'ordre d'upload.
 
 Fichier sans préfixe timestamp :
 
@@ -80,7 +86,10 @@ Ordre provisoire à confirmer par l'humain avant exécution :
    `20260415010000_add_account_tracking_and_holding_funding.sql` est déjà
    appliquée ;
 3. appliquer `20260723000000_add_transaction_goal_id.sql` ;
-4. positionner manuellement `ai_conversations_and_projects.sql`, dont le nom ne
+4. appliquer `20260723010000_secure_financial_storage.sql` (T2) — après quoi les
+   anciennes URLs publiques cessent d'être servies ; les nouveaux uploads
+   stockent un chemin d'objet signé à la demande ;
+5. positionner manuellement `ai_conversations_and_projects.sql`, dont le nom ne
    fournit aucun ordre chronologique.
 
 Les migrations T4 et T5 seront ajoutées plus tard à cette liste. Conserver les

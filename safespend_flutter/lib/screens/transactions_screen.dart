@@ -13,6 +13,7 @@ import '../theme/app_icons.dart';
 import '../models/transaction.dart';
 import '../widgets/add_transaction_modal.dart';
 import '../widgets/modern_chart.dart';
+import '../widgets/storage_image.dart';
 import '../l10n/app_localizations.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -833,48 +834,31 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: t.imagePath!.startsWith('http')
-                              ? Image.network(
-                                  t.imagePath!,
-                                  width: double.infinity,
-                                  height: 180,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (_, child, progress) =>
-                                      progress == null
-                                          ? child
-                                          : Container(
-                                              height: 180,
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(ctx)
-                                                    .dividerColor
-                                                    .withOpacity(0.08),
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                              ),
-                                              child: const Center(
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                          strokeWidth: 2)),
-                                            ),
-                                  errorBuilder: (_, __, ___) => Container(
-                                    height: 180,
-                                    color: Colors.grey.withOpacity(0.1),
-                                    child: const Center(
-                                        child:
-                                            Iconify(AppIcons.image, size: 40)),
-                                  ),
-                                )
-                              : Image.file(File(t.imagePath!),
-                                  width: double.infinity,
-                                  height: 180,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                        height: 180,
-                                        color: Colors.grey.withOpacity(0.1),
-                                        child: const Center(
-                                            child: Iconify(AppIcons.image,
-                                                size: 40)),
-                                      )),
+                          child: StorageImage(
+                            stored: t.imagePath!,
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            placeholder: Container(
+                              height: 180,
+                              decoration: BoxDecoration(
+                                color:
+                                    Theme.of(ctx).dividerColor.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Center(
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                            errorBuilder: (_, __, ___) => Container(
+                              height: 180,
+                              color: Colors.grey.withOpacity(0.1),
+                              child: const Center(
+                                child: Iconify(AppIcons.image, size: 40),
+                              ),
+                            ),
+                          ),
                         ),
                         // Zoom hint badge
                         Positioned(
@@ -1039,29 +1023,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   child: InteractiveViewer(
                     minScale: 0.5,
                     maxScale: 6.0,
-                    child: imagePath.startsWith('http')
-                        ? Image.network(
-                            imagePath,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null
-                                    ? child
-                                    : const Center(
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white)),
-                            errorBuilder: (_, __, ___) => const Iconify(
-                                AppIcons.image,
-                                color: Colors.white54,
-                                size: 64),
-                          )
-                        : Image.file(
-                            File(imagePath),
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Iconify(
-                                AppIcons.image,
-                                color: Colors.white54,
-                                size: 64),
-                          ),
+                    child: StorageImage(
+                      stored: imagePath,
+                      fit: BoxFit.contain,
+                      placeholder: const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                      errorBuilder: (_, __, ___) => const Iconify(
+                        AppIcons.image,
+                        color: Colors.white54,
+                        size: 64,
+                      ),
+                    ),
                   ),
                 ),
                 // Close button

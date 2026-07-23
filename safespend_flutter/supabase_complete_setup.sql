@@ -320,42 +320,64 @@ CREATE TRIGGER on_auth_user_created
 
 -- Create 'receipts' bucket (transaction photos)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('receipts', 'receipts', true, 10485760, ARRAY['image/jpeg','image/png','image/webp','image/gif','image/heic'])
-ON CONFLICT (id) DO NOTHING;
+VALUES ('receipts', 'receipts', false, 10485760, ARRAY['image/jpeg','image/png','image/webp','image/gif','image/heic'])
+ON CONFLICT (id) DO UPDATE
+SET public = false,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- Create 'logos' bucket (account logos)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('logos', 'logos', true, 5242880, ARRAY['image/jpeg','image/png','image/webp','image/gif'])
-ON CONFLICT (id) DO NOTHING;
+VALUES ('logos', 'logos', false, 5242880, ARRAY['image/jpeg','image/png','image/webp','image/gif'])
+ON CONFLICT (id) DO UPDATE
+SET public = false,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- RLS policies for 'receipts'
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Receipts public read') THEN
-    CREATE POLICY "Receipts public read" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Receipts user upload') THEN
-    CREATE POLICY "Receipts user upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Receipts user update') THEN
-    CREATE POLICY "Receipts user update" ON storage.objects FOR UPDATE USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Receipts user delete') THEN
-    CREATE POLICY "Receipts user delete" ON storage.objects FOR DELETE USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
-  END IF;
-END $$;
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
--- RLS policies for 'logos'
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Logos public read') THEN
-    CREATE POLICY "Logos public read" ON storage.objects FOR SELECT USING (bucket_id = 'logos');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Logos user upload') THEN
-    CREATE POLICY "Logos user upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Logos user update') THEN
-    CREATE POLICY "Logos user update" ON storage.objects FOR UPDATE USING (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Logos user delete') THEN
-    CREATE POLICY "Logos user delete" ON storage.objects FOR DELETE USING (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);
-  END IF;
-END $$;
+-- Replace any public/legacy policies with authenticated owner-only CRUD.
+DROP POLICY IF EXISTS "Receipts public read" ON storage.objects;
+DROP POLICY IF EXISTS "Receipts user upload" ON storage.objects;
+DROP POLICY IF EXISTS "Receipts user update" ON storage.objects;
+DROP POLICY IF EXISTS "Receipts user delete" ON storage.objects;
+DROP POLICY IF EXISTS "Logos public read" ON storage.objects;
+DROP POLICY IF EXISTS "Logos user upload" ON storage.objects;
+DROP POLICY IF EXISTS "Logos user update" ON storage.objects;
+DROP POLICY IF EXISTS "Logos user delete" ON storage.objects;
+DROP POLICY IF EXISTS "Receipts owner select" ON storage.objects;
+DROP POLICY IF EXISTS "Receipts owner insert" ON storage.objects;
+DROP POLICY IF EXISTS "Receipts owner update" ON storage.objects;
+DROP POLICY IF EXISTS "Receipts owner delete" ON storage.objects;
+DROP POLICY IF EXISTS "Logos owner select" ON storage.objects;
+DROP POLICY IF EXISTS "Logos owner insert" ON storage.objects;
+DROP POLICY IF EXISTS "Logos owner update" ON storage.objects;
+DROP POLICY IF EXISTS "Logos owner delete" ON storage.objects;
+
+CREATE POLICY "Receipts owner select" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Receipts owner insert" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Receipts owner update" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1])
+  WITH CHECK (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Receipts owner delete" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Logos owner select" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Logos owner insert" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Logos owner update" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1])
+  WITH CHECK (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Logos owner delete" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);

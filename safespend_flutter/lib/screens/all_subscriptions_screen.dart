@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../utils/currency_helper.dart';
 import '../models/recurring_rule.dart';
 import '../models/transaction.dart';
+import '../widgets/storage_image.dart';
 
 class AllSubscriptionsScreen extends StatelessWidget {
   const AllSubscriptionsScreen({super.key});
@@ -144,7 +145,7 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                             child: cat != null && cat.icon.startsWith('img:')
                                                 ? _buildImageIcon(cat.icon.substring(4))
                                                 : account?.imagePath != null
-                                                    ? _buildImageIcon(account!.imagePath!)
+                                                    ? _buildAccountLogo(account!.imagePath!)
                                                     : cat != null
                                                         ? Icon(_categoryIconData(cat.icon), color: AppTheme.brandPrimary, size: 20)
                                                         : const Icon(Icons.autorenew_rounded, color: AppTheme.brandPrimary, size: 20),
@@ -209,6 +210,22 @@ class AllSubscriptionsScreen extends StatelessWidget {
     }
     return Image.file(File(path), fit: BoxFit.cover, width: 44, height: 44,
         errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.brandPrimary, size: 20));
+  }
+
+  Widget _buildAccountLogo(String path) {
+    const fallback = Icon(
+      Icons.autorenew_rounded,
+      color: AppTheme.brandPrimary,
+      size: 20,
+    );
+    return StorageImage(
+      stored: path,
+      width: 44,
+      height: 44,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => fallback,
+      placeholder: fallback,
+    );
   }
 
   IconData _categoryIconData(String iconName) {

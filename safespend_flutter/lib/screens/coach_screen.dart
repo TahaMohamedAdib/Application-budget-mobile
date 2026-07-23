@@ -1616,8 +1616,8 @@ class _CoachScreenState extends State<CoachScreen> {
   Future<String?> _uploadAiReceipt(String imagePath) async {
     final uid = SupabaseConfig.client?.auth.currentUser?.id;
     if (uid == null) return imagePath;
-    final url = await SupabaseSyncService.uploadReceipt(uid, imagePath);
-    return url ?? imagePath;
+    final storedPath = await SupabaseSyncService.uploadReceipt(uid, imagePath);
+    return storedPath ?? imagePath;
   }
 
   String _accountName(AppProvider provider, String id) {

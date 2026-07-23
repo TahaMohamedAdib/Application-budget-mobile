@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +10,7 @@ import '../utils/currency_helper.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/supabase_config.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/storage_image.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -211,23 +211,28 @@ class AccountsScreen extends StatelessWidget {
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             13),
-                                                    child: account.imagePath!
-                                                            .startsWith('http')
-                                                        ? Image.network(
-                                                            account.imagePath!,
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder: (_, __,
-                                                                    ___) =>
-                                                                Icon(_getAccountIcon(account.type),
-                                                                    color: _getAccountColor(account
-                                                                        .color),
-                                                                    size: 20))
-                                                        : Image.file(File(account.imagePath!),
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder: (_, __, ___) => Icon(
-                                                                _getAccountIcon(account.type),
-                                                                color: _getAccountColor(account.color),
-                                                                size: 20)),
+                                                    child: StorageImage(
+                                                      stored:
+                                                          account.imagePath!,
+                                                      width: 44,
+                                                      height: 44,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder:
+                                                          (_, __, ___) => Icon(
+                                                        _getAccountIcon(
+                                                            account.type),
+                                                        color: _getAccountColor(
+                                                            account.color),
+                                                        size: 20,
+                                                      ),
+                                                      placeholder: Icon(
+                                                        _getAccountIcon(
+                                                            account.type),
+                                                        color: _getAccountColor(
+                                                            account.color),
+                                                        size: 20,
+                                                      ),
+                                                    ),
                                                   )
                                                 : Icon(
                                                     _getAccountIcon(
@@ -443,6 +448,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
   String _selectedColor = '#B8860B';
   bool _includeInNetWorth = true;
   String? _imagePath;
+  bool _isUploadingLogo = false;
   bool _enableDebtPayment = false;
   int _debtPaymentDay = 1;
   String? _debtPaymentSourceId;
@@ -594,19 +600,22 @@ class _AddAccountModalState extends State<AddAccountModal> {
                       child: _imagePath != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(14),
-                              child: _imagePath!.startsWith('http')
-                                  ? Image.network(_imagePath!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Icon(
-                                          Icons.broken_image_rounded,
-                                          size: 28,
-                                          color: accentColor))
-                                  : Image.file(File(_imagePath!),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Icon(
-                                          Icons.broken_image_rounded,
-                                          size: 28,
-                                          color: accentColor)),
+                              child: StorageImage(
+                                stored: _imagePath!,
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.broken_image_rounded,
+                                  size: 28,
+                                  color: accentColor,
+                                ),
+                                placeholder: Icon(
+                                  _typeIcon(_selectedType),
+                                  size: 28,
+                                  color: accentColor,
+                                ),
+                              ),
                             )
                           : Icon(_typeIcon(_selectedType),
                               size: 28, color: accentColor),
@@ -614,22 +623,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                     const SizedBox(width: 14),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () async {
-                          final image = await ImagePicker().pickImage(
-                              source: ImageSource.gallery, imageQuality: 80);
-                          if (image != null) {
-                            setState(() => _imagePath = image.path);
-                            final uid =
-                                SupabaseConfig.client?.auth.currentUser?.id;
-                            if (uid != null) {
-                              final url =
-                                  await SupabaseSyncService.uploadAccountLogo(
-                                      uid, image.path);
-                              if (url != null && mounted)
-                                setState(() => _imagePath = url);
-                            }
-                          }
-                        },
+                        onTap: _isUploadingLogo ? null : _pickLogo,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 14),
@@ -786,7 +780,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _saveAccount,
+                  onPressed: _isUploadingLogo ? null : _saveAccount,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.brandPrimary,
                     foregroundColor: Colors.white,
@@ -880,7 +874,33 @@ class _AddAccountModalState extends State<AddAccountModal> {
     }
   }
 
+  Future<void> _pickLogo() async {
+    final image = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (image == null || !mounted) return;
+
+    final uid = SupabaseConfig.client?.auth.currentUser?.id;
+    setState(() {
+      _imagePath = image.path;
+      _isUploadingLogo = uid != null;
+    });
+    if (uid == null) return;
+
+    try {
+      final storedPath =
+          await SupabaseSyncService.uploadAccountLogo(uid, image.path);
+      if (storedPath != null && mounted) {
+        setState(() => _imagePath = storedPath);
+      }
+    } catch (_) {
+      // Keep the selected local image when the upload cannot complete.
+    } finally {
+      if (mounted) setState(() => _isUploadingLogo = false);
+    }
+  }
+
   void _saveAccount() {
+    if (_isUploadingLogo) return;
     if (_nameController.text.isEmpty) {
       final s = S.of(context);
       ScaffoldMessenger.of(context).showSnackBar(

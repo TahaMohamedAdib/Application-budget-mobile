@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
+import 'storage_image.dart';
 
 /// A tap-to-pick field that opens a bottom-sheet instead of a floating overlay.
 /// Drop-in replacement for DropdownButtonFormField inside modals / bottom sheets.
@@ -56,15 +56,7 @@ class AppPickerField<T> extends StatelessWidget {
               if (selected?.imagePath != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(5),
-                  child: selected!.imagePath!.startsWith('http')
-                      ? Image.network(selected.imagePath!, width: 18, height: 18, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => selected.leadingIcon != null
-                              ? Iconify(selected.leadingIcon!, size: 18, color: selected.iconColor ?? AppTheme.brandPrimary)
-                              : const SizedBox(width: 18, height: 18))
-                      : Image.file(File(selected.imagePath!), width: 18, height: 18, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => selected.leadingIcon != null
-                              ? Iconify(selected.leadingIcon!, size: 18, color: selected.iconColor ?? AppTheme.brandPrimary)
-                              : const SizedBox(width: 18, height: 18)),
+                  child: _buildStoredImage(selected!, 18),
                 ),
                 const SizedBox(width: 10),
               ] else if (selected?.leadingIcon != null) ...[
@@ -188,15 +180,7 @@ class AppPickerField<T> extends StatelessWidget {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: item.imagePath!.startsWith('http')
-                                ? Image.network(item.imagePath!, width: 36, height: 36, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => item.leadingIcon != null
-                                        ? Iconify(item.leadingIcon!, size: 18, color: item.iconColor ?? AppTheme.brandPrimary)
-                                        : const SizedBox())
-                                : Image.file(File(item.imagePath!), width: 36, height: 36, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => item.leadingIcon != null
-                                        ? Iconify(item.leadingIcon!, size: 18, color: item.iconColor ?? AppTheme.brandPrimary)
-                                        : const SizedBox()),
+                            child: _buildStoredImage(item, 36),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -245,6 +229,24 @@ class AppPickerField<T> extends StatelessWidget {
           ),
         ]),
       ),
+    );
+  }
+
+  Widget _buildStoredImage(AppPickerItem<T> item, double size) {
+    final fallback = item.leadingIcon != null
+        ? Iconify(
+            item.leadingIcon!,
+            size: 18,
+            color: item.iconColor ?? AppTheme.brandPrimary,
+          )
+        : SizedBox(width: size, height: size);
+    return StorageImage(
+      stored: item.imagePath!,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => fallback,
+      placeholder: fallback,
     );
   }
 }
