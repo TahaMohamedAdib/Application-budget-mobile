@@ -110,7 +110,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       case 'transfer': return AppTheme.info;
       case 'withdrawal': return AppTheme.warning;
       case 'expense': return AppTheme.error;
-      default: return AppTheme.goldPrimary;
+      default: return AppTheme.brandPrimary;
     }
   }
 
@@ -238,7 +238,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                         value: cat.id,
                         label: cat.name,
                         leadingIcon: _categoryIconData(cat.icon),
-                        iconColor: AppTheme.goldPrimary,
+                        iconColor: AppTheme.brandPrimary,
                       )).toList(),
                       onChanged: (v) => setState(() => _selectedCategoryId = v),
                     ),
@@ -593,7 +593,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                                       color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(Icons.receipt_long_rounded, size: 20, color: AppTheme.goldPrimary),
+                                    child: const Icon(Icons.receipt_long_rounded, size: 20, color: AppTheme.brandPrimary),
                                   ),
                                   const SizedBox(width: 14),
                                   Text('Attach receipt / photo', style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodySmall?.color)),
@@ -613,7 +613,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     child: ElevatedButton(
                       onPressed: () => _addTransaction(provider),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isLocked ? _typeColor : AppTheme.goldPrimary,
+                        backgroundColor: _isLocked ? _typeColor : AppTheme.brandPrimary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
@@ -645,18 +645,18 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? (value == null ? AppTheme.goldPrimary.withOpacity(0.12) : color.withOpacity(0.12)) : Colors.transparent,
+          color: isSelected ? (value == null ? AppTheme.brandPrimary.withOpacity(0.12) : color.withOpacity(0.12)) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? (value == null ? AppTheme.goldPrimary : color) : Theme.of(context).dividerColor,
+            color: isSelected ? (value == null ? AppTheme.brandPrimary : color) : Theme.of(context).dividerColor,
             width: 1.5,
           ),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: isSelected ? (value == null ? AppTheme.goldPrimary : color) : Theme.of(context).textTheme.bodySmall?.color),
+            Icon(icon, size: 18, color: isSelected ? (value == null ? AppTheme.brandPrimary : color) : Theme.of(context).textTheme.bodySmall?.color),
             const SizedBox(height: 3),
-            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isSelected ? (value == null ? AppTheme.goldPrimary : color) : Theme.of(context).textTheme.bodySmall?.color)),
+            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isSelected ? (value == null ? AppTheme.brandPrimary : color) : Theme.of(context).textTheme.bodySmall?.color)),
           ],
         ),
       ),
@@ -716,11 +716,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                 borderRadius: BorderRadius.circular(5),
                 child: acc.imagePath!.startsWith('http')
                     ? Image.network(acc.imagePath!, width: 20, height: 20, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary))
+                        errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.brandPrimary))
                     : Image.file(File(acc.imagePath!), width: 20, height: 20, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary)),
+                        errorBuilder: (_, __, ___) => Icon(_accountIcon(acc.type), size: 20, color: AppTheme.brandPrimary)),
               )
-            : Icon(_accountIcon(acc.type), size: 20, color: AppTheme.goldPrimary);
+            : Icon(_accountIcon(acc.type), size: 20, color: AppTheme.brandPrimary);
       }
     } else if (showCashOnHand) {
       // Auto-default to cash if nothing else selected
@@ -823,15 +823,15 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                         borderRadius: BorderRadius.circular(6),
                         child: a.imagePath!.startsWith('http')
                             ? Image.network(a.imagePath!, width: 22, height: 22, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary))
+                                errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.brandPrimary))
                             : Image.file(File(a.imagePath!), width: 22, height: 22, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary)),
+                                errorBuilder: (_, __, ___) => Icon(_accountIcon(a.type), size: 20, color: AppTheme.brandPrimary)),
                       )
-                    : Icon(_accountIcon(a.type), size: 20, color: AppTheme.goldPrimary);
+                    : Icon(_accountIcon(a.type), size: 20, color: AppTheme.brandPrimary);
                 return _buildAccountSheetRow(
                   ctx: ctx, isDark: isDark,
                   iconWidget: iconW,
-                  iconBg: AppTheme.goldPrimary.withOpacity(0.12),
+                  iconBg: AppTheme.brandPrimary.withOpacity(0.12),
                   name: a.name,
                   sublabel: a.bankName ?? (a.type[0].toUpperCase() + a.type.substring(1)),
                   balance: cf.format(a.balance),
@@ -884,7 +884,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
             const SizedBox(width: 10),
             Icon(
               isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-              color: isSelected ? AppTheme.goldPrimary : Theme.of(ctx).dividerColor,
+              color: isSelected ? AppTheme.brandPrimary : Theme.of(ctx).dividerColor,
               size: 22,
             ),
           ],
@@ -1010,7 +1010,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       provider.updateTransaction(transaction);
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Transaction updated'), backgroundColor: AppTheme.goldPrimary),
+        SnackBar(content: const Text('Transaction updated'), backgroundColor: AppTheme.brandPrimary),
       );
       return;
     }
@@ -1099,7 +1099,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_getTypeLabel(context)} added successfully'), backgroundColor: AppTheme.goldPrimary),
+      SnackBar(content: Text('${_getTypeLabel(context)} added successfully'), backgroundColor: AppTheme.brandPrimary),
     );
   }
 

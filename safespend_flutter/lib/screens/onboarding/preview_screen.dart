@@ -71,7 +71,7 @@ class PreviewScreen extends StatelessWidget {
                         'Wealth',
                         'Track your net worth and investments',
                         Icons.trending_up,
-                        AppTheme.goldPrimary,
+                        AppTheme.brandPrimary,
                       ),
                       _buildPreviewCard(
                         context,
@@ -97,7 +97,7 @@ class PreviewScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onNext,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
+                      backgroundColor: AppTheme.brandPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),

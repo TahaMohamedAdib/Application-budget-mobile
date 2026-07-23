@@ -345,3 +345,106 @@ le lot B2 suivant.
 - Le service envoie actuellement `fees` alors que les scripts de schéma racine
   déclarent `fee_amount`; cet écart préexistant est documenté mais hors du lot
   B autorisé.
+
+## Préphase B2 — solde disponible, thème, i18n et chargement — 2026-07-23
+
+### Statut
+
+**TERMINÉ.**
+
+La section B annoncée par le plan est désormais entièrement présente. T0 peut
+commencer.
+
+### Fichiers modifiés
+
+- `lib/providers/app_provider.dart`
+- `lib/main.dart`
+- `lib/l10n/app_localizations.dart`
+- `lib/l10n/translations_core.dart`
+- `lib/l10n/translations_extra.dart`
+- `lib/theme/app_colors.dart`
+- `lib/theme/app_theme.dart`
+- `lib/screens/account_screen.dart`
+- `lib/screens/accounts_screen.dart`
+- `lib/screens/all_subscriptions_screen.dart`
+- `lib/screens/auth_screen.dart`
+- `lib/screens/budgets_screen.dart`
+- `lib/screens/cash_on_hand_screen.dart`
+- `lib/screens/chat_widgets/chat_input_bar.dart`
+- `lib/screens/chat_widgets/message_bubble.dart`
+- `lib/screens/coach_screen.dart`
+- `lib/screens/daret_screen.dart`
+- `lib/screens/debt_screen.dart`
+- `lib/screens/goals_screen.dart`
+- `lib/screens/onboarding/aha_screen.dart`
+- `lib/screens/onboarding/hook_screen.dart`
+- `lib/screens/onboarding/language_selection_screen.dart`
+- `lib/screens/onboarding/preview_screen.dart`
+- `lib/screens/onboarding/setup_screen.dart`
+- `lib/screens/onboarding/welcome_screen.dart`
+- `lib/screens/personal_debts_screen.dart`
+- `lib/screens/plan_screen.dart`
+- `lib/screens/portfolio_screen.dart`
+- `lib/screens/settings_screen.dart`
+- `lib/screens/spending_screen.dart`
+- `lib/screens/today_screen.dart`
+- `lib/screens/transactions_screen.dart`
+- `lib/screens/wealth_screen.dart`
+- `lib/widgets/add_transaction_modal.dart`
+- `lib/widgets/app_picker_field.dart`
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- Les méthodes mortes et incorrectes `getSafeToSpendToday()` et
+  `getSafeToSpendMonth()` ont été supprimées.
+- La carte principale affiche la chaîne localisée `availableBalance` et délègue
+  son montant à `getBalanceForAccount(selectedAccountId)`. Sans filtre de
+  compte, le calcul exclut les investissements et inclut le cash.
+- `availableBalance` est présent dans les 16 langues ; `safeToSpend` a disparu.
+- Les clés réellement mortes `createDaretLabel`, `saveChangesLabel` et
+  `yourSlotsLabel` ainsi que leurs getters ont été supprimés.
+- Tous les identifiants, helpers et commentaires `gold*` ont été renommés en
+  `brand*` dans `lib/`, sans modifier les couleurs codées en dur hors du lot
+  explicitement autorisé.
+- La palette est désormais distincte :
+  `brandPrimary=#0B715F`, `success=#22C55E`, `info=#3B82F6`.
+- Les 24 littéraux sémantiques ciblés ont été remplacés par les constantes du
+  thème : 4 succès, 15 informations, 1 erreur et 4 couleurs primaires.
+- L'appel redondant à `loadFromSupabase()` dans `MainScreen.initState()` a été
+  retiré ; le chargement principal authentifié de `MyApp` reste inchangé.
+
+### Décisions
+
+- Le bleu `#3B82F6` associé à la catégorie de portefeuille `STOCK` reste un
+  choix catégoriel explicite ; il ne fait pas partie des 24 doublons
+  sémantiques.
+- Les reformulations françaises annoncées étaient déjà conformes et n'ont pas
+  été réécrites.
+- Aucun autre littéral de couleur n'a été harmonisé, conformément à
+  l'interdiction de changement visuel hors périmètre.
+
+### Checklist financière complète
+
+- Virements création/modification/suppression : **PASS**.
+- Objectifs et dettes liés : **PASS**.
+- Suppression de catégorie : **PASS**.
+- Récurrents et salaires automatiques, idempotence : **PASS**.
+- Solde disponible hors investissements, cash inclus : **PASS**.
+
+### Vérifications
+
+- `rg -i "gold" lib` : **0 occurrence**.
+- `rg "getSafeToSpend|safeToSpend" lib test` : **0 occurrence**.
+- `availableBalance` : **18 occurrences** — 16 traductions, 1 getter, 1 usage.
+- Clés i18n mortes : **0 occurrence**.
+- `loadFromSupabase` dans `lib/main.dart` : **1 occurrence**.
+- `flutter analyze` : **560 issues**, soit 8 de moins que la baseline, aucune
+  erreur et aucun nouveau diagnostic.
+- `flutter test` : **15 tests réussis, 100 % vert**.
+
+### Limites et étapes humaines
+
+- Vérifier visuellement en thèmes clair et sombre la carte de solde, les états
+  succès/info et les principaux parcours. Aucun appareil n'a été utilisé par
+  Codex.

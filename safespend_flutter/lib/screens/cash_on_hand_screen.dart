@@ -68,7 +68,7 @@ class CashOnHandScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: Container(
                       padding: const EdgeInsets.all(24),
-                      decoration: AppTheme.goldCard(),
+                      decoration: AppTheme.brandCard(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

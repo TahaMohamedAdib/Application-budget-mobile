@@ -169,12 +169,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               height: 48,
                               decoration: BoxDecoration(
                                 color: _showFilters
-                                    ? AppTheme.goldPrimary.withOpacity(0.2)
+                                    ? AppTheme.brandPrimary.withOpacity(0.2)
                                     : Theme.of(context).cardColor,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: _showFilters
-                                      ? AppTheme.goldPrimary
+                                      ? AppTheme.brandPrimary
                                       : Theme.of(context).dividerColor,
                                 ),
                               ),
@@ -182,7 +182,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 icon: Iconify(
                                   AppIcons.filter,
                                   color: _showFilters
-                                      ? AppTheme.goldPrimary
+                                      ? AppTheme.brandPrimary
                                       : Theme.of(context).iconTheme.color,
                                 ),
                                 onPressed: () => setState(
@@ -379,7 +379,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         chartLabel = 'Withdrawals';
         break;
       default:
-        lineColor = AppTheme.goldPrimary;
+        lineColor = AppTheme.brandPrimary;
         chartLabel = 'Spending';
         break;
     }
@@ -978,7 +978,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               style: TextStyle(
                                   fontSize: 15, fontWeight: FontWeight.w700)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.goldPrimary,
+                            backgroundColor: AppTheme.brandPrimary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
@@ -1219,7 +1219,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       case 'withdrawal':
         return AppTheme.warning;
       case 'goal_contribution':
-        return AppTheme.goldPrimary;
+        return AppTheme.brandPrimary;
       case 'debt_payment':
         return const Color(0xFF8B5CF6);
       default:

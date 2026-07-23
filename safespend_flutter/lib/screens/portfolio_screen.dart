@@ -855,7 +855,7 @@ class _PortfolioScreenState extends State<PortfolioScreen>
 
   Color _getBarColor(int index) {
     const colors = [
-      const Color(0xFF0B715F),
+      AppTheme.brandPrimary,
       Color(0xFF6366F1),
       Color(0xFFF59E0B),
       Color(0xFF06B6D4),
@@ -1192,20 +1192,20 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: AppTheme.goldPrimary.withOpacity(0.1),
+                      color: AppTheme.brandPrimary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: AppTheme.goldPrimary.withOpacity(0.3)),
+                          color: AppTheme.brandPrimary.withOpacity(0.3)),
                     ),
                     child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Iconify(AppIcons.edit,
-                              color: AppTheme.goldPrimary, size: 14),
+                              color: AppTheme.brandPrimary, size: 14),
                           SizedBox(width: 5),
                           Text('Edit',
                               style: TextStyle(
-                                  color: AppTheme.goldPrimary,
+                                  color: AppTheme.brandPrimary,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13)),
                         ]),
@@ -1363,7 +1363,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
 
   static const _palette = [
     Color(0xFF6366F1),
-    Color(0xFF0B715F),
+    AppTheme.brandPrimary,
     Color(0xFFF59E0B),
     Color(0xFF06B6D4),
     Color(0xFF8B5CF6),
@@ -2830,7 +2830,7 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                               ),
                             'ETF' => ('ETF', const Color(0xFF8B5CF6)),
                             'CURRENCY' => ('FOREX', const Color(0xFF06B6D4)),
-                            'MUTUALFUND' => ('FUND', const Color(0xFF0B715F)),
+                            'MUTUALFUND' => ('FUND', AppTheme.brandPrimary),
                             _ => ('STOCK', const Color(0xFF3B82F6)),
                           };
                           return InkWell(
@@ -3097,7 +3097,7 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                           subtitle:
                               '$currencySymbol${account.balance.toStringAsFixed(2)} available · tracked from ${DateFormat('MMM d, yyyy').format(_accountTrackingStart(account))}',
                           leadingIcon: AppIcons.bank,
-                          iconColor: const Color(0xFF3B82F6),
+                          iconColor: AppTheme.info,
                           imagePath: account.imagePath,
                         ),
                       )
@@ -3184,7 +3184,7 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                 child: ElevatedButton(
                   onPressed: _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.goldPrimary,
+                    backgroundColor: AppTheme.brandPrimary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -3312,7 +3312,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
         value: AppProvider.cashOnHandId,
         child: Row(children: [
           const Icon(Icons.payments_rounded,
-              size: 18, color: AppTheme.goldPrimary),
+              size: 18, color: AppTheme.brandPrimary),
           const SizedBox(width: 10),
           Expanded(
               child: Text(
@@ -3326,7 +3326,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
               value: a.id,
               child: Row(children: [
                 const Icon(Icons.account_balance_rounded,
-                    size: 18, color: Color(0xFF3B82F6)),
+                    size: 18, color: AppTheme.info),
                 const SizedBox(width: 10),
                 Expanded(
                     child: Text(
@@ -3463,11 +3463,11 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                       ? 'Live price: ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)}  ·  tap to use'
                       : null,
                   helperStyle: const TextStyle(
-                      color: AppTheme.goldPrimary, fontSize: 11),
+                      color: AppTheme.brandPrimary, fontSize: 11),
                   suffixIcon: widget.holding.currentPrice > 0
                       ? IconButton(
                           icon: const Icon(Icons.flash_on_rounded,
-                              size: 18, color: AppTheme.goldPrimary),
+                              size: 18, color: AppTheme.brandPrimary),
                           tooltip: 'Use live price',
                           onPressed: () {
                             _priceCtrl.text =
@@ -3493,7 +3493,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                     subtitle:
                         '${_sym}${widget.cashBalance.toStringAsFixed(2)} available',
                     leadingIcon: AppIcons.money,
-                    iconColor: AppTheme.goldPrimary,
+                    iconColor: AppTheme.brandPrimary,
                   ),
                   ...widget.accounts.where((a) => a.type != 'investment').map(
                         (a) => AppPickerItem(
@@ -3502,7 +3502,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                           subtitle:
                               '${_sym}${a.balance.toStringAsFixed(2)} available',
                           leadingIcon: AppIcons.bank,
-                          iconColor: const Color(0xFF3B82F6),
+                          iconColor: AppTheme.info,
                           imagePath: a.imagePath,
                         ),
                       ),
@@ -3608,7 +3608,7 @@ class _QuickFillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppTheme.goldPrimary;
+    final c = color ?? AppTheme.brandPrimary;
     return GestureDetector(
       onTap: onTap,
       child: Container(

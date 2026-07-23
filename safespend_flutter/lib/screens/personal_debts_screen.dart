@@ -330,14 +330,14 @@ class PersonalDebtsScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: BoxDecoration(
-                    color: AppTheme.goldPrimary.withOpacity(0.12),
+                    color: AppTheme.brandPrimary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppTheme.goldPrimary.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.brandPrimary.withOpacity(0.3)),
                   ),
                   child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.edit_rounded, color: AppTheme.goldPrimary, size: 14),
+                    Icon(Icons.edit_rounded, color: AppTheme.brandPrimary, size: 14),
                     SizedBox(width: 4),
-                    Text('Edit', style: TextStyle(color: AppTheme.goldPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                    Text('Edit', style: TextStyle(color: AppTheme.brandPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
                   ]),
                 ),
               ),
@@ -437,13 +437,13 @@ class PersonalDebtsScreen extends StatelessWidget {
                   value: AppProvider.cashOnHandId,
                   label: 'Cash on Hand',
                   leadingIcon: AppIcons.money,
-                  iconColor: AppTheme.goldPrimary,
+                  iconColor: AppTheme.brandPrimary,
                 ),
                 ...provider.accounts.map((a) => AppPickerItem(
                   value: a.id,
                   label: a.name,
                   leadingIcon: AppIcons.bank,
-                  iconColor: const Color(0xFF3B82F6),
+                  iconColor: AppTheme.info,
                 )),
               ],
               onChanged: (v) => setModal(() => targetAccountId = v ?? AppProvider.cashOnHandId),
@@ -616,7 +616,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                           icon: emoji,
                         ));
                         Navigator.pop(ctx);
-                        messenger.showSnackBar(SnackBar(content: Text('"$name" updated'), backgroundColor: AppTheme.goldPrimary));
+                        messenger.showSnackBar(SnackBar(content: Text('"$name" updated'), backgroundColor: AppTheme.brandPrimary));
                       } else {
                         provider.addGoal(Goal(
                           id: const Uuid().v4(),

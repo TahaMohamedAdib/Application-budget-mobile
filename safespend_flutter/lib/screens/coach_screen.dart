@@ -1540,7 +1540,7 @@ class _CoachScreenState extends State<CoachScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogCtx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.goldPrimary,
+              backgroundColor: AppTheme.brandPrimary,
               foregroundColor: Colors.white,
             ),
             child: const Text('Confirm & save'),
@@ -2392,7 +2392,7 @@ class _CoachScreenState extends State<CoachScreen> {
             },
             child: Text(s.save,
                 style: GoogleFonts.inter(
-                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+                    color: AppTheme.brandPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -2562,7 +2562,7 @@ class _CoachScreenState extends State<CoachScreen> {
             },
             child: Text(s.save,
                 style: GoogleFonts.inter(
-                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+                    color: AppTheme.brandPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -2668,7 +2668,7 @@ class _CoachScreenState extends State<CoachScreen> {
                 const SizedBox(height: 12),
                 // New project button
                 _actionTile(ctx, AppIcons.add, s.newProject,
-                    AppTheme.goldPrimary, AppTheme.goldPrimary, onTap: () {
+                    AppTheme.brandPrimary, AppTheme.brandPrimary, onTap: () {
                   _showNewProjectDialog(isDark, onCreated: (projectId) {
                     _assignConvoToProject(conv, projectId);
                     Navigator.pop(ctx);
@@ -2791,7 +2791,7 @@ class _CoachScreenState extends State<CoachScreen> {
             },
             child: Text(s.create,
                 style: GoogleFonts.inter(
-                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+                    color: AppTheme.brandPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -3047,7 +3047,7 @@ class _CoachScreenState extends State<CoachScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.goldPrimary.withOpacity(0.12),
+              color: AppTheme.brandPrimary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.lock_outline_rounded,
@@ -3130,7 +3130,7 @@ class _AttachSheet extends StatelessWidget {
           Row(
             children: [
               _option(context, isDark, Icons.photo_library_rounded, s.photo,
-                  AppTheme.goldPrimary, onPhoto),
+                  AppTheme.brandPrimary, onPhoto),
               const SizedBox(width: 12),
               _option(context, isDark, Icons.camera_alt_rounded, s.camera,
                   const Color(0xFF6C6EF7), onCamera),

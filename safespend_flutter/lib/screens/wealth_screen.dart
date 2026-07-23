@@ -27,12 +27,12 @@ class WealthScreen extends StatefulWidget {
 
 class _WealthScreenState extends State<WealthScreen> {
   Color _colorFromHex(String? hex) {
-    if (hex == null || hex.isEmpty) return AppTheme.goldPrimary;
+    if (hex == null || hex.isEmpty) return AppTheme.brandPrimary;
     try {
       final cleaned = hex.replaceFirst('#', '');
       return Color(int.parse('FF$cleaned', radix: 16));
     } catch (_) {
-      return AppTheme.goldPrimary;
+      return AppTheme.brandPrimary;
     }
   }
 
@@ -89,7 +89,7 @@ class _WealthScreenState extends State<WealthScreen> {
                   isDark: isDark,
                   cf: cf,
                   icon: AppIcons.wallet,
-                  iconColor: AppTheme.goldPrimary,
+                  iconColor: AppTheme.brandPrimary,
                   name: s.allAccounts,
                   sublabel: s.accountsCombined,
                   balance: provider.accounts.fold(0.0, (s, a) => s + a.balance),
@@ -204,7 +204,7 @@ class _WealthScreenState extends State<WealthScreen> {
             Iconify(
               isSelected ? AppIcons.checkCircle : AppIcons.circleEmpty,
               color: isSelected
-                  ? AppTheme.goldPrimary
+                  ? AppTheme.brandPrimary
                   : Theme.of(ctx).dividerColor,
               size: 22,
             ),
@@ -238,13 +238,13 @@ class _WealthScreenState extends State<WealthScreen> {
                     errorBuilder: (_, __, ___) => Icon(
                         _getAccountIcon(provider),
                         size: 16,
-                        color: AppTheme.goldPrimary))
+                        color: AppTheme.brandPrimary))
                 : Image.file(File(path),
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Icon(
                         _getAccountIcon(provider),
                         size: 16,
-                        color: AppTheme.goldPrimary)),
+                        color: AppTheme.brandPrimary)),
           ),
         );
       }
@@ -254,7 +254,7 @@ class _WealthScreenState extends State<WealthScreen> {
           ? Icons.account_balance_wallet_rounded
           : _getAccountIcon(provider),
       size: 16,
-      color: AppTheme.goldPrimary,
+      color: AppTheme.brandPrimary,
     );
   }
 
@@ -406,7 +406,7 @@ class _WealthScreenState extends State<WealthScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: Container(
                       padding: const EdgeInsets.all(24),
-                      decoration: AppTheme.goldCard(),
+                      decoration: AppTheme.brandCard(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -439,13 +439,13 @@ class _WealthScreenState extends State<WealthScreen> {
                           // Stats: Balance | Net Debt | Investments
                           Row(
                             children: [
-                              _goldStatCol(
+                              _brandStatCol(
                                   s.balance,
                                   cf.format(selectedBalance),
                                   selectedBalance >= 0
                                       ? AppTheme.success
                                       : const Color(0xFFFF8A80)),
-                              _goldStatCol(
+                              _brandStatCol(
                                   s.debt,
                                   netDebt >= 0
                                       ? '+${cf.format(netDebt)}'
@@ -453,7 +453,7 @@ class _WealthScreenState extends State<WealthScreen> {
                                   netDebt >= 0
                                       ? AppTheme.success
                                       : const Color(0xFFFF8A80)),
-                              _goldStatCol(
+                              _brandStatCol(
                                   s.investments,
                                   cf.format(totalInvestments),
                                   const Color(0xFFA78BFA)),
@@ -491,7 +491,7 @@ class _WealthScreenState extends State<WealthScreen> {
                             label: s.accounts,
                             sublabel: s.checkingCurrent,
                             amount: totalBank,
-                            color: const Color(0xFF3B82F6),
+                            color: AppTheme.info,
                             isFirst: true,
                             onTap: () => Navigator.push(
                                 context,
@@ -505,7 +505,7 @@ class _WealthScreenState extends State<WealthScreen> {
                             label: s.cashOnHand,
                             sublabel: s.fromWithdrawals,
                             amount: totalCash,
-                            color: AppTheme.goldPrimary,
+                            color: AppTheme.brandPrimary,
                             onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -531,7 +531,7 @@ class _WealthScreenState extends State<WealthScreen> {
                             label: s.debt,
                             sublabel: s.loansAndDebts,
                             amount: -totalDebt,
-                            color: const Color(0xFFEF4444),
+                            color: AppTheme.error,
                             onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -658,7 +658,7 @@ class _WealthScreenState extends State<WealthScreen> {
     );
   }
 
-  Widget _goldStatCol(String label, String value, Color valueColor) {
+  Widget _brandStatCol(String label, String value, Color valueColor) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

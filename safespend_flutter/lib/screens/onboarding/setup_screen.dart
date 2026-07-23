@@ -145,7 +145,7 @@ class _SetupScreenState extends State<SetupScreen> {
                             margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
                             height: 4,
                             decoration: BoxDecoration(
-                              color: active ? AppTheme.goldPrimary : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBorder),
+                              color: active ? AppTheme.brandPrimary : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBorder),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -188,9 +188,9 @@ class _SetupScreenState extends State<SetupScreen> {
                 child: Container(
                   height: 56,
                   decoration: BoxDecoration(
-                    color: AppTheme.goldPrimary,
+                    color: AppTheme.brandPrimary,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: AppTheme.goldGlow,
+                    boxShadow: AppTheme.brandGlow,
                   ),
                   child: Center(
                     child: _isSaving
@@ -244,7 +244,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: AppTheme.goldPrimary.withOpacity(0.4),
+                    color: AppTheme.brandPrimary.withOpacity(0.4),
                     width: 2,
                   ),
                   boxShadow: isDark ? [] : AppTheme.cardShadowLight,
@@ -256,11 +256,11 @@ class _SetupScreenState extends State<SetupScreen> {
                     ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_a_photo_rounded, size: 26, color: AppTheme.goldPrimary),
+                          Icon(Icons.add_a_photo_rounded, size: 26, color: AppTheme.brandPrimary),
                           const SizedBox(height: 6),
                           Text(
                             'Bank Logo',
-                            style: TextStyle(fontSize: 11, color: AppTheme.goldPrimary, fontWeight: FontWeight.w600),
+                            style: TextStyle(fontSize: 11, color: AppTheme.brandPrimary, fontWeight: FontWeight.w600),
                           ),
                         ],
                       )
@@ -340,13 +340,13 @@ class _SetupScreenState extends State<SetupScreen> {
                   Container(
                     width: 44, height: 44,
                     decoration: BoxDecoration(
-                      color: AppTheme.goldPrimary.withOpacity(0.12),
+                      color: AppTheme.brandPrimary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: Text(
                         CurrencyHelper.getSymbol(_currency),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.goldPrimary),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.brandPrimary),
                       ),
                     ),
                   ),
@@ -462,9 +462,9 @@ class _SetupScreenState extends State<SetupScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.goldPrimary : Colors.transparent,
+            color: isSelected ? AppTheme.brandPrimary : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? AppTheme.goldPrimary : (isDark ? Colors.white.withOpacity(0.09) : AppTheme.lightBorder)),
+            border: Border.all(color: isSelected ? AppTheme.brandPrimary : (isDark ? Colors.white.withOpacity(0.09) : AppTheme.lightBorder)),
           ),
           child: Center(
             child: Text(
@@ -551,10 +551,10 @@ class _SetupScreenState extends State<SetupScreen> {
         Container(
           width: 56, height: 56,
           decoration: BoxDecoration(
-            color: AppTheme.goldPrimary.withOpacity(0.12),
+            color: AppTheme.brandPrimary.withOpacity(0.12),
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Icon(icon, size: 28, color: AppTheme.goldPrimary),
+          child: Icon(icon, size: 28, color: AppTheme.brandPrimary),
         ),
         const SizedBox(height: 16),
         Text(
@@ -603,7 +603,7 @@ class _SetupScreenState extends State<SetupScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppTheme.goldPrimary, width: 1.5),
+          borderSide: const BorderSide(color: AppTheme.brandPrimary, width: 1.5),
         ),
         filled: true,
         fillColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
@@ -757,11 +757,11 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                         Container(
                           width: 38, height: 38,
                           decoration: BoxDecoration(
-                            color: isSelected ? AppTheme.goldPrimary.withOpacity(0.12) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+                            color: isSelected ? AppTheme.brandPrimary.withOpacity(0.12) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Center(
-                            child: Text(symbol, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isSelected ? AppTheme.goldPrimary : (isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary))),
+                            child: Text(symbol, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isSelected ? AppTheme.brandPrimary : (isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary))),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -769,12 +769,12 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(code, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : (isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary))),
+                              Text(code, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isSelected ? AppTheme.brandPrimary : (isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary))),
                               Text(name, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.darkTextTertiary : AppTheme.lightTextTertiary)),
                             ],
                           ),
                         ),
-                        if (isSelected) const Icon(Icons.check_circle_rounded, size: 20, color: AppTheme.goldPrimary),
+                        if (isSelected) const Icon(Icons.check_circle_rounded, size: 20, color: AppTheme.brandPrimary),
                       ],
                     ),
                   ),

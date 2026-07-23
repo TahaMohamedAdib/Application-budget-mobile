@@ -157,15 +157,15 @@ class _SplashScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.account_balance_wallet_rounded,
-                size: 64, color: AppTheme.goldPrimary),
+                size: 64, color: AppTheme.brandPrimary),
             const SizedBox(height: 16),
             Text('SafeSpend',
                 style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.goldPrimary)),
+                    color: AppTheme.brandPrimary)),
             const SizedBox(height: 24),
-            const CircularProgressIndicator(color: AppTheme.goldPrimary),
+            const CircularProgressIndicator(color: AppTheme.brandPrimary),
           ],
         ),
       ),
@@ -207,17 +207,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
     _menuAnimation = CurvedAnimation(
         parent: _menuAnimController, curve: Curves.easeOutCubic);
-
-    // Load user data from Supabase on mount (only if not already loaded this session)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final appProvider = Provider.of<AppProvider>(context, listen: false);
-      if (auth.isAuthenticated &&
-          auth.userId != null &&
-          !appProvider.supabaseDataLoaded) {
-        appProvider.loadFromSupabase(auth.userId!);
-      }
-    });
 
     // Check every minute for subscriptions that have become due
     _subscriptionTimer = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -686,7 +675,7 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                         label: a.name,
                         subtitle: cf.format(a.balance),
                         leadingIcon: _accountIcon(a.type),
-                        iconColor: AppTheme.goldPrimary,
+                        iconColor: AppTheme.brandPrimary,
                       )),
                 ],
                 onChanged: (v) => setState(() => _selectedAccountId = v),
@@ -715,12 +704,12 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppTheme.goldPrimary
+                              ? AppTheme.brandPrimary
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                               color: isSelected
-                                  ? AppTheme.goldPrimary
+                                  ? AppTheme.brandPrimary
                                   : Theme.of(context).dividerColor),
                         ),
                         child: Center(
@@ -787,7 +776,7 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                 child: ElevatedButton(
                   onPressed: _saveBill,
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
+                      backgroundColor: AppTheme.brandPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
@@ -852,7 +841,7 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(s.billAdded.replaceAll('{name}', _nameController.text)),
-          backgroundColor: AppTheme.goldPrimary),
+          backgroundColor: AppTheme.brandPrimary),
     );
   }
 }

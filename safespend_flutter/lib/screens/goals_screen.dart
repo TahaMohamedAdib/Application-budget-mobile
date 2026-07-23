@@ -65,7 +65,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.add_rounded,
-                        color: AppTheme.goldPrimary, size: 26),
+                        color: AppTheme.brandPrimary, size: 26),
                     onPressed: () => _showAddGoalModal(context, provider),
                   ),
                   const SizedBox(width: 8),
@@ -86,11 +86,11 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppTheme.goldPrimary.withOpacity(0.12),
+                                color: AppTheme.brandPrimary.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: const Icon(Icons.savings_rounded,
-                                  color: AppTheme.goldPrimary, size: 24),
+                                  color: AppTheme.brandPrimary, size: 24),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -136,7 +136,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                               backgroundColor:
                                   isDark ? Colors.white12 : Colors.black12,
                               valueColor: const AlwaysStoppedAnimation<Color>(
-                                  AppTheme.goldPrimary),
+                                  AppTheme.brandPrimary),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -266,7 +266,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                       .titleMedium
                                       ?.copyWith(
                                           fontWeight: FontWeight.w700,
-                                          color: AppTheme.goldPrimary)),
+                                          color: AppTheme.brandPrimary)),
                               Text('of ${cf.format(goal.targetAmount)}',
                                   style: Theme.of(context).textTheme.bodySmall),
                             ],
@@ -284,7 +284,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(
                               progress >= 1.0
                                   ? AppTheme.success
-                                  : AppTheme.goldPrimary),
+                                  : AppTheme.brandPrimary),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -296,7 +296,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                   fontWeight: FontWeight.w600,
                                   color: progress >= 1.0
                                       ? AppTheme.success
-                                      : AppTheme.goldPrimary)),
+                                      : AppTheme.brandPrimary)),
                           const Spacer(),
                           if (hasMonthly)
                             Container(
@@ -344,7 +344,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           child: _buildGoalActionButton(
                             icon: Icons.add_rounded,
                             label: 'Add Savings',
-                            backgroundColor: AppTheme.goldPrimary,
+                            backgroundColor: AppTheme.brandPrimary,
                             foregroundColor: Colors.white,
                             onTap: () => _showContributeModal(
                                 context, goal, provider, cf),
@@ -356,9 +356,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             icon: Icons.edit_rounded,
                             label: 'Edit',
                             backgroundColor:
-                                AppTheme.goldPrimary.withOpacity(0.12),
-                            foregroundColor: AppTheme.goldPrimary,
-                            borderColor: AppTheme.goldPrimary.withOpacity(0.25),
+                                AppTheme.brandPrimary.withOpacity(0.12),
+                            foregroundColor: AppTheme.brandPrimary,
+                            borderColor: AppTheme.brandPrimary.withOpacity(0.25),
                             onTap: () =>
                                 _showEditGoalModal(context, goal, provider),
                           ),
@@ -415,7 +415,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppTheme.goldPrimary.withOpacity(0.12),
+        color: AppTheme.brandPrimary.withOpacity(0.12),
         borderRadius: BorderRadius.circular(size / 3),
       ),
       child: Center(child: Text(emoji, style: TextStyle(fontSize: size * 0.5))),
@@ -515,7 +515,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     ),
                     const SizedBox(height: 24),
                     _buildDetailRow(ctx, 'Saved', cf.format(goal.currentAmount),
-                        AppTheme.goldPrimary),
+                        AppTheme.brandPrimary),
                     _buildDetailRow(
                         ctx, 'Target', cf.format(goal.targetAmount), null),
                     _buildDetailRow(
@@ -694,14 +694,14 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           label: 'Cash on Hand',
                           subtitle: 'Cash',
                           leadingIcon: AppIcons.money,
-                          iconColor: AppTheme.goldPrimary,
+                          iconColor: AppTheme.brandPrimary,
                         ),
                         ...provider.accounts.map((a) => AppPickerItem(
                               value: a.id,
                               label: a.name,
                               subtitle: cf.format(a.balance),
                               leadingIcon: AppIcons.bank,
-                              iconColor: const Color(0xFF3B82F6),
+                              iconColor: AppTheme.info,
                               imagePath: a.imagePath,
                             )),
                       ],
@@ -732,7 +732,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
+                          backgroundColor: AppTheme.brandPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
@@ -870,7 +870,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                   border: imagePath != null
                                       ? Border.all(
-                                          color: AppTheme.goldPrimary, width: 2)
+                                          color: AppTheme.brandPrimary, width: 2)
                                       : null,
                                 ),
                                 child: imagePath != null
@@ -906,7 +906,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                         height: 56,
                                         decoration: BoxDecoration(
                                           color: isSelected
-                                              ? AppTheme.goldPrimary
+                                              ? AppTheme.brandPrimary
                                                   .withOpacity(0.15)
                                               : (isDark
                                                   ? AppTheme.darkSurfaceElevated
@@ -915,7 +915,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                               BorderRadius.circular(14),
                                           border: isSelected
                                               ? Border.all(
-                                                  color: AppTheme.goldPrimary,
+                                                  color: AppTheme.brandPrimary,
                                                   width: 2)
                                               : null,
                                         ),
@@ -1065,14 +1065,14 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                 value: AppProvider.cashOnHandId,
                                 label: 'Cash on Hand',
                                 leadingIcon: AppIcons.money,
-                                iconColor: AppTheme.goldPrimary,
+                                iconColor: AppTheme.brandPrimary,
                               ),
                               ...provider.accounts.map((a) => AppPickerItem(
                                     value: a.id,
                                     label: a.name,
                                     subtitle: cf.format(a.balance),
                                     leadingIcon: AppIcons.bank,
-                                    iconColor: const Color(0xFF3B82F6),
+                                    iconColor: AppTheme.info,
                                     imagePath: a.imagePath,
                                   )),
                             ],
@@ -1166,7 +1166,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                       value: AppProvider.cashOnHandId,
                                       label: 'Cash on Hand',
                                       leadingIcon: AppIcons.money,
-                                      iconColor: AppTheme.goldPrimary,
+                                      iconColor: AppTheme.brandPrimary,
                                     ),
                                     ...provider.accounts
                                         .map((a) => AppPickerItem(
@@ -1175,7 +1175,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                               subtitle: cf.format(a.balance),
                                               leadingIcon: AppIcons.bank,
                                               iconColor:
-                                                  const Color(0xFF3B82F6),
+                                                  AppTheme.info,
                                               imagePath: a.imagePath,
                                             )),
                                   ],
@@ -1281,7 +1281,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.goldPrimary,
+                              backgroundColor: AppTheme.brandPrimary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16)),

@@ -186,7 +186,7 @@ class MessageBubble extends StatelessWidget {
         h3: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: strongColor, height: 1.4),
         code: GoogleFonts.firaCode(
           fontSize: 13,
-          color: AppTheme.goldPrimary,
+          color: AppTheme.brandPrimary,
           backgroundColor: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
         ),
         codeblockDecoration: BoxDecoration(

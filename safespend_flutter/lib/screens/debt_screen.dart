@@ -401,12 +401,12 @@ class DebtScreen extends StatelessWidget {
                                                   const EdgeInsets.symmetric(
                                                       vertical: 9),
                                               decoration: BoxDecoration(
-                                                color: AppTheme.goldPrimary
+                                                color: AppTheme.brandPrimary
                                                     .withOpacity(0.12),
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                                 border: Border.all(
-                                                    color: AppTheme.goldPrimary
+                                                    color: AppTheme.brandPrimary
                                                         .withOpacity(0.3)),
                                               ),
                                               child: Row(
@@ -415,13 +415,13 @@ class DebtScreen extends StatelessWidget {
                                                   children: [
                                                     Icon(Icons.edit_rounded,
                                                         color: AppTheme
-                                                            .goldPrimary,
+                                                            .brandPrimary,
                                                         size: 14),
                                                     SizedBox(width: 4),
                                                     Text(s.edit,
                                                         style: TextStyle(
                                                             color: AppTheme
-                                                                .goldPrimary,
+                                                                .brandPrimary,
                                                             fontWeight:
                                                                 FontWeight.w700,
                                                             fontSize: 13)),
@@ -694,13 +694,13 @@ class DebtScreen extends StatelessWidget {
                       value: AppProvider.cashOnHandId,
                       label: s.cashOnHand,
                       leadingIcon: AppIcons.money,
-                      iconColor: AppTheme.goldPrimary,
+                      iconColor: AppTheme.brandPrimary,
                     ),
                     ...provider.accounts.map((a) => AppPickerItem(
                           value: a.id,
                           label: a.name,
                           leadingIcon: AppIcons.bank,
-                          iconColor: Color(0xFF3B82F6),
+                          iconColor: AppTheme.info,
                           imagePath: a.imagePath,
                         )),
                   ],
@@ -1026,13 +1026,13 @@ class DebtScreen extends StatelessWidget {
                                     value: AppProvider.cashOnHandId,
                                     label: 'Cash on Hand',
                                     leadingIcon: AppIcons.money,
-                                    iconColor: AppTheme.goldPrimary,
+                                    iconColor: AppTheme.brandPrimary,
                                   ),
                                   ...provider.accounts.map((a) => AppPickerItem(
                                         value: a.id,
                                         label: a.name,
                                         leadingIcon: AppIcons.bank,
-                                        iconColor: Color(0xFF3B82F6),
+                                        iconColor: AppTheme.info,
                                         imagePath: a.imagePath,
                                       )),
                                 ],
@@ -1076,11 +1076,11 @@ class DebtScreen extends StatelessWidget {
                             SnackBar(
                                 content:
                                     Text('"${nameCtrl.text.trim()}" updated'),
-                                backgroundColor: AppTheme.goldPrimary),
+                                backgroundColor: AppTheme.brandPrimary),
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
+                          backgroundColor: AppTheme.brandPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
@@ -1350,13 +1350,13 @@ class DebtScreen extends StatelessWidget {
                                     value: AppProvider.cashOnHandId,
                                     label: 'Cash on Hand',
                                     leadingIcon: AppIcons.money,
-                                    iconColor: AppTheme.goldPrimary,
+                                    iconColor: AppTheme.brandPrimary,
                                   ),
                                   ...provider.accounts.map((a) => AppPickerItem(
                                         value: a.id,
                                         label: a.name,
                                         leadingIcon: AppIcons.bank,
-                                        iconColor: Color(0xFF3B82F6),
+                                        iconColor: AppTheme.info,
                                         imagePath: a.imagePath,
                                       )),
                                 ],

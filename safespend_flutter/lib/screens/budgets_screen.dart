@@ -90,7 +90,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                     child: Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: AppTheme.goldCard(),
+                      decoration: AppTheme.brandCard(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -172,11 +172,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                               width: 80,
                               height: 80,
                               decoration: BoxDecoration(
-                                color: AppTheme.goldPrimary.withOpacity(0.1),
+                                color: AppTheme.brandPrimary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(24),
                               ),
                               child: const Iconify(AppIcons.chartPie,
-                                  size: 40, color: AppTheme.goldPrimary),
+                                  size: 40, color: AppTheme.brandPrimary),
                             ),
                             const SizedBox(height: 24),
                             Text(s.noBudgetCategories,
@@ -210,7 +210,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700)),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.goldPrimary,
+                                  backgroundColor: AppTheme.brandPrimary,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16)),
@@ -467,7 +467,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
                                     color:
-                                        AppTheme.goldPrimary.withOpacity(0.3),
+                                        AppTheme.brandPrimary.withOpacity(0.3),
                                     width: 1.5,
                                   ),
                                 ),
@@ -475,7 +475,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     const Iconify(AppIcons.add,
-                                        color: AppTheme.goldPrimary, size: 28),
+                                        color: AppTheme.brandPrimary, size: 28),
                                     const SizedBox(width: 14),
                                     Text(
                                       s.addCategory,
@@ -484,7 +484,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                           .titleMedium
                                           ?.copyWith(
                                             fontWeight: FontWeight.w600,
-                                            color: AppTheme.goldPrimary,
+                                            color: AppTheme.brandPrimary,
                                           ),
                                     ),
                                   ],
@@ -626,7 +626,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       height: 44,
                       child: Center(
                         child:
-                            _buildCatIcon(cat.icon, AppTheme.goldPrimary, 44),
+                            _buildCatIcon(cat.icon, AppTheme.brandPrimary, 44),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -885,7 +885,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   ),
                                 )
                               : Iconify(_categoryIcon(selectedIcon),
-                                  size: 48, color: AppTheme.goldPrimary),
+                                  size: 48, color: AppTheme.brandPrimary),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -908,20 +908,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   : AppTheme.lightBackground,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: AppTheme.goldPrimary.withOpacity(0.3),
+                                  color: AppTheme.brandPrimary.withOpacity(0.3),
                                   width: 1.5),
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Iconify(AppIcons.image,
-                                    size: 18, color: AppTheme.goldPrimary),
+                                    size: 18, color: AppTheme.brandPrimary),
                                 SizedBox(width: 8),
                                 Text('Upload from Gallery',
                                     style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: AppTheme.goldPrimary)),
+                                        color: AppTheme.brandPrimary)),
                               ],
                             ),
                           ),
@@ -949,20 +949,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppTheme.goldPrimary.withOpacity(0.15)
+                                ? AppTheme.brandPrimary.withOpacity(0.15)
                                 : (isDark
                                     ? AppTheme.darkSurfaceElevated
                                     : AppTheme.lightBackground),
                             borderRadius: BorderRadius.circular(12),
                             border: isSelected
                                 ? Border.all(
-                                    color: AppTheme.goldPrimary, width: 2)
+                                    color: AppTheme.brandPrimary, width: 2)
                                 : null,
                           ),
                           child: Iconify(entry.value,
                               size: 20,
                               color: isSelected
-                                  ? AppTheme.goldPrimary
+                                  ? AppTheme.brandPrimary
                                   : Theme.of(ctx).textTheme.bodySmall?.color),
                         ),
                       );
@@ -993,7 +993,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                         Navigator.pop(ctx);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.goldPrimary,
+                        backgroundColor: AppTheme.brandPrimary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),
@@ -1146,7 +1146,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   ),
                                 )
                               : Iconify(_categoryIcon(selectedIcon),
-                                  size: 48, color: AppTheme.goldPrimary),
+                                  size: 48, color: AppTheme.brandPrimary),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -1169,20 +1169,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   : AppTheme.lightBackground,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: AppTheme.goldPrimary.withOpacity(0.3),
+                                  color: AppTheme.brandPrimary.withOpacity(0.3),
                                   width: 1.5),
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Iconify(AppIcons.image,
-                                    size: 18, color: AppTheme.goldPrimary),
+                                    size: 18, color: AppTheme.brandPrimary),
                                 SizedBox(width: 8),
                                 Text('Upload from Gallery',
                                     style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: AppTheme.goldPrimary)),
+                                        color: AppTheme.brandPrimary)),
                               ],
                             ),
                           ),
@@ -1210,20 +1210,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppTheme.goldPrimary.withOpacity(0.15)
+                                ? AppTheme.brandPrimary.withOpacity(0.15)
                                 : (isDark
                                     ? AppTheme.darkSurfaceElevated
                                     : AppTheme.lightBackground),
                             borderRadius: BorderRadius.circular(12),
                             border: isSelected
                                 ? Border.all(
-                                    color: AppTheme.goldPrimary, width: 2)
+                                    color: AppTheme.brandPrimary, width: 2)
                                 : null,
                           ),
                           child: Iconify(entry.value,
                               size: 20,
                               color: isSelected
-                                  ? AppTheme.goldPrimary
+                                  ? AppTheme.brandPrimary
                                   : Theme.of(ctx).textTheme.bodySmall?.color),
                         ),
                       );
@@ -1259,11 +1259,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                         ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
                               content: Text('"${newCat.name}" added'),
-                              backgroundColor: AppTheme.goldPrimary),
+                              backgroundColor: AppTheme.brandPrimary),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.goldPrimary,
+                        backgroundColor: AppTheme.brandPrimary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),

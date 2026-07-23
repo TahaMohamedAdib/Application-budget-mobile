@@ -225,9 +225,9 @@ class _ActionIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     final bg = isPrimary
-        ? AppTheme.goldPrimary
+        ? AppTheme.brandPrimary
         : isActive
-            ? (activeColor ?? AppTheme.goldPrimary)
+            ? (activeColor ?? AppTheme.brandPrimary)
             : Colors.transparent;
     final fg = isPrimary || isActive
         ? Colors.white

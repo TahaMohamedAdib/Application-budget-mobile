@@ -1521,24 +1521,6 @@ class AppProvider with ChangeNotifier {
     return cash;
   }
 
-  double getSafeToSpendToday() {
-    final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final daysRemaining = daysInMonth - now.day + 1;
-
-    final totalBalance = _accounts.fold(0.0, (sum, a) => sum + a.balance);
-    final monthlyExpenses = 0.0;
-
-    final safeToSpendMonth = _settings.monthlyIncome - monthlyExpenses;
-    return daysRemaining > 0 ? safeToSpendMonth / daysRemaining : 0;
-  }
-
-  double getSafeToSpendMonth() {
-    final totalBalance = _accounts.fold(0.0, (sum, a) => sum + a.balance);
-    final monthlyExpenses = 0.0;
-    return _settings.monthlyIncome - monthlyExpenses;
-  }
-
   double getNetWorth() {
     if (_cachedNetWorth != null) return _cachedNetWorth!;
     // Non-investment accounts with includeInNetWorth

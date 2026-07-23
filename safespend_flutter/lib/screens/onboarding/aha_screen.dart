@@ -42,7 +42,7 @@ class AhaScreen extends StatelessWidget {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [AppTheme.gold400, AppTheme.gold700],
+                      colors: [AppTheme.brand400, AppTheme.brand700],
                     ),
                     borderRadius: BorderRadius.circular(25),
                   ),
@@ -94,7 +94,7 @@ class AhaScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onNext,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
+                      backgroundColor: AppTheme.brandPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -126,10 +126,10 @@ class AhaScreen extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.goldPrimary.withOpacity(0.1),
+              color: AppTheme.brandPrimary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppTheme.goldPrimary),
+            child: Icon(icon, color: AppTheme.brandPrimary),
           ),
           const SizedBox(width: 16),
           Expanded(

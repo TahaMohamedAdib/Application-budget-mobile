@@ -59,11 +59,11 @@ class AppPickerField<T> extends StatelessWidget {
                   child: selected!.imagePath!.startsWith('http')
                       ? Image.network(selected.imagePath!, width: 18, height: 18, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => selected.leadingIcon != null
-                              ? Iconify(selected.leadingIcon!, size: 18, color: selected.iconColor ?? AppTheme.goldPrimary)
+                              ? Iconify(selected.leadingIcon!, size: 18, color: selected.iconColor ?? AppTheme.brandPrimary)
                               : const SizedBox(width: 18, height: 18))
                       : Image.file(File(selected.imagePath!), width: 18, height: 18, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => selected.leadingIcon != null
-                              ? Iconify(selected.leadingIcon!, size: 18, color: selected.iconColor ?? AppTheme.goldPrimary)
+                              ? Iconify(selected.leadingIcon!, size: 18, color: selected.iconColor ?? AppTheme.brandPrimary)
                               : const SizedBox(width: 18, height: 18)),
                 ),
                 const SizedBox(width: 10),
@@ -171,11 +171,11 @@ class AppPickerField<T> extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppTheme.goldPrimary.withOpacity(0.12)
+                          ? AppTheme.brandPrimary.withOpacity(0.12)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                       border: isSelected
-                          ? Border.all(color: AppTheme.goldPrimary.withOpacity(0.4))
+                          ? Border.all(color: AppTheme.brandPrimary.withOpacity(0.4))
                           : null,
                     ),
                     child: Row(children: [
@@ -183,7 +183,7 @@ class AppPickerField<T> extends StatelessWidget {
                         Container(
                           width: 36, height: 36,
                           decoration: BoxDecoration(
-                            color: (item.iconColor ?? AppTheme.goldPrimary).withOpacity(0.12),
+                            color: (item.iconColor ?? AppTheme.brandPrimary).withOpacity(0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: ClipRRect(
@@ -191,11 +191,11 @@ class AppPickerField<T> extends StatelessWidget {
                             child: item.imagePath!.startsWith('http')
                                 ? Image.network(item.imagePath!, width: 36, height: 36, fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => item.leadingIcon != null
-                                        ? Iconify(item.leadingIcon!, size: 18, color: item.iconColor ?? AppTheme.goldPrimary)
+                                        ? Iconify(item.leadingIcon!, size: 18, color: item.iconColor ?? AppTheme.brandPrimary)
                                         : const SizedBox())
                                 : Image.file(File(item.imagePath!), width: 36, height: 36, fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => item.leadingIcon != null
-                                        ? Iconify(item.leadingIcon!, size: 18, color: item.iconColor ?? AppTheme.goldPrimary)
+                                        ? Iconify(item.leadingIcon!, size: 18, color: item.iconColor ?? AppTheme.brandPrimary)
                                         : const SizedBox()),
                           ),
                         ),
@@ -204,11 +204,11 @@ class AppPickerField<T> extends StatelessWidget {
                         Container(
                           width: 36, height: 36,
                           decoration: BoxDecoration(
-                            color: (item.iconColor ?? AppTheme.goldPrimary).withOpacity(0.12),
+                            color: (item.iconColor ?? AppTheme.brandPrimary).withOpacity(0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Iconify(item.leadingIcon!,
-                            size: 18, color: item.iconColor ?? AppTheme.goldPrimary),
+                            size: 18, color: item.iconColor ?? AppTheme.brandPrimary),
                         ),
                         const SizedBox(width: 14),
                       ],
@@ -220,7 +220,7 @@ class AppPickerField<T> extends StatelessWidget {
                               fontSize: 15,
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                               color: isSelected
-                                  ? AppTheme.goldPrimary
+                                  ? AppTheme.brandPrimary
                                   : (isDark ? Colors.white.withOpacity(0.87) : Colors.black87),
                             )),
                           if (item.subtitle != null) ...[
@@ -236,7 +236,7 @@ class AppPickerField<T> extends StatelessWidget {
                       if (isSelected)
                         Iconify(AppIcons.checkCircle,
                           size: 18,
-                          color: AppTheme.goldPrimary),
+                          color: AppTheme.brandPrimary),
                     ]),
                   ),
                 );

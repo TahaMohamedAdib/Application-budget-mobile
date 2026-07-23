@@ -169,11 +169,11 @@ class HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                       child: Container(
                         padding: const EdgeInsets.all(24),
-                        decoration: AppTheme.goldCard(),
+                        decoration: AppTheme.brandCard(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(s.totalBalance,
+                            Text(s.availableBalance,
                                 style: TextStyle(
                                     color: Colors.white.withOpacity(0.8),
                                     fontSize: 13,
@@ -218,7 +218,7 @@ class HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                       child: Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: AppTheme.goldCard(),
+                        decoration: AppTheme.brandCard(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -270,7 +270,7 @@ class HomeScreenState extends State<HomeScreen> {
                                             horizontal: 8, vertical: 5),
                                         decoration: BoxDecoration(
                                           color: isActive
-                                              ? AppTheme.goldPrimary
+                                              ? AppTheme.brandPrimary
                                               : Colors.white.withOpacity(0.08),
                                           borderRadius:
                                               BorderRadius.circular(6),
@@ -332,7 +332,7 @@ class HomeScreenState extends State<HomeScreen> {
                                 child: Text(s.seeAll,
                                     style: TextStyle(
                                         fontSize: 13,
-                                        color: AppTheme.goldPrimary,
+                                        color: AppTheme.brandPrimary,
                                         fontWeight: FontWeight.w500)),
                               ),
                             ],
@@ -433,7 +433,7 @@ class HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
                                     color:
-                                        AppTheme.goldPrimary.withOpacity(0.3),
+                                        AppTheme.brandPrimary.withOpacity(0.3),
                                     width: 1.5,
                                     style: BorderStyle.solid,
                                   ),
@@ -442,7 +442,7 @@ class HomeScreenState extends State<HomeScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     const Iconify(AppIcons.add,
-                                        color: AppTheme.goldPrimary, size: 28),
+                                        color: AppTheme.brandPrimary, size: 28),
                                     const SizedBox(width: 14),
                                     Text(s.addAccount,
                                         style: Theme.of(context)
@@ -450,7 +450,7 @@ class HomeScreenState extends State<HomeScreen> {
                                             .titleMedium
                                             ?.copyWith(
                                                 fontWeight: FontWeight.w600,
-                                                color: AppTheme.goldPrimary)),
+                                                color: AppTheme.brandPrimary)),
                                   ],
                                 ),
                               ),
@@ -503,7 +503,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     child: Text(s.seeAll,
                                         style: TextStyle(
                                             fontSize: 13,
-                                            color: AppTheme.goldPrimary,
+                                            color: AppTheme.brandPrimary,
                                             fontWeight: FontWeight.w500)),
                                   ),
                                 ],
@@ -569,7 +569,7 @@ class HomeScreenState extends State<HomeScreen> {
                                                         height: 44,
                                                         decoration: BoxDecoration(
                                                             color: AppTheme
-                                                                .goldPrimary
+                                                                .brandPrimary
                                                                 .withOpacity(
                                                                     0.12),
                                                             borderRadius:
@@ -593,26 +593,26 @@ class HomeScreenState extends State<HomeScreen> {
                                                                             AppIcons
                                                                                 .autoRenew,
                                                                             color: AppTheme
-                                                                                .goldPrimary,
+                                                                                .brandPrimary,
                                                                             size:
                                                                                 20))
                                                                     : Image.file(
                                                                         File(imgPath),
                                                                         fit: BoxFit.cover,
-                                                                        errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew, color: AppTheme.goldPrimary, size: 20)),
+                                                                        errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew, color: AppTheme.brandPrimary, size: 20)),
                                                               )
                                                             : cat != null
                                                                 ? Iconify(
                                                                     _subCategoryIcon(cat
                                                                         .icon),
                                                                     color: AppTheme
-                                                                        .goldPrimary,
+                                                                        .brandPrimary,
                                                                     size: 20)
                                                                 : const Iconify(
                                                                     AppIcons
                                                                         .autoRenew,
                                                                     color: AppTheme
-                                                                        .goldPrimary,
+                                                                        .brandPrimary,
                                                                     size: 20),
                                                       );
                                                     }),
@@ -755,7 +755,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     AppIcons.sliders,
                                     size: 24,
                                     color: _txShowFilters
-                                        ? AppTheme.goldPrimary
+                                        ? AppTheme.brandPrimary
                                         : Theme.of(context).iconTheme.color,
                                   ),
                                 ),
@@ -826,7 +826,7 @@ class HomeScreenState extends State<HomeScreen> {
                               child: Text(s.seeAll,
                                   style: TextStyle(
                                       fontSize: 13,
-                                      color: AppTheme.goldPrimary,
+                                      color: AppTheme.brandPrimary,
                                       fontWeight: FontWeight.w500)),
                             ),
                         ],
@@ -959,11 +959,11 @@ class HomeScreenState extends State<HomeScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.goldPrimary.withOpacity(0.12),
+                          color: AppTheme.brandPrimary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.savings_rounded,
-                            color: AppTheme.goldPrimary, size: 22),
+                            color: AppTheme.brandPrimary, size: 22),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1004,7 +1004,7 @@ class HomeScreenState extends State<HomeScreen> {
                         backgroundColor:
                             isDark ? Colors.white12 : Colors.black12,
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppTheme.goldPrimary),
+                            AppTheme.brandPrimary),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -1030,7 +1030,7 @@ class HomeScreenState extends State<HomeScreen> {
                 child: Text(s.add,
                     style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.goldPrimary,
+                        color: AppTheme.brandPrimary,
                         fontWeight: FontWeight.w500)),
               ),
             ],
@@ -1048,12 +1048,12 @@ class HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                      color: AppTheme.goldPrimary.withOpacity(0.3), width: 1.5),
+                      color: AppTheme.brandPrimary.withOpacity(0.3), width: 1.5),
                 ),
                 child: Column(
                   children: [
                     Icon(Icons.flag_outlined,
-                        color: AppTheme.goldPrimary.withOpacity(0.5), size: 40),
+                        color: AppTheme.brandPrimary.withOpacity(0.5), size: 40),
                     const SizedBox(height: 12),
                     Text('No savings goals yet',
                         style: Theme.of(context)
@@ -1108,7 +1108,7 @@ class HomeScreenState extends State<HomeScreen> {
                                           fontWeight: FontWeight.w700,
                                           color: progress >= 1.0
                                               ? AppTheme.success
-                                              : AppTheme.goldPrimary),
+                                              : AppTheme.brandPrimary),
                                     ),
                                   ],
                                 ),
@@ -1161,7 +1161,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                         progress >= 1.0
                                             ? AppTheme.success
-                                            : AppTheme.goldPrimary),
+                                            : AppTheme.brandPrimary),
                                   ),
                                 ),
                               ],
@@ -1179,7 +1179,7 @@ class HomeScreenState extends State<HomeScreen> {
                             child: _buildHomeGoalActionButton(
                               icon: Icons.add_rounded,
                               label: 'Add Savings',
-                              backgroundColor: AppTheme.goldPrimary,
+                              backgroundColor: AppTheme.brandPrimary,
                               foregroundColor: Colors.white,
                               onTap: () => _showGoalContributionModal(
                                   context, provider, goal, cf),
@@ -1191,10 +1191,10 @@ class HomeScreenState extends State<HomeScreen> {
                               icon: Icons.edit_rounded,
                               label: 'Modify',
                               backgroundColor:
-                                  AppTheme.goldPrimary.withOpacity(0.12),
-                              foregroundColor: AppTheme.goldPrimary,
+                                  AppTheme.brandPrimary.withOpacity(0.12),
+                              foregroundColor: AppTheme.brandPrimary,
                               borderColor:
-                                  AppTheme.goldPrimary.withOpacity(0.25),
+                                  AppTheme.brandPrimary.withOpacity(0.25),
                               onTap: () => _showAddSavingsGoalForm(
                                   context, provider,
                                   existingGoal: goal),
@@ -1366,14 +1366,14 @@ class HomeScreenState extends State<HomeScreen> {
                                   height: 56,
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? AppTheme.goldPrimary.withOpacity(0.15)
+                                        ? AppTheme.brandPrimary.withOpacity(0.15)
                                         : (isDark
                                             ? AppTheme.darkSurfaceElevated
                                             : const Color(0xFFF5F5F5)),
                                     borderRadius: BorderRadius.circular(14),
                                     border: isSelected
                                         ? Border.all(
-                                            color: AppTheme.goldPrimary,
+                                            color: AppTheme.brandPrimary,
                                             width: 2)
                                         : null,
                                   ),
@@ -1595,7 +1595,7 @@ class HomeScreenState extends State<HomeScreen> {
                                       value: AppProvider.cashOnHandId,
                                       label: 'Cash on Hand',
                                       leadingIcon: AppIcons.money,
-                                      iconColor: AppTheme.goldPrimary,
+                                      iconColor: AppTheme.brandPrimary,
                                     ),
                                     ...provider.accounts.map(
                                       (a) => AppPickerItem(
@@ -1603,7 +1603,7 @@ class HomeScreenState extends State<HomeScreen> {
                                         label: a.name,
                                         subtitle: cf.format(a.balance),
                                         leadingIcon: AppIcons.bank,
-                                        iconColor: const Color(0xFF3B82F6),
+                                        iconColor: AppTheme.info,
                                         imagePath: a.imagePath,
                                       ),
                                     ),
@@ -1687,7 +1687,7 @@ class HomeScreenState extends State<HomeScreen> {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.goldPrimary,
+                              backgroundColor: AppTheme.brandPrimary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16)),
@@ -1842,7 +1842,7 @@ class HomeScreenState extends State<HomeScreen> {
                           label: 'Cash on Hand',
                           subtitle: 'Cash',
                           leadingIcon: AppIcons.money,
-                          iconColor: AppTheme.goldPrimary,
+                          iconColor: AppTheme.brandPrimary,
                         ),
                         ...provider.accounts.map(
                           (a) => AppPickerItem(
@@ -1850,7 +1850,7 @@ class HomeScreenState extends State<HomeScreen> {
                             label: a.name,
                             subtitle: cf.format(a.balance),
                             leadingIcon: AppIcons.bank,
-                            iconColor: const Color(0xFF3B82F6),
+                            iconColor: AppTheme.info,
                             imagePath: a.imagePath,
                           ),
                         ),
@@ -1883,7 +1883,7 @@ class HomeScreenState extends State<HomeScreen> {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
+                          backgroundColor: AppTheme.brandPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
@@ -1979,7 +1979,7 @@ class HomeScreenState extends State<HomeScreen> {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: AppTheme.goldPrimary.withOpacity(0.12),
+        color: AppTheme.brandPrimary.withOpacity(0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Center(child: Text(emoji, style: const TextStyle(fontSize: 16))),
@@ -2292,12 +2292,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   double _getAccountBalance(AppProvider provider) {
-    if (provider.selectedAccountId == null) {
-      return provider.accounts.fold(0.0, (sum, a) => sum + a.balance);
-    }
-    final account =
-        provider.accounts.where((a) => a.id == provider.selectedAccountId);
-    return account.isNotEmpty ? account.first.balance : 0.0;
+    return provider.getBalanceForAccount(provider.selectedAccountId);
   }
 
   String _subCategoryIcon(String iconName) {
@@ -2350,12 +2345,12 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Color _colorFromHex(String? hex) {
-    if (hex == null || hex.isEmpty) return AppTheme.goldPrimary;
+    if (hex == null || hex.isEmpty) return AppTheme.brandPrimary;
     try {
       final cleaned = hex.replaceFirst('#', '');
       return Color(int.parse('FF$cleaned', radix: 16));
     } catch (_) {
-      return AppTheme.goldPrimary;
+      return AppTheme.brandPrimary;
     }
   }
 
@@ -2461,14 +2456,14 @@ class HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           color: isActive
-              ? AppTheme.goldPrimary
+              ? AppTheme.brandPrimary
               : (isDark ? AppTheme.darkSurface : AppTheme.lightSurface),
           borderRadius: BorderRadius.circular(20),
           border: isDark && !isActive
               ? Border.all(color: Colors.white.withOpacity(0.07), width: 1)
               : null,
           boxShadow: isActive
-              ? AppTheme.goldGlow
+              ? AppTheme.brandGlow
               : (isDark ? [] : AppTheme.cardShadowLight),
         ),
         child: Text(label,
@@ -2974,7 +2969,7 @@ class HomeScreenState extends State<HomeScreen> {
                                   fontWeight: FontWeight
                                       .w700)), // TODO: improve localization
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.goldPrimary,
+                            backgroundColor: AppTheme.brandPrimary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
@@ -3111,7 +3106,7 @@ class HomeScreenState extends State<HomeScreen> {
       case 'withdrawal':
         return AppTheme.warning;
       case 'goal_contribution':
-        return AppTheme.goldPrimary;
+        return AppTheme.brandPrimary;
       case 'debt_payment':
         return const Color(0xFF8B5CF6);
       default:
@@ -3143,13 +3138,13 @@ class HomeScreenState extends State<HomeScreen> {
                     errorBuilder: (_, __, ___) => Icon(
                         _getAccountIcon(provider),
                         size: 16,
-                        color: AppTheme.goldPrimary))
+                        color: AppTheme.brandPrimary))
                 : Image.file(File(path),
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Icon(
                         _getAccountIcon(provider),
                         size: 16,
-                        color: AppTheme.goldPrimary)),
+                        color: AppTheme.brandPrimary)),
           ),
         );
       }
@@ -3159,7 +3154,7 @@ class HomeScreenState extends State<HomeScreen> {
           ? Icons.account_balance_wallet_rounded
           : _getAccountIcon(provider),
       size: 16,
-      color: AppTheme.goldPrimary,
+      color: AppTheme.brandPrimary,
     );
   }
 
@@ -3357,7 +3352,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Icon(Icons.autorenew_rounded,
-                                      color: AppTheme.goldPrimary, size: 20),
+                                      color: AppTheme.brandPrimary, size: 20),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -3408,7 +3403,7 @@ class HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(ctx).brightness == Brightness.dark;
     final currencyFormat = CurrencyHelper.formatter(provider.settings.currency);
     final iconColor = isSelected
-        ? AppTheme.goldPrimary
+        ? AppTheme.brandPrimary
         : Theme.of(ctx).textTheme.bodySmall?.color;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -3425,7 +3420,7 @@ class HomeScreenState extends State<HomeScreen> {
               height: 44,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.goldPrimary.withOpacity(0.12)
+                    ? AppTheme.brandPrimary.withOpacity(0.12)
                     : (isDark
                         ? AppTheme.darkSurfaceElevated
                         : AppTheme.lightBackground),
@@ -3454,7 +3449,7 @@ class HomeScreenState extends State<HomeScreen> {
                   Text(name,
                       style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? AppTheme.goldPrimary : null)),
+                          color: isSelected ? AppTheme.brandPrimary : null)),
                   if (balance != null)
                     Text(currencyFormat.format(balance),
                         style: Theme.of(ctx).textTheme.bodySmall),
@@ -3463,7 +3458,7 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             if (isSelected)
               const Icon(Icons.check_circle_rounded,
-                  color: AppTheme.goldPrimary, size: 22),
+                  color: AppTheme.brandPrimary, size: 22),
           ],
         ),
       ),

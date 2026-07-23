@@ -80,7 +80,7 @@ class _AuthScreenState extends State<AuthScreen> {
         title: Row(
           children: [
             const Icon(Icons.mark_email_unread_rounded,
-                color: AppTheme.goldPrimary),
+                color: AppTheme.brandPrimary),
             const SizedBox(width: 10),
             Text(s.confirmEmail,
                 style:
@@ -111,7 +111,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ));
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.goldPrimary,
+              backgroundColor: AppTheme.brandPrimary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -168,11 +168,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppTheme.goldPrimary.withOpacity(0.12),
+                    color: AppTheme.brandPrimary.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.account_balance_wallet_rounded,
-                      size: 40, color: AppTheme.goldPrimary),
+                      size: 40, color: AppTheme.brandPrimary),
                 )
                     .animate()
                     .fadeIn(duration: 260.ms, curve: Curves.easeOut)
@@ -189,7 +189,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.goldPrimary,
+                    color: AppTheme.brandPrimary,
                     letterSpacing: -0.5,
                   ),
                 )
@@ -309,7 +309,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.goldPrimary,
+                            backgroundColor: AppTheme.brandPrimary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16)),
@@ -364,7 +364,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Text(
                         _isLogin ? s.signUp : s.signIn,
                         style: const TextStyle(
-                            color: AppTheme.goldPrimary,
+                            color: AppTheme.brandPrimary,
                             fontWeight: FontWeight.w700),
                       ),
                     ),

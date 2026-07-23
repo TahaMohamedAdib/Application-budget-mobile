@@ -77,7 +77,7 @@ class HookScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onNext,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
+                      backgroundColor: AppTheme.brandPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),

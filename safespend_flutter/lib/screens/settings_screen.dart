@@ -88,7 +88,7 @@ class SettingsScreen extends StatelessWidget {
                               Container(
                                 width: 44, height: 44,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.goldPrimary.withOpacity(0.12),
+                                  color: AppTheme.brandPrimary.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: const Center(child: Text('💱', style: TextStyle(fontSize: 20))),
@@ -229,15 +229,15 @@ class SettingsScreen extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 18),
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.goldPrimary.withOpacity(isDark ? 0.2 : 0.1) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+            color: isSelected ? AppTheme.brandPrimary.withOpacity(isDark ? 0.2 : 0.1) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: isSelected ? AppTheme.goldPrimary : Colors.transparent, width: 2),
+            border: Border.all(color: isSelected ? AppTheme.brandPrimary : Colors.transparent, width: 2),
           ),
           child: Column(
             children: [
-              Icon(icon, size: 22, color: isSelected ? AppTheme.goldPrimary : Theme.of(context).textTheme.bodySmall?.color),
+              Icon(icon, size: 22, color: isSelected ? AppTheme.brandPrimary : Theme.of(context).textTheme.bodySmall?.color),
               const SizedBox(height: 8),
-              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : Theme.of(context).textTheme.bodySmall?.color)),
+              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? AppTheme.brandPrimary : Theme.of(context).textTheme.bodySmall?.color)),
             ],
           ),
         ),
@@ -275,7 +275,7 @@ class SettingsScreen extends StatelessWidget {
         builder: (ctx, setS) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(children: [
-            const Icon(Icons.notifications_rounded, color: AppTheme.goldPrimary),
+            const Icon(Icons.notifications_rounded, color: AppTheme.brandPrimary),
             const SizedBox(width: 10),
             Text(s.notifications, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           ]),
@@ -290,7 +290,7 @@ class SettingsScreen extends StatelessWidget {
                 },
                 title: Text(s.pushNotifications),
                 subtitle: Text(s.remindersForBills),
-                activeColor: AppTheme.goldPrimary,
+                activeColor: AppTheme.brandPrimary,
                 contentPadding: EdgeInsets.zero,
               ),
             ],
@@ -308,7 +308,7 @@ class SettingsScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(children: [
-          const Icon(Icons.shield_rounded, color: AppTheme.goldPrimary),
+          const Icon(Icons.shield_rounded, color: AppTheme.brandPrimary),
           const SizedBox(width: 10),
           Text(s.privacy, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         ]),
@@ -325,7 +325,7 @@ class SettingsScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(children: [
-          const Icon(Icons.help_outline_rounded, color: AppTheme.goldPrimary),
+          const Icon(Icons.help_outline_rounded, color: AppTheme.brandPrimary),
           const SizedBox(width: 10),
           Text(s.helpAndSupport, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         ]),
@@ -423,9 +423,9 @@ class SettingsScreen extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 4),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.goldPrimary.withOpacity(isDark ? 0.15 : 0.08) : Colors.transparent,
+                          color: isSelected ? AppTheme.brandPrimary.withOpacity(isDark ? 0.15 : 0.08) : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                          border: isSelected ? Border.all(color: AppTheme.goldPrimary, width: 1.5) : null,
+                          border: isSelected ? Border.all(color: AppTheme.brandPrimary, width: 1.5) : null,
                         ),
                         child: Row(
                           children: [
@@ -435,13 +435,13 @@ class SettingsScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(name, style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : null)),
+                                  Text(name, style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.brandPrimary : null)),
                                   Text(code.toUpperCase(), style: Theme.of(ctx).textTheme.bodySmall),
                                 ],
                               ),
                             ),
                             if (isSelected)
-                              const Icon(Icons.check_circle_rounded, color: AppTheme.goldPrimary, size: 22),
+                              const Icon(Icons.check_circle_rounded, color: AppTheme.brandPrimary, size: 22),
                           ],
                         ),
                       ),
@@ -605,23 +605,23 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                         Container(
                           width: 38, height: 38,
                           decoration: BoxDecoration(
-                            color: isSelected ? AppTheme.goldPrimary.withOpacity(0.12) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+                            color: isSelected ? AppTheme.brandPrimary.withOpacity(0.12) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Center(child: Text(symbol, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isSelected ? AppTheme.goldPrimary : Theme.of(context).textTheme.bodyMedium?.color))),
+                          child: Center(child: Text(symbol, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isSelected ? AppTheme.brandPrimary : Theme.of(context).textTheme.bodyMedium?.color))),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(name, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : null)),
+                              Text(name, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.brandPrimary : null)),
                               Text(code, style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
                         ),
                         if (isSelected)
-                          const Icon(Icons.check_circle_rounded, color: AppTheme.goldPrimary, size: 22),
+                          const Icon(Icons.check_circle_rounded, color: AppTheme.brandPrimary, size: 22),
                       ],
                     ),
                   ),

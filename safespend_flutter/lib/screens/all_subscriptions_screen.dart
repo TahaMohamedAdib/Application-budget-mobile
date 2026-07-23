@@ -146,8 +146,8 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                                 : account?.imagePath != null
                                                     ? _buildImageIcon(account!.imagePath!)
                                                     : cat != null
-                                                        ? Icon(_categoryIconData(cat.icon), color: AppTheme.goldPrimary, size: 20)
-                                                        : const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20),
+                                                        ? Icon(_categoryIconData(cat.icon), color: AppTheme.brandPrimary, size: 20)
+                                                        : const Icon(Icons.autorenew_rounded, color: AppTheme.brandPrimary, size: 20),
                                           ),
                                         );
                                       }),
@@ -181,10 +181,10 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                       Container(
                                         width: 32, height: 32,
                                         decoration: BoxDecoration(
-                                          color: AppTheme.goldPrimary.withOpacity(0.1),
+                                          color: AppTheme.brandPrimary.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(10),
                                         ),
-                                        child: const Icon(Icons.edit_rounded, size: 15, color: AppTheme.goldPrimary),
+                                        child: const Icon(Icons.edit_rounded, size: 15, color: AppTheme.brandPrimary),
                                       ),
                                     ],
                                   ),
@@ -205,10 +205,10 @@ class AllSubscriptionsScreen extends StatelessWidget {
   Widget _buildImageIcon(String path) {
     if (path.startsWith('http')) {
       return Image.network(path, fit: BoxFit.cover, width: 44, height: 44,
-          errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20));
+          errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.brandPrimary, size: 20));
     }
     return Image.file(File(path), fit: BoxFit.cover, width: 44, height: 44,
-        errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20));
+        errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.brandPrimary, size: 20));
   }
 
   IconData _categoryIconData(String iconName) {
@@ -394,11 +394,11 @@ class AllSubscriptionsScreen extends StatelessWidget {
                         provider.updateRecurringRule(updatedRule);
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Subscription updated'), backgroundColor: AppTheme.goldPrimary),
+                          const SnackBar(content: Text('Subscription updated'), backgroundColor: AppTheme.brandPrimary),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.goldPrimary,
+                        backgroundColor: AppTheme.brandPrimary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,

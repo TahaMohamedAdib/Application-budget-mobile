@@ -78,7 +78,7 @@ class AccountsScreen extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: AppTheme.goldPrimary,
+                            color: AppTheme.brandPrimary,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: IconButton(
@@ -279,7 +279,7 @@ class AccountsScreen extends StatelessWidget {
                                                         decoration:
                                                             BoxDecoration(
                                                           color: AppTheme
-                                                              .goldPrimary
+                                                              .brandPrimary
                                                               .withValues(
                                                                   alpha: 0.15),
                                                           borderRadius:
@@ -291,7 +291,7 @@ class AccountsScreen extends StatelessWidget {
                                                           style: const TextStyle(
                                                               fontSize: 10,
                                                               color: AppTheme
-                                                                  .goldPrimary,
+                                                                  .brandPrimary,
                                                               fontWeight:
                                                                   FontWeight
                                                                       .w600),
@@ -360,11 +360,11 @@ class AccountsScreen extends StatelessWidget {
   }
 
   Color _getAccountColor(String? colorHex) {
-    if (colorHex == null) return AppTheme.goldPrimary;
+    if (colorHex == null) return AppTheme.brandPrimary;
     try {
       return Color(int.parse(colorHex.replaceFirst('#', '0xFF')));
     } catch (e) {
-      return AppTheme.goldPrimary;
+      return AppTheme.brandPrimary;
     }
   }
 
@@ -562,7 +562,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.goldPrimary,
+                          color: AppTheme.brandPrimary,
                         ),
                       ),
                     ),
@@ -671,7 +671,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  '#B8860B', // Gold
+                  '#B8860B', // Brand
                   '#EF4444', // Red
                   '#0b715f', // Green
                   '#3B82F6', // Blue
@@ -690,7 +690,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                   onChanged: (v) => setState(() => _enableDebtPayment = v),
                   title: Text(s.monthlyPayment),
                   subtitle: Text(s.automaticallyPayDebtMonthly),
-                  activeThumbColor: AppTheme.goldPrimary,
+                  activeThumbColor: AppTheme.brandPrimary,
                   contentPadding: EdgeInsets.zero,
                 ),
                 if (_enableDebtPayment) ...[
@@ -715,7 +715,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                               style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
-                                  color: AppTheme.goldPrimary)),
+                                  color: AppTheme.brandPrimary)),
                         ),
                       ),
                     );
@@ -776,7 +776,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                     setState(() => _includeInNetWorth = value),
                 title: Text(s.includeInNetWorth),
                 subtitle: Text(s.countThisAccountInNetWorth),
-                activeThumbColor: AppTheme.goldPrimary,
+                activeThumbColor: AppTheme.brandPrimary,
                 contentPadding: EdgeInsets.zero,
               ),
               const SizedBox(height: 8),
@@ -788,7 +788,7 @@ class _AddAccountModalState extends State<AddAccountModal> {
                 child: ElevatedButton(
                   onPressed: _saveAccount,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.goldPrimary,
+                    backgroundColor: AppTheme.brandPrimary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -825,11 +825,11 @@ class _AddAccountModalState extends State<AddAccountModal> {
       onSelected: (selected) {
         if (selected) setState(() => _selectedType = type);
       },
-      selectedColor: AppTheme.goldPrimary.withOpacity(0.3),
+      selectedColor: AppTheme.brandPrimary.withOpacity(0.3),
       backgroundColor: Theme.of(context).cardColor,
       side: BorderSide(
         color:
-            isSelected ? AppTheme.goldPrimary : Theme.of(context).dividerColor,
+            isSelected ? AppTheme.brandPrimary : Theme.of(context).dividerColor,
       ),
     );
   }

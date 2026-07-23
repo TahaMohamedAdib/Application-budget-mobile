@@ -151,7 +151,7 @@ class WelcomeScreen extends StatelessWidget {
                         onPressed: onNext,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: AppTheme.gold700,
+                          foregroundColor: AppTheme.brand700,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         ),

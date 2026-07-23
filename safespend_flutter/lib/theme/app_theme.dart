@@ -8,15 +8,15 @@ class AppTheme {
   AppTheme._();
 
   // ── Backward-compat color aliases ────────────────────────────────────────
-  static const Color goldPrimary         = AppColors.goldPrimary;
-  static const Color gold600             = AppColors.gold600;
-  static const Color gold700             = AppColors.gold700;
-  static const Color gold500             = AppColors.gold500;
-  static const Color gold400             = AppColors.gold400;
-  static const Color gold300             = AppColors.gold300;
-  static const Color gold200             = AppColors.gold200;
-  static const Color gold100             = AppColors.gold100;
-  static const Color gold50              = AppColors.gold50;
+  static const Color brandPrimary         = AppColors.brandPrimary;
+  static const Color brand600             = AppColors.brand600;
+  static const Color brand700             = AppColors.brand700;
+  static const Color brand500             = AppColors.brand500;
+  static const Color brand400             = AppColors.brand400;
+  static const Color brand300             = AppColors.brand300;
+  static const Color brand200             = AppColors.brand200;
+  static const Color brand100             = AppColors.brand100;
+  static const Color brand50              = AppColors.brand50;
 
   // ── AI accent (sky blue, ChatGPT-inspired) ────────────────────────────────
   static const Color aiAccent     = AppColors.aiAccent;
@@ -64,7 +64,7 @@ class AppTheme {
     BoxShadow(color: _slate04, blurRadius: 8, offset: Offset(0, 2)),
   ];
 
-  static final List<BoxShadow> goldGlow = const [
+  static final List<BoxShadow> brandGlow = const [
     BoxShadow(color: _black18, blurRadius: 20, offset: Offset(0, 6), spreadRadius: -2),
   ];
 
@@ -72,11 +72,11 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    primaryColor: goldPrimary,
+    primaryColor: brandPrimary,
     scaffoldBackgroundColor: lightBackground,
     colorScheme: const ColorScheme.light(
-      primary: goldPrimary,
-      secondary: goldPrimary,
+      primary: brandPrimary,
+      secondary: brandPrimary,
       surface: lightSurface,
       error: error,
     ),
@@ -98,8 +98,8 @@ class AppTheme {
       lightTextPrimary, lightTextSecondary, lightTextTertiary,
     ),
     iconTheme: const IconThemeData(color: lightTextSecondary, size: 20),
-    splashColor: goldPrimary.withOpacity(0.08),
-    highlightColor: goldPrimary.withOpacity(0.04),
+    splashColor: brandPrimary.withOpacity(0.08),
+    highlightColor: brandPrimary.withOpacity(0.04),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: lightSurface,
@@ -114,7 +114,7 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: goldPrimary, width: 2),
+        borderSide: const BorderSide(color: brandPrimary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -129,7 +129,7 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: goldPrimary,
+        backgroundColor: brandPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -157,15 +157,15 @@ class AppTheme {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? goldPrimary : Colors.grey),
+          states.contains(WidgetState.selected) ? brandPrimary : Colors.grey),
       trackColor: WidgetStateProperty.resolveWith((states) =>
           states.contains(WidgetState.selected)
-              ? goldPrimary.withOpacity(0.3)
+              ? brandPrimary.withOpacity(0.3)
               : Colors.grey.withOpacity(0.2)),
     ),
     chipTheme: ChipThemeData(
       backgroundColor: const Color(0xFFF1F3F6),
-      selectedColor: goldPrimary.withOpacity(0.15),
+      selectedColor: brandPrimary.withOpacity(0.15),
       labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: const BorderSide(color: lightBorder),
@@ -181,11 +181,11 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    primaryColor: goldPrimary,
+    primaryColor: brandPrimary,
     scaffoldBackgroundColor: darkBackground,
     colorScheme: const ColorScheme.dark(
-      primary: goldPrimary,
-      secondary: goldPrimary,
+      primary: brandPrimary,
+      secondary: brandPrimary,
       surface: darkSurface,
       error: error,
     ),
@@ -207,8 +207,8 @@ class AppTheme {
       darkTextPrimary, darkTextSecondary, darkTextTertiary,
     ),
     iconTheme: const IconThemeData(color: darkTextSecondary, size: 20),
-    splashColor: goldPrimary.withOpacity(0.10),
-    highlightColor: goldPrimary.withOpacity(0.05),
+    splashColor: brandPrimary.withOpacity(0.10),
+    highlightColor: brandPrimary.withOpacity(0.05),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: darkSurface,
@@ -223,7 +223,7 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: goldPrimary, width: 2),
+        borderSide: const BorderSide(color: brandPrimary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -238,7 +238,7 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: goldPrimary,
+        backgroundColor: brandPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -266,15 +266,15 @@ class AppTheme {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? goldPrimary : darkTextTertiary),
+          states.contains(WidgetState.selected) ? brandPrimary : darkTextTertiary),
       trackColor: WidgetStateProperty.resolveWith((states) =>
           states.contains(WidgetState.selected)
-              ? goldPrimary.withOpacity(0.35)
+              ? brandPrimary.withOpacity(0.35)
               : Colors.white.withOpacity(0.1)),
     ),
     chipTheme: ChipThemeData(
       backgroundColor: darkSurfaceElevated,
-      selectedColor: goldPrimary.withOpacity(0.2),
+      selectedColor: brandPrimary.withOpacity(0.2),
       labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: darkTextSecondary),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: BorderSide(color: Colors.white.withOpacity(0.08)),
@@ -316,7 +316,7 @@ class AppTheme {
   }
 
   /// ChatGPT-style hero card with teal accent.
-  static BoxDecoration goldCard() {
+  static BoxDecoration brandCard() {
     return BoxDecoration(
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
@@ -332,7 +332,7 @@ class AppTheme {
       boxShadow: [
         // Soft teal glow — ChatGPT brand
         BoxShadow(
-          color: const Color(0xFF0B715F).withOpacity(0.15),
+          color: brandPrimary.withOpacity(0.15),
           blurRadius: 20,
           spreadRadius: 0,
           offset: const Offset(0, 4),

@@ -60,7 +60,7 @@ class _DaretScreenState extends State<DaretScreen> {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.add_rounded,
-                        color: AppTheme.goldPrimary, size: 26),
+                        color: AppTheme.brandPrimary, size: 26),
                     onPressed: () => _showAddDaretModal(context, provider),
                   ),
                   const SizedBox(width: 8),
@@ -870,7 +870,7 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
                             : null,
                         icon: Icon(Icons.remove_circle_rounded,
                             color: _userShares > 1
-                                ? AppTheme.goldPrimary
+                                ? AppTheme.brandPrimary
                                 : Colors.grey),
                       ),
                       Text('$_userShares',
@@ -891,7 +891,7 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
                         icon: Icon(Icons.add_circle_rounded,
                             color: _userShares <
                                     (_totalShares > 0 ? _totalShares : 10)
-                                ? AppTheme.goldPrimary
+                                ? AppTheme.brandPrimary
                                 : Colors.grey),
                       ),
                     ],
@@ -932,7 +932,7 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
                     child: Row(
                       children: [
                         const Icon(Icons.calendar_today_rounded,
-                            size: 18, color: AppTheme.goldPrimary),
+                            size: 18, color: AppTheme.brandPrimary),
                         const SizedBox(width: 12),
                         Text(DateFormat.yMMMd().format(_startDate),
                             style: Theme.of(context)
@@ -1028,7 +1028,7 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
                 ElevatedButton(
                   onPressed: _canSave ? _save : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.goldPrimary,
+                    backgroundColor: AppTheme.brandPrimary,
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(

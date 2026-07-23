@@ -175,7 +175,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 6),
                                   decoration: BoxDecoration(
-                                      color: AppTheme.goldPrimary,
+                                      color: AppTheme.brandPrimary,
                                       borderRadius: BorderRadius.circular(20)),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -314,7 +314,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                                     BorderRadius.circular(13)),
                                             child: const Icon(
                                                 Icons.receipt_long_rounded,
-                                                color: AppTheme.goldPrimary,
+                                                color: AppTheme.brandPrimary,
                                                 size: 22),
                                           ),
                                           const SizedBox(width: 14),
@@ -597,7 +597,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 6),
                                   decoration: BoxDecoration(
-                                      color: AppTheme.goldPrimary,
+                                      color: AppTheme.brandPrimary,
                                       borderRadius: BorderRadius.circular(20)),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -638,7 +638,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                             width: 44,
                                             height: 44,
                                             decoration: BoxDecoration(
-                                                color: AppTheme.gold50,
+                                                color: AppTheme.brand50,
                                                 borderRadius:
                                                     BorderRadius.circular(12)),
                                             child: Center(
@@ -672,13 +672,13 @@ class _PlanScreenState extends State<PlanScreen> {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
-                                                color: AppTheme.goldPrimary
+                                                color: AppTheme.brandPrimary
                                                     .withOpacity(0.1),
                                                 borderRadius:
                                                     BorderRadius.circular(12)),
                                             child: Text('${progress.round()}%',
                                                 style: const TextStyle(
-                                                    color: AppTheme.goldPrimary,
+                                                    color: AppTheme.brandPrimary,
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 13)),
                                           ),
@@ -694,7 +694,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                           backgroundColor: isDark
                                               ? AppTheme.darkBorder
                                               : const Color(0xFFE2E8F0),
-                                          color: AppTheme.goldPrimary,
+                                          color: AppTheme.brandPrimary,
                                           minHeight: 6,
                                         ),
                                       ),
@@ -733,10 +733,10 @@ class _PlanScreenState extends State<PlanScreen> {
                                                   fontWeight: FontWeight.w600)),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: AppTheme
-                                                .goldPrimary
+                                                .brandPrimary
                                                 .withOpacity(0.12),
                                             foregroundColor:
-                                                AppTheme.goldPrimary,
+                                                AppTheme.brandPrimary,
                                             elevation: 0,
                                             shape: RoundedRectangleBorder(
                                                 borderRadius:
@@ -768,7 +768,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                             width: 44,
                                             height: 44,
                                             decoration: BoxDecoration(
-                                                color: AppTheme.gold50,
+                                                color: AppTheme.brand50,
                                                 borderRadius:
                                                     BorderRadius.circular(12)),
                                             child: Center(
@@ -811,7 +811,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                           backgroundColor: isDark
                                               ? AppTheme.darkBorder
                                               : const Color(0xFFE2E8F0),
-                                          color: AppTheme.goldPrimary,
+                                          color: AppTheme.brandPrimary,
                                           minHeight: 6,
                                         ),
                                       ),
@@ -845,9 +845,9 @@ class _PlanScreenState extends State<PlanScreen> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? AppTheme.goldPrimary : Colors.transparent,
+            color: isActive ? AppTheme.brandPrimary : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: isActive ? AppTheme.goldGlow : null,
+            boxShadow: isActive ? AppTheme.brandGlow : null,
           ),
           child: Center(
             child: Text(label,
@@ -953,7 +953,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 Row(
                   children: [
                     Icon(_categoryIcon(cat.icon),
-                        color: AppTheme.goldPrimary, size: 24),
+                        color: AppTheme.brandPrimary, size: 24),
                     const SizedBox(width: 12),
                     Text('Set Budget for ${cat.name}',
                         style: Theme.of(ctx)
@@ -1017,7 +1017,7 @@ class _PlanScreenState extends State<PlanScreen> {
                           Navigator.pop(ctx);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
+                          backgroundColor: AppTheme.brandPrimary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -1213,7 +1213,7 @@ class _PlanScreenState extends State<PlanScreen> {
                         Navigator.pop(ctx);
                       },
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
+                          backgroundColor: AppTheme.brandPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
@@ -1276,7 +1276,7 @@ class _PlanScreenState extends State<PlanScreen> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                            color: AppTheme.gold50,
+                            color: AppTheme.brand50,
                             borderRadius: BorderRadius.circular(12)),
                         child: Center(
                             child: Text(goal.icon,
@@ -1305,7 +1305,7 @@ class _PlanScreenState extends State<PlanScreen> {
                     padding: const EdgeInsets.all(14),
                     margin: const EdgeInsets.only(top: 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.goldPrimary.withOpacity(0.06),
+                      color: AppTheme.brandPrimary.withOpacity(0.06),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -1317,7 +1317,7 @@ class _PlanScreenState extends State<PlanScreen> {
                             '${cf.format(goal.currentAmount)} / ${cf.format(goal.targetAmount)}',
                             style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: AppTheme.goldPrimary)),
+                                color: AppTheme.brandPrimary)),
                       ],
                     ),
                   ),
@@ -1355,7 +1355,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                 label: a.name,
                                 subtitle: cf.format(a.balance),
                                 leadingIcon: AppIcons.bank,
-                                iconColor: AppTheme.goldPrimary,
+                                iconColor: AppTheme.brandPrimary,
                                 imagePath: a.imagePath,
                               )),
                     ],
@@ -1385,11 +1385,11 @@ class _PlanScreenState extends State<PlanScreen> {
                           SnackBar(
                               content: Text(
                                   '${cf.format(amount)} ${isDebt ? "paid" : "contributed"} to ${goal.name}'),
-                              backgroundColor: AppTheme.goldPrimary),
+                              backgroundColor: AppTheme.brandPrimary),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
+                          backgroundColor: AppTheme.brandPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
@@ -1524,7 +1524,7 @@ class _AddBillModalState extends State<AddBillModal> {
                             label: a.name,
                             subtitle: cf.format(a.balance),
                             leadingIcon: AppIcons.bank,
-                            iconColor: AppTheme.goldPrimary,
+                            iconColor: AppTheme.brandPrimary,
                             imagePath: a.imagePath,
                           )),
                     ],
@@ -1555,12 +1555,12 @@ class _AddBillModalState extends State<AddBillModal> {
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppTheme.goldPrimary
+                                  ? AppTheme.brandPrimary
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                   color: isSelected
-                                      ? AppTheme.goldPrimary
+                                      ? AppTheme.brandPrimary
                                       : Theme.of(context).dividerColor),
                             ),
                             child: Center(
@@ -1632,7 +1632,7 @@ class _AddBillModalState extends State<AddBillModal> {
                     child: ElevatedButton(
                       onPressed: _saveBill,
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
+                          backgroundColor: AppTheme.brandPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),

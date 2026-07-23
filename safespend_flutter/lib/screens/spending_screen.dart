@@ -129,7 +129,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: active ? AppTheme.goldPrimary : Colors.transparent,
+                                  color: active ? AppTheme.brandPrimary : Colors.transparent,
                                   borderRadius: BorderRadius.circular(11),
                                 ),
                                 child: Center(
@@ -153,7 +153,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: Container(
                       padding: const EdgeInsets.all(24),
-                      decoration: AppTheme.goldCard(),
+                      decoration: AppTheme.brandCard(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

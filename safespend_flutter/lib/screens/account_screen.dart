@@ -176,12 +176,12 @@ class _AccountScreenState extends State<AccountScreen> {
                           width: 72,
                           height: 72,
                           decoration: BoxDecoration(
-                            color: AppTheme.goldPrimary.withOpacity(0.12),
+                            color: AppTheme.brandPrimary.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(22),
                           ),
                           child: const Center(
                               child: Icon(Icons.person_rounded,
-                                  color: AppTheme.goldPrimary, size: 36)),
+                                  color: AppTheme.brandPrimary, size: 36)),
                         ),
                         const SizedBox(width: 20),
                         Expanded(
@@ -234,12 +234,12 @@ class _AccountScreenState extends State<AccountScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: AppTheme.goldPrimary.withOpacity(0.12),
+                                color: AppTheme.brandPrimary.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Center(
                                   child: Icon(Icons.badge_rounded,
-                                      size: 20, color: AppTheme.goldPrimary)),
+                                      size: 20, color: AppTheme.brandPrimary)),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -269,12 +269,12 @@ class _AccountScreenState extends State<AccountScreen> {
                                       horizontal: 14, vertical: 8),
                                   decoration: BoxDecoration(
                                     color:
-                                        AppTheme.goldPrimary.withOpacity(0.12),
+                                        AppTheme.brandPrimary.withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(s.edit,
                                       style: const TextStyle(
-                                          color: AppTheme.goldPrimary,
+                                          color: AppTheme.brandPrimary,
                                           fontWeight: FontWeight.w600,
                                           fontSize: 13)),
                                 ),
@@ -313,7 +313,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                 child: ElevatedButton(
                                   onPressed: _isLoading ? null : _saveName,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.goldPrimary,
+                                    backgroundColor: AppTheme.brandPrimary,
                                     foregroundColor: Colors.black,
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
@@ -373,12 +373,12 @@ class _AccountScreenState extends State<AccountScreen> {
                               height: 40,
                               decoration: BoxDecoration(
                                 color:
-                                    const Color(0xFF3B82F6).withOpacity(0.12),
+                                    AppTheme.info.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Center(
                                   child: Icon(Icons.email_rounded,
-                                      size: 20, color: Color(0xFF3B82F6))),
+                                      size: 20, color: AppTheme.info)),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -453,12 +453,12 @@ class _AccountScreenState extends State<AccountScreen> {
                                 height: 40,
                                 decoration: BoxDecoration(
                                   color:
-                                      const Color(0xFF10B981).withOpacity(0.12),
+                                      AppTheme.success.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Center(
                                     child: Icon(Icons.lock_rounded,
-                                        size: 20, color: Color(0xFF10B981))),
+                                        size: 20, color: AppTheme.success)),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -489,13 +489,13 @@ class _AccountScreenState extends State<AccountScreen> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 14, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981)
+                                      color: AppTheme.success
                                           .withOpacity(0.12),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(s.change,
                                         style: const TextStyle(
-                                            color: Color(0xFF10B981),
+                                            color: AppTheme.success,
                                             fontWeight: FontWeight.w600,
                                             fontSize: 13)),
                                   ),
@@ -626,7 +626,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                     onPressed:
                                         _isLoading ? null : _changePassword,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.goldPrimary,
+                                      backgroundColor: AppTheme.brandPrimary,
                                       foregroundColor: Colors.black,
                                       shape: RoundedRectangleBorder(
                                           borderRadius:

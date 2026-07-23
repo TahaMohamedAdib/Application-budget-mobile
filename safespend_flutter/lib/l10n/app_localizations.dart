@@ -279,16 +279,13 @@ class S {
   String get contributionHint => _t('contributionHint');
   String get contributionAmountHint => _t('contributionAmountHint');
   String get totalSharesHint => _t('totalSharesHint');
-  String get yourSlotsLabel => _t('yourSlotsLabel');
-  String get saveChangesLabel => _t('saveChangesLabel');
-  String get createDaretLabel => _t('createDaretLabel');
   String get people => _t('people');
   String get share => _t('share');
   String get shares => _t('shares');
 
   // Home
   String get totalBalance => _t('totalBalance');
-  String get safeToSpend => _t('safeToSpend');
+  String get availableBalance => _t('availableBalance');
   String get income => _t('income');
   String get expenses => _t('expenses');
   String get recentTransactions => _t('recentTransactions');
