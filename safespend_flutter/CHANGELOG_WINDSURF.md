@@ -448,3 +448,58 @@ commencer.
 - Vérifier visuellement en thèmes clair et sombre la carte de solde, les états
   succès/info et les principaux parcours. Aucun appareil n'a été utilisé par
   Codex.
+
+## T0 — tests unitaires de non-régression financière — 2026-07-23
+
+### Statut
+
+**TERMINÉ.**
+
+### Fichiers modifiés
+
+- `test/providers/app_provider_financial_test.dart`
+- `CHANGELOG_WINDSURF.md`
+
+### Couverture ajoutée
+
+Quatorze tests exercent `AppProvider` uniquement par son API publique :
+
+- virement à la création ;
+- virement modifié avec nouveau montant et nouveau destinataire ;
+- suppression d'un virement ;
+- conversion d'un virement en dépense ;
+- contribution à un objectif, liaison `goalId`, UUID et réversion ;
+- modification d'un paiement de dette par delta exact ;
+- déplacement d'une transaction liée vers un autre objectif ;
+- retours/paiements de dette personnelle liés et réversibles ;
+- suppression de catégorie sans variation de solde ;
+- récurrent Daret : type conservé et traitement idempotent ;
+- solde global : investissements exclus, cash inclus ;
+- dépenses par catégorie limitées au mois et au type attendus ;
+- salaire automatique crédité une seule fois par mois ;
+- UUID des créations Daret directes.
+
+Avec le smoke test du modèle `Transaction`, la suite contient 15 tests.
+
+### Seam de test
+
+Le paramètre optionnel `AppProvider(autoLoad: false)`, introduit lors de B1,
+évite les lectures asynchrones de `SharedPreferences` pendant la construction
+des scénarios. La valeur par défaut reste `true`; le comportement de production
+est inchangé.
+
+Chaque test initialise `TestWidgetsFlutterBinding` et réinitialise
+`SharedPreferences` avec `setMockInitialValues({})`.
+
+### Vérifications
+
+- `flutter analyze` : **560 issues**, aucune erreur et aucun nouveau diagnostic
+  par rapport à la baseline de 568.
+- `flutter test` : **15 tests réussis, 100 % vert**.
+- Le fichier financier reste sous le seuil de découpe prévu de 600 lignes.
+
+### Limites et étapes humaines
+
+- Les appels Supabase ne sont pas exercés : aucun utilisateur distant n'est
+  injecté et aucune base de production n'est touchée.
+- Aucun test widget visuel ni test appareil n'est ajouté dans ce lot.
