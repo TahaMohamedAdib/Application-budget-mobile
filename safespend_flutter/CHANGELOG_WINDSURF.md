@@ -258,3 +258,90 @@ la section B.
 
 - Aucun comportement produit modifié.
 - Aucune étape humaine supplémentaire.
+
+## Préphase B1 — invariants financiers et liaison objectif — 2026-07-23
+
+### Statut
+
+**TERMINÉ.**
+
+L'autorisation humaine d'implémenter la section B manquante sur `c22904bf`
+permet de lever le blocage de la Phase 0.4. Ce lot couvre uniquement la partie
+financière et sa migration ; les éléments UI/thème/i18n de B sont traités dans
+le lot B2 suivant.
+
+### Fichiers modifiés
+
+- `lib/models/transaction.dart`
+- `lib/providers/app_provider.dart`
+- `lib/services/supabase_sync_service.dart`
+- `lib/widgets/add_transaction_modal.dart`
+- `supabase_migrations/20260723000000_add_transaction_goal_id.sql`
+- `MIGRATIONS.md`
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- `updateTransaction()` reprend désormais l'effet de l'ancien compte
+  destinataire d'un virement, applique le nouveau et synchronise chaque compte
+  affecté une seule fois.
+- `Transaction.goalId` est sérialisé localement, envoyé sous `goal_id` à
+  Supabase et préservé lors de l'édition générique d'une transaction.
+- Les quatre flux objectif/dette renseignent `goalId`. Leur suppression ou
+  modification ajuste l'entité liée via `_adjustLinkedGoal()`.
+- Les six flux financiers imposés utilisent des UUID v4 au lieu d'identifiants
+  timestamp incompatibles avec PostgreSQL UUID.
+- `deleteCategory()` détache les transactions concernées sans modifier leurs
+  soldes ni perdre leurs autres champs, puis les resynchronise.
+- `processSubscriptions()` conserve le type exact du template, notamment
+  `daret_contribution` et `goal_contribution`.
+- `personal_debt_return` est traité symétriquement comme une sortie dans les
+  chemins création/modification/suppression et dans le calcul du cash.
+- Le constructeur `AppProvider(autoLoad: false)` fournit une seam minimale et
+  optionnelle aux tests ; le comportement de production reste `autoLoad: true`.
+- La reprise Supabase retire successivement `description` ou `goal_id` seulement
+  lorsque PostgreSQL signale précisément l'absence de la colonne. Toute autre
+  erreur est relancée.
+
+### Décisions
+
+- `_adjustLinkedGoal()` applique un plancher à zéro sans plafonner à la cible,
+  afin de restituer exactement les montants déjà autorisés par les flux
+  existants.
+- La migration utilise une FK nullable
+  `transactions.goal_id → public.goals(id)` avec `ON DELETE SET NULL`.
+- Le contournement par reconstruction directe dans `deleteCategory()` est
+  conservé jusqu'à T7, car le `copyWith` actuel ne sait pas effacer un nullable.
+
+### Checklist financière complète
+
+- Virements création/modification/suppression : **PASS**.
+- Objectifs, contributions et modification par delta : **PASS**.
+- Dettes et retours de dette personnelle, lien `goalId`, UUID : **PASS**.
+- Suppression de catégorie sans variation de solde : **PASS**.
+- Récurrents : type préservé et second traitement idempotent : **PASS**.
+- Salaires automatiques : comportement inchangé et idempotence couverte :
+  **PASS**.
+- Solde disponible : investissements exclus, cash inclus : **PASS**.
+
+### Vérifications
+
+- `flutter analyze` : **568 issues**, identique à la baseline
+  (39 warnings, 529 infos, 0 erreur).
+- `flutter test` : **15 tests réussis, 100 % vert**.
+- Diff de `add_transaction_modal.dart` contrôlé : une seule ligne fonctionnelle,
+  la préservation de `goalId`.
+
+### Limites et étapes humaines
+
+- Appliquer
+  `supabase_migrations/20260723000000_add_transaction_goal_id.sql` en suivant
+  l'ordre de `MIGRATIONS.md`.
+- Tant que la migration n'est pas appliquée, la reprise compatible sauvegarde la
+  transaction sans `goal_id`; une sauvegarde ultérieure sera nécessaire pour
+  rétroalimenter le lien distant.
+- Les anciennes transactions dont l'identifiant est un timestamp ne sont pas
+  migrées automatiquement.
+- Le service envoie actuellement `fees` alors que les scripts de schéma racine
+  déclarent `fee_amount`; cet écart préexistant est documenté mais hors du lot
+  B autorisé.

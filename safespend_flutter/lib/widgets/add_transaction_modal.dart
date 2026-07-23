@@ -1003,6 +1003,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
         categoryId: _selectedCategoryId,
         accountId: _selectedAccountId!,
         toAccountId: _sendToPerson ? null : _selectedToAccountId,
+        goalId: widget.initialTransaction!.goalId,
         imagePath: _imagePath,
         expenseSubType: _selectedType == 'expense' ? _expenseSubType : null,
       );

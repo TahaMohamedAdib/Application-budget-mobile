@@ -124,8 +124,10 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  AppProvider() {
-    loadData();
+  AppProvider({bool autoLoad = true}) {
+    if (autoLoad) {
+      loadData();
+    }
   }
 
   // ============================================
@@ -515,7 +517,7 @@ class AppProvider with ChangeNotifier {
         // Create transaction for this due date/time
         final tx = Transaction(
           id: const Uuid().v4(),
-          type: isIncome ? 'income' : 'expense',
+          type: rule.templateTransaction.type,
           amount: rule.templateTransaction.amount,
           date: nextDate.toIso8601String(),
           note: rule.templateTransaction.note,
@@ -699,7 +701,8 @@ class AppProvider with ChangeNotifier {
             transaction.type == 'withdrawal' ||
             transaction.type == 'transfer' ||
             transaction.type == 'goal_contribution' ||
-            transaction.type == 'debt_payment') {
+            transaction.type == 'debt_payment' ||
+            transaction.type == 'personal_debt_return') {
           newBalance -= transaction.totalWithFees; // amount + bank fees
         }
         // Add: income, lending_collection
@@ -744,7 +747,7 @@ class AppProvider with ChangeNotifier {
     final old = _transactions[idx];
 
     // Reverse the balance effect on the source account
-    final changedAccounts = <dynamic>[];
+    final changedAccountIds = <String>{};
     if (old.accountId != cashOnHandId) {
       final ai = _accounts.indexWhere((a) => a.id == old.accountId);
       if (ai != -1) {
@@ -753,13 +756,14 @@ class AppProvider with ChangeNotifier {
             old.type == 'withdrawal' ||
             old.type == 'transfer' ||
             old.type == 'goal_contribution' ||
-            old.type == 'debt_payment') {
+            old.type == 'debt_payment' ||
+            old.type == 'personal_debt_return') {
           bal += old.totalWithFees;
         } else if (old.type == 'income' || old.type == 'lending_collection') {
           bal -= old.amount;
         }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
-        changedAccounts.add(_accounts[ai]);
+        changedAccountIds.add(_accounts[ai].id);
       }
     }
     // Reverse the balance effect on transfer destination
@@ -770,18 +774,25 @@ class AppProvider with ChangeNotifier {
       if (ai != -1) {
         _accounts[ai] =
             _accounts[ai].copyWith(balance: _accounts[ai].balance - old.amount);
-        changedAccounts.add(_accounts[ai]);
+        changedAccountIds.add(_accounts[ai].id);
       }
     }
 
+    final adjustedGoal = _adjustLinkedGoal(old, -old.amount);
     _transactions.removeAt(idx);
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.deleteTransaction(uid, id);
+      final changedAccounts = _accounts
+          .where((account) => changedAccountIds.contains(account.id))
+          .toList();
       if (changedAccounts.isNotEmpty) {
         SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts);
+      }
+      if (adjustedGoal != null) {
+        SupabaseSyncService.saveGoal(uid, adjustedGoal);
       }
     }
   }
@@ -801,12 +812,23 @@ class AppProvider with ChangeNotifier {
             old.type == 'withdrawal' ||
             old.type == 'transfer' ||
             old.type == 'goal_contribution' ||
-            old.type == 'debt_payment') {
+            old.type == 'debt_payment' ||
+            old.type == 'personal_debt_return') {
           bal += old.totalWithFees;
         } else if (old.type == 'income' || old.type == 'lending_collection') {
           bal -= old.amount;
         }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
+      }
+    }
+    // Reverse old effect on transfer destination
+    if (old.type == 'transfer' &&
+        old.toAccountId != null &&
+        old.toAccountId != cashOnHandId) {
+      final ai = _accounts.indexWhere((a) => a.id == old.toAccountId);
+      if (ai != -1) {
+        _accounts[ai] =
+            _accounts[ai].copyWith(balance: _accounts[ai].balance - old.amount);
       }
     }
     // Apply new effect on account balance
@@ -818,7 +840,8 @@ class AppProvider with ChangeNotifier {
             updated.type == 'withdrawal' ||
             updated.type == 'transfer' ||
             updated.type == 'goal_contribution' ||
-            updated.type == 'debt_payment') {
+            updated.type == 'debt_payment' ||
+            updated.type == 'personal_debt_return') {
           bal -= updated.totalWithFees;
         } else if (updated.type == 'income' ||
             updated.type == 'lending_collection') {
@@ -826,6 +849,26 @@ class AppProvider with ChangeNotifier {
         }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
       }
+    }
+    // Apply new effect on transfer destination
+    if (updated.type == 'transfer' &&
+        updated.toAccountId != null &&
+        updated.toAccountId != cashOnHandId) {
+      final ai = _accounts.indexWhere((a) => a.id == updated.toAccountId);
+      if (ai != -1) {
+        _accounts[ai] = _accounts[ai]
+            .copyWith(balance: _accounts[ai].balance + updated.amount);
+      }
+    }
+
+    final changedGoals = <String, Goal>{};
+    final revertedGoal = _adjustLinkedGoal(old, -old.amount);
+    if (revertedGoal != null) {
+      changedGoals[revertedGoal.id] = revertedGoal;
+    }
+    final appliedGoal = _adjustLinkedGoal(updated, updated.amount);
+    if (appliedGoal != null) {
+      changedGoals[appliedGoal.id] = appliedGoal;
     }
 
     _saveToLocal();
@@ -838,12 +881,35 @@ class AppProvider with ChangeNotifier {
       if (old.accountId != cashOnHandId) changedAccountIds.add(old.accountId);
       if (updated.accountId != cashOnHandId)
         changedAccountIds.add(updated.accountId);
+      if (old.toAccountId != null && old.toAccountId != cashOnHandId) {
+        changedAccountIds.add(old.toAccountId!);
+      }
+      if (updated.toAccountId != null && updated.toAccountId != cashOnHandId) {
+        changedAccountIds.add(updated.toAccountId!);
+      }
       final changedAccounts =
           _accounts.where((a) => changedAccountIds.contains(a.id)).toList();
       if (changedAccounts.isNotEmpty) {
         SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts);
       }
+      for (final goal in changedGoals.values) {
+        SupabaseSyncService.saveGoal(uid, goal);
+      }
     }
+  }
+
+  Goal? _adjustLinkedGoal(Transaction transaction, double delta) {
+    final goalId = transaction.goalId;
+    if (goalId == null || delta == 0) return null;
+
+    final goalIndex = _goals.indexWhere((goal) => goal.id == goalId);
+    if (goalIndex == -1) return null;
+
+    final goal = _goals[goalIndex];
+    final adjustedAmount =
+        (goal.currentAmount + delta).clamp(0.0, double.infinity).toDouble();
+    _goals[goalIndex] = goal.copyWith(currentAmount: adjustedAmount);
+    return _goals[goalIndex];
   }
 
   // ============================================
@@ -1127,12 +1193,13 @@ class AppProvider with ChangeNotifier {
     final goal =
         _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'goal_contribution',
       amount: amount,
       date: DateTime.now().toIso8601String(),
       note: 'Savings: ${goal.name}',
       accountId: sourceAccountId,
+      goalId: goalId,
     );
     _transactions.add(txn);
 
@@ -1176,13 +1243,14 @@ class AppProvider with ChangeNotifier {
     final goal =
         _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'personal_debt_return',
       amount: amount,
       date: DateTime.now().toIso8601String(),
       note: 'Returned to ${goal.name}',
       description: goal.categoryId,
       accountId: sourceAccountId,
+      goalId: goalId,
     );
     _transactions.add(txn);
 
@@ -1225,13 +1293,14 @@ class AppProvider with ChangeNotifier {
     final goal =
         _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'income',
       amount: amount,
       date: DateTime.now().toIso8601String(),
       note: 'Received: ${goal.name}',
       accountId: targetAccountId,
       categoryId: 'debt_payment',
+      goalId: goalId,
     );
     _transactions.add(txn);
 
@@ -1272,12 +1341,13 @@ class AppProvider with ChangeNotifier {
     final goal =
         _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'debt_payment',
       amount: amount,
       date: DateTime.now().toIso8601String(),
       note: 'Debt payment: ${goal.name}',
       accountId: sourceAccountId,
+      goalId: goalId,
     );
     _transactions.add(txn);
 
@@ -1327,10 +1397,38 @@ class AppProvider with ChangeNotifier {
 
   void deleteCategory(String categoryId) {
     _categories.removeWhere((c) => c.id == categoryId);
+    final changedTransactions = <Transaction>[];
+    _transactions = _transactions.map((transaction) {
+      if (transaction.categoryId != categoryId) return transaction;
+
+      final detached = Transaction(
+        id: transaction.id,
+        type: transaction.type,
+        amount: transaction.amount,
+        fees: transaction.fees,
+        date: transaction.date,
+        note: transaction.note,
+        description: transaction.description,
+        categoryId: null,
+        accountId: transaction.accountId,
+        toAccountId: transaction.toAccountId,
+        goalId: transaction.goalId,
+        isRecurring: transaction.isRecurring,
+        imagePath: transaction.imagePath,
+        expenseSubType: transaction.expenseSubType,
+      );
+      changedTransactions.add(detached);
+      return detached;
+    }).toList();
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.deleteCategory(uid, categoryId);
+    if (uid != null) {
+      for (final transaction in changedTransactions) {
+        SupabaseSyncService.saveTransaction(uid, transaction);
+      }
+      SupabaseSyncService.deleteCategory(uid, categoryId);
+    }
   }
 
   void updateCategory(Category category) {
@@ -1408,7 +1506,8 @@ class AppProvider with ChangeNotifier {
         if (t.type == 'expense' ||
             t.type == 'transfer' ||
             t.type == 'goal_contribution' ||
-            t.type == 'debt_payment') {
+            t.type == 'debt_payment' ||
+            t.type == 'personal_debt_return') {
           cash -= t.totalWithFees;
         } else if (t.type == 'income' || t.type == 'lending_collection') {
           cash += t.amount;
@@ -1651,7 +1750,7 @@ class AppProvider with ChangeNotifier {
     final daret = _darets[idx];
 
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'daret_contribution',
       amount: daret.monthlyPayment,
       date: DateTime.now().toIso8601String(),
@@ -1693,7 +1792,7 @@ class AppProvider with ChangeNotifier {
     if (!daret.payoutMonths.contains(daret.currentMonth)) return;
 
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'daret_payout',
       amount: daret.singlePayoutAmount,
       date: DateTime.now().toIso8601String(),

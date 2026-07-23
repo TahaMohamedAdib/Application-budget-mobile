@@ -2,11 +2,10 @@
 
 ## Statut
 
-**BLOQUÉ — aucune migration ne doit être exécutée à partir de cet état.**
+**Préphase B en cours — SQL préparé, aucune migration exécutée par Codex.**
 
-La migration annoncée comme déjà écrite,
-`20260723000000_add_transaction_goal_id.sql`, est absente du checkout
-`c22904bf` et de toutes les références Git disponibles.
+La migration `goal_id` manquante sur `c22904bf` a été restaurée dans le dépôt.
+Son application en production reste une étape humaine.
 
 ## Migrations présentes
 
@@ -21,6 +20,9 @@ Ordre chronologique des fichiers avec préfixe timestamp :
   en production : **À VÉRIFIER** — ajoute et rétroalimente
   `accounts.added_at`, puis ajoute `source_account_id`,
   `affects_source_balance` et `source_amount` à `stock_holdings`.
+- [ ] `20260723000000_add_transaction_goal_id.sql` — appliquée en production :
+  **NON** — ajoute `transactions.goal_id`, clé étrangère UUID nullable vers
+  `public.goals(id)` avec `ON DELETE SET NULL`, ainsi qu'un index.
 
 Fichier sans préfixe timestamp :
 
@@ -33,10 +35,10 @@ déduit de son nom. Il doit être confirmé manuellement.
 
 ## Indice de dérive de schéma
 
-`SupabaseSyncService._saveTransactionRemote()`, dans
-`lib/services/supabase_sync_service.dart:583-602`, tente d'abord l'upsert avec
-`transactions.description`. Si Supabase signale que cette colonne est absente,
-le client retire `description` et réessaie ; toute autre erreur est relancée.
+`SupabaseSyncService._saveTransactionRemote()` tente d'abord l'upsert avec
+`transactions.description` et `transactions.goal_id`. Si Supabase signale que
+l'une de ces colonnes est absente, le client la retire et réessaie ; toute autre
+erreur est relancée. La boucle est bornée aux deux colonnes compatibles.
 
 La colonne existe dans `supabase_complete_setup.sql` et
 `supabase_migration_flutter.sql`, mais aucune migration timestampée du dossier
@@ -59,7 +61,6 @@ Le service de synchronisation utilise :
 
 ## Écarts bloquants pour les migrations futures
 
-- Aucune migration disponible ne crée `transactions.goal_id`.
 - Il n'existe aucune table Supabase Daret dans `supabase_migrations/`,
   `supabase_complete_setup.sql`, `supabase_migration_flutter.sql` ou
   `SupabaseSyncService`.
@@ -72,13 +73,16 @@ Le service de synchronisation utilise :
 
 ## À exécuter maintenant, dans cet ordre
 
-**Rien pour le moment.**
+Ordre provisoire à confirmer par l'humain avant exécution :
 
-Avant toute exécution SQL :
+1. vérifier si `20260415000000_storage_sync_trigger.sql` est déjà appliquée ;
+2. vérifier si
+   `20260415010000_add_account_tracking_and_holding_funding.sql` est déjà
+   appliquée ;
+3. appliquer `20260723000000_add_transaction_goal_id.sql` ;
+4. positionner manuellement `ai_conversations_and_projects.sql`, dont le nom ne
+   fournit aucun ordre chronologique.
 
-1. résoudre l'écart de la section B et restaurer la migration `goal_id` ;
-2. confirmer quelles migrations existantes sont déjà appliquées en production ;
-3. décider de l'architecture de persistance Supabase des Darets ;
-4. reconstruire l'ordre final après création des migrations T4 et T5 ;
-5. conserver les gardes défensives côté client pendant la transition.
-
+Les migrations T4 et T5 seront ajoutées plus tard à cette liste. Conserver les
+gardes défensives côté client pendant toute la transition. La décision
+d'architecture de persistance Supabase des Darets reste nécessaire avant T4.

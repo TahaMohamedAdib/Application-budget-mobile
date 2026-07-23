@@ -538,6 +538,7 @@ class SupabaseSyncService {
         'user_id': userId,
         'account_id': t.accountId.isEmpty ? null : t.accountId,
         'to_account_id': t.toAccountId,
+        'goal_id': t.goalId,
         'type': t.type,
         'amount': t.amount,
         'category_id': t.categoryId,
@@ -558,6 +559,7 @@ class SupabaseSyncService {
         date: t['date'] ?? DateTime.now().toIso8601String(),
         accountId: t['account_id'] ?? '',
         toAccountId: t['to_account_id'],
+        goalId: t['goal_id'],
         categoryId: t['category_id'],
         note: t['note'],
         description: t['description'],
@@ -565,6 +567,21 @@ class SupabaseSyncService {
         imagePath: t['image_path'],
         expenseSubType: t['expense_sub_type'],
       );
+
+  static String? _missingCompatibleTransactionColumn(
+    Object error,
+    Map<String, dynamic> row,
+  ) {
+    final message = error.toString().toLowerCase();
+    for (final column in const ['description', 'goal_id']) {
+      if (row.containsKey(column) &&
+          message.contains(column) &&
+          message.contains('column')) {
+        return column;
+      }
+    }
+    return null;
+  }
 
   static Future<List<Transaction>> loadTransactions(String userId) async {
     try {
@@ -583,21 +600,20 @@ class SupabaseSyncService {
   static Future<void> _saveTransactionRemote(
       String userId, Transaction transaction) async {
     final row = _transactionToRow(userId, transaction);
-    try {
-      await _db.from('transactions').upsert(row);
-    } catch (e) {
-      final message = e.toString().toLowerCase();
-      final descriptionColumnMissing =
-          message.contains('description') && message.contains('column');
-      if (!descriptionColumnMissing) rethrow;
+    while (true) {
+      try {
+        await _db.from('transactions').upsert(row);
+        return;
+      } catch (e) {
+        final missingColumn = _missingCompatibleTransactionColumn(e, row);
+        if (missingColumn == null) rethrow;
 
-      if (kDebugMode) {
-        debugPrint(
-            '[Supabase] transactions.description missing; saving transaction without description. Run the latest migration to persist descriptions.');
+        if (kDebugMode) {
+          debugPrint(
+              '[Supabase] transactions.$missingColumn missing; saving transaction without $missingColumn. Run the latest migration to persist it.');
+        }
+        row.remove(missingColumn);
       }
-      final compatibleRow = Map<String, dynamic>.from(row)
-        ..remove('description');
-      await _db.from('transactions').upsert(compatibleRow);
     }
   }
 

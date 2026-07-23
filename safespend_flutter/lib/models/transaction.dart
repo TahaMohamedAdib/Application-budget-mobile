@@ -11,6 +11,7 @@ class Transaction {
   final String? categoryId;
   final String accountId;
   final String? toAccountId; // For transfers
+  final String? goalId; // Linked savings goal, debt, or personal debt
   final bool isRecurring;
   final String? imagePath;
   final String? expenseSubType; // 'subscription' | 'bill' | null (expense only)
@@ -29,6 +30,7 @@ class Transaction {
     this.categoryId,
     required this.accountId,
     this.toAccountId,
+    this.goalId,
     this.isRecurring = false,
     this.imagePath,
     this.expenseSubType,
@@ -45,6 +47,7 @@ class Transaction {
     String? categoryId,
     String? accountId,
     String? toAccountId,
+    String? goalId,
     bool? isRecurring,
     String? imagePath,
     String? expenseSubType,
@@ -60,6 +63,7 @@ class Transaction {
       categoryId: categoryId ?? this.categoryId,
       accountId: accountId ?? this.accountId,
       toAccountId: toAccountId ?? this.toAccountId,
+      goalId: goalId ?? this.goalId,
       isRecurring: isRecurring ?? this.isRecurring,
       imagePath: imagePath ?? this.imagePath,
       expenseSubType: expenseSubType ?? this.expenseSubType,
@@ -78,6 +82,7 @@ class Transaction {
       'categoryId': categoryId,
       'accountId': accountId,
       'toAccountId': toAccountId,
+      'goalId': goalId,
       'isRecurring': isRecurring,
       'imagePath': imagePath,
       'expenseSubType': expenseSubType,
@@ -96,6 +101,7 @@ class Transaction {
       categoryId: json['categoryId'],
       accountId: json['accountId'],
       toAccountId: json['toAccountId'],
+      goalId: json['goalId'],
       isRecurring: json['isRecurring'] ?? false,
       imagePath: json['imagePath'],
       expenseSubType: json['expenseSubType'],
@@ -104,5 +110,6 @@ class Transaction {
 
   String toJsonString() => jsonEncode(toJson());
 
-  factory Transaction.fromJsonString(String str) => Transaction.fromJson(jsonDecode(str));
+  factory Transaction.fromJsonString(String str) =>
+      Transaction.fromJson(jsonDecode(str));
 }
