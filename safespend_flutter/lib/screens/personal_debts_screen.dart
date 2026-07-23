@@ -89,7 +89,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                         Row(children: [
                           const Icon(Icons.people_rounded, color: Colors.white, size: 22),
                           const SizedBox(width: 10),
-                          Text('Still Owe to People',
+                          Text('People Owe Me',
                             style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w500)),
                         ]),
                         const SizedBox(height: 12),
@@ -100,12 +100,12 @@ class PersonalDebtsScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         Row(children: [
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('Total Borrowed', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.w500)),
+                            Text('Total Lent', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 4),
                             Text(cf.format(totalOwed), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
                           ])),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('Returned', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.w500)),
+                            Text('Received Back', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 4),
                             Text(cf.format(totalReturned), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
                           ])),
@@ -119,7 +119,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
-                    child: Text('People I Owe', style: Theme.of(context).textTheme.titleLarge),
+                    child: Text('People Who Owe Me', style: Theme.of(context).textTheme.titleLarge),
                   ).animate().fadeIn(duration: 500.ms, delay: 160.ms),
                 ),
 
@@ -138,7 +138,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                               const SizedBox(height: 16),
                               Text('All clear!', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 6),
-                              Text("You don't owe anyone right now.", style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+                              Text("No one owes you anything right now.", style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
                             ]),
                           ),
                         ).animate().fadeIn(duration: 500.ms, delay: 220.ms),
@@ -167,7 +167,9 @@ class PersonalDebtsScreen extends StatelessWidget {
 
   List<Widget> _buildReturnHistory(BuildContext context, AppProvider provider, NumberFormat cf, bool isDark) {
     final returnTransactions = provider.transactions
-        .where((t) => t.type == 'personal_debt_return')
+        .where((t) =>
+            t.type == 'personal_debt_return' ||
+            (t.type == 'income' && (t.note?.startsWith('Received:') == true)))
         .toList()
       ..sort((a, b) => DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
 
@@ -177,7 +179,7 @@ class PersonalDebtsScreen extends StatelessWidget {
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Text('Return History', style: Theme.of(context).textTheme.titleLarge),
+          child: Text('Payment History', style: Theme.of(context).textTheme.titleLarge),
         ).animate().fadeIn(duration: 280.ms, delay: 200.ms, curve: Curves.easeOut),
       ),
       SliverPadding(
@@ -223,7 +225,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11)),
                         ]),
                       ])),
-                      Text('-${cf.format(t.amount)}',
+                      Text('+${cf.format(t.amount)}',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.success)),
                     ]),
                   ),
@@ -273,9 +275,9 @@ class PersonalDebtsScreen extends StatelessWidget {
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(isFullyReturned ? 'RETURNED' : cf.format(remaining),
+              Text(isFullyReturned ? 'RECEIVED' : cf.format(remaining),
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: isFullyReturned ? AppTheme.success : accent)),
-              Text(isFullyReturned ? '' : 'remaining', style: Theme.of(context).textTheme.bodySmall),
+              Text(isFullyReturned ? '' : 'to receive', style: Theme.of(context).textTheme.bodySmall),
             ]),
           ]),
 
@@ -293,9 +295,9 @@ class PersonalDebtsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('${cf.format(returned)} returned',
+            Text('${cf.format(returned)} received back',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.success)),
-            Text('${(progress * 100).round()}% returned',
+            Text('${(progress * 100).round()}% received',
               style: Theme.of(context).textTheme.bodySmall),
           ]),
 
@@ -313,9 +315,9 @@ class PersonalDebtsScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(color: AppTheme.success, borderRadius: BorderRadius.circular(10)),
                     child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.undo_rounded, color: Colors.white, size: 15),
+                      Icon(Icons.south_rounded, color: Colors.white, size: 15),
                       SizedBox(width: 5),
-                      Text('Returned', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                      Text('Received', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
                     ]),
                   ),
                 ),
@@ -378,12 +380,12 @@ class PersonalDebtsScreen extends StatelessWidget {
     ).animate().fadeIn(duration: 400.ms, delay: (200 + index * 70).ms);
   }
 
-  // ── Record how much was returned ──
+  // ── Record how much was received back ──
   void _showReturnModal(BuildContext context, AppProvider provider, Goal goal, NumberFormat cf) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ctrl = TextEditingController();
     final remaining = goal.targetAmount - goal.currentAmount;
-    String sourceAccountId = AppProvider.cashOnHandId;
+    String targetAccountId = AppProvider.cashOnHandId;
 
     showModalBottomSheet(
       context: context,
@@ -404,20 +406,20 @@ class PersonalDebtsScreen extends StatelessWidget {
               Text(goal.icon, style: const TextStyle(fontSize: 24)),
               const SizedBox(width: 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Money Returned', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                Text('Money Received', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                 Text(goal.name, style: Theme.of(ctx).textTheme.bodySmall),
               ]),
             ]),
             const SizedBox(height: 8),
-            Text('Remaining to return: ${cf.format(remaining)}',
-              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: const Color(0xFFF97316))),
+            Text('Remaining to receive: ${cf.format(remaining)}',
+              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: AppTheme.success)),
             const SizedBox(height: 16),
             TextField(
               controller: ctrl,
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Amount Returned',
+                labelText: 'Amount Received',
                 hintText: '0.00',
                 prefixText: '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -425,10 +427,10 @@ class PersonalDebtsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            // Account selection — where does this money come FROM
+            // Account selection — where does this income go TO
             AppPickerField<String>(
-              label: 'Pay from',
-              value: sourceAccountId,
+              label: 'Receive into',
+              value: targetAccountId,
               prefixIcon: AppIcons.wallet,
               items: [
                 const AppPickerItem(
@@ -441,10 +443,10 @@ class PersonalDebtsScreen extends StatelessWidget {
                   value: a.id,
                   label: a.name,
                   leadingIcon: AppIcons.bank,
-                  iconColor: Color(0xFF3B82F6),
+                  iconColor: const Color(0xFF3B82F6),
                 )),
               ],
-              onChanged: (v) => setModal(() => sourceAccountId = v ?? AppProvider.cashOnHandId),
+              onChanged: (v) => setModal(() => targetAccountId = v ?? AppProvider.cashOnHandId),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -457,14 +459,14 @@ class PersonalDebtsScreen extends StatelessWidget {
                     return;
                   }
                   final clampedAmount = amount.clamp(0, remaining).toDouble();
-                  provider.recordPersonalDebtReturn(goal.id, clampedAmount, sourceAccountId);
+                  provider.receiveDebtPayment(goal.id, clampedAmount, targetAccountId);
                   Navigator.pop(ctx);
-                  final isFullyReturned = (goal.currentAmount + clampedAmount) >= goal.targetAmount;
+                  final isFullyReceived = (goal.currentAmount + clampedAmount) >= goal.targetAmount;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(isFullyReturned
-                        ? 'Fully returned to ${goal.name}!'
-                        : '${cf.format(clampedAmount)} returned to ${goal.name}'),
+                      content: Text(isFullyReceived
+                        ? '${goal.name} fully paid you back!'
+                        : '${cf.format(clampedAmount)} received from ${goal.name}'),
                       backgroundColor: AppTheme.success),
                   );
                 },
@@ -474,7 +476,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
-                child: const Text('Record Return', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                child: const Text('Record Income', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
           ]),
@@ -512,7 +514,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                 Center(child: Container(width: 48, height: 5,
                   decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
                 const SizedBox(height: 20),
-                Text(isEdit ? 'Edit Entry' : 'I Owe Someone',
+                Text(isEdit ? 'Edit Entry' : 'Someone Owes Me',
                   style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 20),
 
@@ -565,7 +567,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Amount Borrowed',
+                    labelText: 'Amount Lent',
                     hintText: '0.00',
                     prefixText: '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -579,7 +581,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                   controller: returnedCtrl,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Already Returned (Optional)',
+                    labelText: 'Already Received Back (Optional)',
                     hintText: '0.00',
                     prefixText: '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -628,7 +630,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                         ));
                         Navigator.pop(ctx);
                         messenger.showSnackBar(SnackBar(
-                          content: Text('Added: owe $name ${CurrencyHelper.getSymbol(provider.settings.currency)}${amount.toStringAsFixed(2)}'),
+                          content: Text('Added: $name owes you ${CurrencyHelper.getSymbol(provider.settings.currency)}${amount.toStringAsFixed(2)}'),
                           backgroundColor: const Color(0xFFF97316),
                         ));
                       }

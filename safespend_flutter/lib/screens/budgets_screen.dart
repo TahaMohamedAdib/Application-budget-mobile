@@ -5,7 +5,6 @@ import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils/currency_helper.dart';
 import '../providers/app_provider.dart';
@@ -256,229 +255,204 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                       ?.color ??
                                   Colors.grey;
                             }
-                            return Slidable(
-                                    key: Key(cat.id),
-                                    endActionPane: ActionPane(
-                                      motion: const DrawerMotion(),
-                                      extentRatio: 0.22,
-                                      children: [
-                                        CustomSlidableAction(
-                                          onPressed: (_) async {
-                                            final confirmed =
-                                                await showDialog<bool>(
-                                                      context: context,
-                                                      builder: (dCtx) =>
-                                                          AlertDialog(
-                                                        shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        20)),
-                                                        title: Text(
-                                                            '${s.delete} ${s.category}?'),
-                                                        content: Text(
-                                                            '${s.delete} "${cat.name}"? ${s.cannotBeUndone}.'),
-                                                        actions: [
-                                                          TextButton(
+                            return Padding(
+                              key: Key(cat.id),
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: GestureDetector(
+                                onTap: () => _showCategoryExpenses(
+                                    context, provider, cat, cf),
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: spent > budget && budget > 0
+                                      ? AppTheme.premiumCard(context).copyWith(
+                                          color: Color.lerp(
+                                              AppTheme.premiumCard(context)
+                                                  .color,
+                                              AppTheme.error,
+                                              0.06),
+                                        )
+                                      : AppTheme.premiumCard(context),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 44,
+                                            height: 44,
+                                            child: Center(
+                                              child: _buildCatIcon(
+                                                  cat.icon, statusColor, 44),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(cat.name,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium
+                                                        ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600)),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  budget > 0
+                                                      ? '${cf.format(spent)} ${s.of_} ${cf.format(budget)}'
+                                                      : s.noLimitSet,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: budget > 0
+                                                            ? statusColor
+                                                            : null,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (budget > 0) ...[
+                                            const SizedBox(width: 4),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: statusColor
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                spent > budget
+                                                    ? '${s.over} ${cf.format(spent - budget)}'
+                                                    : cf.format(budget - spent),
+                                                style: TextStyle(
+                                                    color: statusColor,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 12),
+                                              ),
+                                            ),
+                                          ] else ...[
+                                            const SizedBox(width: 4),
+                                            Text(cf.format(spent),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w700)),
+                                          ],
+                                          const SizedBox(width: 4),
+                                          GestureDetector(
+                                            onTap: () => _showEditCategoryModal(
+                                                context, provider, cat, cf),
+                                            behavior: HitTestBehavior.opaque,
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.all(4.0),
+                                              child: Iconify(AppIcons.edit,
+                                                  size: 20, color: statusColor),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          GestureDetector(
+                                            onTap: () async {
+                                              final confirmed =
+                                                  await showDialog<bool>(
+                                                        context: context,
+                                                        builder: (dCtx) =>
+                                                            AlertDialog(
+                                                          shape: RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          20)),
+                                                          title: Text(
+                                                              '${s.delete} ${s.category}?'),
+                                                          content: Text(
+                                                              '${s.delete} "${cat.name}"? ${s.cannotBeUndone}.'),
+                                                          actions: [
+                                                            TextButton(
                                                               onPressed: () =>
                                                                   Navigator.pop(
                                                                       dCtx,
                                                                       false),
                                                               child: Text(
-                                                                  s.cancel)),
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                    dCtx, true),
-                                                            style: TextButton.styleFrom(
-                                                                foregroundColor:
-                                                                    AppTheme
-                                                                        .error),
-                                                            child:
-                                                                Text(s.delete),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ) ??
-                                                    false;
-                                            if (confirmed)
-                                              provider.deleteCategory(cat.id);
-                                          },
-                                          backgroundColor: Colors.transparent,
-                                          child: Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: const BoxDecoration(
+                                                                  s.cancel),
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                      dCtx,
+                                                                      true),
+                                                              style: TextButton.styleFrom(
+                                                                  foregroundColor:
+                                                                      AppTheme
+                                                                          .error),
+                                                              child: Text(
+                                                                  s.delete),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ) ??
+                                                      false;
+                                              if (confirmed) {
+                                                provider.deleteCategory(cat.id);
+                                              }
+                                            },
+                                            behavior: HitTestBehavior.opaque,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(9),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.error
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: AppTheme.error
+                                                      .withOpacity(0.3),
+                                                ),
+                                              ),
+                                              child: const Icon(
+                                                Icons.delete_rounded,
                                                 color: AppTheme.error,
-                                                shape: BoxShape.circle),
-                                            child: const Iconify(
-                                                AppIcons.delete,
-                                                color: Colors.white,
-                                                size: 20),
+                                                size: 16,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (budget > 0) ...[
+                                        const SizedBox(height: 14),
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: LinearProgressIndicator(
+                                            value: ratio.clamp(0, 1).toDouble(),
+                                            backgroundColor: isDark
+                                                ? AppTheme.darkBorder
+                                                : const Color(0xFFE8ECF1),
+                                            color: statusColor,
+                                            minHeight: 7,
                                           ),
                                         ),
                                       ],
-                                    ),
-                                    child: Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: GestureDetector(
-                                        onTap: () => _showCategoryExpenses(
-                                            context, provider, cat, cf),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(20),
-                                          decoration: spent > budget &&
-                                                  budget > 0
-                                              ? AppTheme.premiumCard(context)
-                                                  .copyWith(
-                                                  color: Color.lerp(
-                                                      AppTheme.premiumCard(
-                                                              context)
-                                                          .color,
-                                                      AppTheme.error,
-                                                      0.06),
-                                                )
-                                              : AppTheme.premiumCard(context),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  SizedBox(
-                                                    width: 44,
-                                                    height: 44,
-                                                    child: Center(
-                                                      child: _buildCatIcon(
-                                                          cat.icon,
-                                                          statusColor,
-                                                          44),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 14),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(cat.name,
-                                                            style: Theme.of(
-                                                                    context)
-                                                                .textTheme
-                                                                .titleMedium
-                                                                ?.copyWith(
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600)),
-                                                        const SizedBox(
-                                                            height: 2),
-                                                        Text(
-                                                          budget > 0
-                                                              ? '${cf.format(spent)} ${s.of_} ${cf.format(budget)}'
-                                                              : s.noLimitSet,
-                                                          style:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .bodySmall
-                                                                  ?.copyWith(
-                                                                    color: budget >
-                                                                            0
-                                                                        ? statusColor
-                                                                        : null,
-                                                                  ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  if (budget > 0) ...[
-                                                    const SizedBox(width: 4),
-                                                    Container(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 10,
-                                                          vertical: 4),
-                                                      decoration: BoxDecoration(
-                                                        color: statusColor
-                                                            .withOpacity(0.1),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                      ),
-                                                      child: Text(
-                                                        spent > budget
-                                                            ? '${s.over} ${cf.format(spent - budget)}'
-                                                            : cf.format(
-                                                                budget - spent),
-                                                        style: TextStyle(
-                                                            color: statusColor,
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                            fontSize: 12),
-                                                      ),
-                                                    ),
-                                                  ] else ...[
-                                                    const SizedBox(width: 4),
-                                                    Text(cf.format(spent),
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .titleMedium
-                                                            ?.copyWith(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700)),
-                                                  ],
-                                                  const SizedBox(width: 4),
-                                                  GestureDetector(
-                                                    onTap: () =>
-                                                        _showEditCategoryModal(
-                                                            context,
-                                                            provider,
-                                                            cat,
-                                                            cf),
-                                                    behavior:
-                                                        HitTestBehavior.opaque,
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              4.0),
-                                                      child: Iconify(
-                                                          AppIcons.edit,
-                                                          size: 20,
-                                                          color: statusColor),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              if (budget > 0) ...[
-                                                const SizedBox(height: 14),
-                                                ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                  child:
-                                                      LinearProgressIndicator(
-                                                    value: ratio
-                                                        .clamp(0, 1)
-                                                        .toDouble(),
-                                                    backgroundColor: isDark
-                                                        ? AppTheme.darkBorder
-                                                        : const Color(
-                                                            0xFFE8ECF1),
-                                                    color: statusColor,
-                                                    minHeight: 7,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ))
-                                .animate()
-                                .fadeIn(
-                                    duration: 260.ms,
-                                    delay: (80 + entry.key * 40).ms,
-                                    curve: Curves.easeOut);
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ).animate().fadeIn(
+                                duration: 260.ms,
+                                delay: (80 + entry.key * 40).ms,
+                                curve: Curves.easeOut);
                           }),
 
                           // Add Category card

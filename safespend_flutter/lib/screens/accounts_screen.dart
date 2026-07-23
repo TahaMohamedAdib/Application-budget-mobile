@@ -313,7 +313,7 @@ class AccountsScreen extends StatelessWidget {
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.w700,
                                                   color: account.balance >= 0
-                                                      ? AppTheme.gold500
+                                                      ? _getAccountColor(account.color)
                                                       : AppTheme.error,
                                                 ),
                                               ),
@@ -574,85 +574,91 @@ class _AddAccountModalState extends State<AddAccountModal> {
               // Logo Upload
               Text(s.logo, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: _imagePath != null
-                          ? Colors.transparent
-                          : Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                          color: AppTheme.goldPrimary.withOpacity(0.3),
-                          width: 1.5),
+              Builder(builder: (ctx) {
+                final accentColor = Color(int.parse(
+                    _selectedColor.replaceFirst('#', '0xFF')));
+                return Row(
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: _imagePath != null
+                            ? Colors.transparent
+                            : accentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: accentColor.withOpacity(0.4),
+                            width: 1.5),
+                      ),
+                      child: _imagePath != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: _imagePath!.startsWith('http')
+                                  ? Image.network(_imagePath!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Icon(
+                                          Icons.broken_image_rounded,
+                                          size: 28,
+                                          color: accentColor))
+                                  : Image.file(File(_imagePath!),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Icon(
+                                          Icons.broken_image_rounded,
+                                          size: 28,
+                                          color: accentColor)),
+                            )
+                          : Icon(_typeIcon(_selectedType),
+                              size: 28, color: accentColor),
                     ),
-                    child: _imagePath != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: _imagePath!.startsWith('http')
-                                ? Image.network(_imagePath!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                        Icons.broken_image_rounded,
-                                        size: 28))
-                                : Image.file(File(_imagePath!),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                        Icons.broken_image_rounded,
-                                        size: 28)),
-                          )
-                        : Icon(_typeIcon(_selectedType),
-                            size: 28, color: AppTheme.goldPrimary),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () async {
-                        final image = await ImagePicker().pickImage(
-                            source: ImageSource.gallery, imageQuality: 80);
-                        if (image != null) {
-                          setState(() => _imagePath = image.path);
-                          final uid =
-                              SupabaseConfig.client?.auth.currentUser?.id;
-                          if (uid != null) {
-                            final url =
-                                await SupabaseSyncService.uploadAccountLogo(
-                                    uid, image.path);
-                            if (url != null && mounted)
-                              setState(() => _imagePath = url);
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final image = await ImagePicker().pickImage(
+                              source: ImageSource.gallery, imageQuality: 80);
+                          if (image != null) {
+                            setState(() => _imagePath = image.path);
+                            final uid =
+                                SupabaseConfig.client?.auth.currentUser?.id;
+                            if (uid != null) {
+                              final url =
+                                  await SupabaseSyncService.uploadAccountLogo(
+                                      uid, image.path);
+                              if (url != null && mounted)
+                                setState(() => _imagePath = url);
+                            }
                           }
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: AppTheme.goldPrimary.withOpacity(0.3),
-                              width: 1.5),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.photo_library_rounded,
-                                size: 18, color: AppTheme.goldPrimary),
-                            const SizedBox(width: 8),
-                            Text(s.uploadFromGallery,
-                                style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.goldPrimary)),
-                          ],
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: accentColor.withOpacity(0.35),
+                                width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.photo_library_rounded,
+                                  size: 18, color: accentColor),
+                              const SizedBox(width: 8),
+                              Text(s.uploadFromGallery,
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: accentColor)),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                );
+              }),
               const SizedBox(height: 24),
 
               // Color Picker

@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   amount DECIMAL NOT NULL,
   category_id TEXT,
   note TEXT,
+  description TEXT,
   merchant TEXT,
   date TIMESTAMPTZ DEFAULT NOW(),
   is_recurring BOOLEAN DEFAULT false,

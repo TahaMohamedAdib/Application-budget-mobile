@@ -96,6 +96,9 @@ ${ctx['project_context']}
     String? attachmentMimeType,
   }) async {
     if (_apiKey.isEmpty) {
+      if (kDebugMode) {
+        return 'SafeSpend AI is not configured. Restart Flutter with --dart-define-from-file=.env.local from the safespend_flutter folder.';
+      }
       return 'SafeSpend AI is not configured yet. Please contact support.';
     }
 
@@ -107,8 +110,10 @@ ${ctx['project_context']}
       final isLast = entry.key == history.length - 1;
       final m = entry.value;
       return m.toGeminiContent(
-        attachmentBase64: (isLast && m.role == 'user') ? attachmentBase64 : null,
-        attachmentMimeType: (isLast && m.role == 'user') ? attachmentMimeType : null,
+        attachmentBase64:
+            (isLast && m.role == 'user') ? attachmentBase64 : null,
+        attachmentMimeType:
+            (isLast && m.role == 'user') ? attachmentMimeType : null,
       );
     }).toList();
 
@@ -143,10 +148,22 @@ ${ctx['project_context']}
         'topP': 0.9,
       },
       'safetySettings': [
-        {'category': 'HARM_CATEGORY_HARASSMENT',        'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-        {'category': 'HARM_CATEGORY_HATE_SPEECH',       'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-        {'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
-        {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_MEDIUM_AND_ABOVE'},
+        {
+          'category': 'HARM_CATEGORY_HARASSMENT',
+          'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          'category': 'HARM_CATEGORY_HATE_SPEECH',
+          'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
+        },
       ],
     };
 
@@ -160,12 +177,15 @@ ${ctx['project_context']}
 
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode != 200) {
-      if (kDebugMode) debugPrint('Gemini API error [${response.statusCode}]: ${response.body}');
+      if (kDebugMode)
+        debugPrint(
+            'Gemini API error [${response.statusCode}]: ${response.body}');
     }
 
     if (response.statusCode == 200) {
       final candidates = decoded['candidates'] as List<dynamic>?;
-      if (candidates == null || candidates.isEmpty) return 'No response received.';
+      if (candidates == null || candidates.isEmpty)
+        return 'No response received.';
       final parts = candidates[0]['content']?['parts'] as List<dynamic>?;
       if (parts == null || parts.isEmpty) return 'No response received.';
       // gemini-2.5-flash is a thinking model: skip parts with "thought":true
@@ -187,7 +207,9 @@ ${ctx['project_context']}
       if (response.statusCode == 400 && errorMsg.contains('API key')) {
         return 'SafeSpend AI is temporarily unavailable. The service is being updated — please try again later.';
       }
-      if (response.statusCode == 403 || errorMsg.toLowerCase().contains('leaked') || errorMsg.toLowerCase().contains('revoked')) {
+      if (response.statusCode == 403 ||
+          errorMsg.toLowerCase().contains('leaked') ||
+          errorMsg.toLowerCase().contains('revoked')) {
         return 'SafeSpend AI is temporarily unavailable. The service is being updated — please try again later.';
       }
       if (response.statusCode == 429) {

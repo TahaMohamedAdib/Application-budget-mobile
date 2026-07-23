@@ -51,10 +51,10 @@ class _QueuedSyncOperation {
   final Object? payload;
 
   Map<String, dynamic> toJson() => {
-    'type': type.name,
-    'userId': userId,
-    'payload': payload,
-  };
+        'type': type.name,
+        'userId': userId,
+        'payload': payload,
+      };
 
   factory _QueuedSyncOperation.fromJson(Map<String, dynamic> json) {
     final typeName = json['type'] as String?;
@@ -282,13 +282,12 @@ class SupabaseSyncService {
       case _SyncOperationType.saveMultipleAccounts:
         await _saveMultipleAccountsRemote(
           operation.userId,
-          _payloadAsMapList(operation.payload)
-              .map(Account.fromJson)
-              .toList(),
+          _payloadAsMapList(operation.payload).map(Account.fromJson).toList(),
         );
         return;
       case _SyncOperationType.deleteAccount:
-        await _deleteAccountRemote(operation.userId, operation.payload as String);
+        await _deleteAccountRemote(
+            operation.userId, operation.payload as String);
         return;
       case _SyncOperationType.saveTransaction:
         await _saveTransactionRemote(
@@ -326,7 +325,8 @@ class SupabaseSyncService {
         );
         return;
       case _SyncOperationType.deleteHolding:
-        await _deleteHoldingRemote(operation.userId, operation.payload as String);
+        await _deleteHoldingRemote(
+            operation.userId, operation.payload as String);
         return;
       case _SyncOperationType.saveCategory:
         await _saveCategoryRemote(
@@ -373,11 +373,8 @@ class SupabaseSyncService {
 
   static Future<Settings?> loadProfile(String userId) async {
     try {
-      final data = await _db
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
+      final data =
+          await _db.from('profiles').select().eq('id', userId).maybeSingle();
 
       if (data == null) return null;
 
@@ -394,7 +391,8 @@ class SupabaseSyncService {
     }
   }
 
-  static Future<void> _saveProfileRemote(String userId, Settings settings) async {
+  static Future<void> _saveProfileRemote(
+      String userId, Settings settings) async {
     await _db.from('profiles').upsert({
       'id': userId,
       'currency': settings.currency,
@@ -422,43 +420,43 @@ class SupabaseSyncService {
   // ============================================
 
   static Map<String, dynamic> _accountToRow(String userId, Account a) => {
-    'id': a.id,
-    'user_id': userId,
-    'type': a.type,
-    'name': a.name,
-    'balance': a.balance,
-    'color': a.color ?? '#B8860B',
-    'icon': a.imagePath,
-    'bank_name': a.bankName,
-    'include_in_net_worth': a.includeInNetWorth,
-    'image_path': a.imagePath,
-    'added_at': a.addedAt,
-    'salary_amount': a.salaryAmount,
-    'salary_day': a.salaryDay,
-    'last_salary_date': a.lastSalaryDate,
-    'debt_payment_amount': a.debtPaymentAmount,
-    'debt_payment_day': a.debtPaymentDay,
-    'debt_payment_source_id': a.debtPaymentSourceId,
-    'updated_at': DateTime.now().toIso8601String(),
-  };
+        'id': a.id,
+        'user_id': userId,
+        'type': a.type,
+        'name': a.name,
+        'balance': a.balance,
+        'color': a.color ?? '#B8860B',
+        'icon': a.imagePath,
+        'bank_name': a.bankName,
+        'include_in_net_worth': a.includeInNetWorth,
+        'image_path': a.imagePath,
+        'added_at': a.addedAt,
+        'salary_amount': a.salaryAmount,
+        'salary_day': a.salaryDay,
+        'last_salary_date': a.lastSalaryDate,
+        'debt_payment_amount': a.debtPaymentAmount,
+        'debt_payment_day': a.debtPaymentDay,
+        'debt_payment_source_id': a.debtPaymentSourceId,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
 
   static Account _rowToAccount(Map<String, dynamic> a) => Account(
-    id: a['id'],
-    type: a['type'] ?? 'bank',
-    name: a['name'] ?? '',
-    balance: (a['balance'] as num?)?.toDouble() ?? 0,
-    bankName: a['bank_name'],
-    color: a['color'],
-    includeInNetWorth: a['include_in_net_worth'] ?? true,
-    imagePath: a['image_path'] ?? a['icon'],
-    addedAt: a['added_at'] ?? a['created_at'],
-    salaryAmount: (a['salary_amount'] as num?)?.toDouble(),
-    salaryDay: a['salary_day'] as int?,
-    lastSalaryDate: a['last_salary_date'],
-    debtPaymentAmount: (a['debt_payment_amount'] as num?)?.toDouble(),
-    debtPaymentDay: a['debt_payment_day'] as int?,
-    debtPaymentSourceId: a['debt_payment_source_id'] as String?,
-  );
+        id: a['id'],
+        type: a['type'] ?? 'bank',
+        name: a['name'] ?? '',
+        balance: (a['balance'] as num?)?.toDouble() ?? 0,
+        bankName: a['bank_name'],
+        color: a['color'],
+        includeInNetWorth: a['include_in_net_worth'] ?? true,
+        imagePath: a['image_path'] ?? a['icon'],
+        addedAt: a['added_at'] ?? a['created_at'],
+        salaryAmount: (a['salary_amount'] as num?)?.toDouble(),
+        salaryDay: a['salary_day'] as int?,
+        lastSalaryDate: a['last_salary_date'],
+        debtPaymentAmount: (a['debt_payment_amount'] as num?)?.toDouble(),
+        debtPaymentDay: a['debt_payment_day'] as int?,
+        debtPaymentSourceId: a['debt_payment_source_id'] as String?,
+      );
 
   static Future<List<Account>> loadAccounts(String userId) async {
     try {
@@ -491,7 +489,8 @@ class SupabaseSyncService {
 
   static Future<void> _saveMultipleAccountsRemote(
       String userId, List<Account> accounts) async {
-    final rows = accounts.map((account) => _accountToRow(userId, account)).toList();
+    final rows =
+        accounts.map((account) => _accountToRow(userId, account)).toList();
     await _db.from('accounts').upsert(rows);
   }
 
@@ -509,7 +508,8 @@ class SupabaseSyncService {
     );
   }
 
-  static Future<void> _deleteAccountRemote(String userId, String accountId) async {
+  static Future<void> _deleteAccountRemote(
+      String userId, String accountId) async {
     await _db
         .from('accounts')
         .delete()
@@ -532,36 +532,39 @@ class SupabaseSyncService {
   // TRANSACTIONS
   // ============================================
 
-  static Map<String, dynamic> _transactionToRow(String userId, Transaction t) => {
-    'id': t.id,
-    'user_id': userId,
-    'account_id': t.accountId.isEmpty ? null : t.accountId,
-    'to_account_id': t.toAccountId,
-    'type': t.type,
-    'amount': t.amount,
-    'category_id': t.categoryId,
-    'note': t.note,
-    'date': t.date,
-    'is_recurring': t.isRecurring,
-    'image_path': t.imagePath,
-    'expense_sub_type': t.expenseSubType,
-    'fees': t.fees,
-  };
+  static Map<String, dynamic> _transactionToRow(String userId, Transaction t) =>
+      {
+        'id': t.id,
+        'user_id': userId,
+        'account_id': t.accountId.isEmpty ? null : t.accountId,
+        'to_account_id': t.toAccountId,
+        'type': t.type,
+        'amount': t.amount,
+        'category_id': t.categoryId,
+        'note': t.note,
+        'description': t.description,
+        'date': t.date,
+        'is_recurring': t.isRecurring,
+        'image_path': t.imagePath,
+        'expense_sub_type': t.expenseSubType,
+        'fees': t.fees,
+      };
 
   static Transaction _rowToTransaction(Map<String, dynamic> t) => Transaction(
-    id: t['id'],
-    type: t['type'] ?? 'expense',
-    amount: (t['amount'] as num?)?.toDouble() ?? 0,
-    fees: (t['fees'] as num?)?.toDouble() ?? 0,
-    date: t['date'] ?? DateTime.now().toIso8601String(),
-    accountId: t['account_id'] ?? '',
-    toAccountId: t['to_account_id'],
-    categoryId: t['category_id'],
-    note: t['note'],
-    isRecurring: t['is_recurring'] ?? false,
-    imagePath: t['image_path'],
-    expenseSubType: t['expense_sub_type'],
-  );
+        id: t['id'],
+        type: t['type'] ?? 'expense',
+        amount: (t['amount'] as num?)?.toDouble() ?? 0,
+        fees: (t['fees'] as num?)?.toDouble() ?? 0,
+        date: t['date'] ?? DateTime.now().toIso8601String(),
+        accountId: t['account_id'] ?? '',
+        toAccountId: t['to_account_id'],
+        categoryId: t['category_id'],
+        note: t['note'],
+        description: t['description'],
+        isRecurring: t['is_recurring'] ?? false,
+        imagePath: t['image_path'],
+        expenseSubType: t['expense_sub_type'],
+      );
 
   static Future<List<Transaction>> loadTransactions(String userId) async {
     try {
@@ -579,10 +582,27 @@ class SupabaseSyncService {
 
   static Future<void> _saveTransactionRemote(
       String userId, Transaction transaction) async {
-    await _db.from('transactions').upsert(_transactionToRow(userId, transaction));
+    final row = _transactionToRow(userId, transaction);
+    try {
+      await _db.from('transactions').upsert(row);
+    } catch (e) {
+      final message = e.toString().toLowerCase();
+      final descriptionColumnMissing =
+          message.contains('description') && message.contains('column');
+      if (!descriptionColumnMissing) rethrow;
+
+      if (kDebugMode) {
+        debugPrint(
+            '[Supabase] transactions.description missing; saving transaction without description. Run the latest migration to persist descriptions.');
+      }
+      final compatibleRow = Map<String, dynamic>.from(row)
+        ..remove('description');
+      await _db.from('transactions').upsert(compatibleRow);
+    }
   }
 
-  static Future<void> saveTransaction(String userId, Transaction transaction) async {
+  static Future<void> saveTransaction(
+      String userId, Transaction transaction) async {
     await _syncWithRetry(
       _QueuedSyncOperation(
         type: _SyncOperationType.saveTransaction,
@@ -602,7 +622,8 @@ class SupabaseSyncService {
         .eq('user_id', userId);
   }
 
-  static Future<void> deleteTransaction(String userId, String transactionId) async {
+  static Future<void> deleteTransaction(
+      String userId, String transactionId) async {
     await _syncWithRetry(
       _QueuedSyncOperation(
         type: _SyncOperationType.deleteTransaction,
@@ -625,11 +646,13 @@ class SupabaseSyncService {
 
   /// Uploads a local image file to Supabase Storage bucket 'logos'.
   /// Returns the public URL on success, or null if upload fails.
-  static Future<String?> uploadAccountLogo(String userId, String localPath) async {
+  static Future<String?> uploadAccountLogo(
+      String userId, String localPath) async {
     return _uploadToStorage(userId, localPath, 'logos');
   }
 
-  static Future<String?> _uploadToStorage(String userId, String localPath, String bucket) async {
+  static Future<String?> _uploadToStorage(
+      String userId, String localPath, String bucket) async {
     try {
       final file = File(localPath);
       if (!await file.exists()) return null;
@@ -641,16 +664,17 @@ class SupabaseSyncService {
 
       final fileName = '$userId/${const Uuid().v4()}.$ext';
       await _db.storage.from(bucket).uploadBinary(
-        fileName,
-        bytes,
-        fileOptions: FileOptions(
-          contentType: 'image/$ext',
-          upsert: true,
-        ),
-      );
+            fileName,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: 'image/$ext',
+              upsert: true,
+            ),
+          );
       return _db.storage.from(bucket).getPublicUrl(fileName);
     } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase Storage] Error uploading to $bucket: $e');
+      if (kDebugMode)
+        debugPrint('[Supabase Storage] Error uploading to $bucket: $e');
       return null;
     }
   }
@@ -660,38 +684,38 @@ class SupabaseSyncService {
   // ============================================
 
   static Map<String, dynamic> _goalToRow(String userId, Goal g) => {
-    'id': g.id,
-    'user_id': userId,
-    'type': g.type,
-    'name': g.name,
-    'target_amount': g.targetAmount,
-    'current_amount': g.currentAmount,
-    'target_date': g.targetDate,
-    'priority': g.priority,
-    'category_id': g.categoryId,
-    'icon': g.icon,
-    'color': g.color,
-    'monthly_payment': g.monthlyPayment,
-    'payment_day': g.paymentDay,
-    'payment_source_account_id': g.paymentSourceAccountId,
-    'updated_at': DateTime.now().toIso8601String(),
-  };
+        'id': g.id,
+        'user_id': userId,
+        'type': g.type,
+        'name': g.name,
+        'target_amount': g.targetAmount,
+        'current_amount': g.currentAmount,
+        'target_date': g.targetDate,
+        'priority': g.priority,
+        'category_id': g.categoryId,
+        'icon': g.icon,
+        'color': g.color,
+        'monthly_payment': g.monthlyPayment,
+        'payment_day': g.paymentDay,
+        'payment_source_account_id': g.paymentSourceAccountId,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
 
   static Goal _rowToGoal(Map<String, dynamic> g) => Goal(
-    id: g['id'],
-    type: g['type'] ?? 'savings',
-    name: g['name'] ?? '',
-    targetAmount: (g['target_amount'] as num?)?.toDouble() ?? 0,
-    currentAmount: (g['current_amount'] as num?)?.toDouble() ?? 0,
-    targetDate: g['target_date'],
-    priority: g['priority'] ?? 1,
-    categoryId: g['category_id'],
-    icon: g['icon'] ?? '\u{1F3AF}',
-    color: g['color'] ?? '#B8860B',
-    monthlyPayment: (g['monthly_payment'] as num?)?.toDouble(),
-    paymentDay: g['payment_day'] as int?,
-    paymentSourceAccountId: g['payment_source_account_id'] as String?,
-  );
+        id: g['id'],
+        type: g['type'] ?? 'savings',
+        name: g['name'] ?? '',
+        targetAmount: (g['target_amount'] as num?)?.toDouble() ?? 0,
+        currentAmount: (g['current_amount'] as num?)?.toDouble() ?? 0,
+        targetDate: g['target_date'],
+        priority: g['priority'] ?? 1,
+        categoryId: g['category_id'],
+        icon: g['icon'] ?? '\u{1F3AF}',
+        color: g['color'] ?? '#B8860B',
+        monthlyPayment: (g['monthly_payment'] as num?)?.toDouble(),
+        paymentDay: g['payment_day'] as int?,
+        paymentSourceAccountId: g['payment_source_account_id'] as String?,
+      );
 
   static Future<List<Goal>> loadGoals(String userId) async {
     try {
@@ -723,11 +747,7 @@ class SupabaseSyncService {
   }
 
   static Future<void> _deleteGoalRemote(String userId, String goalId) async {
-    await _db
-        .from('goals')
-        .delete()
-        .eq('id', goalId)
-        .eq('user_id', userId);
+    await _db.from('goals').delete().eq('id', goalId).eq('user_id', userId);
   }
 
   static Future<void> deleteGoal(String userId, String goalId) async {
@@ -746,41 +766,41 @@ class SupabaseSyncService {
   // ============================================
 
   static Map<String, dynamic> _ruleToRow(String userId, RecurringRule rule) => {
-    'id': rule.id,
-    'user_id': userId,
-    'cadence': rule.frequency,
-    'next_date': rule.nextDate,
-    'is_active': rule.isActive,
-    'amount': rule.templateTransaction.amount,
-    'category_id': rule.templateTransaction.categoryId,
-    'note': rule.templateTransaction.note,
-    'template_account_id': rule.templateTransaction.accountId.isEmpty
-        ? null
-        : rule.templateTransaction.accountId,
-    'template_to_account_id': rule.templateTransaction.toAccountId,
-    'template_type': rule.templateTransaction.type,
-    'template_merchant': rule.templateTransaction.note,
-    'template_is_recurring': true,
-    'updated_at': DateTime.now().toIso8601String(),
-  };
+        'id': rule.id,
+        'user_id': userId,
+        'cadence': rule.frequency,
+        'next_date': rule.nextDate,
+        'is_active': rule.isActive,
+        'amount': rule.templateTransaction.amount,
+        'category_id': rule.templateTransaction.categoryId,
+        'note': rule.templateTransaction.note,
+        'template_account_id': rule.templateTransaction.accountId.isEmpty
+            ? null
+            : rule.templateTransaction.accountId,
+        'template_to_account_id': rule.templateTransaction.toAccountId,
+        'template_type': rule.templateTransaction.type,
+        'template_merchant': rule.templateTransaction.note,
+        'template_is_recurring': true,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
 
   static RecurringRule _rowToRule(Map<String, dynamic> r) => RecurringRule(
-    id: r['id'],
-    frequency: r['cadence'] ?? 'monthly',
-    nextDate: r['next_date'] ?? DateTime.now().toIso8601String(),
-    isActive: r['is_active'] ?? true,
-    templateTransaction: Transaction(
-      id: '${r['id']}_template',
-      amount: (r['amount'] as num?)?.toDouble() ?? 0,
-      type: r['template_type'] ?? 'expense',
-      accountId: r['template_account_id'] ?? '',
-      toAccountId: r['template_to_account_id'],
-      categoryId: r['category_id'],
-      note: r['note'],
-      date: r['next_date'] ?? DateTime.now().toIso8601String(),
-      isRecurring: true,
-    ),
-  );
+        id: r['id'],
+        frequency: r['cadence'] ?? 'monthly',
+        nextDate: r['next_date'] ?? DateTime.now().toIso8601String(),
+        isActive: r['is_active'] ?? true,
+        templateTransaction: Transaction(
+          id: '${r['id']}_template',
+          amount: (r['amount'] as num?)?.toDouble() ?? 0,
+          type: r['template_type'] ?? 'expense',
+          accountId: r['template_account_id'] ?? '',
+          toAccountId: r['template_to_account_id'],
+          categoryId: r['category_id'],
+          note: r['note'],
+          date: r['next_date'] ?? DateTime.now().toIso8601String(),
+          isRecurring: true,
+        ),
+      );
 
   static Future<List<RecurringRule>> loadRecurringRules(String userId) async {
     try {
@@ -791,7 +811,8 @@ class SupabaseSyncService {
           .order('created_at', ascending: true);
       return data.map<RecurringRule>(_rowToRule).toList();
     } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase] Error loading recurring rules: $e');
+      if (kDebugMode)
+        debugPrint('[Supabase] Error loading recurring rules: $e');
       return [];
     }
   }
@@ -801,7 +822,8 @@ class SupabaseSyncService {
     await _db.from('recurring_rules').upsert(_ruleToRow(userId, rule));
   }
 
-  static Future<void> saveRecurringRule(String userId, RecurringRule rule) async {
+  static Future<void> saveRecurringRule(
+      String userId, RecurringRule rule) async {
     await _syncWithRetry(
       _QueuedSyncOperation(
         type: _SyncOperationType.saveRecurringRule,
@@ -837,34 +859,34 @@ class SupabaseSyncService {
   // ============================================
 
   static Map<String, dynamic> _holdingToRow(String userId, Holding h) => {
-    'id': h.id,
-    'user_id': userId,
-    'ticker': h.symbol,
-    'title': h.title,
-    'quantity': h.shares,
-    'buy_price': h.costBasis,
-    'current_price': h.currentPrice,
-    'notes': h.notes,
-    'purchase_date': h.purchaseDate,
-    'source_account_id': h.sourceAccountId,
-    'affects_source_balance': h.affectsSourceBalance,
-    'source_amount': h.sourceAmount,
-    'last_updated': DateTime.now().toIso8601String(),
-  };
+        'id': h.id,
+        'user_id': userId,
+        'ticker': h.symbol,
+        'title': h.title,
+        'quantity': h.shares,
+        'buy_price': h.costBasis,
+        'current_price': h.currentPrice,
+        'notes': h.notes,
+        'purchase_date': h.purchaseDate,
+        'source_account_id': h.sourceAccountId,
+        'affects_source_balance': h.affectsSourceBalance,
+        'source_amount': h.sourceAmount,
+        'last_updated': DateTime.now().toIso8601String(),
+      };
 
   static Holding _rowToHolding(Map<String, dynamic> h) => Holding(
-    id: h['id'],
-    symbol: h['ticker'] ?? '',
-    title: h['title'],
-    shares: (h['quantity'] as num?)?.toDouble() ?? 0,
-    costBasis: (h['buy_price'] as num?)?.toDouble() ?? 0,
-    currentPrice: (h['current_price'] as num?)?.toDouble() ?? 0,
-    notes: h['notes'],
-    purchaseDate: h['purchase_date'] as String?,
-    sourceAccountId: h['source_account_id'] as String?,
-    affectsSourceBalance: h['affects_source_balance'] ?? false,
-    sourceAmount: (h['source_amount'] as num?)?.toDouble(),
-  );
+        id: h['id'],
+        symbol: h['ticker'] ?? '',
+        title: h['title'],
+        shares: (h['quantity'] as num?)?.toDouble() ?? 0,
+        costBasis: (h['buy_price'] as num?)?.toDouble() ?? 0,
+        currentPrice: (h['current_price'] as num?)?.toDouble() ?? 0,
+        notes: h['notes'],
+        purchaseDate: h['purchase_date'] as String?,
+        sourceAccountId: h['source_account_id'] as String?,
+        affectsSourceBalance: h['affects_source_balance'] ?? false,
+        sourceAmount: (h['source_amount'] as num?)?.toDouble(),
+      );
 
   static Future<List<Holding>> loadHoldings(String userId) async {
     try {
@@ -920,23 +942,23 @@ class SupabaseSyncService {
   // ============================================
 
   static Map<String, dynamic> _categoryToRow(String userId, Category c) => {
-    'user_id': userId,
-    'category_id': c.id,
-    'group_name': c.group,
-    'name': c.name,
-    'icon': c.icon,
-    'color': c.color,
-    'budget_limit': c.budgetLimit,
-  };
+        'user_id': userId,
+        'category_id': c.id,
+        'group_name': c.group,
+        'name': c.name,
+        'icon': c.icon,
+        'color': c.color,
+        'budget_limit': c.budgetLimit,
+      };
 
   static Category _rowToCategory(Map<String, dynamic> c) => Category(
-    id: c['category_id'] ?? c['id'],
-    name: c['name'] ?? '',
-    group: c['group_name'] ?? 'variable',
-    icon: c['icon'] ?? 'category',
-    color: c['color'] ?? '#22c55e',
-    budgetLimit: (c['budget_limit'] as num?)?.toDouble() ?? 0,
-  );
+        id: c['category_id'] ?? c['id'],
+        name: c['name'] ?? '',
+        group: c['group_name'] ?? 'variable',
+        icon: c['icon'] ?? 'category',
+        color: c['color'] ?? '#22c55e',
+        budgetLimit: (c['budget_limit'] as num?)?.toDouble() ?? 0,
+      );
 
   static Future<List<Category>> loadCategories(String userId) async {
     try {
@@ -955,9 +977,9 @@ class SupabaseSyncService {
   static Future<void> _saveCategoryRemote(
       String userId, Category category) async {
     await _db.from('user_categories').upsert(
-      _categoryToRow(userId, category),
-      onConflict: 'user_id,category_id',
-    );
+          _categoryToRow(userId, category),
+          onConflict: 'user_id,category_id',
+        );
   }
 
   static Future<void> saveCategory(String userId, Category category) async {
@@ -995,7 +1017,8 @@ class SupabaseSyncService {
   // AI CONVERSATIONS
   // ============================================
 
-  static Future<List<Map<String, dynamic>>> loadConversations(String userId) async {
+  static Future<List<Map<String, dynamic>>> loadConversations(
+      String userId) async {
     try {
       final data = await _db
           .from('ai_conversations')
@@ -1024,7 +1047,8 @@ class SupabaseSyncService {
     });
   }
 
-  static Future<void> saveConversation(String userId, Map<String, dynamic> convoJson) async {
+  static Future<void> saveConversation(
+      String userId, Map<String, dynamic> convoJson) async {
     await _syncWithRetry(
       _QueuedSyncOperation(
         type: _SyncOperationType.saveConversation,
@@ -1037,21 +1061,24 @@ class SupabaseSyncService {
 
   static Future<void> _saveAllConversationsRemote(
       String userId, List<Map<String, dynamic>> convos) async {
-    final rows = convos.map((c) => {
-          'id': c['id'],
-          'user_id': userId,
-          'title': c['title'],
-          'messages': c['messages'],
-          'history': c['history'],
-          'is_archived': c['isArchived'] ?? false,
-          'project_id': c['projectId'],
-          'created_at': c['createdAt'],
-          'updated_at': DateTime.now().toIso8601String(),
-        }).toList();
+    final rows = convos
+        .map((c) => {
+              'id': c['id'],
+              'user_id': userId,
+              'title': c['title'],
+              'messages': c['messages'],
+              'history': c['history'],
+              'is_archived': c['isArchived'] ?? false,
+              'project_id': c['projectId'],
+              'created_at': c['createdAt'],
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+        .toList();
     await _db.from('ai_conversations').upsert(rows);
   }
 
-  static Future<void> saveAllConversations(String userId, List<Map<String, dynamic>> convos) async {
+  static Future<void> saveAllConversations(
+      String userId, List<Map<String, dynamic>> convos) async {
     if (convos.isEmpty) return;
     await _syncWithRetry(
       _QueuedSyncOperation(
@@ -1112,7 +1139,8 @@ class SupabaseSyncService {
     });
   }
 
-  static Future<void> saveProject(String userId, Map<String, dynamic> projectJson) async {
+  static Future<void> saveProject(
+      String userId, Map<String, dynamic> projectJson) async {
     await _syncWithRetry(
       _QueuedSyncOperation(
         type: _SyncOperationType.saveProject,

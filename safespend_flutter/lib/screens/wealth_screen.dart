@@ -15,7 +15,6 @@ import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
 import 'personal_debts_screen.dart';
 import 'portfolio_screen.dart';
-import 'goals_screen.dart';
 import 'daret_screen.dart';
 import 'settings_screen.dart';
 
@@ -287,19 +286,16 @@ class _WealthScreenState extends State<WealthScreen> {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final netWorth = provider.getNetWorth();
-        final rangeData = provider.getBalanceForRange('ALL');
-        final income = rangeData['income'] ?? 0.0;
-        final expenses = rangeData['expenses'] ?? 0.0;
-        final balance = rangeData['total'] ?? 0.0;
-
         final totalBank = provider.getTotalByAccountType('bank');
         final totalCash = provider.totalCash;
-        final totalSavings = provider.totalSavingsGoals;
-        final totalInvestments = provider.totalInvestmentValue;
+        final totalInvestments = provider.getInvestmentValueForAccount(provider.selectedAccountId);
         final totalDebt = provider.totalDebtRemaining;
         final totalPersonalDebt = provider.goals
             .where((g) => g.type == 'personal_debt')
             .fold(0.0, (s, g) => s + (g.targetAmount - g.currentAmount));
+        final selectedBalance = provider.getBalanceForAccount(provider.selectedAccountId);
+        // Net debt: positive = people owe you more, negative = you owe more
+        final netDebt = totalPersonalDebt - totalDebt;
 
         final now = DateTime.now();
         final monday = now.subtract(Duration(days: now.weekday - 1));
@@ -440,25 +436,27 @@ class _WealthScreenState extends State<WealthScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Text(s.allTime,
-                              style: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
-                                  fontSize: 11,
-                                  fontWeight:
-                                      FontWeight.w500)), // TODO: localize
-                          const SizedBox(height: 10),
+                          // Stats: Balance | Net Debt | Investments
                           Row(
                             children: [
-                              _goldStatCol(s.income, '+${cf.format(income)}',
-                                  AppTheme.success),
-                              _goldStatCol(s.debt, '-${cf.format(totalDebt)}',
-                                  const Color(0xFFFF8A80)),
                               _goldStatCol(
-                                  s.netWorth,
-                                  cf.format(netWorth),
-                                  netWorth >= 0
+                                  s.balance,
+                                  cf.format(selectedBalance),
+                                  selectedBalance >= 0
                                       ? AppTheme.success
                                       : const Color(0xFFFF8A80)),
+                              _goldStatCol(
+                                  s.debt,
+                                  netDebt >= 0
+                                      ? '+${cf.format(netDebt)}'
+                                      : '-${cf.format(netDebt.abs())}',
+                                  netDebt >= 0
+                                      ? AppTheme.success
+                                      : const Color(0xFFFF8A80)),
+                              _goldStatCol(
+                                  s.investments,
+                                  cf.format(totalInvestments),
+                                  const Color(0xFFA78BFA)),
                             ],
                           ),
                         ],
@@ -552,19 +550,6 @@ class _WealthScreenState extends State<WealthScreen> {
                                 MaterialPageRoute(
                                     builder: (_) =>
                                         const PersonalDebtsScreen())),
-                          ),
-                          _buildBreakdownItem(
-                            context: context,
-                            cf: cf,
-                            iconPath: 'assets/icons/goals.svg',
-                            label: s.savingsGoals,
-                            sublabel: s.moneyForGoals,
-                            amount: totalSavings,
-                            color: const Color(0xFF10B981),
-                            onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const GoalsScreen())),
                           ),
                           _buildBreakdownItem(
                             context: context,

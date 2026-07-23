@@ -20,11 +20,15 @@ Map<String, dynamic> _parseLocalData(Map<String, String?> rawJson) {
   final result = <String, dynamic>{};
   try {
     final a = rawJson['accounts'];
-    if (a != null) result['accounts'] = (jsonDecode(a) as List).map((j) => Account.fromJson(j)).toList();
+    if (a != null)
+      result['accounts'] =
+          (jsonDecode(a) as List).map((j) => Account.fromJson(j)).toList();
   } catch (_) {}
   try {
     final t = rawJson['transactions'];
-    if (t != null) result['transactions'] = (jsonDecode(t) as List).map((j) => Transaction.fromJson(j)).toList();
+    if (t != null)
+      result['transactions'] =
+          (jsonDecode(t) as List).map((j) => Transaction.fromJson(j)).toList();
   } catch (_) {}
   try {
     final s = rawJson['settings'];
@@ -32,23 +36,34 @@ Map<String, dynamic> _parseLocalData(Map<String, String?> rawJson) {
   } catch (_) {}
   try {
     final r = rawJson['recurringRules'];
-    if (r != null) result['recurringRules'] = (jsonDecode(r) as List).map((j) => RecurringRule.fromJson(j)).toList();
+    if (r != null)
+      result['recurringRules'] = (jsonDecode(r) as List)
+          .map((j) => RecurringRule.fromJson(j))
+          .toList();
   } catch (_) {}
   try {
     final h = rawJson['holdings'];
-    if (h != null) result['holdings'] = (jsonDecode(h) as List).map((j) => Holding.fromJson(j)).toList();
+    if (h != null)
+      result['holdings'] =
+          (jsonDecode(h) as List).map((j) => Holding.fromJson(j)).toList();
   } catch (_) {}
   try {
     final g = rawJson['goals'];
-    if (g != null) result['goals'] = (jsonDecode(g) as List).map((j) => Goal.fromJson(j)).toList();
+    if (g != null)
+      result['goals'] =
+          (jsonDecode(g) as List).map((j) => Goal.fromJson(j)).toList();
   } catch (_) {}
   try {
     final d = rawJson['darets'];
-    if (d != null) result['darets'] = (jsonDecode(d) as List).map((j) => Daret.fromJson(j)).toList();
+    if (d != null)
+      result['darets'] =
+          (jsonDecode(d) as List).map((j) => Daret.fromJson(j)).toList();
   } catch (_) {}
   try {
     final c = rawJson['categories'];
-    if (c != null) result['categories'] = (jsonDecode(c) as List).map((j) => Category.fromJson(j)).toList();
+    if (c != null)
+      result['categories'] =
+          (jsonDecode(c) as List).map((j) => Category.fromJson(j)).toList();
   } catch (_) {}
   return result;
 }
@@ -172,8 +187,11 @@ class AppProvider with ChangeNotifier {
       // Flush any queued sync operations that failed while offline
       SupabaseSyncService.flushRetryQueue();
     } catch (e) {
-      if (kDebugMode) debugPrint('[AppProvider] Error loading from Supabase, falling back to local: $e');
-      _supabaseDataLoaded = true; // mark as done even on error to avoid retry loops
+      if (kDebugMode)
+        debugPrint(
+            '[AppProvider] Error loading from Supabase, falling back to local: $e');
+      _supabaseDataLoaded =
+          true; // mark as done even on error to avoid retry loops
       _supabaseLoadInProgress = false;
       await loadData();
     }
@@ -236,18 +254,26 @@ class AppProvider with ChangeNotifier {
       // Parse JSON off the main thread via isolate
       final parsed = await compute(_parseLocalData, rawJson);
 
-      if (parsed.containsKey('accounts')) _accounts = parsed['accounts'] as List<Account>;
-      if (parsed.containsKey('transactions')) _transactions = parsed['transactions'] as List<Transaction>;
-      if (parsed.containsKey('settings')) _settings = parsed['settings'] as Settings;
-      if (parsed.containsKey('recurringRules')) _recurringRules = parsed['recurringRules'] as List<RecurringRule>;
-      if (parsed.containsKey('holdings')) _holdings = parsed['holdings'] as List<Holding>;
+      if (parsed.containsKey('accounts'))
+        _accounts = parsed['accounts'] as List<Account>;
+      if (parsed.containsKey('transactions'))
+        _transactions = parsed['transactions'] as List<Transaction>;
+      if (parsed.containsKey('settings'))
+        _settings = parsed['settings'] as Settings;
+      if (parsed.containsKey('recurringRules'))
+        _recurringRules = parsed['recurringRules'] as List<RecurringRule>;
+      if (parsed.containsKey('holdings'))
+        _holdings = parsed['holdings'] as List<Holding>;
       if (parsed.containsKey('goals')) _goals = parsed['goals'] as List<Goal>;
-      if (parsed.containsKey('darets')) _darets = parsed['darets'] as List<Daret>;
-      if (parsed.containsKey('categories')) _categories = parsed['categories'] as List<Category>;
+      if (parsed.containsKey('darets'))
+        _darets = parsed['darets'] as List<Daret>;
+      if (parsed.containsKey('categories'))
+        _categories = parsed['categories'] as List<Category>;
 
       _setupComplete = prefs.getBool('setup_complete') ?? false;
     } catch (e) {
-      if (kDebugMode) debugPrint('[AppProvider] Critical error in loadData: $e');
+      if (kDebugMode)
+        debugPrint('[AppProvider] Critical error in loadData: $e');
     } finally {
       _isLoading = false;
       _localDataLoaded = true;
@@ -275,14 +301,21 @@ class AppProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await Future.wait([
-        prefs.setString('accounts', jsonEncode(_accounts.map((a) => a.toJson()).toList())),
-        prefs.setString('transactions', jsonEncode(_transactions.map((t) => t.toJson()).toList())),
+        prefs.setString(
+            'accounts', jsonEncode(_accounts.map((a) => a.toJson()).toList())),
+        prefs.setString('transactions',
+            jsonEncode(_transactions.map((t) => t.toJson()).toList())),
         prefs.setString('settings', jsonEncode(_settings.toJson())),
-        prefs.setString('recurringRules', jsonEncode(_recurringRules.map((r) => r.toJson()).toList())),
-        prefs.setString('holdings', jsonEncode(_holdings.map((h) => h.toJson()).toList())),
-        prefs.setString('goals', jsonEncode(_goals.map((g) => g.toJson()).toList())),
-        prefs.setString('darets', jsonEncode(_darets.map((d) => d.toJson()).toList())),
-        prefs.setString('categories', jsonEncode(_categories.map((c) => c.toJson()).toList())),
+        prefs.setString('recurringRules',
+            jsonEncode(_recurringRules.map((r) => r.toJson()).toList())),
+        prefs.setString(
+            'holdings', jsonEncode(_holdings.map((h) => h.toJson()).toList())),
+        prefs.setString(
+            'goals', jsonEncode(_goals.map((g) => g.toJson()).toList())),
+        prefs.setString(
+            'darets', jsonEncode(_darets.map((d) => d.toJson()).toList())),
+        prefs.setString('categories',
+            jsonEncode(_categories.map((c) => c.toJson()).toList())),
       ]);
     } catch (e) {
       if (kDebugMode) debugPrint('[AppProvider] Error saving to local: $e');
@@ -307,8 +340,9 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   void addAccount(Account account) {
-    final normalized =
-        account.addedAt == null ? account.copyWith(addedAt: DateTime.now().toIso8601String()) : account;
+    final normalized = account.addedAt == null
+        ? account.copyWith(addedAt: DateTime.now().toIso8601String())
+        : account;
     _accounts.add(normalized);
     _syncDebtPaymentRule(normalized);
     _saveToLocal();
@@ -321,7 +355,9 @@ class AppProvider with ChangeNotifier {
     final index = _accounts.indexWhere((a) => a.id == account.id);
     if (index != -1) {
       final normalized = account.copyWith(
-        addedAt: account.addedAt ?? _accounts[index].addedAt ?? DateTime.now().toIso8601String(),
+        addedAt: account.addedAt ??
+            _accounts[index].addedAt ??
+            DateTime.now().toIso8601String(),
       );
       _accounts[index] = normalized;
       _syncDebtPaymentRule(normalized);
@@ -403,15 +439,16 @@ class AppProvider with ChangeNotifier {
     }
 
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveRecurringRule(uid, _recurringRules.firstWhere((r) => r.id == ruleId));
+    if (uid != null)
+      SupabaseSyncService.saveRecurringRule(
+          uid, _recurringRules.firstWhere((r) => r.id == ruleId));
   }
 
   /// Auto-credits salary for each account where today >= salaryDay and
   /// the salary has not yet been credited this calendar month.
   void processSalaries() {
     final today = DateTime.now();
-    final thisMonth =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}';
+    final thisMonth = '${today.year}-${today.month.toString().padLeft(2, '0')}';
     bool changed = false;
 
     for (int i = 0; i < _accounts.length; i++) {
@@ -491,10 +528,14 @@ class AppProvider with ChangeNotifier {
 
         // Add/deduct from account balance
         if (rule.templateTransaction.accountId != cashOnHandId) {
-          final idx = _accounts.indexWhere((a) => a.id == rule.templateTransaction.accountId);
+          final idx = _accounts
+              .indexWhere((a) => a.id == rule.templateTransaction.accountId);
           if (idx != -1) {
             _accounts[idx] = _accounts[idx].copyWith(
-              balance: _accounts[idx].balance + (isIncome ? rule.templateTransaction.amount : -rule.templateTransaction.amount),
+              balance: _accounts[idx].balance +
+                  (isIncome
+                      ? rule.templateTransaction.amount
+                      : -rule.templateTransaction.amount),
             );
           }
         }
@@ -508,10 +549,12 @@ class AppProvider with ChangeNotifier {
             nextDate = nextDate.add(const Duration(days: 7));
             break;
           case 'yearly':
-            nextDate = DateTime(nextDate.year + 1, nextDate.month, nextDate.day, nextDate.hour, nextDate.minute);
+            nextDate = DateTime(nextDate.year + 1, nextDate.month, nextDate.day,
+                nextDate.hour, nextDate.minute);
             break;
           default: // monthly
-            nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day, nextDate.hour, nextDate.minute);
+            nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day,
+                nextDate.hour, nextDate.minute);
         }
 
         // If this is a debt payment (Account-based), reduce the debt account balance
@@ -519,7 +562,8 @@ class AppProvider with ChangeNotifier {
           final debtAccountId = rule.id.substring(5); // strip 'debt_' prefix
           final debtIdx = _accounts.indexWhere((a) => a.id == debtAccountId);
           if (debtIdx != -1) {
-            final newBalance = _accounts[debtIdx].balance - rule.templateTransaction.amount;
+            final newBalance =
+                _accounts[debtIdx].balance - rule.templateTransaction.amount;
             _accounts[debtIdx] = _accounts[debtIdx].copyWith(
               balance: newBalance < 0 ? 0 : newBalance,
             );
@@ -531,7 +575,8 @@ class AppProvider with ChangeNotifier {
           final goalId = rule.id.substring(9); // strip 'debtgoal_' prefix
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
           if (goalIdx != -1) {
-            final newPaid = (_goals[goalIdx].currentAmount + rule.templateTransaction.amount)
+            final newPaid = (_goals[goalIdx].currentAmount +
+                    rule.templateTransaction.amount)
                 .clamp(0, _goals[goalIdx].targetAmount)
                 .toDouble();
             _goals[goalIdx] = _goals[goalIdx].copyWith(currentAmount: newPaid);
@@ -545,7 +590,8 @@ class AppProvider with ChangeNotifier {
           final goalId = rule.id.substring(12); // strip 'savingsgoal_' prefix
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
           if (goalIdx != -1) {
-            final newSaved = (_goals[goalIdx].currentAmount + rule.templateTransaction.amount)
+            final newSaved = (_goals[goalIdx].currentAmount +
+                    rule.templateTransaction.amount)
                 .clamp(0, _goals[goalIdx].targetAmount)
                 .toDouble();
             _goals[goalIdx] = _goals[goalIdx].copyWith(currentAmount: newSaved);
@@ -559,14 +605,16 @@ class AppProvider with ChangeNotifier {
         if (uid != null) {
           SupabaseSyncService.saveTransaction(uid, tx);
           if (rule.templateTransaction.accountId != cashOnHandId) {
-            final idx = _accounts.indexWhere((a) => a.id == rule.templateTransaction.accountId);
+            final idx = _accounts
+                .indexWhere((a) => a.id == rule.templateTransaction.accountId);
             if (idx != -1) SupabaseSyncService.saveAccount(uid, _accounts[idx]);
           }
           // Sync updated debt account balance
           if (rule.id.startsWith('debt_')) {
             final debtAccountId = rule.id.substring(5);
             final debtIdx = _accounts.indexWhere((a) => a.id == debtAccountId);
-            if (debtIdx != -1) SupabaseSyncService.saveAccount(uid, _accounts[debtIdx]);
+            if (debtIdx != -1)
+              SupabaseSyncService.saveAccount(uid, _accounts[debtIdx]);
           }
         }
         changed = true;
@@ -574,7 +622,8 @@ class AppProvider with ChangeNotifier {
 
       if (safetyCounter > 0) {
         // Update the rule with the new nextDate (full ISO string with time)
-        _recurringRules[i] = rule.copyWith(nextDate: nextDate.toIso8601String());
+        _recurringRules[i] =
+            rule.copyWith(nextDate: nextDate.toIso8601String());
 
         // Auto-deactivate debt payment rules when the debt is fully paid
         if (rule.id.startsWith('debt_') && !rule.id.startsWith('debtgoal_')) {
@@ -582,7 +631,9 @@ class AppProvider with ChangeNotifier {
           final debtIdx = _accounts.indexWhere((a) => a.id == debtAccountId);
           if (debtIdx != -1 && _accounts[debtIdx].balance <= 0) {
             _recurringRules[i] = _recurringRules[i].copyWith(isActive: false);
-            if (kDebugMode) debugPrint('[AppProvider] Debt ${_accounts[debtIdx].name} fully paid — subscription deactivated');
+            if (kDebugMode)
+              debugPrint(
+                  '[AppProvider] Debt ${_accounts[debtIdx].name} fully paid — subscription deactivated');
           }
         }
 
@@ -590,9 +641,12 @@ class AppProvider with ChangeNotifier {
         if (rule.id.startsWith('debtgoal_')) {
           final goalId = rule.id.substring(9);
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-          if (goalIdx != -1 && _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
+          if (goalIdx != -1 &&
+              _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
             _recurringRules[i] = _recurringRules[i].copyWith(isActive: false);
-            if (kDebugMode) debugPrint('[AppProvider] Debt goal ${_goals[goalIdx].name} fully paid — subscription deactivated');
+            if (kDebugMode)
+              debugPrint(
+                  '[AppProvider] Debt goal ${_goals[goalIdx].name} fully paid — subscription deactivated');
           }
         }
 
@@ -600,14 +654,18 @@ class AppProvider with ChangeNotifier {
         if (rule.id.startsWith('savingsgoal_')) {
           final goalId = rule.id.substring(12);
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-          if (goalIdx != -1 && _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
+          if (goalIdx != -1 &&
+              _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
             _recurringRules[i] = _recurringRules[i].copyWith(isActive: false);
-            if (kDebugMode) debugPrint('[AppProvider] Savings goal ${_goals[goalIdx].name} reached — auto-save deactivated');
+            if (kDebugMode)
+              debugPrint(
+                  '[AppProvider] Savings goal ${_goals[goalIdx].name} reached — auto-save deactivated');
           }
         }
 
         final uid = _userId;
-        if (uid != null) SupabaseSyncService.saveRecurringRule(uid, _recurringRules[i]);
+        if (uid != null)
+          SupabaseSyncService.saveRecurringRule(uid, _recurringRules[i]);
       }
     }
 
@@ -637,13 +695,16 @@ class AppProvider with ChangeNotifier {
         final account = _accounts[idx];
         double newBalance = account.balance;
         // Deduct: expense, withdrawal, transfer, goal_contribution, debt_payment
-        if (transaction.type == 'expense' || transaction.type == 'withdrawal' ||
-            transaction.type == 'transfer' || transaction.type == 'goal_contribution' ||
+        if (transaction.type == 'expense' ||
+            transaction.type == 'withdrawal' ||
+            transaction.type == 'transfer' ||
+            transaction.type == 'goal_contribution' ||
             transaction.type == 'debt_payment') {
           newBalance -= transaction.totalWithFees; // amount + bank fees
         }
         // Add: income, lending_collection
-        else if (transaction.type == 'income' || transaction.type == 'lending_collection') {
+        else if (transaction.type == 'income' ||
+            transaction.type == 'lending_collection') {
           newBalance += transaction.amount;
         }
         _accounts[idx] = account.copyWith(balance: newBalance);
@@ -652,11 +713,14 @@ class AppProvider with ChangeNotifier {
     }
 
     // Update destination account for transfers (skip if sending to a person / cash)
-    if (transaction.type == 'transfer' && transaction.toAccountId != null && !isCashDest) {
+    if (transaction.type == 'transfer' &&
+        transaction.toAccountId != null &&
+        !isCashDest) {
       final idx = _accounts.indexWhere((a) => a.id == transaction.toAccountId);
       if (idx != -1) {
         final toAccount = _accounts[idx];
-        _accounts[idx] = toAccount.copyWith(balance: toAccount.balance + transaction.amount);
+        _accounts[idx] =
+            toAccount.copyWith(balance: toAccount.balance + transaction.amount);
         changedAccounts.add(_accounts[idx]);
       }
     }
@@ -685,8 +749,11 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == old.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (old.type == 'expense' || old.type == 'withdrawal' || old.type == 'transfer' ||
-            old.type == 'goal_contribution' || old.type == 'debt_payment') {
+        if (old.type == 'expense' ||
+            old.type == 'withdrawal' ||
+            old.type == 'transfer' ||
+            old.type == 'goal_contribution' ||
+            old.type == 'debt_payment') {
           bal += old.totalWithFees;
         } else if (old.type == 'income' || old.type == 'lending_collection') {
           bal -= old.amount;
@@ -696,10 +763,13 @@ class AppProvider with ChangeNotifier {
       }
     }
     // Reverse the balance effect on transfer destination
-    if (old.type == 'transfer' && old.toAccountId != null && old.toAccountId != cashOnHandId) {
+    if (old.type == 'transfer' &&
+        old.toAccountId != null &&
+        old.toAccountId != cashOnHandId) {
       final ai = _accounts.indexWhere((a) => a.id == old.toAccountId);
       if (ai != -1) {
-        _accounts[ai] = _accounts[ai].copyWith(balance: _accounts[ai].balance - old.amount);
+        _accounts[ai] =
+            _accounts[ai].copyWith(balance: _accounts[ai].balance - old.amount);
         changedAccounts.add(_accounts[ai]);
       }
     }
@@ -727,8 +797,11 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == old.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (old.type == 'expense' || old.type == 'withdrawal' || old.type == 'transfer' ||
-            old.type == 'goal_contribution' || old.type == 'debt_payment') {
+        if (old.type == 'expense' ||
+            old.type == 'withdrawal' ||
+            old.type == 'transfer' ||
+            old.type == 'goal_contribution' ||
+            old.type == 'debt_payment') {
           bal += old.totalWithFees;
         } else if (old.type == 'income' || old.type == 'lending_collection') {
           bal -= old.amount;
@@ -741,10 +814,14 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == updated.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (updated.type == 'expense' || updated.type == 'withdrawal' || updated.type == 'transfer' ||
-            updated.type == 'goal_contribution' || updated.type == 'debt_payment') {
+        if (updated.type == 'expense' ||
+            updated.type == 'withdrawal' ||
+            updated.type == 'transfer' ||
+            updated.type == 'goal_contribution' ||
+            updated.type == 'debt_payment') {
           bal -= updated.totalWithFees;
-        } else if (updated.type == 'income' || updated.type == 'lending_collection') {
+        } else if (updated.type == 'income' ||
+            updated.type == 'lending_collection') {
           bal += updated.amount;
         }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
@@ -759,8 +836,10 @@ class AppProvider with ChangeNotifier {
       // Sync all affected account balances
       final changedAccountIds = <String>{};
       if (old.accountId != cashOnHandId) changedAccountIds.add(old.accountId);
-      if (updated.accountId != cashOnHandId) changedAccountIds.add(updated.accountId);
-      final changedAccounts = _accounts.where((a) => changedAccountIds.contains(a.id)).toList();
+      if (updated.accountId != cashOnHandId)
+        changedAccountIds.add(updated.accountId);
+      final changedAccounts =
+          _accounts.where((a) => changedAccountIds.contains(a.id)).toList();
       if (changedAccounts.isNotEmpty) {
         SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts);
       }
@@ -888,7 +967,8 @@ class AppProvider with ChangeNotifier {
       amount: proceeds,
       date: DateTime.now().toIso8601String(),
       accountId: accountId,
-      note: 'Sold $sharesToSell × ${holding.symbol} @ \$${sellPrice.toStringAsFixed(2)}',
+      note:
+          'Sold $sharesToSell × ${holding.symbol} @ \$${sellPrice.toStringAsFixed(2)}',
     );
     _transactions.add(tx);
 
@@ -950,18 +1030,19 @@ class AppProvider with ChangeNotifier {
   }
 
   void deleteGoal(String id) {
-    // Also remove any debt payment recurring rule
-    final ruleId = 'debtgoal_$id';
-    final ruleIdx = _recurringRules.indexWhere((r) => r.id == ruleId);
-    if (ruleIdx != -1) {
-      _recurringRules.removeAt(ruleIdx);
-      final uid = _userId;
-      if (uid != null) SupabaseSyncService.deleteRecurringRule(uid, ruleId);
+    // Also remove any goal-linked recurring rules.
+    final ruleIds = ['debtgoal_$id', 'savingsgoal_$id'];
+    final uid = _userId;
+    for (final ruleId in ruleIds) {
+      final ruleIdx = _recurringRules.indexWhere((r) => r.id == ruleId);
+      if (ruleIdx != -1) {
+        _recurringRules.removeAt(ruleIdx);
+        if (uid != null) SupabaseSyncService.deleteRecurringRule(uid, ruleId);
+      }
     }
     _goals.removeWhere((g) => g.id == id);
     _saveToLocal();
     notifyListeners();
-    final uid = _userId;
     if (uid != null) SupabaseSyncService.deleteGoal(uid, id);
   }
 
@@ -1021,7 +1102,9 @@ class AppProvider with ChangeNotifier {
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveRecurringRule(uid, _recurringRules.firstWhere((r) => r.id == ruleId));
+    if (uid != null)
+      SupabaseSyncService.saveRecurringRule(
+          uid, _recurringRules.firstWhere((r) => r.id == ruleId));
   }
 
   void contributeToGoal(String id, double amount) {
@@ -1039,8 +1122,10 @@ class AppProvider with ChangeNotifier {
 
   /// Contribute to a goal AND deduct from the source (account or cash on hand).
   /// Always creates a transaction so it appears in Recent Transactions.
-  void contributeToGoalFromSource(String goalId, double amount, String sourceAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+  void contributeToGoalFromSource(
+      String goalId, double amount, String sourceAccountId) {
+    final goal =
+        _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: 'goal_contribution',
@@ -1056,7 +1141,8 @@ class AppProvider with ChangeNotifier {
     if (sourceAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == sourceAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
+        _accounts[idx] =
+            _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
         changedAccount = _accounts[idx];
       }
     }
@@ -1076,7 +1162,8 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
@@ -1084,8 +1171,10 @@ class AppProvider with ChangeNotifier {
   /// Pay toward a debt goal and deduct from the source.
   /// Always creates a transaction so it appears in Recent Transactions.
   /// Records money returned to someone for a personal debt (money goes OUT of sourceAccount).
-  void recordPersonalDebtReturn(String goalId, double amount, String sourceAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+  void recordPersonalDebtReturn(
+      String goalId, double amount, String sourceAccountId) {
+    final goal =
+        _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: 'personal_debt_return',
@@ -1102,7 +1191,8 @@ class AppProvider with ChangeNotifier {
     if (sourceAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == sourceAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
+        _accounts[idx] =
+            _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
         changedAccount = _accounts[idx];
       }
     }
@@ -1111,7 +1201,8 @@ class AppProvider with ChangeNotifier {
     final goalIdx = _goals.indexWhere((g) => g.id == goalId);
     if (goalIdx != -1) {
       _goals[goalIdx] = _goals[goalIdx].copyWith(
-        currentAmount: (_goals[goalIdx].currentAmount + amount).clamp(0, _goals[goalIdx].targetAmount),
+        currentAmount: (_goals[goalIdx].currentAmount + amount)
+            .clamp(0, _goals[goalIdx].targetAmount),
       );
     }
 
@@ -1121,15 +1212,18 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
 
   /// Records money received from a personal debt (someone returning money to you).
   /// Adds amount to the target account and marks the debt as partially/fully returned.
-  void receiveDebtPayment(String goalId, double amount, String targetAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+  void receiveDebtPayment(
+      String goalId, double amount, String targetAccountId) {
+    final goal =
+        _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: 'income',
@@ -1146,7 +1240,8 @@ class AppProvider with ChangeNotifier {
     if (targetAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == targetAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance + amount);
+        _accounts[idx] =
+            _accounts[idx].copyWith(balance: _accounts[idx].balance + amount);
         changedAccount = _accounts[idx];
       }
     }
@@ -1156,7 +1251,8 @@ class AppProvider with ChangeNotifier {
     final goalIdx = _goals.indexWhere((g) => g.id == goalId);
     if (goalIdx != -1) {
       _goals[goalIdx] = _goals[goalIdx].copyWith(
-        currentAmount: (_goals[goalIdx].currentAmount + amount).clamp(0, _goals[goalIdx].targetAmount),
+        currentAmount: (_goals[goalIdx].currentAmount + amount)
+            .clamp(0, _goals[goalIdx].targetAmount),
       );
     }
 
@@ -1166,13 +1262,15 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
 
   void payDebt(String goalId, double amount, String sourceAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+    final goal =
+        _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
     final txn = Transaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: 'debt_payment',
@@ -1188,7 +1286,8 @@ class AppProvider with ChangeNotifier {
     if (sourceAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == sourceAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
+        _accounts[idx] =
+            _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
         changedAccount = _accounts[idx];
       }
     }
@@ -1208,7 +1307,8 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
@@ -1248,7 +1348,11 @@ class AppProvider with ChangeNotifier {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     return _transactions
-        .where((t) => t.type == 'expense' && t.categoryId == categoryId && DateTime.parse(t.date).isAfter(startOfMonth.subtract(const Duration(days: 1))))
+        .where((t) =>
+            t.type == 'expense' &&
+            t.categoryId == categoryId &&
+            DateTime.parse(t.date)
+                .isAfter(startOfMonth.subtract(const Duration(days: 1))))
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
@@ -1301,7 +1405,10 @@ class AppProvider with ChangeNotifier {
       if (t.type == 'withdrawal') {
         cash += t.amount; // Cash received (fees already deducted from bank)
       } else if (t.accountId == cashOnHandId) {
-        if (t.type == 'expense' || t.type == 'transfer' || t.type == 'goal_contribution' || t.type == 'debt_payment') {
+        if (t.type == 'expense' ||
+            t.type == 'transfer' ||
+            t.type == 'goal_contribution' ||
+            t.type == 'debt_payment') {
           cash -= t.totalWithFees;
         } else if (t.type == 'income' || t.type == 'lending_collection') {
           cash += t.amount;
@@ -1319,10 +1426,10 @@ class AppProvider with ChangeNotifier {
     final now = DateTime.now();
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     final daysRemaining = daysInMonth - now.day + 1;
-    
+
     final totalBalance = _accounts.fold(0.0, (sum, a) => sum + a.balance);
     final monthlyExpenses = 0.0;
-    
+
     final safeToSpendMonth = _settings.monthlyIncome - monthlyExpenses;
     return daysRemaining > 0 ? safeToSpendMonth / daysRemaining : 0;
   }
@@ -1342,14 +1449,53 @@ class AppProvider with ChangeNotifier {
     final cash = totalCash;
     // Investment account balances + portfolio positions
     final investments = totalInvestmentValue;
+    // Savings goal amounts (money set aside - already deducted from account balance)
+    final savingsAmounts = totalSavingsGoals;
     final debtRemaining = _goals
         .where((g) => g.type == 'debt')
         .fold(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
     final personalDebtRemaining = _goals
         .where((g) => g.type == 'personal_debt')
         .fold(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
-    _cachedNetWorth = bankAssets + cash + investments - debtRemaining + personalDebtRemaining;
+    _cachedNetWorth = bankAssets +
+        cash +
+        investments +
+        savingsAmounts -
+        debtRemaining +
+        personalDebtRemaining;
     return _cachedNetWorth!;
+  }
+
+  double get totalSavingsTarget {
+    return _goals
+        .where(_isSavingsGoal)
+        .fold<double>(0.0, (sum, g) => sum + g.targetAmount);
+  }
+
+  /// Balance for a specific account, or combined balance of all non-investment
+  /// accounts + cash when [accountId] is null.
+  double getBalanceForAccount(String? accountId) {
+    if (accountId != null) {
+      return _accounts
+          .where((a) => a.id == accountId)
+          .fold(0.0, (sum, a) => sum + a.balance);
+    }
+    final bankBalance = _accounts
+        .where((a) => a.type != 'investment')
+        .fold(0.0, (sum, a) => sum + a.balance);
+    return bankBalance + totalCash;
+  }
+
+  /// Investment value for a specific account (if it's an investment type),
+  /// or total investment value when [accountId] is null or non-investment.
+  double getInvestmentValueForAccount(String? accountId) {
+    if (accountId != null) {
+      final acct = _accounts.where((a) => a.id == accountId).firstOrNull;
+      if (acct != null && acct.type == 'investment') {
+        return acct.balance + getTotalPortfolioValue();
+      }
+    }
+    return totalInvestmentValue;
   }
 
   Map<String, double> getBalanceForRange(String range) {
@@ -1393,21 +1539,29 @@ class AppProvider with ChangeNotifier {
   double get totalSavingsGoals {
     if (_cachedTotalSavingsGoals != null) return _cachedTotalSavingsGoals!;
     _cachedTotalSavingsGoals = _goals
-        .where((g) => g.type == 'savings' || g.type == 'custom' || g.type == null)
+        .where(_isSavingsGoal)
         .fold<double>(0.0, (sum, g) => sum + g.currentAmount);
     return _cachedTotalSavingsGoals!;
+  }
+
+  bool _isSavingsGoal(Goal goal) {
+    return goal.type == 'savings' ||
+        goal.type == 'goal' ||
+        goal.type == 'custom';
   }
 
   double get totalDebtRemaining {
     if (_cachedTotalDebtRemaining != null) return _cachedTotalDebtRemaining!;
     _cachedTotalDebtRemaining = _goals
         .where((g) => g.type == 'debt')
-        .fold<double>(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
+        .fold<double>(
+            0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
     return _cachedTotalDebtRemaining!;
   }
 
   double get totalInvestmentValue {
-    if (_cachedTotalInvestmentValue != null) return _cachedTotalInvestmentValue!;
+    if (_cachedTotalInvestmentValue != null)
+      return _cachedTotalInvestmentValue!;
     // Investment account balances + portfolio (holdings) value
     final investmentAccounts = _accounts
         .where((a) => a.type == 'investment')
@@ -1551,7 +1705,8 @@ class AppProvider with ChangeNotifier {
 
     // Credit destination account
     if (daret.destinationAccountId != cashOnHandId) {
-      final ai = _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
+      final ai =
+          _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
       if (ai != -1) {
         _accounts[ai] = _accounts[ai].copyWith(
           balance: _accounts[ai].balance + daret.singlePayoutAmount,
@@ -1566,7 +1721,8 @@ class AppProvider with ChangeNotifier {
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
       if (daret.destinationAccountId != cashOnHandId) {
-        final ai = _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
+        final ai =
+            _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
         if (ai != -1) SupabaseSyncService.saveAccount(uid, _accounts[ai]);
       }
     }

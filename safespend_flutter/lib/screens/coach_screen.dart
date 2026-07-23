@@ -1,22 +1,29 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../services/secure_storage_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
+import '../models/transaction.dart';
+import '../utils/currency_helper.dart';
+import '../services/ai_transaction_service.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
 import '../services/env_config.dart';
+import '../services/supabase_config.dart';
 import '../services/supabase_sync_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
@@ -48,18 +55,22 @@ class _ChatMsg {
   });
 
   Map<String, dynamic> toJson() => {
-    'text': text, 'isUser': isUser, 'isError': isError,
-    'imagePath': imagePath, 'filePath': filePath, 'fileName': fileName,
-  };
+        'text': text,
+        'isUser': isUser,
+        'isError': isError,
+        'imagePath': imagePath,
+        'filePath': filePath,
+        'fileName': fileName,
+      };
 
   factory _ChatMsg.fromJson(Map<String, dynamic> j) => _ChatMsg(
-    text: j['text'] as String,
-    isUser: j['isUser'] as bool,
-    isError: j['isError'] as bool? ?? false,
-    imagePath: j['imagePath'] as String?,
-    filePath: j['filePath'] as String?,
-    fileName: j['fileName'] as String?,
-  );
+        text: j['text'] as String,
+        isUser: j['isUser'] as bool,
+        isError: j['isError'] as bool? ?? false,
+        imagePath: j['imagePath'] as String?,
+        filePath: j['filePath'] as String?,
+        fileName: j['fileName'] as String?,
+      );
 }
 
 class _Convo {
@@ -82,27 +93,28 @@ class _Convo {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'title': title,
-    'messages': messages.map((m) => m.toJson()).toList(),
-    'history': history,
-    'createdAt': createdAt.toIso8601String(),
-    'isArchived': isArchived,
-    'projectId': projectId,
-  };
+        'id': id,
+        'title': title,
+        'messages': messages.map((m) => m.toJson()).toList(),
+        'history': history,
+        'createdAt': createdAt.toIso8601String(),
+        'isArchived': isArchived,
+        'projectId': projectId,
+      };
 
   factory _Convo.fromJson(Map<String, dynamic> j) => _Convo(
-    id: j['id'] as String,
-    title: j['title'] as String,
-    messages: (j['messages'] as List)
-        .map((m) => _ChatMsg.fromJson(m as Map<String, dynamic>))
-        .toList(),
-    history: (j['history'] as List)
-        .map((h) => Map<String, String>.from(h as Map))
-        .toList(),
-    createdAt: DateTime.parse(j['createdAt'] as String),
-    isArchived: j['isArchived'] as bool? ?? false,
-    projectId: j['projectId'] as String?,
-  );
+        id: j['id'] as String,
+        title: j['title'] as String,
+        messages: (j['messages'] as List)
+            .map((m) => _ChatMsg.fromJson(m as Map<String, dynamic>))
+            .toList(),
+        history: (j['history'] as List)
+            .map((h) => Map<String, String>.from(h as Map))
+            .toList(),
+        createdAt: DateTime.parse(j['createdAt'] as String),
+        isArchived: j['isArchived'] as bool? ?? false,
+        projectId: j['projectId'] as String?,
+      );
 }
 
 class _Project {
@@ -117,15 +129,16 @@ class _Project {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'name': name,
-    'createdAt': createdAt.toIso8601String(),
-  };
+        'id': id,
+        'name': name,
+        'createdAt': createdAt.toIso8601String(),
+      };
 
   factory _Project.fromJson(Map<String, dynamic> j) => _Project(
-    id: j['id'] as String,
-    name: j['name'] as String,
-    createdAt: DateTime.parse(j['createdAt'] as String),
-  );
+        id: j['id'] as String,
+        name: j['name'] as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+      );
 }
 
 // ── Screen ─────────────────────────────────────────────────────
@@ -140,32 +153,437 @@ class _CoachScreenState extends State<CoachScreen> {
   static const _projectsPrefsKey = 'ai_coach_projects_v1';
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  final _msgCtrl    = TextEditingController();
+  final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final _picker     = ImagePicker();
+  final _picker = ImagePicker();
+  final _speech = stt.SpeechToText();
+  final _tts = FlutterTts();
 
   List<_Convo> _convos = [];
   List<_Project> _projects = [];
   late _Convo _current;
-  bool _isTyping     = false;
-  bool _ready        = false;
+  bool _isTyping = false;
+  bool _ready = false;
   String? _pendingImage;
   String? _pendingFile;
   String? _pendingFileName;
   String? _pendingFileMime;
+  String? _activeTransactionType;
+  AiTransactionDraft? _pendingAiDraft;
+  bool _speechAvailable = false;
+  bool _isListening = false;
+  bool _voiceCallActive = false;
+  bool _isSpeaking = false;
+  String _voiceBaseText = '';
+  AiTransactionDraft? _voiceConfirmationDraft;
+  String? _voiceConfirmationImagePath;
 
   // ── Persistence ──────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _loadConvos();
+    _configureTts();
   }
 
   @override
   void dispose() {
+    _speech.cancel();
+    _tts.stop();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _configureTts() async {
+    await _tts.awaitSpeakCompletion(true);
+    await _tts.setSpeechRate(0.47);
+    await _tts.setPitch(1.0);
+    await _tts.setVolume(1.0);
+    _tts.setCompletionHandler(() {
+      if (!mounted) return;
+      setState(() => _isSpeaking = false);
+    });
+    _tts.setErrorHandler((_) {
+      if (!mounted) return;
+      setState(() => _isSpeaking = false);
+    });
+  }
+
+  Future<void> _initSpeech() async {
+    try {
+      final available = await _speech.initialize(
+        options: [stt.SpeechToText.androidNoBluetooth],
+        onStatus: (status) {
+          if (!mounted) return;
+          final done = status == 'done' ||
+              status == 'notListening' ||
+              status == 'doneNoResult';
+          if (done && _isListening) {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (error) {
+          if (!mounted) return;
+          setState(() => _isListening = false);
+          final message = error.errorMsg == 'error_permission'
+              ? 'Microphone permission is needed for voice input.'
+              : 'Voice input is not available right now.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        },
+      );
+      if (mounted) {
+        setState(() => _speechAvailable = available);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _speechAvailable = false);
+      }
+    }
+  }
+
+  Future<void> _toggleVoiceInput(AppProvider provider) async {
+    if (_isTyping) return;
+    if (!_voiceCallActive) {
+      await _startVoiceCall(provider);
+      return;
+    }
+    if (_isSpeaking) {
+      await _tts.stop();
+      if (mounted) setState(() => _isSpeaking = false);
+      await _startVoiceListening(provider);
+      return;
+    }
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+    await _startVoiceListening(provider);
+  }
+
+  Future<void> _startVoiceCall(AppProvider provider) async {
+    setState(() {
+      _voiceCallActive = true;
+      _voiceConfirmationDraft = null;
+      _voiceConfirmationImagePath = null;
+      _msgCtrl.clear();
+    });
+    const greeting =
+        'Voice mode is on. Tell me the transaction you want to record.';
+    _addAssistantMessage(greeting);
+    await _speakThenListen(provider, greeting);
+  }
+
+  Future<void> _endVoiceCall() async {
+    await _speech.stop();
+    await _tts.stop();
+    if (!mounted) return;
+    setState(() {
+      _voiceCallActive = false;
+      _isListening = false;
+      _isSpeaking = false;
+      _voiceBaseText = '';
+      _voiceConfirmationDraft = null;
+      _voiceConfirmationImagePath = null;
+    });
+  }
+
+  void _resetVoiceCallState() {
+    unawaited(_speech.stop());
+    unawaited(_tts.stop());
+    _voiceCallActive = false;
+    _isListening = false;
+    _isSpeaking = false;
+    _voiceBaseText = '';
+    _voiceConfirmationDraft = null;
+    _voiceConfirmationImagePath = null;
+  }
+
+  Future<void> _startVoiceListening(AppProvider provider) async {
+    var available = _speechAvailable;
+    if (!available) {
+      await _initSpeech();
+      available = _speechAvailable;
+    }
+    if (!available) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice input is not available on this device.'),
+        ),
+      );
+      return;
+    }
+
+    _voiceBaseText = _msgCtrl.text.trim();
+    setState(() => _isListening = true);
+    try {
+      await _speech.listen(
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          listenMode: stt.ListenMode.dictation,
+          listenFor: const Duration(seconds: 45),
+          pauseFor: const Duration(seconds: 3),
+          localeId: await _speechLocaleFor(provider.settings.locale),
+        ),
+        onResult: (result) {
+          if (!mounted) return;
+          final words = result.recognizedWords.trim();
+          if (words.isEmpty) return;
+          final value =
+              _voiceBaseText.isEmpty ? words : '$_voiceBaseText $words';
+          if (_voiceCallActive) {
+            _msgCtrl.text = words;
+          } else {
+            _msgCtrl.value = TextEditingValue(
+              text: value,
+              selection: TextSelection.collapsed(offset: value.length),
+            );
+          }
+          if (result.finalResult) {
+            setState(() => _isListening = false);
+            if (_voiceCallActive) {
+              _msgCtrl.clear();
+              _handleVoiceTurn(provider, words);
+            }
+          } else {
+            setState(() {});
+          }
+        },
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isListening = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice input could not start. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleVoiceTurn(AppProvider provider, String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || _isTyping) {
+      if (_voiceCallActive) await _startVoiceListening(provider);
+      return;
+    }
+
+    if (_voiceConfirmationDraft != null && _isAffirmative(trimmed)) {
+      final draft = _voiceConfirmationDraft!;
+      final imagePath = _voiceConfirmationImagePath;
+      _voiceConfirmationDraft = null;
+      _voiceConfirmationImagePath = null;
+      _addUserVoiceMessage(trimmed);
+      await _saveAiTransaction(provider, draft, imagePath);
+      _activeTransactionType = null;
+      _pendingAiDraft = null;
+      const savedText =
+          'Saved it. You can now see this transaction in SafeSpend.';
+      _addAssistantMessage(savedText);
+      await _speakThenListen(provider, savedText);
+      return;
+    }
+
+    if (_voiceConfirmationDraft != null && _isNegative(trimmed)) {
+      _addUserVoiceMessage(trimmed);
+      const cancelText =
+          'No problem. I did not save it. Tell me what to change.';
+      _addAssistantMessage(cancelText);
+      await _speakThenListen(provider, cancelText);
+      return;
+    }
+
+    await _send(provider, overrideText: trimmed, fromVoiceCall: true);
+  }
+
+  bool _isAffirmative(String text) {
+    final normalized = text.toLowerCase();
+    return normalized.contains('confirm') ||
+        normalized.contains('save') ||
+        normalized.contains('yes') ||
+        normalized.contains('yeah') ||
+        normalized.contains('ok') ||
+        normalized.contains('okay') ||
+        normalized.contains('oui') ||
+        normalized.contains('نعم') ||
+        normalized.contains('حفظ');
+  }
+
+  bool _isNegative(String text) {
+    final normalized = text.toLowerCase();
+    return normalized.contains('cancel') ||
+        normalized.contains('no') ||
+        normalized.contains('don\'t') ||
+        normalized.contains('stop') ||
+        normalized.contains('non') ||
+        normalized.contains('لا');
+  }
+
+  void _addUserVoiceMessage(String text) {
+    setState(() {
+      _current.messages.add(_ChatMsg(text: text, isUser: true));
+      _current.history.add({'role': 'user', 'content': text});
+    });
+    _scrollToBottom();
+    _save();
+    _syncConvoToCloud(_current);
+  }
+
+  void _addAssistantMessage(String text, {bool isError = false}) {
+    setState(() {
+      _current.messages
+          .add(_ChatMsg(text: text, isUser: false, isError: isError));
+      _current.history.add({'role': 'assistant', 'content': text});
+    });
+    _scrollToBottom();
+    _save();
+    _syncConvoToCloud(_current);
+  }
+
+  Future<void> _speakThenListen(AppProvider provider, String text) async {
+    await _speak(provider, text);
+    if (mounted && _voiceCallActive && !_isTyping) {
+      await _startVoiceListening(provider);
+    }
+  }
+
+  Future<void> _speak(AppProvider provider, String text) async {
+    final spoken = _spokenText(text);
+    if (spoken.isEmpty) return;
+    try {
+      await _speech.stop();
+      await _tts.stop();
+      await _tts.setLanguage(_ttsLocaleFor(provider.settings.locale));
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          _isSpeaking = true;
+        });
+      }
+      await _tts.speak(spoken);
+    } catch (_) {
+      if (mounted) setState(() => _isSpeaking = false);
+    }
+  }
+
+  String _spokenText(String text) {
+    return text
+        .replaceAll(RegExp(r'[*_`#>\[\]()]'), '')
+        .replaceAll(RegExp(r'[\u{1F300}-\u{1FAFF}]', unicode: true), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String _ttsLocaleFor(String locale) {
+    switch (S.normalizeLocaleCode(locale)) {
+      case 'fr':
+        return 'fr-FR';
+      case 'ar':
+        return 'ar-MA';
+      case 'es':
+        return 'es-ES';
+      case 'de':
+        return 'de-DE';
+      case 'pt':
+        return 'pt-PT';
+      case 'it':
+        return 'it-IT';
+      case 'tr':
+        return 'tr-TR';
+      case 'nl':
+        return 'nl-NL';
+      case 'ru':
+        return 'ru-RU';
+      case 'zh':
+        return 'zh-CN';
+      case 'ja':
+        return 'ja-JP';
+      case 'ko':
+        return 'ko-KR';
+      case 'hi':
+        return 'hi-IN';
+      case 'id':
+        return 'id-ID';
+      case 'pl':
+        return 'pl-PL';
+      default:
+        return 'en-US';
+    }
+  }
+
+  Future<String?> _speechLocaleFor(String locale) async {
+    String? preferred;
+    switch (S.normalizeLocaleCode(locale)) {
+      case 'fr':
+        preferred = 'fr_FR';
+        break;
+      case 'ar':
+        preferred = 'ar_MA';
+        break;
+      case 'es':
+        preferred = 'es_ES';
+        break;
+      case 'de':
+        preferred = 'de_DE';
+        break;
+      case 'pt':
+        preferred = 'pt_PT';
+        break;
+      case 'it':
+        preferred = 'it_IT';
+        break;
+      case 'tr':
+        preferred = 'tr_TR';
+        break;
+      case 'nl':
+        preferred = 'nl_NL';
+        break;
+      case 'ru':
+        preferred = 'ru_RU';
+        break;
+      case 'zh':
+        preferred = 'zh_CN';
+        break;
+      case 'ja':
+        preferred = 'ja_JP';
+        break;
+      case 'ko':
+        preferred = 'ko_KR';
+        break;
+      case 'hi':
+        preferred = 'hi_IN';
+        break;
+      case 'id':
+        preferred = 'id_ID';
+        break;
+      case 'pl':
+        preferred = 'pl_PL';
+        break;
+      case 'en':
+        preferred = 'en_US';
+        break;
+    }
+    if (preferred == null) return null;
+    try {
+      final locales = await _speech.locales();
+      for (final item in locales) {
+        if (item.localeId == preferred) return preferred;
+      }
+      final language = preferred.split('_').first;
+      for (final item in locales) {
+        if (item.localeId.toLowerCase().startsWith('${language}_')) {
+          return item.localeId;
+        }
+      }
+    } catch (_) {
+      return preferred;
+    }
+    return null;
   }
 
   String? get _userId => SupabaseSyncService.currentUserId;
@@ -186,37 +604,44 @@ class _CoachScreenState extends State<CoachScreen> {
 
         // Always load projects from cloud
         if (cloudProjects.isNotEmpty) {
-          _projects = cloudProjects.map((j) => _Project(
-            id: j['id'] as String,
-            name: j['name'] as String,
-            createdAt: DateTime.parse(j['created_at'] as String),
-          )).toList();
+          _projects = cloudProjects
+              .map((j) => _Project(
+                    id: j['id'] as String,
+                    name: j['name'] as String,
+                    createdAt: DateTime.parse(j['created_at'] as String),
+                  ))
+              .toList();
         }
         // Cache projects locally
-        await ss.write(_projectsPrefsKey, jsonEncode(_projects.map((p) => p.toJson()).toList()));
+        await ss.write(_projectsPrefsKey,
+            jsonEncode(_projects.map((p) => p.toJson()).toList()));
 
         // Load conversations from cloud (may be empty for new users)
         List<_Convo> loaded = [];
         if (cloudConvos.isNotEmpty) {
-          loaded = cloudConvos.map((row) => _Convo(
-            id: row['id'] as String,
-            title: row['title'] as String,
-            messages: (row['messages'] as List? ?? [])
-                .map((m) => _ChatMsg.fromJson(Map<String, dynamic>.from(m as Map)))
-                .toList(),
-            history: (row['history'] as List? ?? [])
-                .map((h) => Map<String, String>.from(h as Map))
-                .toList(),
-            createdAt: DateTime.parse(row['created_at'] as String),
-            isArchived: row['is_archived'] as bool? ?? false,
-            projectId: row['project_id'] as String?,
-          )).toList()
+          loaded = cloudConvos
+              .map((row) => _Convo(
+                    id: row['id'] as String,
+                    title: row['title'] as String,
+                    messages: (row['messages'] as List? ?? [])
+                        .map((m) => _ChatMsg.fromJson(
+                            Map<String, dynamic>.from(m as Map)))
+                        .toList(),
+                    history: (row['history'] as List? ?? [])
+                        .map((h) => Map<String, String>.from(h as Map))
+                        .toList(),
+                    createdAt: DateTime.parse(row['created_at'] as String),
+                    isArchived: row['is_archived'] as bool? ?? false,
+                    projectId: row['project_id'] as String?,
+                  ))
+              .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         }
         if (loaded.isEmpty) loaded = [_newConvo()];
 
         // Cache convos locally
-        await ss.write(_prefsKey, jsonEncode(loaded.map((c) => c.toJson()).toList()));
+        await ss.write(
+            _prefsKey, jsonEncode(loaded.map((c) => c.toJson()).toList()));
 
         if (mounted) {
           final active = loaded.where((c) => !c.isArchived).toList();
@@ -228,7 +653,8 @@ class _CoachScreenState extends State<CoachScreen> {
           return;
         }
       } catch (e) {
-        if (kDebugMode) debugPrint('[Coach] Cloud load failed, falling back to local: $e');
+        if (kDebugMode)
+          debugPrint('[Coach] Cloud load failed, falling back to local: $e');
       }
     }
 
@@ -237,7 +663,9 @@ class _CoachScreenState extends State<CoachScreen> {
     if (projRaw != null) {
       try {
         final pList = jsonDecode(projRaw) as List;
-        _projects = pList.map((j) => _Project.fromJson(j as Map<String, dynamic>)).toList();
+        _projects = pList
+            .map((j) => _Project.fromJson(j as Map<String, dynamic>))
+            .toList();
       } catch (_) {}
     }
 
@@ -264,18 +692,25 @@ class _CoachScreenState extends State<CoachScreen> {
       } catch (_) {}
     }
     final fresh = _newConvo();
-    if (mounted) setState(() { _convos = [fresh]; _current = fresh; _ready = true; });
+    if (mounted)
+      setState(() {
+        _convos = [fresh];
+        _current = fresh;
+        _ready = true;
+      });
   }
 
   // ── Local save ──
   Future<void> _save() async {
     final ss = SecureStorageService.instance;
-    await ss.write(_prefsKey, jsonEncode(_convos.map((c) => c.toJson()).toList()));
+    await ss.write(
+        _prefsKey, jsonEncode(_convos.map((c) => c.toJson()).toList()));
   }
 
   Future<void> _saveProjects() async {
     final ss = SecureStorageService.instance;
-    await ss.write(_projectsPrefsKey, jsonEncode(_projects.map((p) => p.toJson()).toList()));
+    await ss.write(_projectsPrefsKey,
+        jsonEncode(_projects.map((p) => p.toJson()).toList()));
   }
 
   // ── Cloud sync helpers ──
@@ -292,7 +727,8 @@ class _CoachScreenState extends State<CoachScreen> {
   Future<void> _uploadAllToCloud(String uid) async {
     try {
       await SupabaseSyncService.saveAllConversations(
-        uid, _convos.map((c) => c.toJson()).toList(),
+        uid,
+        _convos.map((c) => c.toJson()).toList(),
       );
       for (final p in _projects) {
         await SupabaseSyncService.saveProject(uid, p.toJson());
@@ -304,7 +740,8 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Mutation methods (local + cloud) ──
   void _addProject(String name) {
-    final p = _Project(id: const Uuid().v4(), name: name, createdAt: DateTime.now());
+    final p =
+        _Project(id: const Uuid().v4(), name: name, createdAt: DateTime.now());
     setState(() => _projects.add(p));
     _saveProjects();
     _syncProjectToCloud(p);
@@ -385,13 +822,21 @@ class _CoachScreenState extends State<CoachScreen> {
       _pendingFile = null;
       _pendingFileName = null;
       _pendingFileMime = null;
+      _activeTransactionType = null;
+      _pendingAiDraft = null;
+      _resetVoiceCallState();
     });
     _save();
     _syncConvoToCloud(c);
   }
 
   void _switchConvo(_Convo c) {
-    setState(() => _current = c);
+    setState(() {
+      _current = c;
+      _activeTransactionType = null;
+      _pendingAiDraft = null;
+      _resetVoiceCallState();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
@@ -406,6 +851,7 @@ class _CoachScreenState extends State<CoachScreen> {
           _convos = [fresh];
           _current = fresh;
         }
+        _resetVoiceCallState();
       }
     });
     _save();
@@ -422,46 +868,68 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Financial context ────────────────────────────────────────
   Map<String, dynamic> _buildContext(AppProvider p) {
-    final now       = DateTime.now();
+    final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
-    final monthTxns = p.transactions.where((t) => !DateTime.parse(t.date).isBefore(monthStart)).toList();
-    final income    = monthTxns.where((t) => t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-    final expenses  = monthTxns.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
-    final catMap    = <String, double>{};
+    final monthTxns = p.transactions
+        .where((t) => !DateTime.parse(t.date).isBefore(monthStart))
+        .toList();
+    final income = monthTxns
+        .where((t) => t.type == 'income')
+        .fold(0.0, (s, t) => s + t.amount);
+    final expenses = monthTxns
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final catMap = <String, double>{};
     for (final t in monthTxns.where((t) => t.type == 'expense')) {
       final name = t.categoryId != null
-          ? p.categories.where((c) => c.id == t.categoryId).firstOrNull?.name ?? 'Other'
+          ? p.categories.where((c) => c.id == t.categoryId).firstOrNull?.name ??
+              'Other'
           : 'Other';
       catMap[name] = (catMap[name] ?? 0) + t.amount;
     }
-    final topCats = (catMap.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
-        .take(4).map((e) => {'name': e.key, 'amount': e.value}).toList();
+    final topCats = (catMap.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value)))
+        .take(4)
+        .map((e) => {'name': e.key, 'amount': e.value})
+        .toList();
     return {
-      'currency':            p.settings.currency,
-      'net_worth':           p.getNetWorth(),
-      'bank_balance':        p.accounts.fold(0.0, (s, a) => s + a.balance),
-      'cash_on_hand':        p.totalCash,
-      'monthly_income':      p.settings.monthlyIncome,
-      'this_month_income':   income,
+      'currency': p.settings.currency,
+      'net_worth': p.getNetWorth(),
+      'bank_balance': p.accounts.fold(0.0, (s, a) => s + a.balance),
+      'cash_on_hand': p.totalCash,
+      'monthly_income': p.settings.monthlyIncome,
+      'this_month_income': income,
       'this_month_expenses': expenses,
-      'top_categories':      topCats,
-      'goals': p.goals.where((g) => g.type == 'goal').map((g) => {
-        'name': g.name,
-        'progress': g.targetAmount > 0 ? ((g.currentAmount / g.targetAmount) * 100).round() : 0,
-      }).toList(),
-      'debts': p.goals.where((g) => g.type == 'debt').map((g) => {
-        'name': g.name,
-        'remaining': g.targetAmount - g.currentAmount,
-      }).toList(),
+      'top_categories': topCats,
+      'goals': p.goals
+          .where((g) => g.type == 'goal')
+          .map((g) => {
+                'name': g.name,
+                'progress': g.targetAmount > 0
+                    ? ((g.currentAmount / g.targetAmount) * 100).round()
+                    : 0,
+              })
+          .toList(),
+      'debts': p.goals
+          .where((g) => g.type == 'debt')
+          .map((g) => {
+                'name': g.name,
+                'remaining': g.targetAmount - g.currentAmount,
+              })
+          .toList(),
     };
   }
 
   // ── Project context — gather summaries from sibling conversations ──
   String? _buildProjectContextSummary() {
     if (_current.projectId == null) return null;
-    final project = _projects.where((p) => p.id == _current.projectId).firstOrNull;
+    final project =
+        _projects.where((p) => p.id == _current.projectId).firstOrNull;
     final siblings = _convos
-        .where((c) => c.projectId == _current.projectId && c.id != _current.id && c.history.isNotEmpty)
+        .where((c) =>
+            c.projectId == _current.projectId &&
+            c.id != _current.id &&
+            c.history.isNotEmpty)
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     if (siblings.isEmpty) return null;
@@ -484,7 +952,8 @@ class _CoachScreenState extends State<CoachScreen> {
       for (final msg in recent) {
         final role = msg['role'] == 'user' ? 'User' : 'Assistant';
         final content = msg['content'] ?? '';
-        final snippet = content.length > 300 ? '${content.substring(0, 300)}...' : content;
+        final snippet =
+            content.length > 300 ? '${content.substring(0, 300)}...' : content;
         buf.writeln('$role: $snippet');
         totalChars += snippet.length;
         if (totalChars >= maxChars) break;
@@ -495,12 +964,16 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   // ── Send ─────────────────────────────────────────────────────
-  Future<void> _send(AppProvider provider) async {
-    final text      = _msgCtrl.text.trim();
-    final imgPath   = _pendingImage;
-    final docPath   = _pendingFile;
-    final docName   = _pendingFileName;
-    final docMime   = _pendingFileMime;
+  Future<void> _send(
+    AppProvider provider, {
+    String? overrideText,
+    bool fromVoiceCall = false,
+  }) async {
+    final text = (overrideText ?? _msgCtrl.text).trim();
+    final imgPath = fromVoiceCall ? null : _pendingImage;
+    final docPath = fromVoiceCall ? null : _pendingFile;
+    final docName = fromVoiceCall ? null : _pendingFileName;
+    final docMime = fromVoiceCall ? null : _pendingFileMime;
     final hasAttach = imgPath != null || docPath != null;
     if ((text.isEmpty && !hasAttach) || _isTyping) return;
 
@@ -509,21 +982,32 @@ class _CoachScreenState extends State<CoachScreen> {
       displayTxt = imgPath != null ? '📷 Image' : '📄 $docName';
     }
     String historyContent = text.isNotEmpty ? text : '';
-    if (imgPath != null) historyContent += (historyContent.isEmpty ? '' : '\n') + '[User attached an image]';
-    if (docPath != null) historyContent += (historyContent.isEmpty ? '' : '\n') + '[User attached document: $docName]';
+    if (imgPath != null)
+      historyContent +=
+          (historyContent.isEmpty ? '' : '\n') + '[User attached an image]';
+    if (docPath != null)
+      historyContent += (historyContent.isEmpty ? '' : '\n') +
+          '[User attached document: $docName]';
 
-    final userMsg = _ChatMsg(text: displayTxt, isUser: true, imagePath: imgPath, filePath: docPath, fileName: docName);
+    final userMsg = _ChatMsg(
+        text: displayTxt,
+        isUser: true,
+        imagePath: imgPath,
+        filePath: docPath,
+        fileName: docName);
 
     setState(() {
       _current.messages.add(userMsg);
       _current.history.add({'role': 'user', 'content': historyContent});
-      _isTyping        = true;
-      _pendingImage    = null;
-      _pendingFile     = null;
+      _isTyping = true;
+      _pendingImage = null;
+      _pendingFile = null;
       _pendingFileName = null;
       _pendingFileMime = null;
       if (_current.title == 'New conversation') {
-        _current.title = displayTxt.length > 40 ? '${displayTxt.substring(0, 40)}...' : displayTxt;
+        _current.title = displayTxt.length > 40
+            ? '${displayTxt.substring(0, 40)}...'
+            : displayTxt;
       }
     });
     _msgCtrl.clear();
@@ -532,18 +1016,21 @@ class _CoachScreenState extends State<CoachScreen> {
     try {
       String? attachBase64, attachMime;
       if (imgPath != null) {
-        final bytes  = await File(imgPath).readAsBytes();
+        final bytes = await File(imgPath).readAsBytes();
         attachBase64 = base64Encode(bytes);
-        attachMime   = imgPath.toLowerCase().endsWith('.png') ? 'image/png'
-            : imgPath.toLowerCase().endsWith('.webp') ? 'image/webp'
-            : 'image/jpeg';
+        attachMime = imgPath.toLowerCase().endsWith('.png')
+            ? 'image/png'
+            : imgPath.toLowerCase().endsWith('.webp')
+                ? 'image/webp'
+                : 'image/jpeg';
       } else if (docPath != null && docMime != null) {
-        final bytes  = await File(docPath).readAsBytes();
+        final bytes = await File(docPath).readAsBytes();
         attachBase64 = base64Encode(bytes);
-        attachMime   = docMime;
+        attachMime = docMime;
       }
 
-      final token = Supabase.instance.client.auth.currentSession?.accessToken ?? '';
+      final token =
+          Supabase.instance.client.auth.currentSession?.accessToken ?? '';
 
       // Build financial context, inject project context if applicable
       final ctx = _buildContext(provider);
@@ -552,8 +1039,25 @@ class _CoachScreenState extends State<CoachScreen> {
         ctx['project_context'] = projectCtx;
       }
 
+      final transactionHandled = await _tryHandleTransactionIntake(
+        provider: provider,
+        userText: text,
+        attachmentBase64: attachBase64,
+        attachmentMime: attachMime,
+        imagePath: imgPath,
+        fromVoiceCall: fromVoiceCall,
+      );
+      if (transactionHandled) {
+        _scrollToBottom();
+        _save();
+        _syncConvoToCloud(_current);
+        return;
+      }
+
       final reply = await ChatService.sendMessage(
-        history: _current.history.map((h) => ChatMessage(role: h['role']!, content: h['content']!)).toList(),
+        history: _current.history
+            .map((h) => ChatMessage(role: h['role']!, content: h['content']!))
+            .toList(),
         financialContext: ctx,
         token: token,
         attachmentBase64: attachBase64,
@@ -565,20 +1069,574 @@ class _CoachScreenState extends State<CoachScreen> {
         _current.history.add({'role': 'assistant', 'content': reply});
         _isTyping = false;
       });
+      if (fromVoiceCall && _voiceCallActive) {
+        await _speakThenListen(provider, reply);
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('Chat error: $e');
       if (!mounted) return;
+      const errorText =
+          'Something went wrong. Please check your connection and try again.';
       setState(() {
         _current.messages.add(_ChatMsg(
-          text: 'Something went wrong. Please check your connection and try again.',
-          isUser: false, isError: true,
+          text: errorText,
+          isUser: false,
+          isError: true,
         ));
         _isTyping = false;
       });
+      if (fromVoiceCall && _voiceCallActive) {
+        await _speakThenListen(provider, errorText);
+      }
     }
     _scrollToBottom();
     _save();
     _syncConvoToCloud(_current);
+  }
+
+  Future<bool> _tryHandleTransactionIntake({
+    required AppProvider provider,
+    required String userText,
+    required String? attachmentBase64,
+    required String? attachmentMime,
+    required String? imagePath,
+    bool fromVoiceCall = false,
+  }) async {
+    final result = await AiTransactionService.analyze(
+      userText: userText,
+      recentHistory: _current.history,
+      accounts: provider.accounts,
+      categories: provider.categories,
+      currency: provider.settings.currency,
+      activeTransactionType: _activeTransactionType,
+      pendingDraft: _pendingAiDraft,
+      attachmentBase64: attachmentBase64,
+      attachmentMimeType: attachmentMime,
+    );
+
+    if (!mounted) return true;
+    final fallbackDraft =
+        result.isNotTransaction && _activeTransactionType != null
+            ? _buildSimpleTransactionDraft(provider, userText)
+            : null;
+    if (result.isNotTransaction && fallbackDraft == null) return false;
+
+    if (result.draft != null) {
+      _pendingAiDraft = _mergeAiDraft(_pendingAiDraft, result.draft!);
+    }
+    if (fallbackDraft != null) {
+      _pendingAiDraft = _mergeAiDraft(_pendingAiDraft, fallbackDraft);
+    }
+
+    final hasDraft = result.hasDraft || fallbackDraft != null;
+    final draft = fallbackDraft ?? _pendingAiDraft ?? result.draft;
+    final assistantText = fallbackDraft != null
+        ? 'I understood this as ${_articleFor(draft!.type)} ${_typeLabel(draft.type).toLowerCase()} for ${CurrencyHelper.formatter(provider.settings.currency).format(draft.amount)}. Please confirm before I save it.'
+        : result.message.isEmpty
+            ? 'I need a little more information before I can save this transaction.'
+            : result.message;
+
+    setState(() {
+      _current.messages.add(_ChatMsg(text: assistantText, isUser: false));
+      _current.history.add({'role': 'assistant', 'content': assistantText});
+      _isTyping = false;
+    });
+    if (fromVoiceCall && _voiceCallActive && !hasDraft) {
+      await _speakThenListen(provider, assistantText);
+    }
+
+    if (!hasDraft) {
+      _activeTransactionType = _inferTransactionType(userText) ??
+          _activeTransactionType ??
+          _inferTransactionTypeFromText(assistantText);
+      if (_pendingAiDraft != null && _activeTransactionType == null) {
+        _activeTransactionType = _pendingAiDraft!.type;
+      }
+    }
+
+    if (hasDraft && draft != null) {
+      final validationMessage = _validateAiDraft(provider, draft);
+      if (validationMessage != null) {
+        setState(() {
+          _current.messages.add(_ChatMsg(
+            text: validationMessage,
+            isUser: false,
+            isError: true,
+          ));
+          _current.history
+              .add({'role': 'assistant', 'content': validationMessage});
+        });
+        _activeTransactionType = draft.type;
+        _pendingAiDraft = draft;
+        if (fromVoiceCall && _voiceCallActive) {
+          await _speakThenListen(provider, validationMessage);
+        }
+        return true;
+      }
+
+      if (fromVoiceCall && _voiceCallActive) {
+        final summaryText = _voiceTransactionSummary(provider, draft);
+        _voiceConfirmationDraft = draft;
+        _voiceConfirmationImagePath = imagePath;
+        setState(() {
+          _current.messages.add(_ChatMsg(text: summaryText, isUser: false));
+          _current.history.add({'role': 'assistant', 'content': summaryText});
+          _isTyping = false;
+        });
+        await _speakThenListen(provider, summaryText);
+        return true;
+      }
+
+      final confirmed =
+          await _showAiTransactionConfirmDialog(provider, draft, imagePath);
+      if (!mounted) return true;
+      if (confirmed == true) {
+        await _saveAiTransaction(provider, draft, imagePath);
+        _activeTransactionType = null;
+        _pendingAiDraft = null;
+        final savedText =
+            'Saved it. You can now see this transaction in SafeSpend.';
+        setState(() {
+          _current.messages.add(_ChatMsg(text: savedText, isUser: false));
+          _current.history.add({'role': 'assistant', 'content': savedText});
+        });
+      } else if (confirmed == false) {
+        _activeTransactionType = draft.type;
+        _pendingAiDraft = draft;
+        final cancelText =
+            'No problem. I did not save anything. Tell me what to change and I will prepare it again.';
+        setState(() {
+          _current.messages.add(_ChatMsg(text: cancelText, isUser: false));
+          _current.history.add({'role': 'assistant', 'content': cancelText});
+        });
+      }
+    }
+
+    return true;
+  }
+
+  AiTransactionDraft _mergeAiDraft(
+      AiTransactionDraft? current, AiTransactionDraft update) {
+    if (current == null) return update;
+    return current.copyWith(
+      type: update.type.isNotEmpty ? update.type : current.type,
+      amount: update.amount > 0 ? update.amount : current.amount,
+      fees: update.fees > 0 ? update.fees : current.fees,
+      accountId:
+          update.accountId.isNotEmpty ? update.accountId : current.accountId,
+      toAccountId: update.toAccountId?.trim().isNotEmpty == true
+          ? update.toAccountId
+          : current.toAccountId,
+      categoryId: update.categoryId?.trim().isNotEmpty == true
+          ? update.categoryId
+          : current.categoryId,
+      dateIso:
+          update.dateIso.trim().isNotEmpty ? update.dateIso : current.dateIso,
+      note: update.note?.trim().isNotEmpty == true ? update.note : current.note,
+      description: update.description?.trim().isNotEmpty == true
+          ? update.description
+          : current.description,
+      expenseSubType: update.expenseSubType?.trim().isNotEmpty == true
+          ? update.expenseSubType
+          : current.expenseSubType,
+      recipientName: update.recipientName?.trim().isNotEmpty == true
+          ? update.recipientName
+          : current.recipientName,
+      attachReceipt: current.attachReceipt || update.attachReceipt,
+    );
+  }
+
+  AiTransactionDraft? _buildSimpleTransactionDraft(
+      AppProvider provider, String userText) {
+    final type = _activeTransactionType;
+    if (type == null) return null;
+    final amountMatch = RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(userText);
+    final amount = double.tryParse(
+      amountMatch?.group(1)?.replaceAll(',', '.') ?? '',
+    );
+    if (amount == null || amount <= 0) return null;
+
+    final accountId = _inferAccountId(provider, userText, type);
+    if (accountId == null) return null;
+
+    String? categoryId;
+    if (type == 'expense') {
+      categoryId = _inferCategoryId(provider, userText);
+      if (categoryId == null) return null;
+    }
+
+    String? toAccountId;
+    String? recipientName;
+    if (type == 'transfer') {
+      toAccountId = _inferDestinationAccountId(provider, userText, accountId);
+      if (toAccountId == null) {
+        recipientName = _inferRecipientName(userText);
+      }
+      if (toAccountId == null &&
+          (recipientName == null || recipientName.isEmpty)) {
+        return null;
+      }
+    }
+
+    final categoryName = categoryId == null
+        ? null
+        : provider.categories
+            .where((c) => c.id == categoryId)
+            .firstOrNull
+            ?.name;
+
+    return AiTransactionDraft(
+      type: type,
+      amount: amount,
+      fees: 0,
+      accountId: accountId,
+      toAccountId: toAccountId,
+      categoryId: categoryId,
+      dateIso: DateTime.now().toIso8601String(),
+      note: categoryName ?? _typeLabel(type),
+      recipientName: recipientName,
+      attachReceipt: false,
+    );
+  }
+
+  String? _inferAccountId(AppProvider provider, String text, String type) {
+    final lower = text.toLowerCase();
+    if (type != 'withdrawal' &&
+        (lower.contains('cash') || lower.contains('espece'))) {
+      return AppProvider.cashOnHandId;
+    }
+    if ((lower.contains('main') ||
+            lower.contains('only account') ||
+            lower.contains('my account') ||
+            lower.contains('account')) &&
+        provider.accounts.length == 1) {
+      return provider.accounts.first.id;
+    }
+    for (final account in provider.accounts) {
+      final name = account.name.toLowerCase();
+      final bank = account.bankName?.toLowerCase();
+      if (lower.contains(name) || (bank != null && lower.contains(bank))) {
+        return account.id;
+      }
+    }
+    if (provider.accounts.length == 1) {
+      return provider.accounts.first.id;
+    }
+    return type == 'withdrawal' ? null : AppProvider.cashOnHandId;
+  }
+
+  String? _inferDestinationAccountId(
+      AppProvider provider, String text, String sourceAccountId) {
+    final lower = text.toLowerCase();
+    for (final account in provider.accounts) {
+      if (account.id == sourceAccountId) continue;
+      final name = account.name.toLowerCase();
+      final bank = account.bankName?.toLowerCase();
+      if (lower.contains(name) || (bank != null && lower.contains(bank))) {
+        return account.id;
+      }
+    }
+    return null;
+  }
+
+  String? _inferCategoryId(AppProvider provider, String text) {
+    final lower = text.toLowerCase();
+    for (final category in provider.categories) {
+      if (lower.contains(category.name.toLowerCase())) return category.id;
+    }
+
+    const aliases = {
+      'gym': ['gym', 'fitness', 'workout', 'sport'],
+      'transport': ['fuel', 'gas', 'gaz', 'bp', 'taxi', 'uber'],
+      'food': ['food', 'restaurant', 'coffee', 'cafe', 'lunch', 'dinner'],
+      'groceries': ['grocery', 'groceries', 'supermarket'],
+      'shopping': ['shopping', 'clothes', 'store'],
+    };
+
+    for (final entry in aliases.entries) {
+      if (!entry.value.any(lower.contains)) continue;
+      final category = provider.categories.where((c) {
+        final name = c.name.toLowerCase();
+        return name.contains(entry.key) ||
+            entry.value.any((alias) => name.contains(alias));
+      }).firstOrNull;
+      if (category != null) return category.id;
+    }
+    return null;
+  }
+
+  String? _inferRecipientName(String text) {
+    final cleaned = text
+        .replaceAll(RegExp(r'\d+(?:[.,]\d+)?'), '')
+        .replaceAll(
+            RegExp(r'\b(to|for|from|transfer|send|sent)\b',
+                caseSensitive: false),
+            '')
+        .replaceAll(',', ' ')
+        .trim();
+    return cleaned.isEmpty ? null : cleaned;
+  }
+
+  String? _inferTransactionType(String text) {
+    final lower = text.toLowerCase();
+    if (lower.contains('expense') ||
+        lower.contains('spent') ||
+        lower.contains('paid') ||
+        lower.contains('bought')) {
+      return 'expense';
+    }
+    if (lower.contains('income') ||
+        lower.contains('salary') ||
+        lower.contains('received')) {
+      return 'income';
+    }
+    if (lower.contains('withdraw')) return 'withdrawal';
+    if (lower.contains('transfer') || lower.contains('sent')) return 'transfer';
+    return null;
+  }
+
+  String? _inferTransactionTypeFromText(String text) {
+    final lower = text.toLowerCase();
+    if (lower.contains('expense')) return 'expense';
+    if (lower.contains('income')) return 'income';
+    if (lower.contains('withdraw')) return 'withdrawal';
+    if (lower.contains('transfer')) return 'transfer';
+    return null;
+  }
+
+  String _articleFor(String type) {
+    return type == 'expense' || type == 'income' ? 'an' : 'a';
+  }
+
+  String? _validateAiDraft(AppProvider provider, AiTransactionDraft draft) {
+    const validTypes = {'expense', 'income', 'withdrawal', 'transfer'};
+    if (!validTypes.contains(draft.type)) {
+      return 'I could not identify the transaction type. Is it an expense, income, withdrawal, or transfer?';
+    }
+    if (draft.amount <= 0) {
+      return 'I still need the amount before I can save this transaction.';
+    }
+    final parsedDate = DateTime.tryParse(draft.dateIso);
+    if (parsedDate == null) {
+      return 'I still need a valid date before I can save this transaction.';
+    }
+
+    final accountValid = draft.accountId == AppProvider.cashOnHandId ||
+        provider.accounts.any((a) => a.id == draft.accountId);
+    if (!accountValid) {
+      return 'Which account should I use for this transaction?';
+    }
+
+    if (draft.type == 'withdrawal' &&
+        draft.accountId == AppProvider.cashOnHandId) {
+      return 'For a withdrawal, tell me which bank account the cash came from.';
+    }
+
+    if (draft.type == 'expense') {
+      final hasCategory = draft.categoryId != null &&
+          provider.categories.any((c) => c.id == draft.categoryId);
+      if (!hasCategory) {
+        return 'Which budget category should I use for this expense?';
+      }
+    }
+
+    if (draft.type == 'transfer') {
+      final hasDestination = draft.toAccountId != null &&
+          provider.accounts.any((a) => a.id == draft.toAccountId);
+      final hasRecipient =
+          draft.recipientName != null && draft.recipientName!.trim().isNotEmpty;
+      if (!hasDestination && !hasRecipient) {
+        return 'Where should I send the transfer: another account or a person?';
+      }
+    }
+
+    return null;
+  }
+
+  String _voiceTransactionSummary(
+      AppProvider provider, AiTransactionDraft draft) {
+    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final date = DateTime.tryParse(draft.dateIso) ?? DateTime.now();
+    final accountName = _accountName(provider, draft.accountId);
+    final toAccountName = draft.toAccountId == null
+        ? null
+        : _accountName(provider, draft.toAccountId!);
+    final categoryName = draft.categoryId == null
+        ? null
+        : provider.categories
+            .where((c) => c.id == draft.categoryId)
+            .firstOrNull
+            ?.name;
+
+    final lines = [
+      'I have everything. Please confirm before I save this transaction.',
+      '',
+      'Type: ${_typeLabel(draft.type)}',
+      'Amount: ${cf.format(draft.amount)}',
+      if (draft.fees > 0) 'Fees: ${cf.format(draft.fees)}',
+      '${draft.type == 'transfer' ? 'From' : 'Account'}: $accountName',
+      if (toAccountName != null) 'To: $toAccountName',
+      if (draft.recipientName != null && draft.recipientName!.trim().isNotEmpty)
+        'To: ${draft.recipientName!.trim()}',
+      if (categoryName != null) 'Category: $categoryName',
+      'Date: ${DateFormat('MMM d, yyyy').format(date)}',
+      if (draft.note != null && draft.note!.trim().isNotEmpty)
+        'Note: ${draft.note!.trim()}',
+      '',
+      'Say confirm to save it, or say no to change it.',
+    ];
+    return lines.join('\n');
+  }
+
+  Future<bool?> _showAiTransactionConfirmDialog(
+      AppProvider provider, AiTransactionDraft draft, String? imagePath) {
+    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final date = DateTime.tryParse(draft.dateIso) ?? DateTime.now();
+    final accountName = _accountName(provider, draft.accountId);
+    final toAccountName = draft.toAccountId == null
+        ? null
+        : _accountName(provider, draft.toAccountId!);
+    final categoryName = draft.categoryId == null
+        ? null
+        : provider.categories
+            .where((c) => c.id == draft.categoryId)
+            .firstOrNull
+            ?.name;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Confirm transaction'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _confirmRow('Type', _typeLabel(draft.type)),
+            _confirmRow('Amount', cf.format(draft.amount)),
+            if (draft.fees > 0) _confirmRow('Fees', cf.format(draft.fees)),
+            _confirmRow(
+              draft.type == 'transfer' ? 'From' : 'Account',
+              accountName,
+            ),
+            if (toAccountName != null) _confirmRow('To', toAccountName),
+            if (draft.recipientName != null &&
+                draft.recipientName!.trim().isNotEmpty)
+              _confirmRow('To', draft.recipientName!.trim()),
+            if (categoryName != null) _confirmRow('Category', categoryName),
+            _confirmRow(
+                'Date', DateFormat('MMM d, yyyy - h:mm a').format(date)),
+            if (draft.note != null && draft.note!.trim().isNotEmpty)
+              _confirmRow('Note', draft.note!.trim()),
+            if (imagePath != null && draft.attachReceipt)
+              _confirmRow('Receipt', 'Attached'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.goldPrimary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm & save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _confirmRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 82,
+            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveAiTransaction(
+      AppProvider provider, AiTransactionDraft draft, String? imagePath) async {
+    final receiptPath = draft.attachReceipt && imagePath != null
+        ? await _uploadAiReceipt(imagePath)
+        : null;
+    final recipient = draft.recipientName?.trim();
+    final baseNote = draft.note?.trim();
+    final note = draft.type == 'transfer' &&
+            recipient != null &&
+            recipient.isNotEmpty
+        ? 'Sent to $recipient${baseNote != null && baseNote.isNotEmpty ? ' - $baseNote' : ''}'
+        : baseNote;
+
+    final transaction = Transaction(
+      id: const Uuid().v4(),
+      type: draft.type,
+      amount: draft.amount,
+      fees: draft.fees,
+      date: draft.dateIso,
+      note: note == null || note.isEmpty ? null : note,
+      description: draft.description?.trim().isEmpty == true
+          ? null
+          : draft.description?.trim(),
+      categoryId: draft.type == 'expense' ? draft.categoryId : null,
+      accountId: draft.accountId,
+      toAccountId:
+          recipient == null || recipient.isEmpty ? draft.toAccountId : null,
+      imagePath: receiptPath,
+      expenseSubType: draft.type == 'expense' ? draft.expenseSubType : null,
+    );
+
+    provider.addTransaction(transaction);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Transaction saved'),
+        backgroundColor: AppTheme.success,
+      ),
+    );
+  }
+
+  Future<String?> _uploadAiReceipt(String imagePath) async {
+    final uid = SupabaseConfig.client?.auth.currentUser?.id;
+    if (uid == null) return imagePath;
+    final url = await SupabaseSyncService.uploadReceipt(uid, imagePath);
+    return url ?? imagePath;
+  }
+
+  String _accountName(AppProvider provider, String id) {
+    if (id == AppProvider.cashOnHandId) return 'Cash on Hand';
+    return provider.accounts.where((a) => a.id == id).firstOrNull?.name ??
+        'Unknown account';
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'income':
+        return 'Income';
+      case 'transfer':
+        return 'Transfer';
+      case 'withdrawal':
+        return 'Withdrawal';
+      case 'expense':
+      default:
+        return 'Expense';
+    }
   }
 
   void _scrollToBottom() {
@@ -599,31 +1657,53 @@ class _CoachScreenState extends State<CoachScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _AttachSheet(
-        onPhoto:    () { Navigator.pop(context); _pickImage(); },
-        onCamera:   () { Navigator.pop(context); _pickCamera(); },
-        onDocument: () { Navigator.pop(context); _pickDocument(); },
+        onPhoto: () {
+          Navigator.pop(context);
+          _pickImage();
+        },
+        onCamera: () {
+          Navigator.pop(context);
+          _pickCamera();
+        },
+        onDocument: () {
+          Navigator.pop(context);
+          _pickDocument();
+        },
       ),
     );
   }
 
   Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (picked != null && mounted) setState(() { _pendingImage = picked.path; _pendingFile = null; });
+    final picked =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked != null && mounted)
+      setState(() {
+        _pendingImage = picked.path;
+        _pendingFile = null;
+      });
   }
 
   Future<void> _pickCamera() async {
-    final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-    if (picked != null && mounted) setState(() { _pendingImage = picked.path; _pendingFile = null; });
+    final picked =
+        await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+    if (picked != null && mounted)
+      setState(() {
+        _pendingImage = picked.path;
+        _pendingFile = null;
+      });
   }
 
   Future<void> _pickDocument() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf'], allowMultiple: false);
+    final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false);
     if (result != null && result.files.single.path != null && mounted) {
       setState(() {
-        _pendingFile     = result.files.single.path;
+        _pendingFile = result.files.single.path;
         _pendingFileName = result.files.single.name;
         _pendingFileMime = 'application/pdf';
-        _pendingImage    = null;
+        _pendingImage = null;
       });
     }
   }
@@ -632,7 +1712,8 @@ class _CoachScreenState extends State<CoachScreen> {
   Widget _buildDrawer(BuildContext context, bool isDark, AppProvider provider) {
     final s = S.of(context);
     final drawerBg = isDark ? const Color(0xFF0D0D0D) : Colors.white;
-    final surfaceColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
+    final surfaceColor =
+        isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
 
     // Group conversations: Today, Yesterday, Previous 7 Days, Older
     final now = DateTime.now();
@@ -681,7 +1762,8 @@ class _CoachScreenState extends State<CoachScreen> {
                   const Spacer(),
                   // Search placeholder
                   IconButton(
-                    icon: Iconify(AppIcons.search, size: 18,
+                    icon: Iconify(AppIcons.search,
+                        size: 18,
                         color: isDark ? Colors.white60 : Colors.black45),
                     onPressed: () {},
                     splashRadius: 20,
@@ -703,10 +1785,12 @@ class _CoachScreenState extends State<CoachScreen> {
                     _startNewConvo();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     child: Row(
                       children: [
-                        Iconify(AppIcons.edit, size: 18,
+                        Iconify(AppIcons.edit,
+                            size: 18,
                             color: isDark ? Colors.white70 : Colors.black54),
                         const SizedBox(width: 12),
                         Text(
@@ -743,7 +1827,8 @@ class _CoachScreenState extends State<CoachScreen> {
                     const Spacer(),
                     GestureDetector(
                       onTap: () => _showNewProjectDialog(isDark),
-                      child: Iconify(AppIcons.add, size: 18,
+                      child: Iconify(AppIcons.add,
+                          size: 18,
                           color: isDark ? Colors.white38 : Colors.black38),
                     ),
                   ],
@@ -761,7 +1846,8 @@ class _CoachScreenState extends State<CoachScreen> {
               const SizedBox(height: 8),
             ] else ...[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                 child: Material(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
@@ -769,10 +1855,12 @@ class _CoachScreenState extends State<CoachScreen> {
                     borderRadius: BorderRadius.circular(10),
                     onTap: () => _showNewProjectDialog(isDark),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       child: Row(
                         children: [
-                          Iconify(AppIcons.folder, size: 18,
+                          Iconify(AppIcons.folder,
+                              size: 18,
                               color: isDark ? Colors.white38 : Colors.black38),
                           const SizedBox(width: 12),
                           Text(
@@ -816,11 +1904,13 @@ class _CoachScreenState extends State<CoachScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white38 : Colors.black38,
+                                  color:
+                                      isDark ? Colors.white38 : Colors.black38,
                                 ),
                               ),
                             ),
-                            for (final conv in groups[label]!) _buildConvoTile(conv, isDark),
+                            for (final conv in groups[label]!)
+                              _buildConvoTile(conv, isDark),
                           ],
                       ],
                     ),
@@ -863,7 +1953,8 @@ class _CoachScreenState extends State<CoachScreen> {
                         conv.title,
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                          fontWeight:
+                              isActive ? FontWeight.w500 : FontWeight.w400,
                           color: isDark ? Colors.white : Colors.black,
                         ),
                         maxLines: 1,
@@ -873,8 +1964,10 @@ class _CoachScreenState extends State<CoachScreen> {
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            Iconify(AppIcons.folder, size: 11,
-                                color: isDark ? Colors.white30 : Colors.black26),
+                            Iconify(AppIcons.folder,
+                                size: 11,
+                                color:
+                                    isDark ? Colors.white30 : Colors.black26),
                             const SizedBox(width: 4),
                             Text(
                               project.name,
@@ -899,7 +1992,8 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Project tile in drawer ─────────────────────────────────
   Widget _buildProjectTile(_Project proj, bool isDark) {
-    final convoCount = _convos.where((c) => c.projectId == proj.id && !c.isArchived).length;
+    final convoCount =
+        _convos.where((c) => c.projectId == proj.id && !c.isArchived).length;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -917,8 +2011,8 @@ class _CoachScreenState extends State<CoachScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Iconify(AppIcons.folder, size: 18,
-                    color: isDark ? Colors.white54 : Colors.black45),
+                Iconify(AppIcons.folder,
+                    size: 18, color: isDark ? Colors.white54 : Colors.black45),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -953,7 +2047,8 @@ class _CoachScreenState extends State<CoachScreen> {
     final bg = isDark ? const Color(0xFF0D0D0D) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtleColor = isDark ? Colors.white60 : Colors.black54;
-    final surfaceColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
+    final surfaceColor =
+        isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
 
     showModalBottomSheet(
       context: context,
@@ -971,7 +2066,8 @@ class _CoachScreenState extends State<CoachScreen> {
             height: MediaQuery.of(ctx).size.height * 0.85,
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -983,13 +2079,15 @@ class _CoachScreenState extends State<CoachScreen> {
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(ctx),
-                        child: Iconify(AppIcons.minus, size: 28,
+                        child: Iconify(AppIcons.minus,
+                            size: 28,
                             color: isDark ? Colors.white60 : Colors.black45),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: surfaceColor,
                             borderRadius: BorderRadius.circular(20),
@@ -1007,7 +2105,8 @@ class _CoachScreenState extends State<CoachScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: Iconify(AppIcons.more, size: 22, color: subtleColor),
+                        icon: Iconify(AppIcons.more,
+                            size: 22, color: subtleColor),
                         onPressed: () {
                           Navigator.pop(ctx);
                           _showProjectActions(proj, isDark);
@@ -1023,7 +2122,8 @@ class _CoachScreenState extends State<CoachScreen> {
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                   child: Row(
                     children: [
-                      Iconify(AppIcons.folder, size: 32,
+                      Iconify(AppIcons.folder,
+                          size: 32,
                           color: isDark ? Colors.white70 : Colors.black54),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1044,7 +2144,8 @@ class _CoachScreenState extends State<CoachScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
                       color: surfaceColor,
                       borderRadius: BorderRadius.circular(20),
@@ -1069,14 +2170,17 @@ class _CoachScreenState extends State<CoachScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Iconify(AppIcons.chat, size: 40,
-                                  color: isDark ? Colors.white12 : Colors.black12),
+                              Iconify(AppIcons.chat,
+                                  size: 40,
+                                  color:
+                                      isDark ? Colors.white12 : Colors.black12),
                               const SizedBox(height: 12),
                               Text(
                                 s.noConversationsYet,
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
-                                  color: isDark ? Colors.white24 : Colors.black26,
+                                  color:
+                                      isDark ? Colors.white24 : Colors.black26,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -1084,7 +2188,8 @@ class _CoachScreenState extends State<CoachScreen> {
                                 s.addConversationsFromMenu,
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white12 : Colors.black12,
+                                  color:
+                                      isDark ? Colors.white12 : Colors.black12,
                                 ),
                               ),
                             ],
@@ -1093,7 +2198,8 @@ class _CoachScreenState extends State<CoachScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: projConvos.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 2),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 2),
                           itemBuilder: (_, i) {
                             final conv = projConvos[i];
                             final lastMsg = conv.messages.isNotEmpty
@@ -1116,7 +2222,8 @@ class _CoachScreenState extends State<CoachScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 14),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         conv.title,
@@ -1165,12 +2272,14 @@ class _CoachScreenState extends State<CoachScreen> {
                         setState(() {
                           _convos.insert(0, c);
                           _current = c;
+                          _activeTransactionType = null;
                         });
                         _save();
                         _syncConvoToCloud(c);
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 14),
                         child: Row(
                           children: [
                             Iconify(AppIcons.add, size: 20, color: subtleColor),
@@ -1219,7 +2328,8 @@ class _CoachScreenState extends State<CoachScreen> {
           children: [
             Center(
               child: Container(
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
@@ -1227,13 +2337,14 @@ class _CoachScreenState extends State<CoachScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            _actionTile(ctx, AppIcons.edit, s.renameProject,
-                textColor, subtleColor, onTap: () {
+            _actionTile(
+                ctx, AppIcons.edit, s.renameProject, textColor, subtleColor,
+                onTap: () {
               Navigator.pop(ctx);
               _showRenameProjectDialog(proj, isDark);
             }),
-            _actionTile(ctx, AppIcons.delete, s.deleteProject,
-                Colors.redAccent, Colors.redAccent, onTap: () {
+            _actionTile(ctx, AppIcons.delete, s.deleteProject, Colors.redAccent,
+                Colors.redAccent, onTap: () {
               Navigator.pop(ctx);
               _confirmDeleteProject(proj, isDark);
             }),
@@ -1252,7 +2363,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.renameProject, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.renameProject,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -1277,8 +2390,9 @@ class _CoachScreenState extends State<CoachScreen> {
               }
               Navigator.pop(ctx);
             },
-            child: Text(s.save, style: GoogleFonts.inter(
-                color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+            child: Text(s.save,
+                style: GoogleFonts.inter(
+                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1294,7 +2408,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.deleteProject, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.deleteProject,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Text(
           'This will delete "${proj.name}". $convoCount conversation${convoCount == 1 ? '' : 's'} will be unlinked but not deleted.',
           style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
@@ -1309,7 +2425,9 @@ class _CoachScreenState extends State<CoachScreen> {
               Navigator.pop(ctx);
               _deleteProject(proj.id);
             },
-            child: Text(s.delete, style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+            child: Text(s.delete,
+                style: GoogleFonts.inter(
+                    color: Colors.redAccent, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1337,7 +2455,8 @@ class _CoachScreenState extends State<CoachScreen> {
           children: [
             Center(
               child: Container(
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2),
@@ -1346,27 +2465,28 @@ class _CoachScreenState extends State<CoachScreen> {
             ),
             const SizedBox(height: 8),
             // Add to project
-            _actionTile(ctx, AppIcons.folder, s.addToProject,
-                textColor, subtleColor, trailing: AppIcons.caretRight,
-                onTap: () {
+            _actionTile(
+                ctx, AppIcons.folder, s.addToProject, textColor, subtleColor,
+                trailing: AppIcons.caretRight, onTap: () {
               Navigator.pop(ctx);
               _showProjectPicker(conv, isDark);
             }),
             // Rename
-            _actionTile(ctx, AppIcons.edit, s.rename,
-                textColor, subtleColor, onTap: () {
+            _actionTile(ctx, AppIcons.edit, s.rename, textColor, subtleColor,
+                onTap: () {
               Navigator.pop(ctx);
               _showRenameDialog(conv, isDark);
             }),
             // Archive
-            _actionTile(ctx, AppIcons.archive, s.archive,
-                textColor, subtleColor, onTap: () {
+            _actionTile(
+                ctx, AppIcons.archive, s.archive, textColor, subtleColor,
+                onTap: () {
               Navigator.pop(ctx);
               _archiveConvo(conv);
             }),
             // Delete
-            _actionTile(ctx, AppIcons.delete, s.delete,
-                Colors.redAccent, Colors.redAccent, onTap: () {
+            _actionTile(ctx, AppIcons.delete, s.delete, Colors.redAccent,
+                Colors.redAccent, onTap: () {
               Navigator.pop(ctx);
               _confirmDeleteConvo(conv, isDark);
             }),
@@ -1377,7 +2497,8 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   Widget _actionTile(BuildContext ctx, String icon, String label,
-      Color textColor, Color iconColor, {VoidCallback? onTap, String? trailing}) {
+      Color textColor, Color iconColor,
+      {VoidCallback? onTap, String? trailing}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1390,8 +2511,11 @@ class _CoachScreenState extends State<CoachScreen> {
               Iconify(icon, size: 20, color: iconColor),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(label, style: GoogleFonts.inter(
-                    fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
+                child: Text(label,
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: textColor)),
               ),
               if (trailing != null)
                 Iconify(trailing, size: 20, color: iconColor),
@@ -1411,7 +2535,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.rename, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.rename,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -1434,8 +2560,9 @@ class _CoachScreenState extends State<CoachScreen> {
               }
               Navigator.pop(ctx);
             },
-            child: Text(s.save, style: GoogleFonts.inter(
-                color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+            child: Text(s.save,
+                style: GoogleFonts.inter(
+                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1450,7 +2577,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.deleteConversation, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.deleteConversation,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Text(
           'This will permanently delete "${conv.title}".',
           style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
@@ -1465,7 +2594,9 @@ class _CoachScreenState extends State<CoachScreen> {
               Navigator.pop(ctx);
               _deleteConvo(conv.id);
             },
-            child: Text(s.delete, style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+            child: Text(s.delete,
+                style: GoogleFonts.inter(
+                    color: Colors.redAccent, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1492,14 +2623,16 @@ class _CoachScreenState extends State<CoachScreen> {
             ),
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Center(
                   child: Container(
-                    width: 36, height: 4,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: Colors.grey.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(2),
@@ -1511,8 +2644,11 @@ class _CoachScreenState extends State<CoachScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      Text(s.addToProject, style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+                      Text(s.addToProject,
+                          style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textColor)),
                       const Spacer(),
                       if (conv.projectId != null)
                         GestureDetector(
@@ -1520,8 +2656,11 @@ class _CoachScreenState extends State<CoachScreen> {
                             _removeConvoFromProject(conv);
                             Navigator.pop(ctx);
                           },
-                          child: Text(s.remove, style: GoogleFonts.inter(
-                              fontSize: 13, fontWeight: FontWeight.w500, color: Colors.redAccent)),
+                          child: Text(s.remove,
+                              style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent)),
                         ),
                     ],
                   ),
@@ -1536,8 +2675,13 @@ class _CoachScreenState extends State<CoachScreen> {
                   });
                 }),
                 if (_projects.isNotEmpty) ...[
-                  Divider(height: 1, indent: 20, endIndent: 20,
-                      color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
+                  Divider(
+                      height: 1,
+                      indent: 20,
+                      endIndent: 20,
+                      color: isDark
+                          ? Colors.white10
+                          : Colors.black.withOpacity(0.06)),
                   const SizedBox(height: 4),
                 ],
                 // Existing projects
@@ -1548,7 +2692,8 @@ class _CoachScreenState extends State<CoachScreen> {
                     itemBuilder: (_, i) {
                       final p = _projects[i];
                       final isAssigned = conv.projectId == p.id;
-                      final convoCount = _convos.where((c) => c.projectId == p.id).length;
+                      final convoCount =
+                          _convos.where((c) => c.projectId == p.id).length;
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
@@ -1558,24 +2703,34 @@ class _CoachScreenState extends State<CoachScreen> {
                             Navigator.pop(ctx);
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
                             child: Row(
                               children: [
-                                Iconify(AppIcons.folder, size: 20, color: subtleColor),
+                                Iconify(AppIcons.folder,
+                                    size: 20, color: subtleColor),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(p.name, style: GoogleFonts.inter(
-                                          fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
-                                      Text('$convoCount conversation${convoCount == 1 ? '' : 's'}',
-                                          style: GoogleFonts.inter(fontSize: 12, color: subtleColor)),
+                                      Text(p.name,
+                                          style: GoogleFonts.inter(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w500,
+                                              color: textColor)),
+                                      Text(
+                                          '$convoCount conversation${convoCount == 1 ? '' : 's'}',
+                                          style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: subtleColor)),
                                     ],
                                   ),
                                 ),
                                 if (isAssigned)
-                                  const Iconify(AppIcons.check, size: 20, color: Color(0xFF10A37F)),
+                                  const Iconify(AppIcons.check,
+                                      size: 20, color: Color(0xFF10A37F)),
                               ],
                             ),
                           ),
@@ -1593,7 +2748,8 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   // ── New project dialog ──────────────────────────────────────
-  void _showNewProjectDialog(bool isDark, {void Function(String projectId)? onCreated}) {
+  void _showNewProjectDialog(bool isDark,
+      {void Function(String projectId)? onCreated}) {
     final s = S.forLocale(S.fallbackLocale);
     final ctrl = TextEditingController();
     showDialog(
@@ -1601,7 +2757,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.newProject, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.newProject,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -1620,7 +2778,10 @@ class _CoachScreenState extends State<CoachScreen> {
             onPressed: () {
               final name = ctrl.text.trim();
               if (name.isNotEmpty) {
-                final p = _Project(id: const Uuid().v4(), name: name, createdAt: DateTime.now());
+                final p = _Project(
+                    id: const Uuid().v4(),
+                    name: name,
+                    createdAt: DateTime.now());
                 setState(() => _projects.add(p));
                 _saveProjects();
                 _syncProjectToCloud(p);
@@ -1628,8 +2789,9 @@ class _CoachScreenState extends State<CoachScreen> {
                 onCreated?.call(p.id);
               }
             },
-            child: Text(s.create, style: GoogleFonts.inter(
-                color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+            child: Text(s.create,
+                style: GoogleFonts.inter(
+                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1639,9 +2801,9 @@ class _CoachScreenState extends State<CoachScreen> {
   String _fmtDate(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours   < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays    < 1) return '${diff.inHours}h ago';
-    if (diff.inDays    < 7) return '${diff.inDays}d ago';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
     return DateFormat('MMM d').format(dt);
   }
 
@@ -1650,16 +2812,17 @@ class _CoachScreenState extends State<CoachScreen> {
   Widget build(BuildContext context) {
     return Consumer2<AppProvider, AuthService>(
       builder: (context, provider, auth, _) {
-        final isDark    = Theme.of(context).brightness == Brightness.dark;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         final hasAccess = _hasAccess(auth.user?.email);
-        final bgColor   = isDark ? const Color(0xFF0D0D0D) : Colors.white;
+        final bgColor = isDark ? const Color(0xFF0D0D0D) : Colors.white;
 
         if (!_ready) {
           return Scaffold(
             backgroundColor: bgColor,
             body: Center(
               child: SizedBox(
-                width: 24, height: 24,
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   color: Colors.white.withOpacity(0.3),
@@ -1759,7 +2922,8 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   // ── Welcome state — ChatGPT style: typewriter + bottom suggestions ──
-  Widget _buildWelcome(BuildContext context, bool isDark, AppProvider provider, bool hasAccess) {
+  Widget _buildWelcome(
+      BuildContext context, bool isDark, AppProvider provider, bool hasAccess) {
     final s = S.of(context);
     final suggestions = [
       {'title': s.monthlyOverview, 'sub': 'how am I doing this month?'},
@@ -1793,7 +2957,9 @@ class _CoachScreenState extends State<CoachScreen> {
               },
             ),
           ),
-        ).animate().fadeIn(delay: 150.ms, duration: 350.ms)
+        )
+            .animate()
+            .fadeIn(delay: 150.ms, duration: 350.ms)
             .slideY(begin: 0.1, end: 0, duration: 350.ms),
         const SizedBox(height: 12),
       ],
@@ -1823,17 +2989,18 @@ class _CoachScreenState extends State<CoachScreen> {
           filePath: msg.filePath,
           fileName: msg.fileName,
         ).animate().fadeIn(duration: 250.ms).slideY(
-          begin: msg.isUser ? 0.05 : 0.08,
-          end: 0,
-          duration: 250.ms,
-          curve: Curves.easeOut,
-        );
+              begin: msg.isUser ? 0.05 : 0.08,
+              end: 0,
+              duration: 250.ms,
+              curve: Curves.easeOut,
+            );
       },
     );
   }
 
   // ── Input area ─────────────────────────────────────────────
-  Widget _buildInputArea(BuildContext context, bool isDark, AppProvider provider) {
+  Widget _buildInputArea(
+      BuildContext context, bool isDark, AppProvider provider) {
     return ChatInputBar(
       controller: _msgCtrl,
       isTyping: _isTyping,
@@ -1841,8 +3008,13 @@ class _CoachScreenState extends State<CoachScreen> {
       pendingImage: _pendingImage,
       pendingFile: _pendingFile,
       pendingFileName: _pendingFileName,
+      isListening: _isListening,
+      isVoiceCallActive: _voiceCallActive,
+      isSpeaking: _isSpeaking,
+      onEndVoiceCall: _endVoiceCall,
       onSend: () => _send(provider),
       onAttach: () => _showAttachOptions(context),
+      onVoice: () => _toggleVoiceInput(provider),
       onClearImage: () => setState(() => _pendingImage = null),
       onClearFile: () => setState(() {
         _pendingFile = null;
@@ -1872,12 +3044,14 @@ class _CoachScreenState extends State<CoachScreen> {
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: AppTheme.goldPrimary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.lock_outline_rounded, color: Color(0xFF10A37F), size: 20),
+            child: const Icon(Icons.lock_outline_rounded,
+                color: Color(0xFF10A37F), size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1935,7 +3109,8 @@ class _AttachSheet extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
@@ -1954,11 +3129,14 @@ class _AttachSheet extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              _option(context, isDark, Icons.photo_library_rounded, s.photo, AppTheme.goldPrimary, onPhoto),
+              _option(context, isDark, Icons.photo_library_rounded, s.photo,
+                  AppTheme.goldPrimary, onPhoto),
               const SizedBox(width: 12),
-              _option(context, isDark, Icons.camera_alt_rounded, s.camera, const Color(0xFF6C6EF7), onCamera),
+              _option(context, isDark, Icons.camera_alt_rounded, s.camera,
+                  const Color(0xFF6C6EF7), onCamera),
               const SizedBox(width: 12),
-              _option(context, isDark, Icons.picture_as_pdf_rounded, s.document, Colors.red, onDocument),
+              _option(context, isDark, Icons.picture_as_pdf_rounded, s.document,
+                  Colors.red, onDocument),
             ],
           ),
         ],
@@ -1966,7 +3144,8 @@ class _AttachSheet extends StatelessWidget {
     );
   }
 
-  Widget _option(BuildContext context, bool isDark, IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _option(BuildContext context, bool isDark, IconData icon, String label,
+      Color color, VoidCallback onTap) {
     return Expanded(
       child: Material(
         color: isDark ? const Color(0xFF252525) : const Color(0xFFF4F4F4),
@@ -1979,7 +3158,8 @@ class _AttachSheet extends StatelessWidget {
             child: Column(
               children: [
                 Container(
-                  width: 48, height: 48,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.12),
                     shape: BoxShape.circle,
@@ -2015,9 +3195,9 @@ class _TypewriterWelcome extends StatefulWidget {
 class _TypewriterWelcomeState extends State<_TypewriterWelcome> {
   static const _phrase1 = 'Welcome to SafeSpend AI';
   static const _phrase2 = 'How can we help you today?';
-  static const _typeSpeed    = Duration(milliseconds: 55);
-  static const _deleteSpeed  = Duration(milliseconds: 30);
-  static const _pauseAfterType   = Duration(milliseconds: 1200);
+  static const _typeSpeed = Duration(milliseconds: 55);
+  static const _deleteSpeed = Duration(milliseconds: 30);
+  static const _pauseAfterType = Duration(milliseconds: 1200);
   static const _pauseAfterDelete = Duration(milliseconds: 400);
 
   String _display = '';

@@ -22,6 +22,7 @@ ALTER TABLE goals ADD COLUMN IF NOT EXISTS category_id TEXT;
 -- transactions: add image_path for receipt photos
 -- ============================================
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS image_path TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT;
 
 -- ============================================
 -- stock_holdings: ensure buy_date column exists
