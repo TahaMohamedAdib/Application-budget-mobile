@@ -1,11 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
-import 'package:http/http.dart' as http;
 
 import '../models/category.dart';
 import '../models/account.dart';
-import 'env_config.dart';
+import 'ai_proxy_service.dart';
 
 class AiTransactionDraft {
   final String type;
@@ -134,11 +133,6 @@ class AiTransactionResult {
 }
 
 class AiTransactionService {
-  static String get _apiKey => EnvConfig.geminiApiKey;
-  static const String _model = 'gemini-2.5-flash';
-  static String get _baseUrl =>
-      'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
-
   static Future<AiTransactionResult> analyze({
     required String userText,
     required List<Map<String, String>> recentHistory,
@@ -150,13 +144,6 @@ class AiTransactionService {
     String? attachmentBase64,
     String? attachmentMimeType,
   }) async {
-    if (_apiKey.isEmpty) {
-      return const AiTransactionResult(
-        kind: 'not_transaction',
-        message: '',
-      );
-    }
-
     final now = DateTime.now();
     final prompt = _prompt(
       userText: userText,
@@ -182,8 +169,7 @@ class AiTransactionService {
       });
     }
 
-    final uri = Uri.parse('$_baseUrl?key=$_apiKey');
-    final body = {
+    final body = <String, dynamic>{
       'contents': [
         {
           'role': 'user',
@@ -197,13 +183,7 @@ class AiTransactionService {
       },
     };
 
-    final response = await http
-        .post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(body),
-        )
-        .timeout(const Duration(seconds: 90));
+    final response = await AiProxyService.generateContent(body);
 
     if (response.statusCode != 200) {
       if (kDebugMode) {
@@ -216,7 +196,7 @@ class AiTransactionService {
       );
     }
 
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final decoded = response.decodeJsonObject();
     final candidates = decoded['candidates'] as List<dynamic>?;
     final firstCandidate =
         candidates == null || candidates.isEmpty ? null : candidates.first;

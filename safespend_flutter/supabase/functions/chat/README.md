@@ -1,120 +1,123 @@
-# SafeSpend AI Coach — Setup Guide
+# SafeSpend AI Proxy — Setup Guide
 
 ## Architecture
 
-```
-Flutter app  →  Supabase Edge Function  →  DeepSeek API
-                (supabase/functions/chat)
+```text
+Authenticated Flutter app
+        |
+        v
+Supabase Edge Function: chat
+        |
+        v
+Gemini gemini-2.5-flash :generateContent
 ```
 
-The Edge Function lives inside your Supabase project — no separate server needed.
+The Flutter app sends the existing Gemini request payload through
+`SupabaseClient.functions.invoke`. The Edge Function validates the signed-in
+user with Supabase Auth, adds the server-side provider key, and relays Gemini's
+status and response body unchanged.
 
----
+The only accepted upstream target is:
+
+- model: `gemini-2.5-flash`
+- endpoint: `generateContent`
 
 ## Prerequisites
 
 - [Supabase CLI](https://supabase.com/docs/guides/cli) installed
-- A DeepSeek API key → https://platform.deepseek.com
-- Supabase project already linked (`supabase link --project-ref timctayytkcvxvpukvlq`)
-
----
-
-## Step 1 — Set the DeepSeek secret
+- A Gemini API key
+- The Supabase project linked:
 
 ```bash
-supabase secrets set DEEPSEEK_API_KEY=sk-your-key-here
+supabase link --project-ref timctayytkcvxvpukvlq
 ```
 
-Verify it was saved:
+## 1. Set the server-side secret
+
+```bash
+supabase secrets set GEMINI_API_KEY=your-key-here
+```
+
+Verify that the secret name is present:
+
 ```bash
 supabase secrets list
 ```
 
----
+Never add the key to Flutter `--dart-define` values or `.env.local`. The key
+must exist only in Supabase Edge Function secrets.
 
-## Step 2 — Deploy the Edge Function
+## 2. Deploy the Edge Function
 
-From the root of the Flutter project:
-
-```bash
-supabase functions deploy chat --no-verify-jwt
-```
-
-> `--no-verify-jwt` lets the function work even when a user is not authenticated
-> (useful during testing). Remove this flag in production if you want to enforce auth.
-
----
-
-## Step 3 — Grant beta access to test users
-
-Open `lib/screens/coach_screen.dart` and edit the list at the top of the file:
-
-```dart
-const _allowedEmails = <String>[
-  'your@email.com',
-  'tester@email.com',
-];
-```
-
-To open access to everyone:
-```dart
-const _openToAll = true;
-```
-
----
-
-## Step 4 — Rebuild the Flutter app
+From the Flutter project root:
 
 ```bash
-flutter build apk --debug
+supabase functions deploy chat
 ```
 
----
+Keep JWT verification enabled. The function also performs its own explicit
+Supabase Auth user lookup and rejects missing, invalid, expired, and anon-only
+credentials.
 
-## Testing the Edge Function directly
+## 3. Build the Flutter app
+
+The local `.env.local` file is still used for public Supabase configuration
+and client feature flags. It must not contain `GEMINI_API_KEY`.
+
+```powershell
+.\scripts\build_debug_apk.ps1
+```
+
+`AI_ALLOWED_EMAILS` and `AI_OPEN_TO_ALL` control whether the client displays
+the AI input. They are not a substitute for server authorization: even when
+`AI_OPEN_TO_ALL=true`, the client requires a real Supabase session and the Edge
+Function validates that session independently.
+
+## Testing the function directly
+
+Use a real signed-in user's access token, not the project anon key:
 
 ```bash
 curl -X POST \
   https://timctayytkcvxvpukvlq.supabase.co/functions/v1/chat \
   -H "Content-Type: application/json" \
   -H "apikey: YOUR_SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer A_REAL_USER_ACCESS_TOKEN" \
   -d '{
-    "messages": [{"role": "user", "content": "How am I doing financially?"}],
-    "financial_context": {
-      "currency": "USD",
-      "net_worth": 12500,
-      "bank_balance": 8000,
-      "cash_on_hand": 500,
-      "monthly_income": 3000,
-      "this_month_income": 3000,
-      "this_month_expenses": 2100,
-      "top_categories": [
-        {"name": "Food", "amount": 600},
-        {"name": "Transport", "amount": 300}
+    "model": "gemini-2.5-flash",
+    "endpoint": "generateContent",
+    "body": {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [{"text": "How am I doing financially?"}]
+        }
       ],
-      "goals": [],
-      "debts": [],
-      "personal_debts": []
+      "generationConfig": {
+        "temperature": 0.6,
+        "maxOutputTokens": 1500,
+        "topP": 0.9
+      }
     }
   }'
 ```
 
----
+Expected security checks:
 
-## Conversation flow
+- no `Authorization` header: `401`
+- `Authorization: Bearer <anon key>`: `401`
+- invalid or expired user token: `401`
+- method other than `POST` or `OPTIONS`: `405`
+- non-whitelisted model or endpoint: `400`
+- missing `GEMINI_API_KEY` secret: `503`
 
-- The Flutter app keeps the full conversation history in memory (session only)
-- Each message sends the entire history + the live financial snapshot to DeepSeek
-- The AI has context of the whole conversation AND real financial data
-- History is cleared when the user taps the refresh icon in the header
+## Request and response behavior
 
----
-
-## Costs
-
-| Service | Free tier | Paid |
-|---------|-----------|------|
-| Supabase Edge Functions | 500K invocations/month | $0.000002/invocation |
-| DeepSeek `deepseek-chat` | — | ~$0.00014 per 1K input tokens |
-
-A typical conversation message costs < $0.001.
+- Chat text, inline images, and inline PDFs retain their existing Gemini
+  payload shapes.
+- Transaction extraction retains its JSON response mode and parsing.
+- The proxy does not translate provider errors. Gemini's HTTP status and body
+  are returned to the client so the existing client-side error mapping remains
+  effective.
+- Conversation history remains in the Flutter app and is sent with each chat
+  request.

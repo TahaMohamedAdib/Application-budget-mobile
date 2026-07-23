@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'env_config.dart';
+
+import 'ai_proxy_service.dart';
 
 /// A single message in the conversation.
 class ChatMessage {
@@ -38,11 +37,6 @@ class ChatMessage {
 }
 
 class ChatService {
-  static String get _apiKey => EnvConfig.geminiApiKey;
-  static const String _model = 'gemini-2.5-flash';
-  static String get _baseUrl =>
-      'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
-
   // ── System prompt ────────────────────────────────────────────
   static String _systemPrompt(Map<String, dynamic> ctx) {
     final lines = ctx.entries.map((e) => '  • ${e.key}: ${e.value}').join('\n');
@@ -91,19 +85,9 @@ ${ctx['project_context']}
   static Future<String> sendMessage({
     required List<ChatMessage> history,
     required Map<String, dynamic> financialContext,
-    required String token, // kept for API compatibility
     String? attachmentBase64,
     String? attachmentMimeType,
   }) async {
-    if (_apiKey.isEmpty) {
-      if (kDebugMode) {
-        return 'SafeSpend AI is not configured. Restart Flutter with --dart-define-from-file=.env.local from the safespend_flutter folder.';
-      }
-      return 'SafeSpend AI is not configured yet. Please contact support.';
-    }
-
-    final uri = Uri.parse('$_baseUrl?key=$_apiKey');
-
     // Build contents: apply attachment only to the last (current) user message
     // Merge consecutive same-role messages (Gemini requires alternating roles)
     final rawContents = history.asMap().entries.map((entry) {
@@ -135,7 +119,7 @@ ${ctx['project_context']}
       contents.removeAt(0);
     }
 
-    final body = {
+    final body = <String, dynamic>{
       'systemInstruction': {
         'parts': [
           {'text': _systemPrompt(financialContext)},
@@ -167,15 +151,8 @@ ${ctx['project_context']}
       ],
     };
 
-    final response = await http
-        .post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(body),
-        )
-        .timeout(const Duration(seconds: 90));
-
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final response = await AiProxyService.generateContent(body);
+    final decoded = response.decodeJsonObject();
     if (response.statusCode != 200) {
       if (kDebugMode)
         debugPrint(

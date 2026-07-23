@@ -1,141 +1,146 @@
+import {
+  extractBearerToken,
+  isAllowedGeminiTarget,
+  isAnonymousCredential,
+} from './request_policy.ts'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') ?? ''
-const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions'
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
 
-Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+async function isValidSupabaseUser(
+  token: string,
+  supabaseUrl: string,
+  supabaseAnonKey: string,
+): Promise<boolean> {
+  if (isAnonymousCredential(token, supabaseAnonKey)) return false
 
   try {
-    const { messages, financial_context } = await req.json()
+    const authResponse = await fetch(
+      new URL('/auth/v1/user', supabaseUrl),
+      {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    if (!authResponse.ok) return false
 
-    if (!DEEPSEEK_API_KEY) {
-      throw new Error('DEEPSEEK_API_KEY is not configured')
-    }
+    const user = await authResponse.json()
+    return isJsonObject(user) && typeof user.id === 'string' && user.id !== ''
+  } catch (error) {
+    console.error('[chat] Supabase Auth validation failed', error)
+    return false
+  }
+}
 
-    const systemPrompt = buildSystemPrompt(financial_context ?? {})
+Deno.serve(async (request: Request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
 
-    const deepseekRes = await fetch(DEEPSEEK_URL, {
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        Allow: 'POST, OPTIONS',
+      },
+    })
+  }
+
+  const token = extractBearerToken(request.headers.get('Authorization'))
+  if (token === null) {
+    return jsonError('A valid user bearer token is required', 401)
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.trim()
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')?.trim()
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[chat] Supabase Auth configuration is missing')
+    return jsonError('Authentication service is not configured', 503)
+  }
+
+  const hasValidUser = await isValidSupabaseUser(
+    token,
+    supabaseUrl,
+    supabaseAnonKey,
+  )
+  if (!hasValidUser) {
+    return jsonError('A valid user bearer token is required', 401)
+  }
+
+  let envelope: unknown
+  try {
+    envelope = await request.json()
+  } catch {
+    return jsonError('Request body must be valid JSON', 400)
+  }
+
+  if (!isJsonObject(envelope)) {
+    return jsonError('Request body must be a JSON object', 400)
+  }
+
+  const { model, endpoint, body } = envelope
+  if (!isAllowedGeminiTarget(model, endpoint)) {
+    return jsonError('Requested AI model or endpoint is not allowed', 400)
+  }
+  if (!isJsonObject(body)) {
+    return jsonError('AI request body must be a JSON object', 400)
+  }
+
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY')?.trim()
+  if (!geminiApiKey) {
+    console.error('[chat] GEMINI_API_KEY is not configured')
+    return jsonError('AI service is not configured', 503)
+  }
+
+  const upstreamUrl =
+    `https://generativelanguage.googleapis.com/v1beta/models/` +
+    `${encodeURIComponent(model as string)}:${encodeURIComponent(endpoint as string)}`
+
+  let upstreamResponse: Response
+  try {
+    upstreamResponse = await fetch(upstreamUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'x-goog-api-key': geminiApiKey,
       },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...(messages ?? []),
-        ],
-        max_tokens: 1024,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(body),
     })
-
-    if (!deepseekRes.ok) {
-      const errText = await deepseekRes.text()
-      throw new Error(`DeepSeek API ${deepseekRes.status}: ${errText}`)
-    }
-
-    const data = await deepseekRes.json()
-    const reply = data.choices?.[0]?.message?.content ?? 'No response received.'
-
-    return new Response(JSON.stringify({ reply }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  } catch (err) {
-    console.error('[chat]', err)
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+  } catch (error) {
+    console.error('[chat] Gemini request failed', error)
+    return jsonError('AI upstream request failed', 502)
   }
+
+  const responseHeaders = new Headers(corsHeaders)
+  responseHeaders.set(
+    'Content-Type',
+    upstreamResponse.headers.get('Content-Type') ?? 'application/json',
+  )
+  const retryAfter = upstreamResponse.headers.get('Retry-After')
+  if (retryAfter !== null) responseHeaders.set('Retry-After', retryAfter)
+
+  return new Response(upstreamResponse.body, {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers: responseHeaders,
+  })
 })
-
-// ─────────────────────────────────────────────
-// System prompt builder
-// ─────────────────────────────────────────────
-function buildSystemPrompt(ctx: Record<string, unknown>): string {
-  const currency = (ctx.currency as string) ?? 'USD'
-
-  const fmt = (n: unknown) => {
-    if (n === undefined || n === null) return 'N/A'
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(n as number)
-  }
-
-  const netWorth         = fmt(ctx.net_worth)
-  const bankBalance      = fmt(ctx.bank_balance)
-  const cashOnHand       = fmt(ctx.cash_on_hand)
-  const monthlyIncome    = fmt(ctx.monthly_income)
-  const thisMonthIncome  = fmt(ctx.this_month_income)
-  const thisMonthExpenses = fmt(ctx.this_month_expenses)
-
-  const rawIncome   = (ctx.this_month_income  as number) ?? 0
-  const rawExpenses = (ctx.this_month_expenses as number) ?? 0
-  const savingsRate = rawIncome > 0
-    ? Math.round(((rawIncome - rawExpenses) / rawIncome) * 100)
-    : 0
-
-  const topCategories = ((ctx.top_categories as Array<{ name: string; amount: number }>) ?? [])
-    .map(c => `  - ${c.name}: ${fmt(c.amount)}`).join('\n') || '  - No data yet'
-
-  const goals = ((ctx.goals as Array<{ name: string; progress: number }>) ?? [])
-    .map(g => `  - ${g.name}: ${g.progress}% complete`).join('\n') || '  - No active goals'
-
-  const debts = ((ctx.debts as Array<{ name: string; remaining: number }>) ?? [])
-    .map(d => `  - ${d.name}: ${fmt(d.remaining)} remaining`).join('\n') || '  - No active debts'
-
-  const personalDebts = ((ctx.personal_debts as Array<{ name: string; remaining: number }>) ?? [])
-    .map(d => `  - Owed to ${d.name}: ${fmt(d.remaining)}`).join('\n') || '  - None'
-
-  const now = new Date()
-  const monthYear = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-
-  return `You are SafeSpend AI Coach, a sharp and empathetic personal financial advisor built into the SafeSpend budget app.
-
-═══ LIVE FINANCIAL SNAPSHOT — ${monthYear} ═══
-
-OVERALL POSITION
-- Net Worth:          ${netWorth}
-- Bank Accounts:      ${bankBalance}
-- Cash on Hand:       ${cashOnHand}
-- Monthly Income:     ${monthlyIncome} (target)
-
-THIS MONTH
-- Income received:    ${thisMonthIncome}
-- Total expenses:     ${thisMonthExpenses}
-- Savings rate:       ${savingsRate >= 0 ? savingsRate : 0}%
-
-TOP SPENDING CATEGORIES
-${topCategories}
-
-SAVINGS GOALS
-${goals}
-
-ACTIVE DEBTS
-${debts}
-
-MONEY OWED TO OTHERS
-${personalDebts}
-
-═══ YOUR COACHING GUIDELINES ═══
-1. You have the user's REAL financial data above — use it proactively. Never ask for info you already have.
-2. Be direct, concise, and specific. Give real numbers, percentages, and actionable steps.
-3. Detect patterns — if expenses exceed income, flag it. If savings rate is low, say so clearly.
-4. Speak in the same language the user writes in (French, Arabic, English, etc.).
-5. Keep answers under 200 words unless the user asks for a detailed plan.
-6. Be encouraging but honest — never sugarcoat financial risks.
-7. If asked about a specific transaction detail you don't have, say so and suggest checking the app.
-8. For goals and debts, calculate concrete timelines when possible based on current savings rate.`
-}

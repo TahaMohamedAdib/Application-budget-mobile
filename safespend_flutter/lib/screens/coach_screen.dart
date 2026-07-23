@@ -14,11 +14,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../services/secure_storage_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
 import '../models/transaction.dart';
 import '../utils/currency_helper.dart';
+import '../services/ai_access_policy.dart';
 import '../services/ai_transaction_service.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
@@ -860,10 +860,13 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   // ── Access ───────────────────────────────────────────────────
-  bool _hasAccess(String? email) {
-    if (_openToAll) return true;
-    if (email == null) return false;
-    return _allowedEmails.any((e) => e.toLowerCase() == email.toLowerCase());
+  bool _hasAccess(AuthService auth) {
+    return hasAiAccess(
+      hasSession: auth.session != null,
+      openToAll: _openToAll,
+      email: auth.user?.email,
+      allowedEmails: _allowedEmails,
+    );
   }
 
   // ── Financial context ────────────────────────────────────────
@@ -969,6 +972,8 @@ class _CoachScreenState extends State<CoachScreen> {
     String? overrideText,
     bool fromVoiceCall = false,
   }) async {
+    if (!_hasAccess(context.read<AuthService>())) return;
+
     final text = (overrideText ?? _msgCtrl.text).trim();
     final imgPath = fromVoiceCall ? null : _pendingImage;
     final docPath = fromVoiceCall ? null : _pendingFile;
@@ -1029,9 +1034,6 @@ class _CoachScreenState extends State<CoachScreen> {
         attachMime = docMime;
       }
 
-      final token =
-          Supabase.instance.client.auth.currentSession?.accessToken ?? '';
-
       // Build financial context, inject project context if applicable
       final ctx = _buildContext(provider);
       final projectCtx = _buildProjectContextSummary();
@@ -1059,7 +1061,6 @@ class _CoachScreenState extends State<CoachScreen> {
             .map((h) => ChatMessage(role: h['role']!, content: h['content']!))
             .toList(),
         financialContext: ctx,
-        token: token,
         attachmentBase64: attachBase64,
         attachmentMimeType: attachMime,
       );
@@ -2813,7 +2814,7 @@ class _CoachScreenState extends State<CoachScreen> {
     return Consumer2<AppProvider, AuthService>(
       builder: (context, provider, auth, _) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final hasAccess = _hasAccess(auth.user?.email);
+        final hasAccess = _hasAccess(auth);
         final bgColor = isDark ? const Color(0xFF0D0D0D) : Colors.white;
 
         if (!_ready) {

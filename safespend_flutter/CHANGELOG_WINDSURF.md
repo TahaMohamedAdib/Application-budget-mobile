@@ -503,3 +503,89 @@ Chaque test initialise `TestWidgetsFlutterBinding` et réinitialise
 - Les appels Supabase ne sont pas exercés : aucun utilisateur distant n'est
   injecté et aucune base de production n'est touchée.
 - Aucun test widget visuel ni test appareil n'est ajouté dans ce lot.
+
+## T1 — proxy IA authentifié, clé retirée du client — 2026-07-23
+
+### Statut
+
+**TERMINÉ CÔTÉ CODE — déploiement et secret restent humains.**
+
+### Fichiers modifiés
+
+- `lib/screens/coach_screen.dart`
+- `lib/services/ai_access_policy.dart`
+- `lib/services/ai_proxy_service.dart`
+- `lib/services/ai_transaction_service.dart`
+- `lib/services/chat_service.dart`
+- `lib/services/env_config.dart`
+- `scripts/build_debug_apk.ps1`
+- `supabase/functions/chat/.env.example`
+- `supabase/functions/chat/README.md`
+- `supabase/functions/chat/index.ts`
+- `supabase/functions/chat/request_policy.ts`
+- `supabase/functions/chat/request_policy_test.ts`
+- `test/services/ai_access_policy_test.dart`
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- Les deux clients IA utilisent désormais
+  `SupabaseClient.functions.invoke('chat')` avec un timeout de 90 secondes.
+- Les payloads et parseurs existants de
+  `gemini-2.5-flash:generateContent` sont conservés : historique, instruction
+  système, images/PDF `inlineData`, paramètres de génération, mode JSON de
+  l'extraction transactionnelle et filtrage des parties de réflexion.
+- L'ancienne Edge Function DeepSeek, jamais appelée, est remplacée par un proxy
+  Gemini. Elle n'accepte que `POST`/`OPTIONS` et une whitelist exacte du modèle
+  et de l'endpoint.
+- Le proxy exige un bearer, refuse la clé projet anon comme identité, puis
+  valide le token auprès de `/auth/v1/user` avant tout appel fournisseur.
+- `GEMINI_API_KEY` est lu uniquement via `Deno.env` côté fonction. Son absence
+  renvoie `503`; aucun secret de repli n'existe.
+- Les statuts, corps et `Retry-After` Gemini sont relayés afin de préserver les
+  branches d'erreur clientes.
+- Le paramètre `token` mort de `ChatService` et son extraction dans le Coach ont
+  été supprimés.
+- `AI_OPEN_TO_ALL=true` n'autorise plus un mode local sans session Supabase :
+  une session réelle reste obligatoire.
+- Le script APK construit un fichier de définitions temporaire contenant
+  seulement la liste blanche de paramètres publics/feature flags. Une éventuelle
+  ancienne entrée Gemini de `.env.local` n'est plus incorporée au binaire.
+- La documentation Edge impose un déploiement avec vérification JWT, sans
+  `--no-verify-jwt`.
+
+### Décisions de sécurité
+
+- Le guide `insecure-defaults` a conduit à conserver un comportement
+  fail-closed pour le secret, l'authentification et la whitelist du fournisseur.
+- Les cinq `fromEnvironment` restants concernent uniquement l'URL/clé publique
+  Supabase, le callback et les feature flags d'accès IA. Ils sont volontairement
+  conservés ; aucune lecture `GEMINI_API_KEY` ne subsiste dans `lib/`.
+- La fonction effectue sa propre vérification utilisateur même si la
+  vérification JWT de la plateforme reste activée par défaut.
+
+### Vérifications
+
+- Recherche dans `lib/` de `generativelanguage`, `GEMINI_API_KEY`, `DEEPSEEK`,
+  appels fournisseur directs et paramètres de clé : **0 occurrence**.
+- Recherche de `DeepSeek` et `--no-verify-jwt` dans la fonction et les scripts :
+  **0 occurrence**.
+- Tests purs de politique Edge via Node : **3/3 réussis**.
+- Tests Dart de politique d'accès : **4/4 réussis**.
+- `flutter analyze` : **560 issues**, 0 erreur et aucun nouveau diagnostic.
+- `flutter test` : **19 tests réussis, 100 % vert**.
+- Analyse syntaxique PowerShell et TypeScript : **PASS**.
+
+### Limites et étapes humaines
+
+- Définir le secret :
+  `supabase secrets set GEMINI_API_KEY=<valeur>`.
+- Déployer avec `supabase functions deploy chat`, sans
+  `--no-verify-jwt`.
+- Retirer manuellement toute ancienne entrée `GEMINI_API_KEY` de `.env.local`
+  puis révoquer/faire tourner la clé déjà embarquée dans d'anciens APK.
+- Vérifier sur l'environnement déployé : sans JWT et avec clé anon → `401`;
+  modèle/endpoint hors whitelist → `400`; secret absent → `503`.
+- Tester manuellement chat texte, image, PDF et extraction transactionnelle.
+- Deno et Supabase CLI ne sont pas installés dans cet environnement : la
+  fonction n'a pas été servie ni déployée réellement.

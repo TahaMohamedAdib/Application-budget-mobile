@@ -3,16 +3,9 @@
 /// Supabase public keys have safe defaults (anon key is designed to be public;
 /// Row Level Security on the server protects data).
 ///
-/// Sensitive keys like GEMINI_API_KEY have NO default — they must be injected
-/// at build time via `--dart-define-from-file=.env.local`.
+/// Sensitive provider keys are stored only as Supabase Edge Function secrets.
 class EnvConfig {
   const EnvConfig._();
-
-  // ── Gemini (no default — requires build flag) ──
-  static const String geminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-    defaultValue: '',
-  );
 
   // ── Supabase (public keys — safe defaults for dev) ──
   static const String supabaseUrl = String.fromEnvironment(
@@ -37,16 +30,17 @@ class EnvConfig {
   );
   static List<String> get allowedEmails => _allowedEmailsRaw.isEmpty
       ? <String>[]
-      : _allowedEmailsRaw.split(',').map((e) => e.trim().toLowerCase()).toList();
+      : _allowedEmailsRaw
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .toList();
 
   static const bool aiOpenToAll = bool.fromEnvironment(
     'AI_OPEN_TO_ALL',
     defaultValue: false,
   );
 
-  /// True when all required secrets are present.
+  /// True when all required public client configuration is present.
   static bool get isConfigured =>
-      geminiApiKey.isNotEmpty &&
-      supabaseUrl.isNotEmpty &&
-      supabaseAnonKey.isNotEmpty;
+      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }
