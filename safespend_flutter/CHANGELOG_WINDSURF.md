@@ -665,3 +665,59 @@ Chaque test initialise `TestWidgetsFlutterBinding` et réinitialise
   fait par la migration (ou le dashboard Storage).
 - Aucune vérification visuelle appareil n'a été effectuée : contrôler
   l'affichage des reçus et logos après passage en privé.
+
+## T3 — limites de taille/type de fichier — 2026-07-23
+
+### Statut
+
+**TERMINÉ.**
+
+### Fichiers modifiés / créés
+
+- `lib/services/file_validation.dart` (nouveau)
+- `lib/widgets/add_transaction_modal.dart`
+- `lib/screens/coach_screen.dart`
+- `lib/l10n/translations_core.dart`
+- `lib/l10n/translations_extra.dart`
+- `lib/l10n/app_localizations.dart`
+- `test/services/file_validation_test.dart` (nouveau)
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- `FileValidator` centralise un contrôle purement additif : rejette uniquement
+  les fichiers > 10 Mo (`maxFileSizeBytes`) et les extensions jamais acceptées.
+  `validateImage` (jpg/jpeg/png/webp/gif/heic/heif) et `validateDocument` (pdf)
+  renvoient un `FileValidationResult` typé (`ok` / `tooLarge` /
+  `unsupportedType`). Un fichier manquant/illisible est traité comme non
+  surdimensionné pour laisser le chemin d'upload existant décider.
+- Point d'entrée reçu (`add_transaction_modal._handleReceiptTap`) : le fichier
+  choisi est validé avant tout upload ; en cas de refus, un SnackBar localisé
+  s'affiche et l'upload est abandonné.
+- Points d'entrée IA (`coach_screen._pickImage/_pickCamera/_pickDocument`) :
+  même validation via un helper partagé `_showFileValidationError`. Les images
+  et le PDF sont contrôlés ; aucun format existant n'a été restreint.
+- Nouvelles clés i18n `fileTooLargeError` (mentionne « 10 MB ») et
+  `unsupportedFileTypeError` ajoutées dans les 16 langues
+  (`translations_core` : en/fr/ar/es/de/pt ; `translations_extra` :
+  it/tr/nl/ru/zh/ja/ko/hi/id/pl) + getters dans `app_localizations.dart`.
+
+### Décisions
+
+- La taille limite (10 Mo) est alignée sur le `file_size_limit` du bucket
+  `receipts` défini en T2, pour un refus côté client cohérent avant l'appel
+  réseau.
+- La validation est faite juste après la sélection (avant compression/upload),
+  afin que l'utilisateur soit informé immédiatement et qu'aucun octet ne parte.
+
+### Vérifications
+
+- `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
+  diagnostic vs baseline (568).
+- `flutter test --no-pub` : **41 tests réussis, 100 % vert**
+  (10 tests `FileValidator` ajoutés, dont la borne exacte à 10 Mo).
+
+### Limites et étapes humaines
+
+- Aucune. Le contrôle est entièrement côté client ; la limite serveur reste
+  posée par la migration T2.

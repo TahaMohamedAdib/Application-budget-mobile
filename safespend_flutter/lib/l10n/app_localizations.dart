@@ -286,6 +286,8 @@ class S {
   // Home
   String get totalBalance => _t('totalBalance');
   String get availableBalance => _t('availableBalance');
+  String get fileTooLargeError => _t('fileTooLargeError');
+  String get unsupportedFileTypeError => _t('unsupportedFileTypeError');
   String get income => _t('income');
   String get expenses => _t('expenses');
   String get recentTransactions => _t('recentTransactions');

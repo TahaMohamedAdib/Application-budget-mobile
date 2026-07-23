@@ -21,6 +21,7 @@ import '../utils/currency_helper.dart';
 import '../services/ai_access_policy.dart';
 import '../services/ai_transaction_service.dart';
 import '../services/auth_service.dart';
+import '../services/file_validation.dart';
 import '../services/chat_service.dart';
 import '../services/env_config.dart';
 import '../services/supabase_config.dart';
@@ -1674,24 +1675,48 @@ class _CoachScreenState extends State<CoachScreen> {
     );
   }
 
+  void _showFileValidationError(FileValidationStatus status) {
+    if (!mounted) return;
+    final s = S.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          status == FileValidationStatus.tooLarge
+              ? s.fileTooLargeError
+              : s.unsupportedFileTypeError,
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickImage() async {
     final picked =
         await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (picked != null && mounted)
-      setState(() {
-        _pendingImage = picked.path;
-        _pendingFile = null;
-      });
+    if (picked == null || !mounted) return;
+    final validation = FileValidator.validateImage(picked.path);
+    if (!validation.isOk) {
+      _showFileValidationError(validation.status);
+      return;
+    }
+    setState(() {
+      _pendingImage = picked.path;
+      _pendingFile = null;
+    });
   }
 
   Future<void> _pickCamera() async {
     final picked =
         await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-    if (picked != null && mounted)
-      setState(() {
-        _pendingImage = picked.path;
-        _pendingFile = null;
-      });
+    if (picked == null || !mounted) return;
+    final validation = FileValidator.validateImage(picked.path);
+    if (!validation.isOk) {
+      _showFileValidationError(validation.status);
+      return;
+    }
+    setState(() {
+      _pendingImage = picked.path;
+      _pendingFile = null;
+    });
   }
 
   Future<void> _pickDocument() async {
@@ -1699,14 +1724,19 @@ class _CoachScreenState extends State<CoachScreen> {
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false);
-    if (result != null && result.files.single.path != null && mounted) {
-      setState(() {
-        _pendingFile = result.files.single.path;
-        _pendingFileName = result.files.single.name;
-        _pendingFileMime = 'application/pdf';
-        _pendingImage = null;
-      });
+    if (result == null || result.files.single.path == null || !mounted) return;
+    final path = result.files.single.path!;
+    final validation = FileValidator.validateDocument(path);
+    if (!validation.isOk) {
+      _showFileValidationError(validation.status);
+      return;
     }
+    setState(() {
+      _pendingFile = path;
+      _pendingFileName = result.files.single.name;
+      _pendingFileMime = 'application/pdf';
+      _pendingImage = null;
+    });
   }
 
   // ── Left drawer — ChatGPT-style conversation sidebar ────────

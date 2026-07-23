@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/supabase_config.dart';
+import '../services/file_validation.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../models/transaction.dart';
@@ -89,6 +90,21 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       imageQuality: 80,
     );
     if (image == null || !mounted) return;
+
+    final validation = FileValidator.validateImage(image.path);
+    if (!validation.isOk) {
+      final s = S.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            validation.status == FileValidationStatus.tooLarge
+                ? s.fileTooLargeError
+                : s.unsupportedFileTypeError,
+          ),
+        ),
+      );
+      return;
+    }
 
     final uid = SupabaseConfig.client?.auth.currentUser?.id;
     setState(() {
