@@ -29,6 +29,12 @@ Ordre chronologique des fichiers avec préfixe timestamp :
   installe des politiques propriétaire (`auth.uid()` = premier segment du
   chemin), puis neutralise le trigger legacy pour les buckets financiers afin
   qu'il ne devine plus le reçu/compte d'après l'ordre d'upload.
+- [ ] `20260723090000_add_transaction_daret_id.sql` — appliquée en production :
+  **NON** (T4) — ajoute `transactions.daret_id` (UUID nullable, **sans** clé
+  étrangère) + index. Décision d'architecture actée : les darets restent
+  persistés côté client (SharedPreferences) ; aucune table Postgres `darets`
+  n'est créée, donc pas de FK. Le client tolère l'absence de la colonne tant
+  que la migration n'est pas appliquée.
 
 Fichier sans préfixe timestamp :
 
@@ -72,10 +78,11 @@ Le service de synchronisation utilise :
   `SupabaseSyncService`.
 - Les Darets sont uniquement persistés dans SharedPreferences sous la clé
   `darets`.
-- La FK prévue par T4,
-  `transactions.daret_id REFERENCES <table_darets>(id)`, exige donc une décision
-  d'architecture préalable : création et synchronisation d'une table Daret, ou
-  absence explicite de FK.
+- **Décision (T4)** : `transactions.daret_id` est ajouté **sans** FK (colonne
+  UUID nullable + index). Option retenue par l'humain : les darets restent
+  locaux (SharedPreferences), pas de table Postgres `darets`, pas de
+  synchronisation cloud des darets. L'état d'idempotence des payouts
+  (`Daret.lastPayoutMonthProcessed`) est persisté localement.
 
 ## À exécuter maintenant, dans cet ordre
 
@@ -89,7 +96,10 @@ Ordre provisoire à confirmer par l'humain avant exécution :
 4. appliquer `20260723010000_secure_financial_storage.sql` (T2) — après quoi les
    anciennes URLs publiques cessent d'être servies ; les nouveaux uploads
    stockent un chemin d'objet signé à la demande ;
-5. positionner manuellement `ai_conversations_and_projects.sql`, dont le nom ne
+5. appliquer `20260723090000_add_transaction_daret_id.sql` (T4) — colonne
+   nullable sans FK ; jusque-là le client sauvegarde la transaction sans
+   `daret_id` grâce à la garde défensive ;
+6. positionner manuellement `ai_conversations_and_projects.sql`, dont le nom ne
    fournit aucun ordre chronologique.
 
 Les migrations T4 et T5 seront ajoutées plus tard à cette liste. Conserver les

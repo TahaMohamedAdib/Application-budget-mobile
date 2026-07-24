@@ -721,3 +721,90 @@ Chaque test initialise `TestWidgetsFlutterBinding` et réinitialise
 
 - Aucune. Le contrôle est entièrement côté client ; la limite serveur reste
   posée par la migration T2.
+
+## T4 — branchement réel du Daret — 2026-07-24
+
+### Statut
+
+**TERMINÉ CÔTÉ CODE — migration + décision d'architecture consignées.**
+
+### Écart signalé et décision humaine
+
+Le plan T4 prévoyait une FK `transactions.daret_id REFERENCES <table_darets>`.
+Vérification du code réel : **aucune table `darets` n'existe** dans
+`supabase_migrations/`, `supabase_complete_setup.sql`,
+`supabase_migration_flutter.sql` ni `SupabaseSyncService` — les darets sont
+persistés uniquement dans SharedPreferences. Décisions validées par l'humain :
+
+1. `daret_id` = colonne UUID nullable **sans FK** (les darets restent locaux).
+2. `Daret.totalReceivedSoFar` reflète les **payouts réellement traités** (et non
+   plus un calcul purement calendaire).
+
+### Fichiers modifiés / créés
+
+- `lib/models/transaction.dart`
+- `lib/models/daret.dart`
+- `lib/providers/app_provider.dart`
+- `lib/services/supabase_sync_service.dart`
+- `lib/main.dart`
+- `supabase_migrations/20260723090000_add_transaction_daret_id.sql` (nouveau)
+- `test/providers/app_provider_financial_test.dart`
+- `MIGRATIONS.md`, `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- `Transaction.daretId` (nullable) : modèle + copyWith + toJson/fromJson ;
+  mapping `daret_id` dans `_transactionToRow`/`_rowToTransaction` avec la même
+  tolérance défensive que `goal_id` (colonne ajoutée à la liste des colonnes
+  compatibles potentiellement absentes).
+- `Daret.lastPayoutMonthProcessed` (int, persisté) : filigrane d'idempotence des
+  payouts. `pendingPayoutMonths` = mois de payout dus (<= `currentMonth`) et non
+  encore traités. `totalReceivedSoFar` s'appuie désormais sur ce filigrane (repli
+  calendaire pour les darets hérités où le filigrane vaut 0).
+- `checkDaretPayout(daretId)` réécrite : génère **une** transaction
+  `daret_payout` par mois de payout dû-non-traité, crédite le compte
+  destinataire, tague `daretId`, puis avance le filigrane persisté.
+- `processDaretPayouts()` : nouveau pilote qui traite tous les darets actifs.
+  Appelé au démarrage (aux trois points de chargement d'`AppProvider`, à côté de
+  `processSalaries()`/`processSubscriptions()`) et dans le timer périodique de
+  `main.dart`.
+- Contributions : la règle récurrente `daret_contrib_<id>` porte désormais
+  `daretId` dans son template, propagé aux transactions créées par
+  `processSubscriptions` (l'idempotence des contributions reste assurée par
+  l'avancement de `nextDate`, inchangé).
+- Réversion : `deleteTransaction`/`updateTransaction` intègrent
+  `daret_contribution` et `daret_payout` dans les listes de réversion de solde
+  de compte ; `_reverseLinkedDaretOnDelete` recule le filigrane persisté quand
+  un `daret_payout` est supprimé, de sorte que le payout redevient éligible.
+
+### Décisions
+
+- Le filigrane recule au plus haut mois de payout strictement inférieur au
+  filigrane courant (0 si aucun), ce qui rend la suppression réversible et la
+  régénération idempotente.
+- `processDaretContribution` (contribution manuelle directe) est conservée et
+  tague `daretId`, mais la voie normale reste la règle récurrente.
+
+### Vérifications (checklist non-régression app_provider)
+
+- Virements création/modification/suppression : **PASS** (tests inchangés).
+- Objectifs/dettes liés, UUID, `goalId` : **PASS**.
+- Suppression de catégorie sans variation de solde : **PASS**.
+- Récurrents : types préservés, aucun doublon : **PASS**.
+- Salaires : comportement inchangé : **PASS**.
+- Daret : payout généré une seule fois, bon compte crédité, réversion correcte à
+  la suppression, mois futur non traité : **PASS** (4 tests ajoutés).
+- Solde disponible hors investissement, cash inclus : **PASS**.
+- `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
+  diagnostic vs baseline (568).
+- `flutter test --no-pub` : **45 tests réussis, 100 % vert**.
+
+### Limites et étapes humaines
+
+- Appliquer `20260723090000_add_transaction_daret_id.sql` (voir `MIGRATIONS.md`).
+- Les darets restent hors synchronisation cloud (choix assumé) : un
+  changement d'appareil ne transporte pas l'état des darets ni leur filigrane.
+- Les darets créés avant T4 ont `lastPayoutMonthProcessed = 0` : leur premier
+  `processDaretPayouts` générera les payouts dus jusqu'au mois courant (repli
+  calendaire pour l'affichage jusque-là). Vérifier ce comportement sur un jeu de
+  données réel avant diffusion large.

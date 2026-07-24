@@ -12,6 +12,7 @@ class Transaction {
   final String accountId;
   final String? toAccountId; // For transfers
   final String? goalId; // Linked savings goal, debt, or personal debt
+  final String? daretId; // Linked daret (ROSCA) contribution or payout
   final bool isRecurring;
   final String? imagePath;
   final String? expenseSubType; // 'subscription' | 'bill' | null (expense only)
@@ -31,6 +32,7 @@ class Transaction {
     required this.accountId,
     this.toAccountId,
     this.goalId,
+    this.daretId,
     this.isRecurring = false,
     this.imagePath,
     this.expenseSubType,
@@ -48,6 +50,7 @@ class Transaction {
     String? accountId,
     String? toAccountId,
     String? goalId,
+    String? daretId,
     bool? isRecurring,
     String? imagePath,
     String? expenseSubType,
@@ -64,6 +67,7 @@ class Transaction {
       accountId: accountId ?? this.accountId,
       toAccountId: toAccountId ?? this.toAccountId,
       goalId: goalId ?? this.goalId,
+      daretId: daretId ?? this.daretId,
       isRecurring: isRecurring ?? this.isRecurring,
       imagePath: imagePath ?? this.imagePath,
       expenseSubType: expenseSubType ?? this.expenseSubType,
@@ -83,6 +87,7 @@ class Transaction {
       'accountId': accountId,
       'toAccountId': toAccountId,
       'goalId': goalId,
+      'daretId': daretId,
       'isRecurring': isRecurring,
       'imagePath': imagePath,
       'expenseSubType': expenseSubType,
@@ -102,6 +107,7 @@ class Transaction {
       accountId: json['accountId'],
       toAccountId: json['toAccountId'],
       goalId: json['goalId'],
+      daretId: json['daretId'],
       isRecurring: json['isRecurring'] ?? false,
       imagePath: json['imagePath'],
       expenseSubType: json['expenseSubType'],

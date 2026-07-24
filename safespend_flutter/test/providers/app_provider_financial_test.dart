@@ -425,4 +425,113 @@ void main() {
       isTrue,
     );
   });
+
+  group('Daret payout processing (T4)', () {
+    Daret daret({
+      List<int> payoutMonths = const [1],
+      int totalShares = 3,
+      required String startDate,
+      int lastPayoutMonthProcessed = 0,
+    }) {
+      return Daret(
+        id: 'daret',
+        name: 'Daret',
+        contributionPerShare: 100,
+        totalShares: totalShares,
+        payoutMonths: payoutMonths,
+        startDate: startDate,
+        paymentSourceId: 'source',
+        destinationAccountId: 'destination',
+        lastPayoutMonthProcessed: lastPayoutMonthProcessed,
+      );
+    }
+
+    test('credits the destination once for a due payout month', () {
+      final now = DateTime.now();
+      final provider = createProvider()
+        ..addAccount(account('source', 1000))
+        ..addAccount(account('destination', 100))
+        ..addDaret(daret(
+          startDate: DateTime(now.year, now.month, 1).toIso8601String(),
+        ));
+
+      provider.processDaretPayouts();
+
+      // singlePayoutAmount = contributionPerShare(100) * totalShares(3) = 300.
+      expect(balanceOf(provider, 'destination'), 400);
+      final payouts =
+          provider.transactions.where((t) => t.type == 'daret_payout').toList();
+      expect(payouts, hasLength(1));
+      expect(payouts.single.daretId, 'daret');
+    });
+
+    test('re-running never duplicates a payout (idempotent)', () {
+      final now = DateTime.now();
+      final provider = createProvider()
+        ..addAccount(account('source', 1000))
+        ..addAccount(account('destination', 100))
+        ..addDaret(daret(
+          startDate: DateTime(now.year, now.month, 1).toIso8601String(),
+        ));
+
+      provider.processDaretPayouts();
+      provider.processDaretPayouts();
+      provider.processDaretPayouts();
+
+      expect(balanceOf(provider, 'destination'), 400);
+      expect(
+        provider.transactions.where((t) => t.type == 'daret_payout'),
+        hasLength(1),
+      );
+    });
+
+    test('deleting a payout transaction reverses the credit and watermark', () {
+      final now = DateTime.now();
+      final provider = createProvider()
+        ..addAccount(account('source', 1000))
+        ..addAccount(account('destination', 100))
+        ..addDaret(daret(
+          startDate: DateTime(now.year, now.month, 1).toIso8601String(),
+        ));
+
+      provider.processDaretPayouts();
+      expect(balanceOf(provider, 'destination'), 400);
+
+      final payout =
+          provider.transactions.firstWhere((t) => t.type == 'daret_payout');
+      provider.deleteTransaction(payout.id);
+
+      // Destination balance restored.
+      expect(balanceOf(provider, 'destination'), 100);
+      // Watermark rolled back so the payout can regenerate.
+      final d = provider.darets.firstWhere((x) => x.id == 'daret');
+      expect(d.lastPayoutMonthProcessed, 0);
+
+      provider.processDaretPayouts();
+      expect(balanceOf(provider, 'destination'), 400);
+      expect(
+        provider.transactions.where((t) => t.type == 'daret_payout'),
+        hasLength(1),
+      );
+    });
+
+    test('a future payout month is not processed yet', () {
+      final now = DateTime.now();
+      final provider = createProvider()
+        ..addAccount(account('source', 1000))
+        ..addAccount(account('destination', 100))
+        ..addDaret(daret(
+          payoutMonths: const [2],
+          startDate: DateTime(now.year, now.month, 1).toIso8601String(),
+        ));
+
+      provider.processDaretPayouts();
+
+      expect(balanceOf(provider, 'destination'), 100);
+      expect(
+        provider.transactions.where((t) => t.type == 'daret_payout'),
+        isEmpty,
+      );
+    });
+  });
 }

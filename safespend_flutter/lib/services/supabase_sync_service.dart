@@ -550,6 +550,7 @@ class SupabaseSyncService {
         'account_id': t.accountId.isEmpty ? null : t.accountId,
         'to_account_id': t.toAccountId,
         'goal_id': t.goalId,
+        'daret_id': t.daretId,
         'type': t.type,
         'amount': t.amount,
         'category_id': t.categoryId,
@@ -571,6 +572,7 @@ class SupabaseSyncService {
         accountId: t['account_id'] ?? '',
         toAccountId: t['to_account_id'],
         goalId: t['goal_id'],
+        daretId: t['daret_id'],
         categoryId: t['category_id'],
         note: t['note'],
         description: t['description'],
@@ -584,7 +586,7 @@ class SupabaseSyncService {
     Map<String, dynamic> row,
   ) {
     final message = error.toString().toLowerCase();
-    for (final column in const ['description', 'goal_id']) {
+    for (final column in const ['description', 'goal_id', 'daret_id']) {
       if (row.containsKey(column) &&
           message.contains(column) &&
           message.contains('column')) {

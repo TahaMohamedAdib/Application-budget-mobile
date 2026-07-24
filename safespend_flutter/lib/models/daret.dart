@@ -13,6 +13,10 @@ class Daret {
   final int paymentDay; // day of month for contributions (1–28)
   final bool isActive;
 
+  /// Highest daret month (1-based) for which a payout transaction has already
+  /// been generated. Persisted so restarting the app never duplicates payouts.
+  final int lastPayoutMonthProcessed;
+
   Daret({
     required this.id,
     required this.name,
@@ -25,6 +29,7 @@ class Daret {
     required this.destinationAccountId,
     this.paymentDay = 1,
     this.isActive = true,
+    this.lastPayoutMonthProcessed = 0,
   });
 
   // ── Calculations ──────────────────────────────────────────────
@@ -65,9 +70,26 @@ class Daret {
   /// Total already paid so far
   double get totalPaidSoFar => currentMonth * monthlyPayment;
 
-  /// Total received so far (payouts in months <= currentMonth)
+  /// Total actually received so far: payouts whose month has been processed
+  /// (i.e. a real `daret_payout` transaction credited an account). This reflects
+  /// account balances rather than the calendar, so the screen never shows money
+  /// that was never received. Falls back to the calendar view for legacy darets
+  /// that predate payout processing (lastPayoutMonthProcessed == 0 while the
+  /// cycle has already advanced past a scheduled payout).
   double get totalReceivedSoFar {
-    return payoutMonths.where((m) => m <= currentMonth).length * singlePayoutAmount;
+    final effectiveMonth = lastPayoutMonthProcessed > 0
+        ? lastPayoutMonthProcessed
+        : currentMonth;
+    return payoutMonths.where((m) => m <= effectiveMonth).length *
+        singlePayoutAmount;
+  }
+
+  /// Payout months that are due (<= currentMonth) but not yet processed.
+  List<int> get pendingPayoutMonths {
+    return payoutMonths
+        .where((m) => m <= currentMonth && m > lastPayoutMonthProcessed)
+        .toList()
+      ..sort();
   }
 
   /// Next payout month (0 if none remaining)
@@ -93,6 +115,7 @@ class Daret {
     String? destinationAccountId,
     int? paymentDay,
     bool? isActive,
+    int? lastPayoutMonthProcessed,
   }) {
     return Daret(
       id: id ?? this.id,
@@ -106,6 +129,8 @@ class Daret {
       destinationAccountId: destinationAccountId ?? this.destinationAccountId,
       paymentDay: paymentDay ?? this.paymentDay,
       isActive: isActive ?? this.isActive,
+      lastPayoutMonthProcessed:
+          lastPayoutMonthProcessed ?? this.lastPayoutMonthProcessed,
     );
   }
 
@@ -122,6 +147,7 @@ class Daret {
       'destinationAccountId': destinationAccountId,
       'paymentDay': paymentDay,
       'isActive': isActive,
+      'lastPayoutMonthProcessed': lastPayoutMonthProcessed,
     };
   }
 
@@ -138,6 +164,7 @@ class Daret {
       destinationAccountId: json['destinationAccountId'],
       paymentDay: json['paymentDay'] as int? ?? 1,
       isActive: json['isActive'] ?? true,
+      lastPayoutMonthProcessed: json['lastPayoutMonthProcessed'] as int? ?? 0,
     );
   }
 

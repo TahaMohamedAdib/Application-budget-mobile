@@ -211,7 +211,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     // Check every minute for subscriptions that have become due
     _subscriptionTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
-      Provider.of<AppProvider>(context, listen: false).processSubscriptions();
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      provider.processSubscriptions();
+      provider.processDaretPayouts();
     });
   }
 
