@@ -1106,3 +1106,70 @@ Android 13+, et planification depuis les factures/abonnements existants
   diagnostic (une entrée en moins suite au retrait du dialogue).
 - `flutter test --no-pub` : **61 tests réussis, 100 % vert** (maps i18n des
   16 langues toujours valides).
+
+## Phase 5 — Rapport final — 2026-07-24
+
+### Statut par tâche
+
+| Tâche | Statut | Note |
+|---|---|---|
+| Section B (prérequis) | ✅ | Restaurée puis vérifiée (B1/B2) avant T0. |
+| T0 — tests non-régression | ✅ | Filet financier via API publique + seam `autoLoad`. |
+| T1 — proxy IA (clé retirée) | ✅ code | Déploiement fonction + secret = humain. |
+| T2 — URLs signées | ✅ code | Passage buckets en privé = migration/humain. |
+| T3 — limites fichiers 10 Mo | ✅ | Entièrement client, 16 langues. |
+| T4 — Daret branché | ✅ code | Colonne `daret_id` sans FK (darets locaux). |
+| T5 — conflits de sync | ✅ code | Résolveur pur + `Account` de référence ; autres modèles = déploiement staged. |
+| T6 — course de chargement | ✅ | `_localLoadFuture` attendu avant le load distant. |
+| T7 — copyWith effaçable | ✅ | `Transaction` + `Account` ; corrige un bug latent `daretId`. |
+| T8 — pagination | ✅ | `ListView.builder` + `loadTransactions` par lots de 500. |
+| T9 — rebuilds ciblés | ✅ | `transactions_screen` via `Selector` ; `today_screen` documenté. |
+| T10 — toggle notifications | ✅ | Retrait UI + clés i18n mortes. |
+
+### Écarts constatés entre le plan et le code réel
+
+1. **Section B absente au départ** de `c22904bf` (le plan la disait déjà
+   présente). Restaurée sur autorisation humaine avant T0.
+2. **Aucune table Daret en Postgres** (T4) : la FK prévue était impossible.
+   Décision humaine : colonne `daret_id` nullable sans FK, darets restent locaux.
+3. **`totalReceivedSoFar` calendaire** (T4) : re-basé sur les payouts réellement
+   traités (filigrane persisté), sur décision humaine.
+
+### Décisions et justifications
+
+- T5 livré comme noyau pur + référence `Account` : sans base live pour valider,
+  câbler read-before-write sur 7 tables aurait été risqué. La migration pose
+  `updated_at` + trigger partout ; le client s'étend au même patron ensuite.
+- T9 limité à `transactions_screen` : `today_screen` lit trop largement le
+  provider pour une sélection fine sans le découpage interdit par le plan.
+- T7 limité à `Transaction`/`Account` : seuls modèles avec un besoin
+  d'effacement réel ; audit = 0 appel `copyWith(champ: null)` existant.
+
+### Baseline vs final
+
+- `flutter analyze` : **568 → 554 issues**, **0 erreur** (37 warnings).
+- `flutter test` : **1 échec initial → 61 tests, 100 % vert**.
+
+### Étapes humaines restantes (récapitulatif)
+
+1. **Migrations SQL** (SQL Editor / CLI Supabase), dans l'ordre de `MIGRATIONS.md` :
+   `…goal_id` → `…secure_financial_storage` → `…daret_id` → `…updated_at_sync`,
+   plus les deux migrations antérieures « À VÉRIFIER ».
+2. **T1** : `supabase secrets set GEMINI_API_KEY=…` puis
+   `supabase functions deploy chat` (sans `--no-verify-jwt`) ; révoquer/roter la
+   clé embarquée dans d'anciens APK.
+3. **T2** : passer les buckets `receipts`/`logos` en privé (fait par la migration
+   ou le dashboard) + policies Storage.
+4. **T9** : vérifications visuelles sur appareil (checklist section T9).
+5. **T3/T5/T7** : vérifications visuelles clair/sombre des écrans touchés.
+
+### Risques résiduels connus
+
+- Les darets ne sont pas synchronisés (choix assumé) : changement d'appareil =
+  perte de l'état daret + filigrane.
+- T5 : la détection de conflit read-before-write n'est active que sur `accounts`
+  côté client ; les autres entités sont protégées au niveau serveur mais pas
+  encore côté client.
+- T8 : virtualisation de mise en page (pas de construction paresseuse complète
+  ni d'infinite-scroll UI).
+- Les anciennes transactions à id timestamp ne sont pas migrées automatiquement.
