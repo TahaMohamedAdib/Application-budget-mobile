@@ -35,6 +35,10 @@ Ordre chronologique des fichiers avec préfixe timestamp :
   persistés côté client (SharedPreferences) ; aucune table Postgres `darets`
   n'est créée, donc pas de FK. Le client tolère l'absence de la colonne tant
   que la migration n'est pas appliquée.
+- [ ] `20260723100000_add_updated_at_sync.sql` — appliquée en production :
+  **NON** (T5) — ajoute `updated_at timestamptz NOT NULL DEFAULT now()` sur
+  chaque table synchronisée existante + un trigger `BEFORE UPDATE` commun
+  (`public.set_updated_at`). Idempotent ; ignore les tables absentes.
 
 Fichier sans préfixe timestamp :
 
@@ -99,7 +103,9 @@ Ordre provisoire à confirmer par l'humain avant exécution :
 5. appliquer `20260723090000_add_transaction_daret_id.sql` (T4) — colonne
    nullable sans FK ; jusque-là le client sauvegarde la transaction sans
    `daret_id` grâce à la garde défensive ;
-6. positionner manuellement `ai_conversations_and_projects.sql`, dont le nom ne
+6. appliquer `20260723100000_add_updated_at_sync.sql` (T5) — colonnes
+   `updated_at` + trigger sur les tables synchronisées ;
+7. positionner manuellement `ai_conversations_and_projects.sql`, dont le nom ne
    fournit aucun ordre chronologique.
 
 Les migrations T4 et T5 seront ajoutées plus tard à cette liste. Conserver les

@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'supabase_config.dart';
 import 'storage_url_resolver.dart';
+import 'sync_conflict.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
 import '../models/goal.dart';
@@ -448,7 +449,7 @@ class SupabaseSyncService {
         'debt_payment_amount': a.debtPaymentAmount,
         'debt_payment_day': a.debtPaymentDay,
         'debt_payment_source_id': a.debtPaymentSourceId,
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': a.updatedAt ?? DateTime.now().toIso8601String(),
       };
 
   static Account _rowToAccount(Map<String, dynamic> a) => Account(
@@ -467,6 +468,7 @@ class SupabaseSyncService {
         debtPaymentAmount: (a['debt_payment_amount'] as num?)?.toDouble(),
         debtPaymentDay: a['debt_payment_day'] as int?,
         debtPaymentSourceId: a['debt_payment_source_id'] as String?,
+        updatedAt: a['updated_at'] as String?,
       );
 
   static Future<List<Account>> loadAccounts(String userId) async {
@@ -483,7 +485,52 @@ class SupabaseSyncService {
     }
   }
 
+  static const SyncConflictResolver _conflictResolver = SyncConflictResolver();
+
+  /// Reads the remote `updated_at` for a row and decides whether the local
+  /// write should proceed (last-write-wins). Returns true to apply local.
+  /// Any read failure defaults to applying local (fail-open, matches prior
+  /// behaviour) so conflict detection never blocks a legitimate save.
+  static Future<bool> _shouldApplyLocalWrite({
+    required String table,
+    required String userId,
+    required String id,
+    required String? localUpdatedAt,
+    required String entity,
+  }) async {
+    try {
+      final remote = await _db
+          .from(table)
+          .select('updated_at')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
+      final remoteUpdatedAt = remote?['updated_at'] as String?;
+      final resolution = _conflictResolver.resolve(
+        localUpdatedAt: localUpdatedAt,
+        remoteUpdatedAt: remoteUpdatedAt,
+        entity: entity,
+        id: id,
+      );
+      return resolution == SyncResolution.applyLocal;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            '[Sync conflict] $entity id=$id: remote read failed ($e); applying local.');
+      }
+      return true;
+    }
+  }
+
   static Future<void> _saveAccountRemote(String userId, Account account) async {
+    final applyLocal = await _shouldApplyLocalWrite(
+      table: 'accounts',
+      userId: userId,
+      id: account.id,
+      localUpdatedAt: account.updatedAt,
+      entity: 'account',
+    );
+    if (!applyLocal) return;
     await _db.from('accounts').upsert(_accountToRow(userId, account));
   }
 

@@ -21,6 +21,9 @@ class Account {
   final int? debtPaymentDay;          // day of month (1–31)
   final String? debtPaymentSourceId;  // account ID to debit from
 
+  /// Last local mutation time (ISO-8601). Used for sync conflict resolution.
+  final String? updatedAt;
+
   Account({
     required this.id,
     required this.name,
@@ -37,6 +40,7 @@ class Account {
     this.debtPaymentAmount,
     this.debtPaymentDay,
     this.debtPaymentSourceId,
+    this.updatedAt,
   });
 
   Account copyWith({
@@ -55,6 +59,7 @@ class Account {
     double? debtPaymentAmount,
     int? debtPaymentDay,
     String? debtPaymentSourceId,
+    String? updatedAt,
   }) {
     return Account(
       id: id ?? this.id,
@@ -72,6 +77,9 @@ class Account {
       debtPaymentAmount: debtPaymentAmount ?? this.debtPaymentAmount,
       debtPaymentDay: debtPaymentDay ?? this.debtPaymentDay,
       debtPaymentSourceId: debtPaymentSourceId ?? this.debtPaymentSourceId,
+      // A copyWith call represents a local mutation → refresh the sync stamp
+      // unless the caller pins it explicitly (e.g. restoring from remote).
+      updatedAt: updatedAt ?? DateTime.now().toIso8601String(),
     );
   }
 
@@ -92,6 +100,7 @@ class Account {
       'debtPaymentAmount': debtPaymentAmount,
       'debtPaymentDay': debtPaymentDay,
       'debtPaymentSourceId': debtPaymentSourceId,
+      'updatedAt': updatedAt,
     };
   }
 
@@ -112,6 +121,7 @@ class Account {
       debtPaymentAmount: (json['debtPaymentAmount'] as num?)?.toDouble(),
       debtPaymentDay: json['debtPaymentDay'] as int?,
       debtPaymentSourceId: json['debtPaymentSourceId'] as String?,
+      updatedAt: json['updatedAt'],
     );
   }
 

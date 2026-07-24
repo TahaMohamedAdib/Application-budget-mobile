@@ -808,3 +808,73 @@ persistés uniquement dans SharedPreferences. Décisions validées par l'humain 
   `processDaretPayouts` générera les payouts dus jusqu'au mois courant (repli
   calendaire pour l'affichage jusque-là). Vérifier ce comportement sur un jeu de
   données réel avant diffusion large.
+
+## T5 — détection des conflits de synchronisation — 2026-07-24
+
+### Statut
+
+**TERMINÉ CÔTÉ CODE (noyau + référence Account) — déploiement staged documenté.**
+
+### Portée décidée
+
+Détection + last-write-wins par horodatage + log explicite. Pas de merge champ à
+champ. Le cœur est une **fonction de décision pure** testée unitairement ; le
+câblage read-before-write est implémenté sur `accounts` comme référence, et
+étendu progressivement aux autres modèles mutables.
+
+### Fichiers modifiés / créés
+
+- `lib/services/sync_conflict.dart` (nouveau — résolveur pur)
+- `lib/models/account.dart`
+- `lib/services/supabase_sync_service.dart`
+- `supabase_migrations/20260723100000_add_updated_at_sync.sql` (nouveau)
+- `test/services/sync_conflict_test.dart` (nouveau)
+- `MIGRATIONS.md`, `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- `SyncConflictResolver.resolve(...)` : décision pure `applyLocal` / `keepRemote`
+  à partir des `updated_at` local et distant. Le plus récent gagne ;
+  égalité → local (une sauvegarde en cours n'est jamais perdue) ; horodatage
+  manquant/illisible → local (fail-open, comportement historique) avec log en
+  debug ; normalisation UTC avant comparaison.
+- `Account.updatedAt` (ISO-8601) ajouté : champ + constructeur + copyWith +
+  toJson/fromJson + mapping `updated_at`. `copyWith` rafraîchit `updatedAt` à
+  `now()` par défaut (toute mutation), sauf valeur épinglée explicitement
+  (restauration depuis le distant). `_rowToAccount` relit `updated_at` pour que
+  le modèle chargé porte l'horodatage serveur.
+- `_saveAccountRemote` lit d'abord `updated_at` distant (`select` léger par id)
+  et n'upserte que si le résolveur renvoie `applyLocal` ; sinon la version
+  distante plus récente est conservée. Toute erreur de lecture → applique local
+  (fail-open) pour ne jamais bloquer une sauvegarde légitime.
+- Migration : `updated_at timestamptz NOT NULL DEFAULT now()` + trigger
+  `BEFORE UPDATE` commun `public.set_updated_at` sur les 9 tables synchronisées
+  existantes (idempotent, saute les tables absentes).
+
+### Décisions et limites connues
+
+- **Modèle de référence = `Account`.** Les autres modèles mutables (`Goal`,
+  budgets, `Holding`, dettes, `Category`, `Transaction`) ne portent pas encore
+  `updatedAt` côté client : leur write ne fait pas encore de read-before-write.
+  Ils restent néanmoins protégés côté serveur (colonne + trigger `updated_at`
+  posés par la migration), et l'extension suit exactement le même patron que
+  `Account`. C'est un déploiement progressif assumé, pas un oubli.
+- Le résolveur ne fusionne pas les champs : un conflit fait gagner un
+  enregistrement entier. Conforme à la portée décidée.
+
+### Vérifications
+
+- `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
+  diagnostic vs baseline (568).
+- `flutter test --no-pub` : **53 tests réussis, 100 % vert** (8 tests de la
+  fonction de décision : local récent, distant récent, égalité, sans distant,
+  local manquant, deux manquants, distant illisible, fuseaux horaires).
+- Les tests financiers existants restent verts malgré le rafraîchissement
+  automatique de `Account.updatedAt` dans `copyWith`.
+
+### Étapes humaines
+
+- Appliquer `20260723100000_add_updated_at_sync.sql` (voir `MIGRATIONS.md`).
+- Étendre `updatedAt` aux autres modèles mutables en suivant le patron
+  `Account` lorsque la synchronisation multi-appareils de ces entités devient
+  prioritaire.
