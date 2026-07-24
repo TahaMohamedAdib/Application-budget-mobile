@@ -339,10 +339,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               ],
                             ),
                           )
-                        : ListView(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-                            children: _buildTransactionGroups(
-                                filteredTransactions, provider, context, s),
+                        : Builder(
+                            builder: (context) {
+                              final rows = _buildTransactionGroups(
+                                  filteredTransactions, provider, context, s);
+                              return ListView.builder(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 110),
+                                itemCount: rows.length,
+                                itemBuilder: (context, index) => rows[index],
+                              );
+                            },
                           ),
                   ),
                 ],

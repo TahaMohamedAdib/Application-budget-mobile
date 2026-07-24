@@ -969,3 +969,42 @@ valeur, exactement comme avant.
 - `flutter test --no-pub` : **61 tests réussis, 100 % vert** (8 tests
   d'effacement ajoutés ; les 45 tests financiers, qui exercent de nombreux
   `copyWith`, restent verts → changement préservant le comportement).
+
+## T8 — pagination / virtualisation des listes — 2026-07-24
+
+### Statut
+
+**TERMINÉ.**
+
+### Fichiers modifiés
+
+- `lib/screens/transactions_screen.dart`
+- `lib/services/supabase_sync_service.dart`
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- `transactions_screen` : le `ListView(children: _buildTransactionGroups(...))`
+  devient `ListView.builder` (itemCount + itemBuilder par index sur la liste de
+  widgets groupés par date). Les seules lignes visibles sont mises en page /
+  peintes. Zéro changement visuel (mêmes en-têtes de date et cartes groupées).
+- `loadTransactions` : chargement par lots via `.range(offset, offset+499)` avec
+  tri stable `date` puis `id`, en boucle jusqu'à épuisement (page < 500). Le
+  total chargé est loggé. Comportement final identique (tout est chargé), sans
+  requête monolithique ; une erreur en cours de pagination renvoie ce qui a déjà
+  été récupéré au lieu d'une perte totale.
+
+### Décisions / limites
+
+- `_buildTransactionGroups` construit encore la liste de widgets en amont (le
+  `.map` s'exécute), donc la virtualisation porte sur la mise en page/peinture,
+  pas sur la construction. Aplatir chaque transaction en items de builder
+  individuels serait un chantier plus large risquant la mise en forme des cartes
+  groupées ; hors périmètre T8 (le vrai infinite-scroll UI est explicitement
+  reporté par le plan).
+
+### Vérifications
+
+- `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
+  diagnostic.
+- `flutter test --no-pub` : **61 tests réussis, 100 % vert**.

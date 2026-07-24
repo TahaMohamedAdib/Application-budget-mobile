@@ -644,16 +644,32 @@ class SupabaseSyncService {
   }
 
   static Future<List<Transaction>> loadTransactions(String userId) async {
+    const int pageSize = 500;
+    final result = <Transaction>[];
     try {
-      final data = await _db
-          .from('transactions')
-          .select()
-          .eq('user_id', userId)
-          .order('date', ascending: true);
-      return data.map<Transaction>(_rowToTransaction).toList();
+      var offset = 0;
+      while (true) {
+        // Stable ordering (date, then id) so ranged pages never overlap or skip.
+        final page = await _db
+            .from('transactions')
+            .select()
+            .eq('user_id', userId)
+            .order('date', ascending: true)
+            .order('id', ascending: true)
+            .range(offset, offset + pageSize - 1);
+
+        result.addAll(page.map<Transaction>(_rowToTransaction));
+        if (page.length < pageSize) break; // last page reached
+        offset += pageSize;
+      }
+      if (kDebugMode) {
+        debugPrint('[Supabase] Loaded ${result.length} transactions (paged).');
+      }
+      return result;
     } catch (e) {
       if (kDebugMode) debugPrint('[Supabase] Error loading transactions: $e');
-      return [];
+      // Return whatever was fetched so a late-page failure isn't total loss.
+      return result;
     }
   }
 
