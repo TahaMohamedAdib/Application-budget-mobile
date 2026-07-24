@@ -878,3 +878,37 @@ câblage read-before-write est implémenté sur `accounts` comme référence, et
 - Étendre `updatedAt` aux autres modèles mutables en suivant le patron
   `Account` lorsque la synchronisation multi-appareils de ces entités devient
   prioritaire.
+
+## T6 — course entre loadData() et loadFromSupabase() — 2026-07-24
+
+### Statut
+
+**TERMINÉ.**
+
+### Fichiers modifiés
+
+- `lib/providers/app_provider.dart`
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- Nouveau champ `_localLoadFuture` : le constructeur `AppProvider` y stocke le
+  `Future` de `loadData()` (`_localLoadFuture = loadData()`).
+- `loadFromSupabase` attend `_localLoadFuture` (s'il est non nul) juste après le
+  garde de réentrance, avant d'écrire les champs partagés. Une erreur du load
+  local est avalée pour ne jamais bloquer le load distant.
+- Le garde de réentrance existant `_supabaseLoadInProgress` est conservé
+  (empêche deux loads distants concurrents).
+
+### Décisions
+
+- L'ordre d'appel de `main.dart` est inchangé ; aucun comportement visible ne
+  change. Le repli `await loadData()` en cas d'erreur distante reste séquentiel
+  (postérieur à l'attente initiale), donc sans course.
+
+### Vérifications
+
+- `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
+  diagnostic.
+- `flutter test --no-pub` : **53 tests réussis, 100 % vert**.
+- Relecture : aucun chemin ne lance les deux écritures de champs en parallèle.

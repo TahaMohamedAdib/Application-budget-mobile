@@ -82,6 +82,10 @@ class AppProvider with ChangeNotifier {
   bool _supabaseDataLoaded = false;
   bool _supabaseLoadInProgress = false;
 
+  /// The in-flight (or completed) local load, so the remote load can await it
+  /// before writing shared fields — prevents loadData/loadFromSupabase races.
+  Future<void>? _localLoadFuture;
+
   bool _setupComplete = false;
   String? _selectedAccountId; // null = all accounts (shared across screens)
 
@@ -126,7 +130,7 @@ class AppProvider with ChangeNotifier {
 
   AppProvider({bool autoLoad = true}) {
     if (autoLoad) {
-      loadData();
+      _localLoadFuture = loadData();
     }
   }
 
@@ -141,6 +145,16 @@ class AppProvider with ChangeNotifier {
   Future<void> loadFromSupabase(String userId) async {
     if (_supabaseLoadInProgress) return;
     _supabaseLoadInProgress = true;
+
+    // Ensure any in-flight local load finishes first, so the two loads never
+    // write the same fields concurrently (T6). A failed local load must not
+    // block the remote load.
+    if (_localLoadFuture != null) {
+      try {
+        await _localLoadFuture;
+      } catch (_) {}
+    }
+
     _isLoading = true;
     notifyListeners();
 
