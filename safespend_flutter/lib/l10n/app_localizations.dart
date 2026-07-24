@@ -174,9 +174,6 @@ class S {
   String get language => _t('language');
   String get selectLanguage => _t('selectLanguage');
   String get account => _t('account');
-  String get notifications => _t('notifications');
-  String get pushNotifications => _t('pushNotifications');
-  String get remindersForBills => _t('remindersForBills');
   String get privacy => _t('privacy');
   String get privacyDesc => _t('privacyDesc');
   String get helpAndSupport => _t('helpAndSupport');

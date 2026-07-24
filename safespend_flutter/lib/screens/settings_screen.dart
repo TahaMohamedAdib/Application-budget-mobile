@@ -162,8 +162,6 @@ class SettingsScreen extends StatelessWidget {
                           children: [
                             _buildMenuItem(context, icon: Icons.person_rounded, label: s.account, onTap: () => _showAccountDialog(context)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.notifications_rounded, label: s.notifications, onTap: () => _showNotificationsDialog(context, provider)),
-                            Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
                             _buildMenuItem(context, icon: Icons.shield_rounded, label: s.privacy, onTap: () => _showPrivacyDialog(context)),
                             Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
                             _buildMenuItem(context, icon: Icons.help_outline_rounded, label: s.helpAndSupport, onTap: () => _showHelpDialog(context)),
@@ -265,40 +263,6 @@ class SettingsScreen extends StatelessWidget {
 
   void _showAccountDialog(BuildContext context) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen()));
-  }
-
-  void _showNotificationsDialog(BuildContext context, AppProvider provider) {
-    final s = S.of(context);
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(children: [
-            const Icon(Icons.notifications_rounded, color: AppTheme.brandPrimary),
-            const SizedBox(width: 10),
-            Text(s.notifications, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-          ]),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                value: provider.settings.notificationsEnabled ?? true,
-                onChanged: (v) {
-                  provider.updateSettings(provider.settings.copyWith(notificationsEnabled: v));
-                  setS(() {});
-                },
-                title: Text(s.pushNotifications),
-                subtitle: Text(s.remindersForBills),
-                activeColor: AppTheme.brandPrimary,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.done))],
-        ),
-      ),
-    );
   }
 
   void _showPrivacyDialog(BuildContext context) {

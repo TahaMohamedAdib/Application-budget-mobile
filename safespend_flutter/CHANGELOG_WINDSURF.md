@@ -1059,3 +1059,50 @@ des transactions** se mettent bien à jour, sans figement :
 - `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
   diagnostic (transactions_screen : 21 → 20).
 - `flutter test --no-pub` : **61 tests réussis, 100 % vert**.
+
+## T10 — retrait du toggle Notifications décoratif — 2026-07-24
+
+### Statut
+
+**TERMINÉ (retrait appliqué par défaut).**
+
+### Constat vérifié
+
+`settings_screen` sauvegardait `notificationsEnabled`, mais aucun package de
+notifications n'est installé (`flutter_local_notifications` absent de
+`pubspec.yaml`) et rien n'était jamais programmé — le réglage mentait à
+l'utilisateur (« Reminders for bills and budgets »).
+
+### Fichiers modifiés
+
+- `lib/screens/settings_screen.dart`
+- `lib/l10n/app_localizations.dart`
+- `lib/l10n/translations_core.dart`
+- `lib/l10n/translations_extra.dart`
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- Retrait du contrôle de l'UI : l'entrée de menu « Notifications » et sa
+  `Divider`, ainsi que la méthode `_showNotificationsDialog` (dialogue +
+  `SwitchListTile`), sont supprimées.
+- La clé SharedPreferences orpheline `notificationsEnabled` (modèle `Settings`)
+  est **conservée** — sans danger, rétrocompatible.
+- Clés i18n devenues réellement mortes supprimées dans les 16 langues +
+  getters : `notifications`, `pushNotifications`, `remindersForBills`
+  (0 usage restant hors `Settings`).
+
+### Décision et réintroduction
+
+Retrait appliqué par défaut (conforme au plan). Une vraie réintroduction serait
+une feature à part entière : `flutter_local_notifications`, permissions iOS +
+Android 13+, et planification depuis les factures/abonnements existants
+(`processSubscriptions`).
+
+### Vérifications
+
+- `grep` des 3 getters hors `Settings`/l10n : **0 occurrence**.
+- `flutter analyze --no-pub` : **554 issues**, 0 erreur, aucun nouveau
+  diagnostic (une entrée en moins suite au retrait du dialogue).
+- `flutter test --no-pub` : **61 tests réussis, 100 % vert** (maps i18n des
+  16 langues toujours valides).

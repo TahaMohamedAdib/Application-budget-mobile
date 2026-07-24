@@ -16,8 +16,6 @@ const translationsCore = <String, Map<String, String>>{
     'selectCurrency': 'Select Currency', 'searchCurrency': 'Search currency...',
     'noCurrenciesFound': 'No currencies found', 'language': 'Language',
     'selectLanguage': 'Select Language', 'account': 'Account',
-    'notifications': 'Notifications', 'pushNotifications': 'Push Notifications',
-    'remindersForBills': 'Reminders for bills and budgets',
     'privacy': 'Privacy',
     'privacyDesc':
         'Your financial data is stored securely with row-level security. Only you can access your data.\n\nNo data is shared with third parties.',
@@ -372,9 +370,6 @@ const translationsCore = <String, Map<String, String>>{
     'language': 'Langue',
     'selectLanguage': 'Choisir la langue',
     'account': 'Compte',
-    'notifications': 'Notifications',
-    'pushNotifications': 'Notifications push',
-    'remindersForBills': 'Rappels pour factures et budgets',
     'privacy': 'Confidentialité',
     'privacyDesc':
         'Vos données financières sont stockées de manière sécurisée. Seul vous pouvez y accéder.\n\nAucune donnée n\'est partagée avec des tiers.',
@@ -827,9 +822,6 @@ const translationsCore = <String, Map<String, String>>{
     'language': 'اللغة',
     'selectLanguage': 'اختر اللغة',
     'account': 'الحساب',
-    'notifications': 'الإشعارات',
-    'pushNotifications': 'الإشعارات الفورية',
-    'remindersForBills': 'تذكيرات بالفواتير والميزانيات',
     'privacy': 'الخصوصية',
     'privacyDesc':
         'بياناتك المالية مخزنة بشكل آمن. أنت وحدك من يمكنه الوصول إليها.\n\nلا تتم مشاركة أي بيانات مع أطراف ثالثة.',
@@ -1153,9 +1145,6 @@ const translationsCore = <String, Map<String, String>>{
     'language': 'Idioma',
     'selectLanguage': 'Seleccionar idioma',
     'account': 'Cuenta',
-    'notifications': 'Notificaciones',
-    'pushNotifications': 'Notificaciones push',
-    'remindersForBills': 'Recordatorios de facturas',
     'privacy': 'Privacidad',
     'privacyDesc':
         'Tus datos se almacenan de forma segura. Solo tú puedes acceder.\n\nNo se comparten datos con terceros.',
@@ -1593,9 +1582,6 @@ const translationsCore = <String, Map<String, String>>{
     'language': 'Sprache',
     'selectLanguage': 'Sprache wählen',
     'account': 'Konto',
-    'notifications': 'Benachrichtigungen',
-    'pushNotifications': 'Push-Benachrichtigungen',
-    'remindersForBills': 'Erinnerungen für Rechnungen',
     'privacy': 'Datenschutz',
     'privacyDesc':
         'Ihre Finanzdaten werden sicher gespeichert. Nur Sie haben Zugriff.\n\nKeine Daten werden an Dritte weitergegeben.',
@@ -2036,9 +2022,6 @@ const translationsCore = <String, Map<String, String>>{
     'language': 'Idioma',
     'selectLanguage': 'Selecionar idioma',
     'account': 'Conta',
-    'notifications': 'Notificações',
-    'pushNotifications': 'Notificações push',
-    'remindersForBills': 'Lembretes de contas',
     'privacy': 'Privacidade',
     'privacyDesc':
         'Seus dados são armazenados com segurança. Apenas você tem acesso.\n\nNenhum dado é compartilhado.',
