@@ -39,8 +39,24 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return Consumer<AppProvider>(
-      builder: (context, provider, _) {
+    // T9: rebuild only when the data this screen actually reads changes
+    // (transactions, categories, currency) — not on every unrelated
+    // notifyListeners() (e.g. holding price ticks, daret state). The full
+    // provider is still read for the body via context.read.
+    return Selector<AppProvider, ({int txn, int cats, String currency})>(
+      selector: (_, p) => (
+        // Hash id+amount+date+type+category so both add/delete AND in-place
+        // edits of a rendered field trigger a rebuild.
+        txn: Object.hashAll(
+          p.transactions.map(
+            (t) => Object.hash(t.id, t.amount, t.date, t.type, t.categoryId),
+          ),
+        ),
+        cats: p.categories.length,
+        currency: p.settings.currency,
+      ),
+      builder: (context, _, __) {
+        final provider = context.read<AppProvider>();
         // Filter and sort transactions
         var filteredTransactions = provider.transactions.where((t) {
           // Filter by type

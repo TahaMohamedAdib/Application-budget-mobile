@@ -1008,3 +1008,54 @@ valeur, exactement comme avant.
 - `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
   diagnostic.
 - `flutter test --no-pub` : **61 tests réussis, 100 % vert**.
+
+## T9 — rebuilds ciblés (conservateur) — 2026-07-24
+
+### Statut
+
+**TERMINÉ (transactions_screen) — today_screen laissé tel quel, justifié.**
+
+### Fichiers modifiés
+
+- `lib/screens/transactions_screen.dart`
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- `transactions_screen` : le `Consumer<AppProvider>` racine devient un
+  `Selector<AppProvider, (...)>` qui projette une signature légère
+  (hash de `id+amount+date+type+categoryId` de chaque transaction, nombre de
+  catégories, devise). L'écran ne se reconstruit donc que lorsque ces données
+  changent, plus à chaque `notifyListeners()` non lié (tick de prix d'un
+  holding, changement d'état daret, etc.). Le corps lit toujours le provider
+  complet via `context.read<AppProvider>()` — aucune logique modifiée, aucun
+  changement visuel.
+- La signature inclut les champs rendus (montant, date, type, catégorie) et pas
+  seulement les `id`, afin qu'une **édition sur place** d'une transaction
+  déclenche bien un rebuild (évite un bug d'UI obsolète).
+
+### Décision — today_screen non modifié
+
+Le `build` de `today_screen` lit de larges pans du provider (`totalCash`,
+comptes, objectifs, transactions, abonnements, `settings`…). Une sélection fine
+équivaudrait ici à « toute modification » (aucun gain) ou imposerait un
+découpage du fichier — or le plan T9 **interdit explicitement de restructurer**.
+Le `Consumer` racine y est donc conservé volontairement. L'extension propre
+passera par un découpage de l'écran (chantier séparé, hors T9).
+
+### Checklist manuelle (humain, sur appareil)
+
+Après chacune de ces actions, vérifier que le **solde disponible** et la **liste
+des transactions** se mettent bien à jour, sans figement :
+
+1. Ajouter une transaction → la liste et le solde reflètent l'ajout.
+2. Supprimer une transaction (glisser) → disparaît, solde ajusté.
+3. Éditer le montant d'une transaction existante → montant à jour dans la liste.
+4. Changer de thème (clair/sombre) → aucun figement, rendu correct.
+5. Changer de langue → libellés à jour.
+
+### Vérifications
+
+- `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
+  diagnostic (transactions_screen : 21 → 20).
+- `flutter test --no-pub` : **61 tests réussis, 100 % vert**.
