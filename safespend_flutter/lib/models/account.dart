@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+/// Sentinel distinguishing "argument omitted" from an explicit `null` in
+/// [Account.copyWith], so nullable fields can be cleared to null.
+const Object _unset = Object();
+
 class Account {
   final String id;
   final String name;
@@ -48,17 +52,17 @@ class Account {
     String? name,
     String? type,
     double? balance,
-    String? bankName,
-    String? color,
+    Object? bankName = _unset,
+    Object? color = _unset,
     bool? includeInNetWorth,
-    String? imagePath,
-    String? addedAt,
-    double? salaryAmount,
-    int? salaryDay,
-    String? lastSalaryDate,
-    double? debtPaymentAmount,
-    int? debtPaymentDay,
-    String? debtPaymentSourceId,
+    Object? imagePath = _unset,
+    Object? addedAt = _unset,
+    Object? salaryAmount = _unset,
+    Object? salaryDay = _unset,
+    Object? lastSalaryDate = _unset,
+    Object? debtPaymentAmount = _unset,
+    Object? debtPaymentDay = _unset,
+    Object? debtPaymentSourceId = _unset,
     String? updatedAt,
   }) {
     return Account(
@@ -66,17 +70,29 @@ class Account {
       name: name ?? this.name,
       type: type ?? this.type,
       balance: balance ?? this.balance,
-      bankName: bankName ?? this.bankName,
-      color: color ?? this.color,
+      bankName: identical(bankName, _unset) ? this.bankName : bankName as String?,
+      color: identical(color, _unset) ? this.color : color as String?,
       includeInNetWorth: includeInNetWorth ?? this.includeInNetWorth,
-      imagePath: imagePath ?? this.imagePath,
-      addedAt: addedAt ?? this.addedAt,
-      salaryAmount: salaryAmount ?? this.salaryAmount,
-      salaryDay: salaryDay ?? this.salaryDay,
-      lastSalaryDate: lastSalaryDate ?? this.lastSalaryDate,
-      debtPaymentAmount: debtPaymentAmount ?? this.debtPaymentAmount,
-      debtPaymentDay: debtPaymentDay ?? this.debtPaymentDay,
-      debtPaymentSourceId: debtPaymentSourceId ?? this.debtPaymentSourceId,
+      imagePath:
+          identical(imagePath, _unset) ? this.imagePath : imagePath as String?,
+      addedAt: identical(addedAt, _unset) ? this.addedAt : addedAt as String?,
+      salaryAmount: identical(salaryAmount, _unset)
+          ? this.salaryAmount
+          : salaryAmount as double?,
+      salaryDay:
+          identical(salaryDay, _unset) ? this.salaryDay : salaryDay as int?,
+      lastSalaryDate: identical(lastSalaryDate, _unset)
+          ? this.lastSalaryDate
+          : lastSalaryDate as String?,
+      debtPaymentAmount: identical(debtPaymentAmount, _unset)
+          ? this.debtPaymentAmount
+          : debtPaymentAmount as double?,
+      debtPaymentDay: identical(debtPaymentDay, _unset)
+          ? this.debtPaymentDay
+          : debtPaymentDay as int?,
+      debtPaymentSourceId: identical(debtPaymentSourceId, _unset)
+          ? this.debtPaymentSourceId
+          : debtPaymentSourceId as String?,
       // A copyWith call represents a local mutation → refresh the sync stamp
       // unless the caller pins it explicitly (e.g. restoring from remote).
       updatedAt: updatedAt ?? DateTime.now().toIso8601String(),

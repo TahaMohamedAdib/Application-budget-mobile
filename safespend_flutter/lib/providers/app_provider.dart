@@ -1460,22 +1460,7 @@ class AppProvider with ChangeNotifier {
     _transactions = _transactions.map((transaction) {
       if (transaction.categoryId != categoryId) return transaction;
 
-      final detached = Transaction(
-        id: transaction.id,
-        type: transaction.type,
-        amount: transaction.amount,
-        fees: transaction.fees,
-        date: transaction.date,
-        note: transaction.note,
-        description: transaction.description,
-        categoryId: null,
-        accountId: transaction.accountId,
-        toAccountId: transaction.toAccountId,
-        goalId: transaction.goalId,
-        isRecurring: transaction.isRecurring,
-        imagePath: transaction.imagePath,
-        expenseSubType: transaction.expenseSubType,
-      );
+      final detached = transaction.copyWith(categoryId: null);
       changedTransactions.add(detached);
       return detached;
     }).toList();

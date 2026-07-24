@@ -912,3 +912,60 @@ câblage read-before-write est implémenté sur `accounts` comme référence, et
   diagnostic.
 - `flutter test --no-pub` : **53 tests réussis, 100 % vert**.
 - Relecture : aucun chemin ne lance les deux écritures de champs en parallèle.
+
+## T7 — copyWith capable d'effacer un champ (sentinel) — 2026-07-24
+
+### Statut
+
+**TERMINÉ (Transaction + Account) — extension aux autres modèles documentée.**
+
+### Étape 0 — audit des appels copyWith passant null
+
+`grep` de tous les `.copyWith(` de `lib/` avec un champ nullable de modèle mis
+explicitement à `null` : **0 occurrence**. Aucun appel existant ne reposait sur
+l'ancien no-op. Le nouveau comportement (null explicite = effacement) ne casse
+donc sémantiquement aucun appel — les appels qui omettent l'argument gardent la
+valeur, exactement comme avant.
+
+### Fichiers modifiés / créés
+
+- `lib/models/transaction.dart`
+- `lib/models/account.dart`
+- `lib/providers/app_provider.dart` (simplification `deleteCategory`)
+- `test/models/copywith_clear_test.dart` (nouveau)
+- `CHANGELOG_WINDSURF.md`
+
+### Changements
+
+- Sentinel privé `const Object _unset = Object();` par fichier modèle. Les
+  paramètres nullables deviennent `Object? champ = _unset` et le corps utilise
+  `identical(champ, _unset) ? this.champ : champ as T?`. Les champs non
+  nullables conservent `champ ?? this.champ`.
+- `Transaction` : `note`, `description`, `categoryId`, `toAccountId`, `goalId`,
+  `daretId`, `imagePath`, `expenseSubType` peuvent désormais être effacés.
+- `Account` : `bankName`, `color`, `imagePath`, `addedAt`, `salaryAmount`,
+  `salaryDay`, `lastSalaryDate`, `debtPaymentAmount`, `debtPaymentDay`,
+  `debtPaymentSourceId` peuvent être effacés. `updatedAt` conserve sa logique T5
+  (rafraîchi à `now()` par défaut, épinglable).
+- `deleteCategory()` simplifié : la reconstruction manuelle de la transaction
+  (15 lignes) est remplacée par `transaction.copyWith(categoryId: null)`. Cela
+  **corrige un bug latent** : la reconstruction manuelle avait omis `daretId`
+  (ajouté en T4) et l'aurait donc effacé silencieusement lors d'un détachement
+  de catégorie.
+
+### Décisions / limites
+
+- Sentinel appliqué à `Transaction` (besoin réel et testé via `deleteCategory`)
+  et `Account` (champs salaire/dette réellement effaçables). Les modèles
+  `Goal`, `Category`, `RecurringRule`, `Daret`, `Holding` gardent le pattern
+  `?? this.` : aucun appel `copyWith(champ: null)` n'existe pour eux dans la base
+  actuelle. L'extension est mécanique et suit le même patron dès qu'un besoin
+  d'effacement apparaît. Le test n° 6 (`deleteCategory`) reste vert.
+
+### Vérifications
+
+- `flutter analyze --no-pub` : **555 issues**, 0 erreur, aucun nouveau
+  diagnostic.
+- `flutter test --no-pub` : **61 tests réussis, 100 % vert** (8 tests
+  d'effacement ajoutés ; les 45 tests financiers, qui exercent de nombreux
+  `copyWith`, restent verts → changement préservant le comportement).

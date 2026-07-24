@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+/// Sentinel distinguishing "argument omitted" from an explicit `null` in
+/// [Transaction.copyWith], so nullable fields can be cleared to null.
+const Object _unset = Object();
+
 class Transaction {
   final String id;
   final String type; // 'expense', 'income', 'transfer', 'withdrawal'
@@ -44,16 +48,16 @@ class Transaction {
     double? amount,
     double? fees,
     String? date,
-    String? note,
-    String? description,
-    String? categoryId,
+    Object? note = _unset,
+    Object? description = _unset,
+    Object? categoryId = _unset,
     String? accountId,
-    String? toAccountId,
-    String? goalId,
-    String? daretId,
+    Object? toAccountId = _unset,
+    Object? goalId = _unset,
+    Object? daretId = _unset,
     bool? isRecurring,
-    String? imagePath,
-    String? expenseSubType,
+    Object? imagePath = _unset,
+    Object? expenseSubType = _unset,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -61,16 +65,24 @@ class Transaction {
       amount: amount ?? this.amount,
       fees: fees ?? this.fees,
       date: date ?? this.date,
-      note: note ?? this.note,
-      description: description ?? this.description,
-      categoryId: categoryId ?? this.categoryId,
+      note: identical(note, _unset) ? this.note : note as String?,
+      description: identical(description, _unset)
+          ? this.description
+          : description as String?,
+      categoryId:
+          identical(categoryId, _unset) ? this.categoryId : categoryId as String?,
       accountId: accountId ?? this.accountId,
-      toAccountId: toAccountId ?? this.toAccountId,
-      goalId: goalId ?? this.goalId,
-      daretId: daretId ?? this.daretId,
+      toAccountId: identical(toAccountId, _unset)
+          ? this.toAccountId
+          : toAccountId as String?,
+      goalId: identical(goalId, _unset) ? this.goalId : goalId as String?,
+      daretId: identical(daretId, _unset) ? this.daretId : daretId as String?,
       isRecurring: isRecurring ?? this.isRecurring,
-      imagePath: imagePath ?? this.imagePath,
-      expenseSubType: expenseSubType ?? this.expenseSubType,
+      imagePath:
+          identical(imagePath, _unset) ? this.imagePath : imagePath as String?,
+      expenseSubType: identical(expenseSubType, _unset)
+          ? this.expenseSubType
+          : expenseSubType as String?,
     );
   }
 
