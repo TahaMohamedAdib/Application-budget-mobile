@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -196,8 +195,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   /// Gap between the screen bottom and the floating nav pill. iOS parks its
   /// own tab bar *inside* the home-indicator inset rather than above it, so we
   /// do the same instead of clearing the full safe area.
-  double get _navBarBottomInset =>
-      MediaQuery.of(context).padding.bottom > 0 ? 24.0 : 12.0;
+  double get _navBarBottomInset {
+    final inset = MediaQuery.of(context).padding.bottom;
+    if (inset == 0) return 12;
+    // The iOS home indicator and Android gesture bar are thin lines the pill
+    // can sit over. Android 3-button navigation is a real strip of tappable
+    // buttons, so clear it rather than hiding the pill behind them.
+    if (defaultTargetPlatform == TargetPlatform.android && inset > 32) {
+      return inset;
+    }
+    return 24;
+  }
 
   late final List<Widget> _screens;
 
@@ -297,7 +305,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isIOS = Platform.isIOS;
     final navInset = _navBarBottomInset;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -332,7 +339,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           ),
 
           // Quick actions panel — above nav bar + bump
-          if (_selectedIndex != 1 || isIOS)
+          // Shown on every tab, matching iOS.
             AnimatedBuilder(
               animation: _menuAnimation,
               builder: (_, __) {
@@ -352,79 +359,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 );
               },
             ),
-
-          // Bump circle — same color as pill, merges seamlessly with nav bar
-          if (_selectedIndex != 1 && !isIOS)
-            Positioned(
-              bottom: navInset + 16,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ClipOval(
-                  clipBehavior: Clip.antiAlias,
-                  child: Container(
-                    width: 68,
-                    height: 68,
-                    color: isDark
-                        ? AppTheme.darkSurface
-                        : AppTheme.lightBackground,
-                  ),
-                ),
-              ),
-            ),
-
-          // FAB — 25% above pill top edge, crisp anti-aliased circle
-          if (_selectedIndex != 1 && !isIOS)
-            Positioned(
-              bottom: navInset + 22,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: _toggleMenu,
-                  child: AnimatedBuilder(
-                    animation: _menuAnimation,
-                    builder: (_, __) => DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.success.withOpacity(0.4),
-                            blurRadius: 16,
-                            spreadRadius: 1,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        clipBehavior: Clip.antiAlias,
-                        child: Container(
-                          width: 56,
-                          height: 56,
-                          color: AppTheme.success,
-                          child: Center(
-                            child: AnimatedRotation(
-                              turns: _isMenuOpen ? 0.125 : 0,
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeOutCubic,
-                              child: const Icon(Icons.add_rounded,
-                                  color: Colors.white, size: 28),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 
   Widget _buildQuickActionsPanel(bool isDark) {
-    final bg = isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground;
     final actions = [
       (
         'Expense',
@@ -452,95 +392,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       ),
     ];
 
-    if (Platform.isIOS) {
-      return _buildIOSGlassQuickActionsPanel(isDark, actions);
-    }
-
-    return Center(
-      child: Container(
-        width: 220,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.5 : 0.14),
-              blurRadius: 32,
-              spreadRadius: 0,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(actions.length, (i) {
-            final (label, icon, color, type) = actions[i];
-            final isLast = i == actions.length - 1;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      _closeMenu();
-                      _openTransactionModal(type);
-                    },
-                    borderRadius: BorderRadius.vertical(
-                      top: i == 0 ? const Radius.circular(20) : Radius.zero,
-                      bottom: isLast ? const Radius.circular(20) : Radius.zero,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 13),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: AppTheme.adaptiveIconSurface(context),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(icon, color: color, size: 17),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF1C1C1E),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                                color: color, shape: BoxShape.circle),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (!isLast)
-                  Divider(
-                      height: 1,
-                      indent: 62,
-                      endIndent: 16,
-                      color: (isDark ? Colors.white : Colors.black)
-                          .withOpacity(0.06)),
-              ],
-            );
-          }),
-        ),
-      ),
-    );
+    return _buildIOSGlassQuickActionsPanel(isDark, actions);
   }
 
   Widget _buildIOSGlassQuickActionsPanel(
@@ -624,50 +476,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPillNavBar(bool isDark) {
-    if (Platform.isIOS) {
-      return _buildIOSGlassNavBar(isDark);
-    }
-
-    final pillBg = isDark ? AppTheme.darkSurface : AppTheme.lightBackground;
-    final activeColor = AppTheme.success;
-    final inactiveColor =
-        isDark ? const Color(0xFF8E8E93) : const Color(0xFF9CA3AF);
-
-    return Container(
-      color: Colors.transparent,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 8, 16, _navBarBottomInset),
-        child: Container(
-          height: 64,
-          decoration: BoxDecoration(
-            color: pillBg,
-            borderRadius: BorderRadius.circular(40),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                blurRadius: 24,
-                spreadRadius: 0,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildPillNavItem(0, AppIcons.home, activeColor, inactiveColor),
-              _buildPillNavItem(
-                  1, AppIcons.aiCoach, activeColor, inactiveColor),
-              // Center bump/FAB placeholder
-              const SizedBox(width: 72),
-              _buildPillNavItem(
-                  2, AppIcons.budgets, activeColor, inactiveColor),
-              _buildPillNavItem(
-                  3, AppIcons.wealth, activeColor, inactiveColor),
-            ],
-          ),
-        ),
-      ),
-    );
+    // The glass bar is the app's nav bar on every platform — Android included.
+    return _buildIOSGlassNavBar(isDark);
   }
 
   Widget _buildIOSGlassNavBar(bool isDark) {
@@ -844,23 +654,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPillNavItem(
-      int index, String icon, Color activeColor, Color inactiveColor) {
-    final isActive = _selectedIndex == index;
-    return Expanded(
-      child: _PressScaleDetector(
-        onTap: () => _onTabTapped(index),
-        child: Center(
-          child: Iconify(
-            icon,
-            size: 24,
-            color: isActive ? activeColor : inactiveColor,
           ),
         ),
       ),
