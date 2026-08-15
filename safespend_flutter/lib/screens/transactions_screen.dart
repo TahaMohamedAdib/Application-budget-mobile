@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:iconify_flutter/iconify_flutter.dart';
 import '../utils/currency_helper.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -128,7 +128,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     : AppTheme.cardShadowLight,
                               ),
                               child: IconButton(
-                                icon: const Iconify(AppIcons.back, size: 20),
+                                icon: const AppIcon(AppIcons.back, size: 20),
                                 onPressed: () => Navigator.pop(context),
                                 padding: EdgeInsets.zero,
                               ),
@@ -152,7 +152,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 decoration: InputDecoration(
                                   hintText: '${s.search}...',
                                   prefixIcon:
-                                      const Icon(Icons.search, size: 20),
+                                      const Icon(IOSIcons.search, size: 20),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -179,7 +179,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 ),
                               ),
                               child: IconButton(
-                                icon: Iconify(
+                                icon: AppIcon(
                                   AppIcons.filter,
                                   color: _showFilters
                                       ? AppTheme.goldPrimary
@@ -310,7 +310,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Iconify(
+                                AppIcon(
                                   AppIcons.receipt,
                                   size: 64,
                                   color: Theme.of(context)
@@ -541,7 +541,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             children: items.asMap().entries.map((e) {
               final isLast = e.key == items.length - 1;
               final t = e.value;
-              final tColor = _getTransactionColor(t.type);
+              final tColor = AppTheme.transactionAmountColor(context, t.type,
+                  isCash: t.accountId == AppProvider.cashOnHandId);
               final date = DateTime.parse(t.date);
 
               // Look up category
@@ -594,10 +595,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           child: Container(
                             width: 48,
                             height: 48,
-                            decoration: const BoxDecoration(
-                                color: AppTheme.error, shape: BoxShape.circle),
-                            child: const Iconify(AppIcons.delete,
-                                color: Colors.white, size: 20),
+                            decoration: BoxDecoration(
+                              color: AppTheme.adaptiveIconSurface(context),
+                              shape: BoxShape.circle,
+                            ),
+                            child: AppIcon(
+                              AppIcons.delete,
+                              color: AppTheme.adaptiveIcon(context),
+                              size: 20,
+                            ),
                           ),
                         ),
                       ],
@@ -614,17 +620,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: isDark
-                                    ? tColor.withOpacity(0.12)
-                                    : const Color(0xFFF0F1F5),
+                                color: AppTheme.adaptiveIconSurface(context),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: cat != null
-                                  ? _buildCategoryIcon(cat.icon, tColor)
-                                  : Iconify(
+                                  ? _buildCategoryIcon(cat.icon,
+                                      AppTheme.adaptiveIcon(context))
+                                  : AppIcon(
                                       _getTransactionDisplayIcon(
                                           t.type, t.note),
-                                      color: tColor,
+                                      color: AppTheme.adaptiveIcon(context),
                                       size: 18),
                             ),
                             const SizedBox(width: 14),
@@ -653,7 +658,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: tColor.withOpacity(0.1),
+                                            color: AppTheme
+                                                .adaptiveIconSurface(context),
                                             borderRadius:
                                                 BorderRadius.circular(6),
                                           ),
@@ -662,7 +668,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                             style: TextStyle(
                                                 fontSize: 9,
                                                 fontWeight: FontWeight.w600,
-                                                color: tColor),
+                                                color: AppTheme.adaptiveIcon(
+                                                    context)),
                                           ),
                                         ),
                                       ],
@@ -725,7 +732,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         : null;
     final account =
         provider.accounts.where((a) => a.id == t.accountId).firstOrNull;
-    final tColor = _getTransactionColor(t.type);
+    final tColor = AppTheme.transactionAmountColor(context, t.type,
+        isCash: t.accountId == AppProvider.cashOnHandId);
     final date = DateTime.parse(t.date);
 
     showModalBottomSheet(
@@ -763,12 +771,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                          color: tColor.withOpacity(0.12),
+                          color: AppTheme.adaptiveIconSurface(ctx),
                           borderRadius: BorderRadius.circular(16)),
                       child: cat != null
-                          ? _buildCategoryIcon(cat.icon, tColor)
-                          : Iconify(_getTransactionDisplayIcon(t.type, t.note),
-                              color: tColor, size: 24),
+                          ? _buildCategoryIcon(
+                              cat.icon, AppTheme.adaptiveIcon(ctx))
+                          : AppIcon(_getTransactionDisplayIcon(t.type, t.note),
+                              color: AppTheme.adaptiveIcon(ctx), size: 24),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -861,7 +870,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     color: Colors.grey.withOpacity(0.1),
                                     child: const Center(
                                         child:
-                                            Iconify(AppIcons.image, size: 40)),
+                                            AppIcon(AppIcons.image, size: 40)),
                                   ),
                                 )
                               : Image.file(File(t.imagePath!),
@@ -872,7 +881,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                         height: 180,
                                         color: Colors.grey.withOpacity(0.1),
                                         child: const Center(
-                                            child: Iconify(AppIcons.image,
+                                            child: AppIcon(AppIcons.image,
                                                 size: 40)),
                                       )),
                         ),
@@ -890,7 +899,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Iconify(AppIcons.zoomIn,
+                                AppIcon(AppIcons.zoomIn,
                                     color: Colors.white, size: 14),
                                 SizedBox(width: 4),
                                 Text('Tap to open',
@@ -944,7 +953,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               ),
                             );
                           },
-                          icon: const Iconify(AppIcons.delete, size: 18),
+                          icon: const AppIcon(AppIcons.delete, size: 18),
                           label: const Text('Delete',
                               style: TextStyle(fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
@@ -973,7 +982,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   AddTransactionModal(initialTransaction: t),
                             );
                           },
-                          icon: const Iconify(AppIcons.edit, size: 18),
+                          icon: const AppIcon(AppIcons.edit, size: 18),
                           label: const Text('Edit Transaction',
                               style: TextStyle(
                                   fontSize: 15, fontWeight: FontWeight.w700)),
@@ -1003,7 +1012,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Iconify(icon,
+          AppIcon(icon,
               size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
           const SizedBox(width: 8),
           Text('$label  ', style: Theme.of(context).textTheme.bodySmall),
@@ -1049,7 +1058,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     : const Center(
                                         child: CircularProgressIndicator(
                                             color: Colors.white)),
-                            errorBuilder: (_, __, ___) => const Iconify(
+                            errorBuilder: (_, __, ___) => const AppIcon(
                                 AppIcons.image,
                                 color: Colors.white54,
                                 size: 64),
@@ -1057,7 +1066,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         : Image.file(
                             File(imagePath),
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Iconify(
+                            errorBuilder: (_, __, ___) => const AppIcon(
                                 AppIcons.image,
                                 color: Colors.white54,
                                 size: 64),
@@ -1079,7 +1088,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             color: Colors.black.withOpacity(0.5),
                             shape: BoxShape.circle,
                           ),
-                          child: const Iconify(AppIcons.close,
+                          child: const AppIcon(AppIcons.close,
                               color: Colors.white, size: 20),
                         ),
                       ),
@@ -1118,11 +1127,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           height: 40,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) =>
-              Iconify(AppIcons.categoryIcon, color: color, size: 18),
+              AppIcon(AppIcons.categoryIcon, color: color, size: 18),
         ),
       );
     }
-    return Iconify(_categoryIcon(iconStr), color: color, size: 18);
+    return AppIcon(_categoryIcon(iconStr), color: color, size: 18);
   }
 
   String _categoryIcon(String iconName) {
@@ -1208,24 +1217,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
-  Color _getTransactionColor(String type) {
-    switch (type) {
-      case 'expense':
-        return AppTheme.error;
-      case 'income':
-        return AppTheme.success;
-      case 'transfer':
-        return AppTheme.info;
-      case 'withdrawal':
-        return AppTheme.warning;
-      case 'goal_contribution':
-        return AppTheme.goldPrimary;
-      case 'debt_payment':
-        return const Color(0xFF8B5CF6);
-      default:
-        return Colors.grey;
-    }
-  }
+  // Transaction amount colours now come from AppTheme.transactionAmountColor
+  // so every screen shares one definition.
 
   String _getTransactionTypeLabel(String type) {
     final s = S.of(context);

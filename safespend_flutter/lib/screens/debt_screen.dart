@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -9,7 +10,9 @@ import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../models/goal.dart';
 import '../models/transaction.dart';
+import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
+import '../widgets/wealth_ui.dart';
 import '../l10n/app_localizations.dart';
 
 class DebtScreen extends StatelessWidget {
@@ -43,141 +46,40 @@ class DebtScreen extends StatelessWidget {
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // Header
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 20, 0),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppTheme.darkSurface
-                                : AppTheme.lightSurface,
-                            shape: BoxShape.circle,
-                            boxShadow: isDark ? [] : AppTheme.cardShadowLight,
-                          ),
-                          child: IconButton(
-                            icon:
-                                const Icon(Icons.arrow_back_rounded, size: 20),
-                            onPressed: () => Navigator.pop(context),
-                            padding: EdgeInsets.zero,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(s.debts,
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => _showAddDebtModal(context, provider),
-                          child: Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: AppTheme.error,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.add_rounded,
-                                    color: Colors.white, size: 18),
-                                const SizedBox(width: 6),
-                                Text(s.addDebt,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: WealthPageHeader(
+                      title: s.debts,
+                      subtitle: 'Track balances and repayments',
+                      onBack: () => Navigator.pop(context),
+                      onAdd: () => _showAddDebtModal(context, provider),
+                      addTooltip: s.addDebt,
                     ),
                   ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut),
                 ),
 
-                // Summary Card
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: AppTheme.accentCard(AppTheme.error),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.credit_card_rounded,
-                                  color: Colors.white, size: 22),
-                              const SizedBox(width: 10),
-                              Text(s.totalDebt,
-                                  style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(cf.format(totalRemaining),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -1)),
-                          const SizedBox(height: 16),
-                          Container(
-                              height: 1, color: Colors.white.withOpacity(0.2)),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(s.totalDebt,
-                                          style: TextStyle(
-                                              color:
-                                                  Colors.white.withOpacity(0.6),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500)),
-                                      const SizedBox(height: 4),
-                                      Text(cf.format(totalDebt),
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700)),
-                                    ]),
-                              ),
-                              Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(s.paidOff,
-                                          style: TextStyle(
-                                              color:
-                                                  Colors.white.withOpacity(0.6),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500)),
-                                      const SizedBox(height: 4),
-                                      Text(cf.format(totalPaid),
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700)),
-                                    ]),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+                    child: WealthOverviewCard(
+                      icon: IOSIcons.wealthDebt,
+                      label: s.remaining,
+                      amount: cf.format(totalRemaining),
+                      amountColor:
+                          totalRemaining > 0 ? AppTheme.expenseIcon : null,
+                      firstLabel: s.totalDebt,
+                      firstValue: cf.format(totalDebt),
+                      firstValueColor:
+                          totalDebt > 0 ? AppTheme.expenseIcon : null,
+                      secondLabel: s.paidOff,
+                      secondValue: cf.format(totalPaid),
+                      secondValueColor:
+                          totalPaid > 0 ? AppTheme.expenseIcon : null,
+                      progress: totalDebt > 0 ? totalPaid / totalDebt : 0,
+                      progressLabel: totalDebt > 0
+                          ? '${((totalPaid / totalDebt) * 100).toStringAsFixed(1)}% repaid'
+                          : s.youHaveNoActiveDebts,
                     ),
                   ).animate().fadeIn(
                       duration: 280.ms, delay: 80.ms, curve: Curves.easeOut),
@@ -187,8 +89,10 @@ class DebtScreen extends StatelessWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
-                    child: Text(s.yourDebts,
-                        style: Theme.of(context).textTheme.titleLarge),
+                    child: WealthSectionHeader(
+                      title: s.yourDebts,
+                      count: '${debtGoals.length}',
+                    ),
                   ).animate().fadeIn(
                       duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
                 ),
@@ -200,11 +104,12 @@ class DebtScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Container(
                             padding: const EdgeInsets.all(40),
-                            decoration: AppTheme.premiumCard(context),
+                            decoration: wealthGlassDecoration(context),
                             child: Column(
                               children: [
-                                Icon(Icons.check_circle_rounded,
-                                        size: 64, color: AppTheme.success)
+                                Icon(IOSIcons.check_circle_rounded,
+                                        size: 64,
+                                        color: AppTheme.adaptiveIcon(context))
                                     .animate(
                                         onPlay: (c) => c.repeat(reverse: true))
                                     .scaleXY(
@@ -247,7 +152,7 @@ class DebtScreen extends StatelessWidget {
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: Container(
                                   padding: const EdgeInsets.all(20),
-                                  decoration: AppTheme.premiumCard(context),
+                                  decoration: wealthGlassDecoration(context),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -258,8 +163,9 @@ class DebtScreen extends StatelessWidget {
                                             width: 44,
                                             height: 44,
                                             decoration: BoxDecoration(
-                                              color: AppTheme.error
-                                                  .withOpacity(0.12),
+                                              color:
+                                                  AppTheme.adaptiveIconSurface(
+                                                      context),
                                               borderRadius:
                                                   BorderRadius.circular(14),
                                             ),
@@ -290,7 +196,8 @@ class DebtScreen extends StatelessWidget {
                                                             .bodySmall
                                                             ?.copyWith(
                                                                 color: AppTheme
-                                                                    .error)),
+                                                                    .adaptiveIcon(
+                                                                        context))),
                                                 ]),
                                           ),
                                           Column(
@@ -327,7 +234,7 @@ class DebtScreen extends StatelessWidget {
                                           backgroundColor: isDark
                                               ? AppTheme.darkBorder
                                               : const Color(0xFFE8ECF1),
-                                          color: AppTheme.success,
+                                          color: AppTheme.adaptiveIcon(context),
                                           minHeight: 7,
                                         ),
                                       ),
@@ -342,7 +249,8 @@ class DebtScreen extends StatelessWidget {
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(
-                                                      color: AppTheme.success)),
+                                                      color: AppTheme
+                                                          .expenseIcon)),
                                           Text(
                                               '${(progress * 100).round()}% ${s.complete}',
                                               style: Theme.of(context)
@@ -363,7 +271,8 @@ class DebtScreen extends StatelessWidget {
                                                     const EdgeInsets.symmetric(
                                                         vertical: 9),
                                                 decoration: BoxDecoration(
-                                                    color: AppTheme.success,
+                                                    color: AppTheme.error
+                                                        .withOpacity(0.10),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             10)),
@@ -375,13 +284,14 @@ class DebtScreen extends StatelessWidget {
                                                       Icon(
                                                           Icons
                                                               .arrow_upward_rounded,
-                                                          color: Colors.white,
+                                                          color: AppTheme
+                                                              .expenseIcon,
                                                           size: 15),
                                                       SizedBox(width: 5),
                                                       Text(s.pay,
                                                           style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
+                                                              color: AppTheme
+                                                                  .expenseIcon,
                                                               fontWeight:
                                                                   FontWeight
                                                                       .w700,
@@ -401,27 +311,32 @@ class DebtScreen extends StatelessWidget {
                                                   const EdgeInsets.symmetric(
                                                       vertical: 9),
                                               decoration: BoxDecoration(
-                                                color: AppTheme.goldPrimary
-                                                    .withOpacity(0.12),
+                                                color: AppTheme
+                                                    .adaptiveIconSurface(
+                                                        context),
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                                 border: Border.all(
-                                                    color: AppTheme.goldPrimary
-                                                        .withOpacity(0.3)),
+                                                    color: Theme.of(context)
+                                                        .dividerColor),
                                               ),
                                               child: Row(
                                                   mainAxisAlignment:
                                                       MainAxisAlignment.center,
                                                   children: [
-                                                    Icon(Icons.edit_rounded,
+                                                    Icon(IOSIcons.edit_rounded,
                                                         color: AppTheme
-                                                            .goldPrimary,
+                                                            .adaptiveIcon(
+                                                                context),
                                                         size: 14),
                                                     SizedBox(width: 4),
                                                     Text(s.edit,
                                                         style: TextStyle(
-                                                            color: AppTheme
-                                                                .goldPrimary,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .bodyLarge
+                                                                ?.color,
                                                             fontWeight:
                                                                 FontWeight.w700,
                                                             fontSize: 13)),
@@ -475,17 +390,18 @@ class DebtScreen extends StatelessWidget {
                                           child: Container(
                                             padding: const EdgeInsets.all(9),
                                             decoration: BoxDecoration(
-                                              color: AppTheme.error
-                                                  .withOpacity(0.1),
+                                              color:
+                                                  AppTheme.adaptiveIconSurface(
+                                                      context),
                                               borderRadius:
                                                   BorderRadius.circular(10),
                                               border: Border.all(
-                                                  color: AppTheme.error
-                                                      .withOpacity(0.3)),
+                                                  color: Theme.of(context)
+                                                      .dividerColor),
                                             ),
-                                            child: const Icon(
-                                                Icons.delete_rounded,
-                                                color: AppTheme.error,
+                                            child: Icon(IOSIcons.delete_rounded,
+                                                color: AppTheme.adaptiveIcon(
+                                                    context),
                                                 size: 16),
                                           ),
                                         ),
@@ -519,7 +435,7 @@ class DebtScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverToBoxAdapter(
                       child: Container(
-                        decoration: AppTheme.premiumCard(context),
+                        decoration: wealthGlassDecoration(context),
                         child: Column(
                           children: debtTransactions
                               .take(20)
@@ -551,11 +467,12 @@ class DebtScreen extends StatelessWidget {
                                     width: 40,
                                     height: 40,
                                     decoration: BoxDecoration(
-                                      color: AppTheme.success.withOpacity(0.12),
+                                      color:
+                                          AppTheme.adaptiveIconSurface(context),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Icon(Icons.payments_rounded,
-                                        color: AppTheme.success, size: 18),
+                                    child: const Icon(IOSIcons.payments_rounded,
+                                        color: AppTheme.expenseIcon, size: 18),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -589,7 +506,7 @@ class DebtScreen extends StatelessWidget {
                                         style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
-                                            color: AppTheme.success),
+                                            color: AppTheme.expenseIcon),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis),
                                   ),
@@ -618,7 +535,6 @@ class DebtScreen extends StatelessWidget {
 
   void _showPayDebtModal(
       BuildContext context, AppProvider provider, Goal goal, NumberFormat cf) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final s = S.of(context);
     final amountCtrl = TextEditingController();
     String? selectedAccountId;
@@ -628,145 +544,134 @@ class DebtScreen extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: EdgeInsets.fromLTRB(
-              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                    child: Container(
-                        width: 48,
-                        height: 5,
-                        decoration: BoxDecoration(
-                            color: Theme.of(ctx).dividerColor,
-                            borderRadius: BorderRadius.circular(3)))),
-                const SizedBox(height: 20),
-                Row(children: [
-                  Text(goal.icon, style: const TextStyle(fontSize: 24)),
-                  const SizedBox(width: 12),
-                  Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(s.recordPayment,
-                            style: Theme.of(ctx)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                        Text(goal.name,
-                            style: Theme.of(ctx).textTheme.bodySmall),
-                      ]),
+        builder: (ctx, setModalState) => AppFormSheet(
+          builder: (ctx, scrollController) => SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const AppFormSheetHandle(),
+                  const SizedBox(height: 16),
+                  AppFormSheetHeader(
+                    title: s.recordPayment,
+                    icon: IOSIcons.credit_card_rounded,
+                    accent: AppTheme.expenseIcon,
+                  ),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: Text(goal.name,
+                        style: Theme.of(ctx).textTheme.bodySmall),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: s.amountPaid,
+                      hintText: '0.00',
+                      prefixText:
+                          '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  AppPickerField<String>(
+                    label: s.paidFromOptional,
+                    value: selectedAccountId ?? '__none__',
+                    prefixIcon: AppIcons.wallet,
+                    items: [
+                      AppPickerItem(
+                        value: '__none__',
+                        label: s.noAccountDeduction,
+                        leadingIcon: AppIcons.close,
+                        iconColor: Colors.grey,
+                      ),
+                      AppPickerItem(
+                        value: AppProvider.cashOnHandId,
+                        label: s.cashOnHand,
+                        leadingIcon: AppIcons.money,
+                        iconColor: AppTheme.cashOnHandIcon,
+                      ),
+                      ...provider.accounts.map((a) => AppPickerItem(
+                            value: a.id,
+                            label: a.name,
+                            leadingIcon: AppIcons.bank,
+                            iconColor: AppTheme.adaptiveIcon(ctx),
+                            imagePath: a.imagePath,
+                          )),
+                    ],
+                    onChanged: (v) => setModalState(
+                        () => selectedAccountId = (v == '__none__') ? null : v),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final amount = double.tryParse(amountCtrl.text) ?? 0;
+                        if (amount <= 0) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text(s.enterValidAmount)));
+                          return;
+                        }
+                        final remaining =
+                            goal.targetAmount - goal.currentAmount;
+                        final clampedAmount =
+                            amount.clamp(0, remaining).toDouble();
+                        final accountId = selectedAccountId ?? 'none';
+                        if (selectedAccountId != null) {
+                          provider.payDebt(
+                              goal.id, clampedAmount, selectedAccountId!);
+                        } else {
+                          // Update goal + always create transaction for history
+                          final newPaid = (goal.currentAmount + clampedAmount)
+                              .clamp(0, goal.targetAmount)
+                              .toDouble();
+                          provider.updateGoal(
+                              goal.copyWith(currentAmount: newPaid));
+                          provider.addTransaction(Transaction(
+                            id: const Uuid().v4(),
+                            type: 'debt_payment',
+                            amount: clampedAmount,
+                            date: DateTime.now().toIso8601String(),
+                            note: 'Payment: ${goal.name}',
+                            description: 'No account deduction',
+                            accountId: accountId,
+                          ));
+                        }
+                        Navigator.pop(ctx);
+                        final isPaidOff =
+                            (goal.currentAmount + clampedAmount) >=
+                                goal.targetAmount;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(isPaidOff
+                                  ? '${goal.name} is fully paid off!'
+                                  : '${cf.format(clampedAmount)} paid on ${goal.name}'),
+                              backgroundColor: AppTheme.success),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.success,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: Text(s.recordPayment,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
                 ]),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: amountCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: s.amountPaid,
-                    hintText: '0.00',
-                    prefixText:
-                        '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                    filled: true,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                AppPickerField<String>(
-                  label: s.paidFromOptional,
-                  value: selectedAccountId ?? '__none__',
-                  prefixIcon: AppIcons.wallet,
-                  items: [
-                    AppPickerItem(
-                      value: '__none__',
-                      label: s.noAccountDeduction,
-                      leadingIcon: AppIcons.close,
-                      iconColor: Colors.grey,
-                    ),
-                    AppPickerItem(
-                      value: AppProvider.cashOnHandId,
-                      label: s.cashOnHand,
-                      leadingIcon: AppIcons.money,
-                      iconColor: AppTheme.goldPrimary,
-                    ),
-                    ...provider.accounts.map((a) => AppPickerItem(
-                          value: a.id,
-                          label: a.name,
-                          leadingIcon: AppIcons.bank,
-                          iconColor: Color(0xFF3B82F6),
-                          imagePath: a.imagePath,
-                        )),
-                  ],
-                  onChanged: (v) => setModalState(
-                      () => selectedAccountId = (v == '__none__') ? null : v),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final amount = double.tryParse(amountCtrl.text) ?? 0;
-                      if (amount <= 0) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text(s.enterValidAmount)));
-                        return;
-                      }
-                      final remaining = goal.targetAmount - goal.currentAmount;
-                      final clampedAmount =
-                          amount.clamp(0, remaining).toDouble();
-                      final accountId = selectedAccountId ?? 'none';
-                      if (selectedAccountId != null) {
-                        provider.payDebt(
-                            goal.id, clampedAmount, selectedAccountId!);
-                      } else {
-                        // Update goal + always create transaction for history
-                        final newPaid = (goal.currentAmount + clampedAmount)
-                            .clamp(0, goal.targetAmount)
-                            .toDouble();
-                        provider
-                            .updateGoal(goal.copyWith(currentAmount: newPaid));
-                        provider.addTransaction(Transaction(
-                          id: const Uuid().v4(),
-                          type: 'debt_payment',
-                          amount: clampedAmount,
-                          date: DateTime.now().toIso8601String(),
-                          note: 'Payment: ${goal.name}',
-                          description: 'No account deduction',
-                          accountId: accountId,
-                        ));
-                      }
-                      Navigator.pop(ctx);
-                      final isPaidOff = (goal.currentAmount + clampedAmount) >=
-                          goal.targetAmount;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(isPaidOff
-                                ? '${goal.name} is fully paid off!'
-                                : '${cf.format(clampedAmount)} paid on ${goal.name}'),
-                            backgroundColor: AppTheme.success),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.success,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: Text(s.recordPayment,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ]),
+          ),
         ),
       ),
     );
@@ -797,33 +702,23 @@ class DebtScreen extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SafeArea(
+        builder: (ctx, setModalState) => AppFormSheet(
+          builder: (ctx, scrollController) => SafeArea(
+            top: false,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
               child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                        child: Container(
-                            width: 48,
-                            height: 5,
-                            decoration: BoxDecoration(
-                                color: Theme.of(ctx).dividerColor,
-                                borderRadius: BorderRadius.circular(3)))),
-                    const SizedBox(height: 20),
-                    Text(s.editDebt,
-                        style: Theme.of(ctx)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const AppFormSheetHandle(),
+                    const SizedBox(height: 16),
+                    AppFormSheetHeader(
+                      title: s.editDebt,
+                      icon: IOSIcons.credit_card_rounded,
+                      accent: AppTheme.adaptiveIcon(ctx),
+                    ),
                     const SizedBox(height: 20),
                     Text(s.icon,
                         style: Theme.of(ctx)
@@ -843,14 +738,15 @@ class DebtScreen extends StatelessWidget {
                               height: 48,
                               decoration: BoxDecoration(
                                 color: isSel
-                                    ? AppTheme.error.withOpacity(0.12)
+                                    ? AppTheme.adaptiveIconSurface(ctx)
                                     : (isDark
                                         ? AppTheme.darkSurfaceElevated
                                         : AppTheme.lightBackground),
                                 borderRadius: BorderRadius.circular(12),
                                 border: isSel
                                     ? Border.all(
-                                        color: AppTheme.error, width: 2)
+                                        color: AppTheme.adaptiveIcon(ctx),
+                                        width: 2)
                                     : null,
                               ),
                               child: Center(
@@ -866,7 +762,8 @@ class DebtScreen extends StatelessWidget {
                         labelText: s.debtName,
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14)),
-                        prefixIcon: const Icon(Icons.credit_card_rounded),
+                        prefixIcon: Icon(IOSIcons.credit_card_rounded,
+                            color: AppTheme.adaptiveIcon(ctx)),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -915,9 +812,8 @@ class DebtScreen extends StatelessWidget {
                             border:
                                 Border.all(color: Theme.of(ctx).dividerColor)),
                         child: Row(children: [
-                          Icon(Icons.calendar_today_rounded,
-                              size: 18,
-                              color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.calendar_today_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
                           const SizedBox(width: 12),
                           Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -936,9 +832,8 @@ class DebtScreen extends StatelessWidget {
                                             fontWeight: FontWeight.w600)),
                               ]),
                           const Spacer(),
-                          Icon(Icons.chevron_right_rounded,
-                              size: 20,
-                              color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.chevron_right_rounded,
+                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
                         ]),
                       ),
                     ),
@@ -960,14 +855,8 @@ class DebtScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(children: [
-                              Icon(Icons.autorenew_rounded,
-                                  size: 18,
-                                  color: hasMonthlyPayment
-                                      ? AppTheme.error
-                                      : Theme.of(ctx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.color),
+                              Icon(IOSIcons.autorenew_rounded,
+                                  size: 18, color: AppTheme.adaptiveIcon(ctx)),
                               const SizedBox(width: 8),
                               Text('Monthly Payment',
                                   style: Theme.of(ctx)
@@ -1026,13 +915,13 @@ class DebtScreen extends StatelessWidget {
                                     value: AppProvider.cashOnHandId,
                                     label: 'Cash on Hand',
                                     leadingIcon: AppIcons.money,
-                                    iconColor: AppTheme.goldPrimary,
+                                    iconColor: AppTheme.cashOnHandIcon,
                                   ),
                                   ...provider.accounts.map((a) => AppPickerItem(
                                         value: a.id,
                                         label: a.name,
                                         leadingIcon: AppIcons.bank,
-                                        iconColor: Color(0xFF3B82F6),
+                                        iconColor: AppTheme.adaptiveIcon(ctx),
                                         imagePath: a.imagePath,
                                       )),
                                 ],
@@ -1117,33 +1006,23 @@ class DebtScreen extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SafeArea(
+        builder: (ctx, setModalState) => AppFormSheet(
+          builder: (ctx, scrollController) => SafeArea(
+            top: false,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
               child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                        child: Container(
-                            width: 48,
-                            height: 5,
-                            decoration: BoxDecoration(
-                                color: Theme.of(ctx).dividerColor,
-                                borderRadius: BorderRadius.circular(3)))),
-                    const SizedBox(height: 20),
-                    Text('Add Debt',
-                        style: Theme.of(ctx)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const AppFormSheetHandle(),
+                    const SizedBox(height: 16),
+                    AppFormSheetHeader(
+                      title: 'Add Debt',
+                      icon: IOSIcons.credit_card_rounded,
+                      accent: AppTheme.adaptiveIcon(ctx),
+                    ),
                     const SizedBox(height: 20),
                     Text('Icon',
                         style: Theme.of(ctx)
@@ -1163,14 +1042,15 @@ class DebtScreen extends StatelessWidget {
                               height: 48,
                               decoration: BoxDecoration(
                                 color: isSel
-                                    ? AppTheme.error.withOpacity(0.12)
+                                    ? AppTheme.adaptiveIconSurface(ctx)
                                     : (isDark
                                         ? AppTheme.darkSurfaceElevated
                                         : AppTheme.lightBackground),
                                 borderRadius: BorderRadius.circular(12),
                                 border: isSel
                                     ? Border.all(
-                                        color: AppTheme.error, width: 2)
+                                        color: AppTheme.adaptiveIcon(ctx),
+                                        width: 2)
                                     : null,
                               ),
                               child: Center(
@@ -1187,7 +1067,8 @@ class DebtScreen extends StatelessWidget {
                         hintText: 'e.g., Car Loan, Mortgage',
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14)),
-                        prefixIcon: const Icon(Icons.credit_card_rounded),
+                        prefixIcon: Icon(IOSIcons.credit_card_rounded,
+                            color: AppTheme.adaptiveIcon(ctx)),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1238,9 +1119,8 @@ class DebtScreen extends StatelessWidget {
                             border:
                                 Border.all(color: Theme.of(ctx).dividerColor)),
                         child: Row(children: [
-                          Icon(Icons.calendar_today_rounded,
-                              size: 18,
-                              color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.calendar_today_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
                           const SizedBox(width: 12),
                           Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1259,9 +1139,8 @@ class DebtScreen extends StatelessWidget {
                                             fontWeight: FontWeight.w600)),
                               ]),
                           const Spacer(),
-                          Icon(Icons.chevron_right_rounded,
-                              size: 20,
-                              color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.chevron_right_rounded,
+                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
                         ]),
                       ),
                     ),
@@ -1283,14 +1162,8 @@ class DebtScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(children: [
-                              Icon(Icons.autorenew_rounded,
-                                  size: 18,
-                                  color: hasMonthlyPayment
-                                      ? AppTheme.error
-                                      : Theme.of(ctx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.color),
+                              Icon(IOSIcons.autorenew_rounded,
+                                  size: 18, color: AppTheme.adaptiveIcon(ctx)),
                               const SizedBox(width: 8),
                               Text('Monthly Payment',
                                   style: Theme.of(ctx)
@@ -1350,13 +1223,13 @@ class DebtScreen extends StatelessWidget {
                                     value: AppProvider.cashOnHandId,
                                     label: 'Cash on Hand',
                                     leadingIcon: AppIcons.money,
-                                    iconColor: AppTheme.goldPrimary,
+                                    iconColor: AppTheme.cashOnHandIcon,
                                   ),
                                   ...provider.accounts.map((a) => AppPickerItem(
                                         value: a.id,
                                         label: a.name,
                                         leadingIcon: AppIcons.bank,
-                                        iconColor: Color(0xFF3B82F6),
+                                        iconColor: AppTheme.adaptiveIcon(ctx),
                                         imagePath: a.imagePath,
                                       )),
                                 ],

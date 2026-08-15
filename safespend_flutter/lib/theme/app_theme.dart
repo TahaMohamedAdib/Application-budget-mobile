@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'page_transitions.dart';
 import 'app_text_styles.dart';
 
 /// Central theme provider for SafeSpend.
@@ -8,41 +9,109 @@ class AppTheme {
   AppTheme._();
 
   // ── Backward-compat color aliases ────────────────────────────────────────
-  static const Color goldPrimary         = AppColors.goldPrimary;
-  static const Color gold600             = AppColors.gold600;
-  static const Color gold700             = AppColors.gold700;
-  static const Color gold500             = AppColors.gold500;
-  static const Color gold400             = AppColors.gold400;
-  static const Color gold300             = AppColors.gold300;
-  static const Color gold200             = AppColors.gold200;
-  static const Color gold100             = AppColors.gold100;
-  static const Color gold50              = AppColors.gold50;
+  static const Color goldPrimary = AppColors.goldPrimary;
+  static const Color gold600 = AppColors.gold600;
+  static const Color gold700 = AppColors.gold700;
+  static const Color gold500 = AppColors.gold500;
+  static const Color gold400 = AppColors.gold400;
+  static const Color gold300 = AppColors.gold300;
+  static const Color gold200 = AppColors.gold200;
+  static const Color gold100 = AppColors.gold100;
+  static const Color gold50 = AppColors.gold50;
 
   // ── AI accent (sky blue, ChatGPT-inspired) ────────────────────────────────
-  static const Color aiAccent     = AppColors.aiAccent;
+  static const Color aiAccent = AppColors.aiAccent;
   static const Color aiAccentDeep = AppColors.aiAccentDeep;
 
   static const Color success = AppColors.success;
-  static const Color error   = AppColors.error;
+  static const Color error = AppColors.error;
   static const Color warning = AppColors.warning;
-  static const Color info    = AppColors.info;
+  static const Color info = AppColors.info;
 
-  static const Color lightBackground    = AppColors.lightBackground;
-  static const Color lightSurface       = AppColors.lightSurface;
-  static const Color lightTextPrimary   = AppColors.lightTextPrimary;
+  // Icon colors are deliberately limited to adaptive neutrals and financial
+  // direction semantics. Decorative feature colors should not be introduced.
+  static const Color expenseIcon = AppColors.error;
+  static const Color incomeIcon = AppColors.goldPrimary;
+  static const Color withdrawalIcon = AppColors.warning;
+  static const Color transferIcon = Color(0xFF3B82F6);
+  static const Color cashOnHandIcon = AppColors.warning;
+
+  static Color adaptiveIcon(BuildContext context, {double alpha = 1}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark ? const Color(0xFFD1D1D6) : const Color(0xFF73757F);
+    return color.withValues(alpha: alpha);
+  }
+
+  static Color adaptiveIconSurface(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF303233) : const Color(0xFFDADDE0);
+  }
+
+  /// Colour for a balance figure, by sign: zero reads neutral, positive green,
+  /// negative red. Returns null for neutral so the caller falls back to the
+  /// default text colour.
+  ///
+  /// The threshold matches the two-decimal display — anything that renders as
+  /// "0.00" is treated as zero rather than as a tiny positive.
+  static Color? balanceColor(double amount) {
+    if (amount.abs() < 0.005) return null;
+    return amount > 0 ? success : error;
+  }
+
+  /// Amount colour for a transaction row. Row icons stay neutral everywhere —
+  /// the amount is the only element that carries financial meaning. Cash-on-hand
+  /// money is amber regardless of direction.
+  static Color transactionAmountColor(BuildContext context, String type,
+      {bool isCash = false}) {
+    if (isCash) return cashOnHandIcon;
+    switch (type) {
+      case 'expense':
+      case 'debt_payment':
+        return expenseIcon;
+      case 'income':
+        return incomeIcon;
+      case 'transfer':
+        return transferIcon;
+      case 'withdrawal':
+        return withdrawalIcon;
+      default:
+        return adaptiveIcon(context);
+    }
+  }
+
+  static Color financialIcon(String type) {
+    switch (type.trim().toLowerCase()) {
+      case 'expense':
+      case 'expenses':
+        return expenseIcon;
+      case 'income':
+        return incomeIcon;
+      case 'withdraw':
+      case 'withdrawal':
+        return withdrawalIcon;
+      case 'transfer':
+        return transferIcon;
+      default:
+        return incomeIcon;
+    }
+  }
+
+  static const Color lightBackground = AppColors.lightBackground;
+  static const Color lightSurface = AppColors.lightSurface;
+  static const Color lightTextPrimary = AppColors.lightTextPrimary;
   static const Color lightTextSecondary = AppColors.lightTextSecondary;
-  static const Color lightTextTertiary  = AppColors.lightTextTertiary;
-  static const Color lightBorder        = AppColors.lightBorder;
-  static const Color lightDivider       = AppColors.lightDivider;
+  static const Color lightTextTertiary = AppColors.lightTextTertiary;
+  static const Color lightBorder = AppColors.lightBorder;
+  static const Color lightDivider = AppColors.lightDivider;
 
-  static const Color darkBackground       = AppColors.darkBackground;
-  static const Color darkSurface          = AppColors.darkSurface;
-  static const Color darkSurfaceElevated  = AppColors.darkSurfaceElevated;
-  static const Color darkTextPrimary      = AppColors.darkTextPrimary;
-  static const Color darkTextSecondary    = AppColors.darkTextSecondary;
-  static const Color darkTextTertiary     = AppColors.darkTextTertiary;
-  static const Color darkBorder           = AppColors.darkBorder;
-  static const Color darkDivider          = AppColors.darkDivider;
+  static const Color darkBackground = AppColors.darkBackground;
+  static const Color darkSurface = AppColors.darkSurface;
+  static const Color darkSurfaceElevated = AppColors.darkSurfaceElevated;
+  static const Color darkTextPrimary = AppColors.darkTextPrimary;
+  static const Color darkTextSecondary = AppColors.darkTextSecondary;
+  static const Color darkTextTertiary = AppColors.darkTextTertiary;
+  static const Color darkBorder = AppColors.darkBorder;
+  static const Color darkDivider = AppColors.darkDivider;
 
   // ── Shadows (cached — avoids re-allocation on every access) ────────────────
   static const _black05 = Color(0x0D000000); // black @ 5%
@@ -60,12 +129,20 @@ class AppTheme {
   ];
 
   static final List<BoxShadow> elevatedShadowLight = const [
-    BoxShadow(color: _slate08, blurRadius: 24, offset: Offset(0, 8), spreadRadius: -2),
+    BoxShadow(
+        color: _slate08,
+        blurRadius: 24,
+        offset: Offset(0, 8),
+        spreadRadius: -2),
     BoxShadow(color: _slate04, blurRadius: 8, offset: Offset(0, 2)),
   ];
 
   static final List<BoxShadow> goldGlow = const [
-    BoxShadow(color: _black18, blurRadius: 20, offset: Offset(0, 6), spreadRadius: -2),
+    BoxShadow(
+        color: _black18,
+        blurRadius: 20,
+        offset: Offset(0, 6),
+        spreadRadius: -2),
   ];
 
   // ── ThemeData ─────────────────────────────────────────────────────────────
@@ -87,7 +164,8 @@ class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
     dividerColor: lightDivider,
-    dividerTheme: const DividerThemeData(color: lightDivider, thickness: 1, space: 0),
+    dividerTheme:
+        const DividerThemeData(color: lightDivider, thickness: 1, space: 0),
     appBarTheme: const AppBarTheme(
       backgroundColor: lightBackground,
       foregroundColor: lightTextPrimary,
@@ -95,7 +173,9 @@ class AppTheme {
       scrolledUnderElevation: 0,
     ),
     textTheme: AppTextStyles.buildTextTheme(
-      lightTextPrimary, lightTextSecondary, lightTextTertiary,
+      lightTextPrimary,
+      lightTextSecondary,
+      lightTextTertiary,
     ),
     iconTheme: const IconThemeData(color: lightTextSecondary, size: 20),
     splashColor: goldPrimary.withOpacity(0.08),
@@ -172,8 +252,8 @@ class AppTheme {
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: SmoothPageTransitionsBuilder(),
+        TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
       },
     ),
   );
@@ -196,7 +276,8 @@ class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
     dividerColor: darkDivider,
-    dividerTheme: const DividerThemeData(color: darkDivider, thickness: 1, space: 0),
+    dividerTheme:
+        const DividerThemeData(color: darkDivider, thickness: 1, space: 0),
     appBarTheme: const AppBarTheme(
       backgroundColor: darkBackground,
       foregroundColor: darkTextPrimary,
@@ -204,7 +285,9 @@ class AppTheme {
       scrolledUnderElevation: 0,
     ),
     textTheme: AppTextStyles.buildTextTheme(
-      darkTextPrimary, darkTextSecondary, darkTextTertiary,
+      darkTextPrimary,
+      darkTextSecondary,
+      darkTextTertiary,
     ),
     iconTheme: const IconThemeData(color: darkTextSecondary, size: 20),
     splashColor: goldPrimary.withOpacity(0.10),
@@ -266,7 +349,9 @@ class AppTheme {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? goldPrimary : darkTextTertiary),
+          states.contains(WidgetState.selected)
+              ? goldPrimary
+              : darkTextTertiary),
       trackColor: WidgetStateProperty.resolveWith((states) =>
           states.contains(WidgetState.selected)
               ? goldPrimary.withOpacity(0.35)
@@ -275,14 +360,15 @@ class AppTheme {
     chipTheme: ChipThemeData(
       backgroundColor: darkSurfaceElevated,
       selectedColor: goldPrimary.withOpacity(0.2),
-      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: darkTextSecondary),
+      labelStyle: const TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w500, color: darkTextSecondary),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: BorderSide(color: Colors.white.withOpacity(0.08)),
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: SmoothPageTransitionsBuilder(),
+        TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
       },
     ),
   );
@@ -316,7 +402,27 @@ class AppTheme {
   }
 
   /// ChatGPT-style hero card with teal accent.
-  static BoxDecoration goldCard() {
+  static BoxDecoration goldCard({bool isDark = true}) {
+    if (!isDark) {
+      return BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF3F4F5), Color(0xFFE9EBED)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFD9DCE0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 22,
+            offset: Offset(0, 8),
+            spreadRadius: -6,
+          ),
+        ],
+      );
+    }
+
     return BoxDecoration(
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
@@ -381,7 +487,7 @@ class AppTheme {
   /// Colored gradient accent card (red for debt, purple for portfolio, etc.).
   static BoxDecoration accentCard(Color baseColor) {
     final lighter = Color.lerp(baseColor, Colors.white, 0.18)!;
-    final darker  = Color.lerp(baseColor, Colors.black, 0.25)!;
+    final darker = Color.lerp(baseColor, Colors.black, 0.25)!;
     return BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,

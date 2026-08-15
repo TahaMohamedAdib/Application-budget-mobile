@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_theme.dart';
 
 /// ChatGPT-style "Thinking..." indicator with subtle dots.
 class TypingIndicator extends StatelessWidget {
@@ -13,24 +15,20 @@ class TypingIndicator extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar (matches assistant avatar)
           Container(
-            width: 28, height: 28,
-            margin: const EdgeInsets.only(top: 2, right: 12),
+            width: 30,
+            height: 30,
+            margin: const EdgeInsets.only(top: 1, right: 12),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFE8E8E8),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08),
-              ),
+              color: AppTheme.adaptiveIconSurface(context),
+              shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.auto_awesome_rounded,
-              color: isDark ? Colors.white70 : Colors.black54,
-              size: 14,
+              IOSIcons.auto_awesome_rounded,
+              color: AppTheme.adaptiveIcon(context),
+              size: 15,
             ),
           ),
-          // "Thinking..." text with animated dots
           _ThinkingText(isDark: isDark),
         ],
       ),
@@ -45,7 +43,8 @@ class _ThinkingText extends StatefulWidget {
   State<_ThinkingText> createState() => _ThinkingTextState();
 }
 
-class _ThinkingTextState extends State<_ThinkingText> with SingleTickerProviderStateMixin {
+class _ThinkingTextState extends State<_ThinkingText>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
   @override

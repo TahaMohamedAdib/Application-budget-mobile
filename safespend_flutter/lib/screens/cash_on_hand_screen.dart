@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../utils/currency_helper.dart';
@@ -25,10 +26,12 @@ class CashOnHandScreen extends StatelessWidget {
           // Transactions from cash on hand
           if (t.accountId == AppProvider.cashOnHandId) return true;
           // Transfers TO cash on hand
-          if (t.type == 'transfer' && t.toAccountId == AppProvider.cashOnHandId) return true;
+          if (t.type == 'transfer' && t.toAccountId == AppProvider.cashOnHandId)
+            return true;
           return false;
         }).toList()
-          ..sort((a, b) => DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
+          ..sort((a, b) =>
+              DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -43,20 +46,28 @@ class CashOnHandScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         Container(
-                          width: 40, height: 40,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                            color: isDark
+                                ? AppTheme.darkSurface
+                                : AppTheme.lightSurface,
                             shape: BoxShape.circle,
                             boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                            icon: const Icon(IOSIcons.arrow_back_rounded,
+                                size: 20),
                             onPressed: () => Navigator.pop(context),
                             padding: EdgeInsets.zero,
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text('Cash', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        Text('Cash',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
                       ],
                     ),
                   ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut),
@@ -74,22 +85,35 @@ class CashOnHandScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.payments_rounded, color: Colors.white, size: 22),
+                              const Icon(IOSIcons.payments_rounded,
+                                  color: AppTheme.cashOnHandIcon, size: 22),
                               const SizedBox(width: 10),
-                              Text('Total Cash', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w500)),
+                              Text('Total Cash',
+                                  style: TextStyle(
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500)),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Text(cf.format(totalCash), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1.5)),
+                          Text(cf.format(totalCash),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -1.5)),
                           const SizedBox(height: 8),
                           Text(
                             'From withdrawals, income & transactions',
-                            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.6),
+                                fontSize: 12),
                           ),
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 280.ms, delay: 80.ms, curve: Curves.easeOut),
+                  ).animate().fadeIn(
+                      duration: 280.ms, delay: 80.ms, curve: Curves.easeOut),
                 ),
 
                 // Transaction History Header
@@ -98,12 +122,15 @@ class CashOnHandScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
                     child: Row(
                       children: [
-                        Text('Cash Transactions', style: Theme.of(context).textTheme.titleLarge),
+                        Text('Cash Transactions',
+                            style: Theme.of(context).textTheme.titleLarge),
                         const Spacer(),
-                        Text('${cashTransactions.length} total', style: Theme.of(context).textTheme.bodySmall),
+                        Text('${cashTransactions.length} total',
+                            style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
-                  ).animate().fadeIn(duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
+                  ).animate().fadeIn(
+                      duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
                 ),
 
                 // Transaction List
@@ -116,11 +143,20 @@ class CashOnHandScreen extends StatelessWidget {
                             decoration: AppTheme.premiumCard(context),
                             child: Column(
                               children: [
-                                Icon(Icons.payments_rounded, size: 72, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
+                                const Icon(IOSIcons.payments_rounded,
+                                    size: 72, color: AppTheme.cashOnHandIcon),
                                 const SizedBox(height: 16),
-                                Text('No cash transactions yet', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                Text('No cash transactions yet',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 6),
-                                Text('Make a withdrawal to add cash on hand', style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+                                Text('Make a withdrawal to add cash on hand',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                    textAlign: TextAlign.center),
                               ],
                             ),
                           ),
@@ -132,9 +168,11 @@ class CashOnHandScreen extends StatelessWidget {
                           child: Container(
                             decoration: AppTheme.premiumCard(context),
                             child: Column(
-                              children: cashTransactions.asMap().entries.map((entry) {
+                              children:
+                                  cashTransactions.asMap().entries.map((entry) {
                                 final t = entry.value;
-                                final isLast = entry.key == cashTransactions.length - 1;
+                                final isLast =
+                                    entry.key == cashTransactions.length - 1;
                                 final date = DateTime.parse(t.date);
 
                                 // Determine if this adds or removes cash
@@ -142,66 +180,118 @@ class CashOnHandScreen extends StatelessWidget {
                                 String description = t.note ?? '';
                                 if (t.type == 'withdrawal') {
                                   addsCash = true;
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Withdrawal from bank';
-                                } else if (t.type == 'income' && t.accountId == AppProvider.cashOnHandId) {
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Withdrawal from bank';
+                                } else if (t.type == 'income' &&
+                                    t.accountId == AppProvider.cashOnHandId) {
                                   addsCash = true;
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Cash income';
-                                } else if (t.type == 'transfer' && t.toAccountId == AppProvider.cashOnHandId) {
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Cash income';
+                                } else if (t.type == 'transfer' &&
+                                    t.toAccountId == AppProvider.cashOnHandId) {
                                   addsCash = true;
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Transfer to cash';
-                                } else if (t.type == 'expense' && t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Cash expense';
-                                } else if (t.type == 'transfer' && t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Transfer from cash';
-                                } else if (t.type == 'goal_contribution' && t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Goal contribution';
-                                } else if (t.type == 'debt_payment' && t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Debt payment';
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Transfer to cash';
+                                } else if (t.type == 'expense' &&
+                                    t.accountId == AppProvider.cashOnHandId) {
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Cash expense';
+                                } else if (t.type == 'transfer' &&
+                                    t.accountId == AppProvider.cashOnHandId) {
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Transfer from cash';
+                                } else if (t.type == 'goal_contribution' &&
+                                    t.accountId == AppProvider.cashOnHandId) {
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Goal contribution';
+                                } else if (t.type == 'debt_payment' &&
+                                    t.accountId == AppProvider.cashOnHandId) {
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Debt payment';
                                 } else {
-                                  description = t.note?.isNotEmpty == true ? t.note! : 'Transaction';
+                                  description = t.note?.isNotEmpty == true
+                                      ? t.note!
+                                      : 'Transaction';
                                 }
 
                                 return Column(
                                   children: [
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20, vertical: 14),
                                       child: Row(
                                         children: [
                                           Container(
-                                            width: 44, height: 44,
+                                            width: 44,
+                                            height: 44,
                                             decoration: BoxDecoration(
-                                              color: (addsCash ? AppTheme.success : AppTheme.error).withOpacity(0.12),
-                                              borderRadius: BorderRadius.circular(14),
+                                              color:
+                                                  AppTheme.adaptiveIconSurface(
+                                                      context),
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
                                             ),
                                             child: Icon(
-                                              addsCash ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                                              color: addsCash ? AppTheme.success : AppTheme.error,
+                                              addsCash
+                                                  ? IOSIcons
+                                                      .arrow_downward_rounded
+                                                  : IOSIcons
+                                                      .arrow_upward_rounded,
+                                              color: AppTheme.adaptiveIcon(
+                                                  context),
                                               size: 20,
                                             ),
                                           ),
                                           const SizedBox(width: 14),
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                Text(description, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                                Text(description,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium
+                                                        ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600)),
                                                 const SizedBox(height: 2),
-                                                Text(DateFormat('MMM d, yyyy').format(date), style: Theme.of(context).textTheme.bodySmall),
+                                                Text(
+                                                    DateFormat('MMM d, yyyy')
+                                                        .format(date),
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall),
                                               ],
                                             ),
                                           ),
                                           Text(
                                             '${addsCash ? '+' : '-'}${cf.format(t.amount)}',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w700,
-                                              color: addsCash ? AppTheme.success : AppTheme.error,
+                                              // Cash money is amber in both
+                                              // directions.
+                                              color: AppTheme.cashOnHandIcon,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    if (!isLast) Divider(height: 1, indent: 76, color: Theme.of(context).dividerColor),
+                                    if (!isLast)
+                                      Divider(
+                                          height: 1,
+                                          indent: 76,
+                                          color:
+                                              Theme.of(context).dividerColor),
                                   ],
                                 );
                               }).toList(),

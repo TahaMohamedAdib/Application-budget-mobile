@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import '../../theme/app_theme.dart';
 
 class HookScreen extends StatelessWidget {
@@ -29,23 +30,23 @@ class HookScreen extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: const Icon(IOSIcons.arrow_back),
                       onPressed: onBack,
                     ),
                   ],
                 ),
                 const Spacer(),
                 Icon(
-                  Icons.warning_amber_rounded,
+                  IOSIcons.warning_amber_rounded,
                   size: 80,
-                  color: AppTheme.warning,
+                  color: AppTheme.adaptiveIcon(context),
                 ),
                 const SizedBox(height: 32),
                 Text(
                   'Living Paycheck to Paycheck?',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -57,17 +58,17 @@ class HookScreen extends StatelessWidget {
                 const SizedBox(height: 32),
                 _buildProblemItem(
                   context,
-                  Icons.credit_card,
+                  IOSIcons.credit_card,
                   'Unexpected bills catch you off guard',
                 ),
                 _buildProblemItem(
                   context,
-                  Icons.trending_down,
+                  IOSIcons.trending_down,
                   'Money disappears before month ends',
                 ),
                 _buildProblemItem(
                   context,
-                  Icons.help_outline,
+                  IOSIcons.help_outline,
                   'No clear picture of your finances',
                 ),
                 const Spacer(),
@@ -109,10 +110,10 @@ class HookScreen extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.error.withOpacity(0.12),
+              color: AppTheme.adaptiveIconSurface(context),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: AppTheme.error),
+            child: Icon(icon, color: AppTheme.adaptiveIcon(context)),
           ),
           const SizedBox(width: 16),
           Expanded(

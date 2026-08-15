@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -37,13 +38,17 @@ class AllSubscriptionsScreen extends StatelessWidget {
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
-                          width: 40, height: 40,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                            color: isDark
+                                ? AppTheme.darkSurface
+                                : AppTheme.lightSurface,
                             shape: BoxShape.circle,
                             boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                           ),
-                          child: const Icon(Icons.arrow_back_rounded, size: 20),
+                          child:
+                              const Icon(IOSIcons.arrow_back_rounded, size: 20),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -53,7 +58,10 @@ class AllSubscriptionsScreen extends StatelessWidget {
                           children: [
                             Text(
                               'Upcoming Subscriptions',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             Text(
                               '${allRules.length} active · swipe left to delete',
@@ -73,18 +81,30 @@ class AllSubscriptionsScreen extends StatelessWidget {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.autorenew_rounded, size: 56, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.4)),
+                              Icon(IOSIcons.autorenew_rounded,
+                                  size: 56,
+                                  color: AppTheme.adaptiveIcon(context,
+                                      alpha: 0.4)),
                               const SizedBox(height: 16),
-                              Text('No upcoming subscriptions', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                              Text('No upcoming subscriptions',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
-                              Text('Add recurring expenses from the + button', style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+                              Text('Add recurring expenses from the + button',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                  textAlign: TextAlign.center),
                             ],
                           ),
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           itemCount: allRules.length,
-                          separatorBuilder: (_, __) => Divider(height: 1, indent: 76, color: Theme.of(context).dividerColor),
+                          separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              indent: 76,
+                              color: Theme.of(context).dividerColor),
                           itemBuilder: (context, index) {
                             final rule = allRules[index];
                             return Slidable(
@@ -96,95 +116,175 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                   CustomSlidableAction(
                                     onPressed: (_) async {
                                       final confirmed = await showDialog<bool>(
-                                        context: context,
-                                        builder: (dCtx) => AlertDialog(
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                          title: const Text('Delete Subscription?'),
-                                          content: Text('Delete "${rule.templateTransaction.note ?? 'Subscription'}"? This cannot be undone.'),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel')),
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(dCtx, true),
-                                              style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                                              child: const Text('Delete'),
+                                            context: context,
+                                            builder: (dCtx) => AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          20)),
+                                              title: const Text(
+                                                  'Delete Subscription?'),
+                                              content: Text(
+                                                  'Delete "${rule.templateTransaction.note ?? 'Subscription'}"? This cannot be undone.'),
+                                              actions: [
+                                                TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            dCtx, false),
+                                                    child:
+                                                        const Text('Cancel')),
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(dCtx, true),
+                                                  style: TextButton.styleFrom(
+                                                      foregroundColor:
+                                                          AppTheme.error),
+                                                  child: const Text('Delete'),
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                      ) ?? false;
-                                      if (confirmed) provider.deleteRecurringRule(rule.id);
+                                          ) ??
+                                          false;
+                                      if (confirmed)
+                                        provider.deleteRecurringRule(rule.id);
                                     },
                                     backgroundColor: Colors.transparent,
                                     child: Container(
-                                      width: 48, height: 48,
-                                      decoration: const BoxDecoration(color: AppTheme.error, shape: BoxShape.circle),
-                                      child: const Icon(Icons.delete_rounded, color: Colors.white, size: 20),
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                          color: AppTheme.adaptiveIconSurface(
+                                              context),
+                                          shape: BoxShape.circle),
+                                      child: Icon(IOSIcons.delete_rounded,
+                                          color: AppTheme.adaptiveIcon(context),
+                                          size: 20),
                                     ),
                                   ),
                                 ],
                               ),
                               child: InkWell(
-                                onTap: () => _showEditSubscriptionModal(context, provider, rule, cf),
+                                onTap: () => _showEditSubscriptionModal(
+                                    context, provider, rule, cf),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 14),
                                   child: Row(
                                     children: [
                                       Builder(builder: (ctx) {
-                                        final cat = rule.templateTransaction.categoryId != null
-                                            ? provider.categories.where((c) => c.id == rule.templateTransaction.categoryId).firstOrNull
+                                        final cat = rule.templateTransaction
+                                                    .categoryId !=
+                                                null
+                                            ? provider.categories
+                                                .where((c) =>
+                                                    c.id ==
+                                                    rule.templateTransaction
+                                                        .categoryId)
+                                                .firstOrNull
                                             : null;
-                                        final account = provider.accounts.where((a) => a.id == rule.templateTransaction.accountId).firstOrNull;
+                                        final account = provider.accounts
+                                            .where((a) =>
+                                                a.id ==
+                                                rule.templateTransaction
+                                                    .accountId)
+                                            .firstOrNull;
                                         return Container(
-                                          width: 44, height: 44,
+                                          width: 44,
+                                          height: 44,
                                           decoration: BoxDecoration(
-                                            color: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
-                                            borderRadius: BorderRadius.circular(14),
+                                            color: AppTheme.adaptiveIconSurface(
+                                                context),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
                                           ),
                                           child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(14),
-                                            child: cat != null && cat.icon.startsWith('img:')
-                                                ? _buildImageIcon(cat.icon.substring(4))
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            child: cat != null &&
+                                                    cat.icon.startsWith('img:')
+                                                ? _buildImageIcon(context,
+                                                    cat.icon.substring(4))
                                                 : account?.imagePath != null
-                                                    ? _buildImageIcon(account!.imagePath!)
+                                                    ? _buildImageIcon(context,
+                                                        account!.imagePath!)
                                                     : cat != null
-                                                        ? Icon(_categoryIconData(cat.icon), color: AppTheme.goldPrimary, size: 20)
-                                                        : const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20),
+                                                        ? Icon(
+                                                            _categoryIconData(
+                                                                cat.icon),
+                                                            color: AppTheme
+                                                                .adaptiveIcon(
+                                                                    context),
+                                                            size: 20)
+                                                        : Icon(
+                                                            IOSIcons
+                                                                .autorenew_rounded,
+                                                            color: AppTheme
+                                                                .adaptiveIcon(
+                                                                    context),
+                                                            size: 20),
                                           ),
                                         );
                                       }),
                                       const SizedBox(width: 14),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              rule.templateTransaction.note ?? 'Subscription',
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                              rule.templateTransaction.note ??
+                                                  'Subscription',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleMedium
+                                                  ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600),
                                             ),
                                             const SizedBox(height: 2),
                                             Builder(builder: (ctx) {
-                                              final nd = DateTime.parse(rule.nextDate);
-                                              final isToday = nd.year == now.year && nd.month == now.month && nd.day == now.day;
-                                              final dateStr = isToday ? 'Today · ${DateFormat('h:mm a').format(nd)}' : 'Due ${DateFormat('MMM d').format(nd)}';
+                                              final nd =
+                                                  DateTime.parse(rule.nextDate);
+                                              final isToday =
+                                                  nd.year == now.year &&
+                                                      nd.month == now.month &&
+                                                      nd.day == now.day;
+                                              final dateStr = isToday
+                                                  ? 'Today · ${DateFormat('h:mm a').format(nd)}'
+                                                  : 'Due ${DateFormat('MMM d').format(nd)}';
                                               return Text(
                                                 '$dateStr · ${rule.frequency[0].toUpperCase()}${rule.frequency.substring(1)}',
-                                                style: Theme.of(context).textTheme.bodySmall,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall,
                                               );
                                             }),
                                           ],
                                         ),
                                       ),
                                       Text(
-                                        cf.format(rule.templateTransaction.amount),
-                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                                        cf.format(
+                                            rule.templateTransaction.amount),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w700),
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
-                                        width: 32, height: 32,
+                                        width: 32,
+                                        height: 32,
                                         decoration: BoxDecoration(
-                                          color: AppTheme.goldPrimary.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: AppTheme.adaptiveIconSurface(
+                                              context),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
-                                        child: const Icon(Icons.edit_rounded, size: 15, color: AppTheme.goldPrimary),
+                                        child: Icon(IOSIcons.edit_rounded,
+                                            size: 15,
+                                            color:
+                                                AppTheme.adaptiveIcon(context)),
                                       ),
                                     ],
                                   ),
@@ -202,47 +302,81 @@ class AllSubscriptionsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildImageIcon(String path) {
+  Widget _buildImageIcon(BuildContext context, String path) {
     if (path.startsWith('http')) {
-      return Image.network(path, fit: BoxFit.cover, width: 44, height: 44,
-          errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20));
+      return Image.network(path,
+          fit: BoxFit.cover,
+          width: 44,
+          height: 44,
+          errorBuilder: (_, __, ___) => Icon(IOSIcons.autorenew_rounded,
+              color: AppTheme.adaptiveIcon(context), size: 20));
     }
-    return Image.file(File(path), fit: BoxFit.cover, width: 44, height: 44,
-        errorBuilder: (_, __, ___) => const Icon(Icons.autorenew_rounded, color: AppTheme.goldPrimary, size: 20));
+    return Image.file(File(path),
+        fit: BoxFit.cover,
+        width: 44,
+        height: 44,
+        errorBuilder: (_, __, ___) => Icon(IOSIcons.autorenew_rounded,
+            color: AppTheme.adaptiveIcon(context), size: 20));
   }
 
   IconData _categoryIconData(String iconName) {
     switch (iconName) {
-      case 'home': return Icons.home_rounded;
-      case 'flash': return Icons.flash_on_rounded;
-      case 'phone': return Icons.phone_android_rounded;
-      case 'tv': return Icons.tv_rounded;
-      case 'shield': return Icons.shield_rounded;
-      case 'credit_card': return Icons.credit_card_rounded;
-      case 'shopping_cart': return Icons.shopping_cart_rounded;
-      case 'car': return Icons.directions_car_rounded;
-      case 'restaurant': return Icons.restaurant_rounded;
-      case 'shopping_bag': return Icons.shopping_bag_rounded;
-      case 'favorite': return Icons.favorite_rounded;
-      case 'sports_esports': return Icons.sports_esports_rounded;
-      case 'face': return Icons.face_rounded;
-      case 'school': return Icons.school_rounded;
-      case 'flight': return Icons.flight_rounded;
-      case 'card_giftcard': return Icons.card_giftcard_rounded;
-      case 'pets': return Icons.pets_rounded;
-      case 'autorenew': return Icons.autorenew_rounded;
-      case 'fitness_center': return Icons.fitness_center_rounded;
-      case 'local_cafe': return Icons.local_cafe_rounded;
-      case 'child_care': return Icons.child_care_rounded;
-      case 'build': return Icons.build_rounded;
-      default: return Icons.autorenew_rounded;
+      case 'home':
+        return IOSIcons.home_rounded;
+      case 'flash':
+        return IOSIcons.flash_on_rounded;
+      case 'phone':
+        return IOSIcons.phone_android_rounded;
+      case 'tv':
+        return IOSIcons.tv_rounded;
+      case 'shield':
+        return IOSIcons.shield_rounded;
+      case 'credit_card':
+        return IOSIcons.credit_card_rounded;
+      case 'shopping_cart':
+        return IOSIcons.shopping_cart_rounded;
+      case 'car':
+        return IOSIcons.directions_car_rounded;
+      case 'restaurant':
+        return IOSIcons.restaurant_rounded;
+      case 'shopping_bag':
+        return IOSIcons.shopping_bag_rounded;
+      case 'favorite':
+        return IOSIcons.favorite_rounded;
+      case 'sports_esports':
+        return IOSIcons.sports_esports_rounded;
+      case 'face':
+        return IOSIcons.face_rounded;
+      case 'school':
+        return IOSIcons.school_rounded;
+      case 'flight':
+        return IOSIcons.flight_rounded;
+      case 'card_giftcard':
+        return IOSIcons.card_giftcard_rounded;
+      case 'pets':
+        return IOSIcons.pets_rounded;
+      case 'autorenew':
+        return IOSIcons.autorenew_rounded;
+      case 'fitness_center':
+        return IOSIcons.fitness_center_rounded;
+      case 'local_cafe':
+        return IOSIcons.local_cafe_rounded;
+      case 'child_care':
+        return IOSIcons.child_care_rounded;
+      case 'build':
+        return IOSIcons.build_rounded;
+      default:
+        return IOSIcons.autorenew_rounded;
     }
   }
 
-  void _showEditSubscriptionModal(BuildContext context, AppProvider provider, RecurringRule rule, NumberFormat cf) {
+  void _showEditSubscriptionModal(BuildContext context, AppProvider provider,
+      RecurringRule rule, NumberFormat cf) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final noteCtrl = TextEditingController(text: rule.templateTransaction.note ?? '');
-    final amountCtrl = TextEditingController(text: rule.templateTransaction.amount.toString());
+    final noteCtrl =
+        TextEditingController(text: rule.templateTransaction.note ?? '');
+    final amountCtrl =
+        TextEditingController(text: rule.templateTransaction.amount.toString());
     String frequency = rule.frequency;
     DateTime nextDate = DateTime.parse(rule.nextDate.substring(0, 10));
 
@@ -256,7 +390,8 @@ class AllSubscriptionsScreen extends StatelessWidget {
             color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -264,20 +399,36 @@ class AllSubscriptionsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
+                  Center(
+                      child: Container(
+                          width: 48,
+                          height: 5,
+                          decoration: BoxDecoration(
+                              color: Theme.of(ctx).dividerColor,
+                              borderRadius: BorderRadius.circular(3)))),
                   const SizedBox(height: 20),
                   Row(
                     children: [
                       Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(color: AppTheme.info.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
-                        child: const Icon(Icons.autorenew_rounded, color: AppTheme.info, size: 22),
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                            color: AppTheme.adaptiveIconSurface(ctx),
+                            borderRadius: BorderRadius.circular(14)),
+                        child: Icon(IOSIcons.autorenew_rounded,
+                            color: AppTheme.adaptiveIcon(ctx), size: 22),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: Text('Edit Subscription', style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        child: Text('Edit Subscription',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
                       ),
-                      IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(ctx)),
+                      IconButton(
+                          icon: const Icon(IOSIcons.close_rounded, size: 20),
+                          onPressed: () => Navigator.pop(ctx)),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -288,9 +439,11 @@ class AllSubscriptionsScreen extends StatelessWidget {
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: 'Subscription Name',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       filled: true,
-                      prefixIcon: const Icon(Icons.label_rounded),
+                      prefixIcon: Icon(IOSIcons.label_rounded,
+                          color: AppTheme.adaptiveIcon(ctx)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -302,15 +455,21 @@ class AllSubscriptionsScreen extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Amount',
                       hintText: '0.00',
-                      prefixText: '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      prefixText:
+                          '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       filled: true,
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // Frequency
-                  Text('Frequency', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text('Frequency',
+                      style: Theme.of(ctx)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 10),
                   Row(
                     children: ['weekly', 'monthly', 'yearly'].map((f) {
@@ -319,14 +478,31 @@ class AllSubscriptionsScreen extends StatelessWidget {
                         child: GestureDetector(
                           onTap: () => setModalState(() => frequency = f),
                           child: Container(
-                            margin: EdgeInsets.only(right: f == 'yearly' ? 0 : 8),
+                            margin:
+                                EdgeInsets.only(right: f == 'yearly' ? 0 : 8),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
-                              color: isActive ? AppTheme.info.withOpacity(0.12) : Colors.transparent,
+                              color: isActive
+                                  ? AppTheme.info.withOpacity(0.12)
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: isActive ? AppTheme.info : Theme.of(ctx).dividerColor, width: 1.5),
+                              border: Border.all(
+                                  color: isActive
+                                      ? AppTheme.info
+                                      : Theme.of(ctx).dividerColor,
+                                  width: 1.5),
                             ),
-                            child: Center(child: Text(f[0].toUpperCase() + f.substring(1), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isActive ? AppTheme.info : Theme.of(ctx).textTheme.bodySmall?.color))),
+                            child: Center(
+                                child: Text(f[0].toUpperCase() + f.substring(1),
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: isActive
+                                            ? AppTheme.info
+                                            : Theme.of(ctx)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.color))),
                           ),
                         ),
                       );
@@ -341,9 +517,11 @@ class AllSubscriptionsScreen extends StatelessWidget {
                         context: ctx,
                         initialDate: nextDate,
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+                        lastDate:
+                            DateTime.now().add(const Duration(days: 365 * 3)),
                       );
-                      if (picked != null) setModalState(() => nextDate = picked);
+                      if (picked != null)
+                        setModalState(() => nextDate = picked);
                     },
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -353,14 +531,24 @@ class AllSubscriptionsScreen extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today_rounded, size: 18, color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.calendar_today_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
                           const SizedBox(width: 12),
-                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('Next Due Date', style: Theme.of(ctx).textTheme.bodySmall),
-                            Text(DateFormat('MMM d, yyyy').format(nextDate), style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                          ]),
+                          Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Next Due Date',
+                                    style: Theme.of(ctx).textTheme.bodySmall),
+                                Text(DateFormat('MMM d, yyyy').format(nextDate),
+                                    style: Theme.of(ctx)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w600)),
+                              ]),
                           const Spacer(),
-                          Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(ctx).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.chevron_right_rounded,
+                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
                         ],
                       ),
                     ),
@@ -368,12 +556,14 @@ class AllSubscriptionsScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   SizedBox(
-                    width: double.infinity, height: 52,
+                    width: double.infinity,
+                    height: 52,
                     child: ElevatedButton(
                       onPressed: () {
                         final amount = double.tryParse(amountCtrl.text) ?? 0;
                         if (amount <= 0) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please enter a valid amount')));
+                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                              content: Text('Please enter a valid amount')));
                           return;
                         }
                         final updatedRule = rule.copyWith(
@@ -394,16 +584,21 @@ class AllSubscriptionsScreen extends StatelessWidget {
                         provider.updateRecurringRule(updatedRule);
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Subscription updated'), backgroundColor: AppTheme.goldPrimary),
+                          const SnackBar(
+                              content: Text('Subscription updated'),
+                              backgroundColor: AppTheme.goldPrimary),
                         );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.goldPrimary,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
-                      child: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      child: const Text('Save Changes',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],

@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:iconify_flutter/iconify_flutter.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
@@ -14,6 +14,7 @@ import '../models/holding.dart';
 import '../models/account.dart';
 import '../services/stock_price_service.dart';
 import '../utils/currency_helper.dart';
+import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../l10n/app_localizations.dart';
 
@@ -124,9 +125,8 @@ class _PortfolioScreenState extends State<PortfolioScreen>
         b.purchaseDate == null ? null : DateTime.tryParse(b.purchaseDate!);
 
     if (aDate != null && bDate != null) {
-      final byDate = newestFirst
-          ? bDate.compareTo(aDate)
-          : aDate.compareTo(bDate);
+      final byDate =
+          newestFirst ? bDate.compareTo(aDate) : aDate.compareTo(bDate);
       if (byDate != 0) return byDate;
     } else if (aDate == null && bDate != null) {
       return 1;
@@ -206,9 +206,9 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                           onTap: () => Navigator.pop(context),
                           child: Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Iconify(AppIcons.back,
+                            child: AppIcon(AppIcons.back,
                                 size: 22,
-                                color: isDark ? Colors.white : Colors.black),
+                                color: AppTheme.adaptiveIcon(context)),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -253,19 +253,18 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                       height: 22,
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2))
-                                  : Iconify(AppIcons.refresh,
+                                  : AppIcon(AppIcons.refresh,
                                       size: 22,
-                                      color:
-                                          isDark ? Colors.white : Colors.black),
+                                      color: AppTheme.adaptiveIcon(context)),
                             ),
                           ),
                         GestureDetector(
                           onTap: () => _showAddHoldingModal(context, provider),
                           child: Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Iconify(AppIcons.add,
+                            child: AppIcon(AppIcons.add,
                                 size: 24,
-                                color: isDark ? Colors.white : Colors.black),
+                                color: AppTheme.adaptiveIcon(context)),
                           ),
                         ),
                       ],
@@ -566,8 +565,7 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                               setState(() => _assetSort = value),
                           itemBuilder: (context) => _PortfolioSortOption.values
                               .map(
-                                (option) =>
-                                    PopupMenuItem<_PortfolioSortOption>(
+                                (option) => PopupMenuItem<_PortfolioSortOption>(
                                   value: option,
                                   child: Text(_sortLabel(s, option)),
                                 ),
@@ -595,11 +593,9 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                         : Colors.black87),
                               ),
                               const SizedBox(width: 4),
-                              Iconify(AppIcons.caretDown,
+                              AppIcon(AppIcons.caretDown,
                                   size: 18,
-                                  color: isDark
-                                      ? Colors.white54
-                                      : Colors.black45),
+                                  color: AppTheme.adaptiveIcon(context)),
                             ],
                           ),
                         ),
@@ -624,11 +620,9 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                       : const Color(0xFFF3F4F6),
                                   borderRadius: BorderRadius.circular(24),
                                 ),
-                                child: Iconify(AppIcons.chartLine,
+                                child: AppIcon(AppIcons.chartLine,
                                     size: 40,
-                                    color: isDark
-                                        ? Colors.white38
-                                        : Colors.black26),
+                                    color: AppTheme.adaptiveIcon(context)),
                               ),
                               const SizedBox(height: 20),
                               Text(s.noHoldings,
@@ -1169,12 +1163,12 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                       border:
                           Border.all(color: AppTheme.error.withOpacity(0.3)),
                     ),
-                    child: const Row(
+                    child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Iconify(AppIcons.sell,
-                              color: AppTheme.error, size: 14),
-                          SizedBox(width: 5),
+                          AppIcon(AppIcons.sell,
+                              color: AppTheme.adaptiveIcon(context), size: 14),
+                          const SizedBox(width: 5),
                           Text('Sell',
                               style: TextStyle(
                                   color: AppTheme.error,
@@ -1197,12 +1191,12 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                       border: Border.all(
                           color: AppTheme.goldPrimary.withOpacity(0.3)),
                     ),
-                    child: const Row(
+                    child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Iconify(AppIcons.edit,
-                              color: AppTheme.goldPrimary, size: 14),
-                          SizedBox(width: 5),
+                          AppIcon(AppIcons.edit,
+                              color: AppTheme.adaptiveIcon(context), size: 14),
+                          const SizedBox(width: 5),
                           Text('Edit',
                               style: TextStyle(
                                   color: AppTheme.goldPrimary,
@@ -1223,9 +1217,8 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.grey.withOpacity(0.2)),
                   ),
-                  child: Iconify(AppIcons.delete,
-                      color: isDark ? Colors.white38 : Colors.black38,
-                      size: 16),
+                  child: AppIcon(AppIcons.delete,
+                      color: AppTheme.adaptiveIcon(context), size: 16),
                 ),
               ),
             ]),
@@ -1247,7 +1240,9 @@ class _PortfolioScreenState extends State<PortfolioScreen>
           Navigator.pop(context);
           final sourceMatches = h.sourceAccountId == null
               ? const <Account>[]
-              : provider.accounts.where((a) => a.id == h.sourceAccountId).toList();
+              : provider.accounts
+                  .where((a) => a.id == h.sourceAccountId)
+                  .toList();
           final sourceName =
               sourceMatches.isEmpty ? null : sourceMatches.first.name;
           final message = h.affectsSourceBalance && sourceName != null
@@ -2007,7 +2002,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const Spacer(),
             IconButton(
-                icon: const Iconify(AppIcons.close),
+                icon: const AppIcon(AppIcons.close),
                 onPressed: () => Navigator.pop(context)),
           ]),
         ),
@@ -2020,7 +2015,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
               hintText: 'Search country...',
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 14, right: 8),
-                child: Iconify(AppIcons.search,
+                child: AppIcon(AppIcons.search,
                     size: 16,
                     color: Theme.of(context).textTheme.bodySmall?.color),
               ),
@@ -2091,8 +2086,8 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                       ),
                     if (isSelected) ...[
                       const SizedBox(width: 8),
-                      const Iconify(AppIcons.checkCircle,
-                          color: Color(0xFF7C3AED), size: 18),
+                      AppIcon(AppIcons.checkCircle,
+                          color: AppTheme.adaptiveIcon(context), size: 18),
                     ],
                   ]),
                 ),
@@ -2340,7 +2335,7 @@ class _HoldingCard extends StatelessWidget {
                 height: 38,
                 child: OutlinedButton.icon(
                   onPressed: onSell,
-                  icon: const Iconify(AppIcons.sell, size: 16),
+                  icon: const AppIcon(AppIcons.sell, size: 16),
                   label: const Text('Sell'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.error,
@@ -2505,7 +2500,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
     super.dispose();
   }
 
-  DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+  DateTime _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
 
   List<Account> _fundingAccounts(AppProvider provider) => provider.accounts
       .where((a) => a.type == 'bank' || a.type == 'savings')
@@ -2513,8 +2509,9 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
 
   Account? _selectedFundingAccount(AppProvider provider) {
     if (_sourceAccountId == null) return null;
-    final matches =
-        _fundingAccounts(provider).where((a) => a.id == _sourceAccountId).toList();
+    final matches = _fundingAccounts(provider)
+        .where((a) => a.id == _sourceAccountId)
+        .toList();
     return matches.isEmpty ? null : matches.first;
   }
 
@@ -2593,7 +2590,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
       currentPrice: currentPrice,
       notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
       purchaseDate: pdStr,
-      sourceAccountId: widget.holding?.sourceAccountId ?? selectedFundingAccount?.id,
+      sourceAccountId:
+          widget.holding?.sourceAccountId ?? selectedFundingAccount?.id,
       affectsSourceBalance: affectsSourceBalance,
       sourceAmount: sourceAmount,
     ));
@@ -2619,31 +2617,22 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
           ? shares * costBasis * widget.fxRate
           : null;
     })();
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SafeArea(
+    return AppFormSheet(
+      builder: (context, scrollController) => SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    widget.holding == null ? s.addHolding : s.editHolding,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  IconButton(
-                      icon: const Iconify(AppIcons.close),
-                      onPressed: () => Navigator.pop(context)),
-                ],
+              const AppFormSheetHandle(),
+              const SizedBox(height: 16),
+              AppFormSheetHeader(
+                title: widget.holding == null ? s.addHolding : s.editHolding,
+                icon: IOSIcons.wealthInvestments,
+                accent: AppTheme.adaptiveIcon(context),
               ),
               const SizedBox(height: 24),
 
@@ -2710,8 +2699,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF7C3AED))),
                       ),
-                    const Iconify(AppIcons.caretDown,
-                        color: Color(0xFF7C3AED), size: 20),
+                    AppIcon(AppIcons.caretDown,
+                        color: AppTheme.adaptiveIcon(context), size: 20),
                   ]),
                 ),
               ),
@@ -2737,7 +2726,7 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                         )
                       : Padding(
                           padding: const EdgeInsets.only(left: 14, right: 8),
-                          child: Iconify(AppIcons.search,
+                          child: AppIcon(AppIcons.search,
                               size: 16,
                               color:
                                   Theme.of(context).textTheme.bodySmall?.color),
@@ -2746,7 +2735,7 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                       const BoxConstraints(minWidth: 38, minHeight: 38),
                   suffixIcon: _symbolCtrl.text.isNotEmpty
                       ? IconButton(
-                          icon: const Iconify(AppIcons.close, size: 18),
+                          icon: const AppIcon(AppIcons.close, size: 18),
                           onPressed: () {
                             _symbolCtrl.clear();
                             setState(() {
@@ -2930,7 +2919,7 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Iconify(AppIcons.refresh, size: 18),
+                        : const AppIcon(AppIcons.refresh, size: 18),
                     label: Text(_fetching
                         ? 'Fetching...'
                         : 'Fetch Live Price for "${_symbolCtrl.text.trim().toUpperCase()}"'),
@@ -2958,8 +2947,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   ),
                   child: Row(
                     children: [
-                      Iconify(AppIcons.checkCircle,
-                          color: AppTheme.success, size: 18),
+                      AppIcon(AppIcons.checkCircle,
+                          color: AppTheme.adaptiveIcon(context), size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -2998,8 +2987,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline,
-                          color: AppTheme.error, size: 18),
+                      Icon(IOSIcons.error_outline,
+                          color: AppTheme.adaptiveIcon(context), size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(_fetchError!,
@@ -3021,7 +3010,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   hintText: 'e.g., Apple Stock, Bitcoin Investment',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.title),
+                  prefixIcon: Icon(IOSIcons.title,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -3036,7 +3026,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   hintText: '0',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.numbers),
+                  prefixIcon: Icon(IOSIcons.numbers,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -3051,7 +3042,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   hintText: '0.00',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.attach_money),
+                  prefixIcon: Icon(IOSIcons.attach_money,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -3072,7 +3064,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                     labelText: 'Purchase Date',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.calendar_today_rounded),
+                    prefixIcon: Icon(IOSIcons.calendar_today_rounded,
+                        color: AppTheme.adaptiveIcon(context)),
                   ),
                   child: Text(
                     DateFormat('MMM d, yyyy').format(_purchaseDate),
@@ -3097,12 +3090,13 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                           subtitle:
                               '$currencySymbol${account.balance.toStringAsFixed(2)} available · tracked from ${DateFormat('MMM d, yyyy').format(_accountTrackingStart(account))}',
                           leadingIcon: AppIcons.bank,
-                          iconColor: const Color(0xFF3B82F6),
+                          iconColor: AppTheme.adaptiveIcon(context),
                           imagePath: account.imagePath,
                         ),
                       )
                       .toList(),
-                  onChanged: (value) => setState(() => _sourceAccountId = value),
+                  onChanged: (value) =>
+                      setState(() => _sourceAccountId = value),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -3173,7 +3167,8 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
                   hintText: 'e.g., Long-term hold, Roth IRA',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.note),
+                  prefixIcon: Icon(IOSIcons.note,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -3311,8 +3306,8 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
       DropdownMenuItem(
         value: AppProvider.cashOnHandId,
         child: Row(children: [
-          const Icon(Icons.payments_rounded,
-              size: 18, color: AppTheme.goldPrimary),
+          const Icon(IOSIcons.payments_rounded,
+              size: 18, color: AppTheme.cashOnHandIcon),
           const SizedBox(width: 10),
           Expanded(
               child: Text(
@@ -3325,8 +3320,8 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
             (a) => DropdownMenuItem(
               value: a.id,
               child: Row(children: [
-                const Icon(Icons.account_balance_rounded,
-                    size: 18, color: Color(0xFF3B82F6)),
+                Icon(IOSIcons.account_balance_rounded,
+                    size: 18, color: AppTheme.adaptiveIcon(context)),
                 const SizedBox(width: 10),
                 Expanded(
                     child: Text(
@@ -3338,56 +3333,31 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
           ),
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SafeArea(
+    return AppFormSheet(
+      builder: (context, scrollController) => SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
+              const AppFormSheetHandle(),
+              const SizedBox(height: 16),
+              AppFormSheetHeader(
+                title: 'Sell ${widget.holding.symbol}',
+                icon: IOSIcons.wealthInvestments,
+                accent: AppTheme.adaptiveIcon(context),
+              ),
+              const SizedBox(height: 6),
               Center(
-                  child: Container(
-                      width: 44,
-                      height: 5,
-                      decoration: BoxDecoration(
-                          color: Theme.of(context).dividerColor,
-                          borderRadius: BorderRadius.circular(3)))),
-              const SizedBox(height: 20),
-
-              // Header
-              Row(children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: StockLogo(symbol: widget.holding.symbol, size: 48),
+                child: Text(
+                  '${widget.holding.shares} shares available  ·  ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)} live',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(
-                          'Sell ${widget.holding.title ?? widget.holding.symbol}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 2),
-                      Text(
-                          '${widget.holding.shares} shares available  ·  ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)} live',
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ])),
-                IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(context)),
-              ]),
+              ),
               const SizedBox(height: 24),
 
               // ── Shares ───────────────────────────────────────────────
@@ -3410,7 +3380,8 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                       suffixText: '/ ${widget.holding.shares}',
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: const Icon(Icons.candlestick_chart_rounded),
+                      prefixIcon: Icon(IOSIcons.candlestick_chart_rounded,
+                          color: AppTheme.adaptiveIcon(context)),
                       filled: true,
                     ),
                   ),
@@ -3457,7 +3428,8 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                   prefixText: '$_sym ',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14)),
-                  prefixIcon: const Icon(Icons.sell_rounded),
+                  prefixIcon: Icon(IOSIcons.sell_rounded,
+                      color: AppTheme.adaptiveIcon(context)),
                   filled: true,
                   helperText: widget.holding.currentPrice > 0
                       ? 'Live price: ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)}  ·  tap to use'
@@ -3466,8 +3438,8 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                       color: AppTheme.goldPrimary, fontSize: 11),
                   suffixIcon: widget.holding.currentPrice > 0
                       ? IconButton(
-                          icon: const Icon(Icons.flash_on_rounded,
-                              size: 18, color: AppTheme.goldPrimary),
+                          icon: Icon(IOSIcons.flash_on_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(context)),
                           tooltip: 'Use live price',
                           onPressed: () {
                             _priceCtrl.text =
@@ -3493,7 +3465,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                     subtitle:
                         '${_sym}${widget.cashBalance.toStringAsFixed(2)} available',
                     leadingIcon: AppIcons.money,
-                    iconColor: AppTheme.goldPrimary,
+                    iconColor: AppTheme.cashOnHandIcon,
                   ),
                   ...widget.accounts.where((a) => a.type != 'investment').map(
                         (a) => AppPickerItem(
@@ -3502,7 +3474,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
                           subtitle:
                               '${_sym}${a.balance.toStringAsFixed(2)} available',
                           leadingIcon: AppIcons.bank,
-                          iconColor: const Color(0xFF3B82F6),
+                          iconColor: AppTheme.adaptiveIcon(context),
                           imagePath: a.imagePath,
                         ),
                       ),

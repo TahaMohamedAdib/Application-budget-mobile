@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import '../theme/app_theme.dart';
 
 class QuickActionsSheet extends StatelessWidget {
@@ -42,13 +43,13 @@ class QuickActionsSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Title
               Text(
                 'Quick Actions',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
               const SizedBox(height: 24),
 
@@ -56,32 +57,32 @@ class QuickActionsSheet extends StatelessWidget {
               _buildActionButton(
                 context,
                 'Add Expense',
-                Icons.receipt_long_rounded,
-                AppTheme.error,
+                IOSIcons.receipt_long_rounded,
+                AppTheme.expenseIcon,
                 onExpense,
               ),
               const SizedBox(height: 12),
               _buildActionButton(
                 context,
                 'Add Income',
-                Icons.arrow_downward_rounded,
-                AppTheme.success,
+                IOSIcons.arrow_downward_rounded,
+                AppTheme.incomeIcon,
                 onIncome,
               ),
               const SizedBox(height: 12),
               _buildActionButton(
                 context,
                 'Withdrawal',
-                Icons.account_balance_wallet_rounded,
-                AppTheme.warning,
+                IOSIcons.account_balance_wallet_rounded,
+                AppTheme.withdrawalIcon,
                 onWithdrawal,
               ),
               const SizedBox(height: 12),
               _buildActionButton(
                 context,
                 'Transfer',
-                Icons.swap_horiz_rounded,
-                AppTheme.info,
+                IOSIcons.swap_horiz_rounded,
+                AppTheme.transferIcon,
                 onTransfer,
               ),
               const SizedBox(height: 8),
@@ -106,10 +107,12 @@ class QuickActionsSheet extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? color.withOpacity(0.12) : color.withOpacity(0.08),
+          color: isDark ? const Color(0xFF252728) : const Color(0xFFF0F1F2),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: color.withOpacity(0.2),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.06),
             width: 1,
           ),
         ),
@@ -119,25 +122,27 @@ class QuickActionsSheet extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: color,
+                color: AppTheme.adaptiveIconSurface(context),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppTheme.darkTextPrimary
+                          : AppTheme.lightTextPrimary,
+                    ),
               ),
             ),
             Icon(
-              Icons.arrow_forward_ios_rounded,
+              IOSIcons.arrow_forward_ios_rounded,
               size: 16,
-              color: Theme.of(context).textTheme.bodySmall?.color,
+              color: AppTheme.adaptiveIcon(context),
             ),
           ],
         ),

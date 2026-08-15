@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +28,8 @@ import 'screens/coach_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'widgets/add_transaction_modal.dart';
+
+Color _alpha(Color color, double value) => color.withValues(alpha: value);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -156,8 +160,8 @@ class _SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_rounded,
-                size: 64, color: AppTheme.goldPrimary),
+            Icon(IOSIcons.account_balance_wallet_rounded,
+                size: 64, color: AppTheme.adaptiveIcon(context)),
             const SizedBox(height: 16),
             Text('SafeSpend',
                 style: TextStyle(
@@ -188,6 +192,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late final Animation<double> _menuAnimation;
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
   Timer? _subscriptionTimer;
+
+  /// Gap between the screen bottom and the floating nav pill. iOS parks its
+  /// own tab bar *inside* the home-indicator inset rather than above it, so we
+  /// do the same instead of clearing the full safe area.
+  double get _navBarBottomInset =>
+      MediaQuery.of(context).padding.bottom > 0 ? 24.0 : 12.0;
 
   late final List<Widget> _screens;
 
@@ -287,7 +297,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final isIOS = Platform.isIOS;
+    final navInset = _navBarBottomInset;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
@@ -321,13 +332,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           ),
 
           // Quick actions panel — above nav bar + bump
-          if (_selectedIndex != 1)
+          if (_selectedIndex != 1 || isIOS)
             AnimatedBuilder(
               animation: _menuAnimation,
               builder: (_, __) {
                 if (_menuAnimation.value == 0) return const SizedBox.shrink();
                 return Positioned(
-                  bottom: bottomPadding + 100,
+                  // 22 above the pill's top edge (pill is 66 tall).
+                  bottom: navInset + 88,
                   left: 16,
                   right: 16,
                   child: Transform.translate(
@@ -342,9 +354,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ),
 
           // Bump circle — same color as pill, merges seamlessly with nav bar
-          if (_selectedIndex != 1)
+          if (_selectedIndex != 1 && !isIOS)
             Positioned(
-              bottom: bottomPadding + 28,
+              bottom: navInset + 16,
               left: 0,
               right: 0,
               child: Center(
@@ -362,9 +374,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ),
 
           // FAB — 25% above pill top edge, crisp anti-aliased circle
-          if (_selectedIndex != 1)
+          if (_selectedIndex != 1 && !isIOS)
             Positioned(
-              bottom: bottomPadding + 34,
+              bottom: navInset + 22,
               left: 0,
               right: 0,
               child: Center(
@@ -414,16 +426,35 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildQuickActionsPanel(bool isDark) {
     final bg = isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground;
     final actions = [
-      ('Expense', Icons.arrow_upward_rounded, AppTheme.error, 'expense'),
-      ('Income', Icons.arrow_downward_rounded, AppTheme.success, 'income'),
+      (
+        'Expense',
+        IOSIcons.arrow_upward_rounded,
+        AppTheme.expenseIcon,
+        'expense'
+      ),
+      (
+        'Income',
+        IOSIcons.arrow_downward_rounded,
+        AppTheme.incomeIcon,
+        'income'
+      ),
       (
         'Withdraw',
-        Icons.account_balance_wallet_rounded,
-        AppTheme.warning,
+        IOSIcons.account_balance_wallet_rounded,
+        AppTheme.withdrawalIcon,
         'withdrawal'
       ),
-      ('Transfer', Icons.swap_horiz_rounded, AppTheme.info, 'transfer'),
+      (
+        'Transfer',
+        IOSIcons.swap_horiz_rounded,
+        AppTheme.transferIcon,
+        'transfer'
+      ),
     ];
+
+    if (Platform.isIOS) {
+      return _buildIOSGlassQuickActionsPanel(isDark, actions);
+    }
 
     return Center(
       child: Container(
@@ -468,7 +499,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              color: color.withOpacity(isDark ? 0.18 : 0.12),
+                              color: AppTheme.adaptiveIconSurface(context),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(icon, color: color, size: 17),
@@ -512,7 +543,91 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildIOSGlassQuickActionsPanel(
+    bool isDark,
+    List<(String, IconData, Color, String)> actions,
+  ) {
+    return Center(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: _alpha(Colors.black, isDark ? 0.50 : 0.16),
+              blurRadius: 34,
+              spreadRadius: -8,
+              offset: const Offset(0, 18),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          clipBehavior: Clip.antiAlias,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+            child: Container(
+              width: 254,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? _alpha(const Color(0xFF242427), 0.72)
+                    : _alpha(Colors.white, 0.58),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: isDark
+                      ? _alpha(Colors.white, 0.12)
+                      : _alpha(Colors.white, 0.74),
+                  width: 1,
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          _alpha(Colors.white, 0.10),
+                          _alpha(Colors.white, 0.04),
+                          _alpha(Colors.black, 0.14),
+                        ]
+                      : [
+                          _alpha(Colors.white, 0.82),
+                          _alpha(Colors.white, 0.42),
+                          _alpha(Colors.white, 0.24),
+                        ],
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(actions.length, (i) {
+                  final (label, icon, color, type) = actions[i];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: i == actions.length - 1 ? 0 : 6,
+                    ),
+                    child: _IOSQuickActionRow(
+                      label: label,
+                      icon: icon,
+                      color: color,
+                      isDark: isDark,
+                      onTap: () {
+                        _closeMenu();
+                        _openTransactionModal(type);
+                      },
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPillNavBar(bool isDark) {
+    if (Platform.isIOS) {
+      return _buildIOSGlassNavBar(isDark);
+    }
+
     final pillBg = isDark ? AppTheme.darkSurface : AppTheme.lightBackground;
     final activeColor = AppTheme.success;
     final inactiveColor =
@@ -520,37 +635,214 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     return Container(
       color: Colors.transparent,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, _navBarBottomInset),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: pillBg,
+            borderRadius: BorderRadius.circular(40),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                blurRadius: 24,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildPillNavItem(0, AppIcons.home, activeColor, inactiveColor),
+              _buildPillNavItem(
+                  1, AppIcons.aiCoach, activeColor, inactiveColor),
+              // Center bump/FAB placeholder
+              const SizedBox(width: 72),
+              _buildPillNavItem(
+                  2, AppIcons.budgets, activeColor, inactiveColor),
+              _buildPillNavItem(
+                  3, AppIcons.wealth, activeColor, inactiveColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIOSGlassNavBar(bool isDark) {
+    final activeColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final inactiveColor =
+        isDark ? _alpha(Colors.white, 0.66) : const Color(0xFF777B81);
+    final borderColor =
+        isDark ? _alpha(Colors.white, 0.14) : const Color(0xFFD9DCE0);
+
+    return Container(
+      color: Colors.transparent,
       child: SafeArea(
         top: false,
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Container(
-            height: 64,
+          padding: EdgeInsets.fromLTRB(14, 8, 14, _navBarBottomInset),
+          child: DecoratedBox(
             decoration: BoxDecoration(
-              color: pillBg,
-              borderRadius: BorderRadius.circular(40),
+              borderRadius: BorderRadius.circular(36),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                  blurRadius: 24,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 4),
+                  color: _alpha(Colors.black, isDark ? 0.46 : 0.10),
+                  blurRadius: 28,
+                  spreadRadius: -7,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildPillNavItem(0, AppIcons.home, activeColor, inactiveColor),
-                _buildPillNavItem(
-                    1, AppIcons.aiCoach, activeColor, inactiveColor),
-                // Center bump/FAB placeholder
-                const SizedBox(width: 72),
-                _buildPillNavItem(
-                    2, AppIcons.budgets, activeColor, inactiveColor),
-                _buildPillNavItem(
-                    3, AppIcons.wealth, activeColor, inactiveColor),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(36),
+              clipBehavior: Clip.antiAlias,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                child: Container(
+                  height: 66,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.darkBackground : null,
+                    gradient: isDark
+                        ? null
+                        : const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFF3F4F5),
+                              Color(0xFFE9EBED),
+                            ],
+                          ),
+                    borderRadius: BorderRadius.circular(36),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final itemWidth = constraints.maxWidth / 5;
+                      final indicatorWidth =
+                          (itemWidth - 8).clamp(58.0, 78.0).toDouble();
+                      const indicatorHeight = 52.0;
+                      final selectedCell = switch (_selectedIndex) {
+                        0 => 0,
+                        1 => 1,
+                        2 => 3,
+                        _ => 4,
+                      };
+                      final itemLeft = switch (selectedCell) {
+                        0 => 0.0,
+                        1 => itemWidth,
+                        2 => itemWidth * 2,
+                        3 => itemWidth * 3,
+                        _ => itemWidth * 4,
+                      };
+
+                      return Stack(
+                        children: [
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                            top: 7,
+                            left: itemLeft + ((itemWidth - indicatorWidth) / 2),
+                            width: indicatorWidth,
+                            height: indicatorHeight,
+                            child: _IOSGlassSelection(isDark: isDark),
+                          ),
+                          Positioned.fill(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildIOSGlassNavItem(0, AppIcons.home,
+                                    activeColor, inactiveColor),
+                                _buildIOSGlassNavItem(1, AppIcons.aiCoach,
+                                    activeColor, inactiveColor),
+                                _buildIOSGlassAddItem(isDark),
+                                _buildIOSGlassNavItem(2, AppIcons.budgets,
+                                    activeColor, inactiveColor),
+                                _buildIOSGlassNavItem(3, AppIcons.wealth,
+                                    activeColor, inactiveColor),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIOSGlassNavItem(
+      int index, String icon, Color activeColor, Color inactiveColor) {
+    final isActive = _selectedIndex == index;
+    return Expanded(
+      child: _PressScaleDetector(
+        onTap: () => _onTabTapped(index),
+        child: Center(
+          child: AnimatedScale(
+            scale: isActive ? 1.05 : 1,
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            child: Iconify(
+              icon,
+              size: 23,
+              color: isActive ? activeColor : inactiveColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIOSGlassAddItem(bool isDark) {
+    return Expanded(
+      child: _PressScaleDetector(
+        onTap: _toggleMenu,
+        child: Center(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _alpha(AppTheme.success, isDark ? 0.32 : 0.26),
+                  blurRadius: 16,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 8),
+                ),
               ],
+            ),
+            child: ClipOval(
+              clipBehavior: Clip.antiAlias,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppTheme.success,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF168A74)),
+                  ),
+                  child: Center(
+                    child: AnimatedRotation(
+                      turns: _isMenuOpen ? 0.125 : 0,
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      child: const Iconify(
+                        AppIcons.add,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -569,6 +861,164 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             icon,
             size: 24,
             color: isActive ? activeColor : inactiveColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IOSGlassSelection extends StatelessWidget {
+  final bool isDark;
+  const _IOSGlassSelection({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      clipBehavior: Clip.antiAlias,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isDark
+                  ? _alpha(Colors.white, 0.17)
+                  : _alpha(Colors.white, 0.92),
+              width: 1,
+            ),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      _alpha(Colors.white, 0.25),
+                      _alpha(Colors.white, 0.16),
+                      _alpha(Colors.white, 0.11),
+                    ]
+                  : [
+                      _alpha(Colors.white, 0.94),
+                      _alpha(Colors.white, 0.68),
+                      _alpha(Colors.white, 0.48),
+                    ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _alpha(Colors.black, isDark ? 0.30 : 0.24),
+                blurRadius: 14,
+                spreadRadius: -5,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: _alpha(Colors.white, isDark ? 0.08 : 0.13),
+                blurRadius: 7,
+                spreadRadius: -4,
+                offset: const Offset(-1, -2),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IOSQuickActionRow extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _IOSQuickActionRow({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  State<_IOSQuickActionRow> createState() => _IOSQuickActionRowState();
+}
+
+class _IOSQuickActionRowState extends State<_IOSQuickActionRow> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = widget.isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final rowBg = widget.isDark
+        ? _alpha(Colors.white, _pressed ? 0.12 : 0.055)
+        : _alpha(Colors.white, _pressed ? 0.72 : 0.44);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.985 : 1,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          height: 58,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: rowBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: widget.isDark
+                  ? _alpha(Colors.white, 0.06)
+                  : _alpha(Colors.white, 0.48),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.adaptiveIconSurface(context),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(widget.icon, color: widget.color, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _alpha(widget.color, 0.32),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -652,7 +1102,8 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                   hintText: 'e.g., Rent, Netflix, Electric',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14)),
-                  prefixIcon: const Icon(Icons.receipt_long_rounded),
+                  prefixIcon: Icon(IOSIcons.receipt_long_rounded,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -664,7 +1115,8 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                   hintText: '0.00',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14)),
-                  prefixIcon: const Icon(Icons.attach_money_rounded),
+                  prefixIcon: Icon(IOSIcons.attach_money_rounded,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -679,14 +1131,14 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                     label: 'Cash on Hand',
                     subtitle: cf.format(provider.totalCash),
                     leadingIcon: AppIcons.money,
-                    iconColor: AppTheme.warning,
+                    iconColor: AppTheme.cashOnHandIcon,
                   ),
                   ...provider.accounts.map((a) => AppPickerItem(
                         value: a.id,
                         label: a.name,
                         subtitle: cf.format(a.balance),
                         leadingIcon: _accountIcon(a.type),
-                        iconColor: AppTheme.goldPrimary,
+                        iconColor: AppTheme.adaptiveIcon(context),
                       )),
                 ],
                 onChanged: (v) => setState(() => _selectedAccountId = v),
@@ -757,7 +1209,7 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                   decoration: AppTheme.borderedCard(context),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded,
+                      Icon(IOSIcons.calendar_today_rounded,
                           size: 18,
                           color: Theme.of(context).textTheme.bodySmall?.color),
                       const SizedBox(width: 12),
@@ -773,7 +1225,7 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
                                     ?.copyWith(fontWeight: FontWeight.w600)),
                           ]),
                       const Spacer(),
-                      Icon(Icons.chevron_right_rounded,
+                      Icon(IOSIcons.chevron_right_rounded,
                           size: 20,
                           color: Theme.of(context).textTheme.bodySmall?.color),
                     ],

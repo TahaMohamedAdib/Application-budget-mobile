@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -48,18 +49,22 @@ class _ChatMsg {
   });
 
   Map<String, dynamic> toJson() => {
-    'text': text, 'isUser': isUser, 'isError': isError,
-    'imagePath': imagePath, 'filePath': filePath, 'fileName': fileName,
-  };
+        'text': text,
+        'isUser': isUser,
+        'isError': isError,
+        'imagePath': imagePath,
+        'filePath': filePath,
+        'fileName': fileName,
+      };
 
   factory _ChatMsg.fromJson(Map<String, dynamic> j) => _ChatMsg(
-    text: j['text'] as String,
-    isUser: j['isUser'] as bool,
-    isError: j['isError'] as bool? ?? false,
-    imagePath: j['imagePath'] as String?,
-    filePath: j['filePath'] as String?,
-    fileName: j['fileName'] as String?,
-  );
+        text: j['text'] as String,
+        isUser: j['isUser'] as bool,
+        isError: j['isError'] as bool? ?? false,
+        imagePath: j['imagePath'] as String?,
+        filePath: j['filePath'] as String?,
+        fileName: j['fileName'] as String?,
+      );
 }
 
 class _Convo {
@@ -82,27 +87,28 @@ class _Convo {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'title': title,
-    'messages': messages.map((m) => m.toJson()).toList(),
-    'history': history,
-    'createdAt': createdAt.toIso8601String(),
-    'isArchived': isArchived,
-    'projectId': projectId,
-  };
+        'id': id,
+        'title': title,
+        'messages': messages.map((m) => m.toJson()).toList(),
+        'history': history,
+        'createdAt': createdAt.toIso8601String(),
+        'isArchived': isArchived,
+        'projectId': projectId,
+      };
 
   factory _Convo.fromJson(Map<String, dynamic> j) => _Convo(
-    id: j['id'] as String,
-    title: j['title'] as String,
-    messages: (j['messages'] as List)
-        .map((m) => _ChatMsg.fromJson(m as Map<String, dynamic>))
-        .toList(),
-    history: (j['history'] as List)
-        .map((h) => Map<String, String>.from(h as Map))
-        .toList(),
-    createdAt: DateTime.parse(j['createdAt'] as String),
-    isArchived: j['isArchived'] as bool? ?? false,
-    projectId: j['projectId'] as String?,
-  );
+        id: j['id'] as String,
+        title: j['title'] as String,
+        messages: (j['messages'] as List)
+            .map((m) => _ChatMsg.fromJson(m as Map<String, dynamic>))
+            .toList(),
+        history: (j['history'] as List)
+            .map((h) => Map<String, String>.from(h as Map))
+            .toList(),
+        createdAt: DateTime.parse(j['createdAt'] as String),
+        isArchived: j['isArchived'] as bool? ?? false,
+        projectId: j['projectId'] as String?,
+      );
 }
 
 class _Project {
@@ -117,15 +123,16 @@ class _Project {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'name': name,
-    'createdAt': createdAt.toIso8601String(),
-  };
+        'id': id,
+        'name': name,
+        'createdAt': createdAt.toIso8601String(),
+      };
 
   factory _Project.fromJson(Map<String, dynamic> j) => _Project(
-    id: j['id'] as String,
-    name: j['name'] as String,
-    createdAt: DateTime.parse(j['createdAt'] as String),
-  );
+        id: j['id'] as String,
+        name: j['name'] as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+      );
 }
 
 // ── Screen ─────────────────────────────────────────────────────
@@ -140,15 +147,15 @@ class _CoachScreenState extends State<CoachScreen> {
   static const _projectsPrefsKey = 'ai_coach_projects_v1';
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  final _msgCtrl    = TextEditingController();
+  final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final _picker     = ImagePicker();
+  final _picker = ImagePicker();
 
   List<_Convo> _convos = [];
   List<_Project> _projects = [];
   late _Convo _current;
-  bool _isTyping     = false;
-  bool _ready        = false;
+  bool _isTyping = false;
+  bool _ready = false;
   String? _pendingImage;
   String? _pendingFile;
   String? _pendingFileName;
@@ -186,37 +193,44 @@ class _CoachScreenState extends State<CoachScreen> {
 
         // Always load projects from cloud
         if (cloudProjects.isNotEmpty) {
-          _projects = cloudProjects.map((j) => _Project(
-            id: j['id'] as String,
-            name: j['name'] as String,
-            createdAt: DateTime.parse(j['created_at'] as String),
-          )).toList();
+          _projects = cloudProjects
+              .map((j) => _Project(
+                    id: j['id'] as String,
+                    name: j['name'] as String,
+                    createdAt: DateTime.parse(j['created_at'] as String),
+                  ))
+              .toList();
         }
         // Cache projects locally
-        await ss.write(_projectsPrefsKey, jsonEncode(_projects.map((p) => p.toJson()).toList()));
+        await ss.write(_projectsPrefsKey,
+            jsonEncode(_projects.map((p) => p.toJson()).toList()));
 
         // Load conversations from cloud (may be empty for new users)
         List<_Convo> loaded = [];
         if (cloudConvos.isNotEmpty) {
-          loaded = cloudConvos.map((row) => _Convo(
-            id: row['id'] as String,
-            title: row['title'] as String,
-            messages: (row['messages'] as List? ?? [])
-                .map((m) => _ChatMsg.fromJson(Map<String, dynamic>.from(m as Map)))
-                .toList(),
-            history: (row['history'] as List? ?? [])
-                .map((h) => Map<String, String>.from(h as Map))
-                .toList(),
-            createdAt: DateTime.parse(row['created_at'] as String),
-            isArchived: row['is_archived'] as bool? ?? false,
-            projectId: row['project_id'] as String?,
-          )).toList()
+          loaded = cloudConvos
+              .map((row) => _Convo(
+                    id: row['id'] as String,
+                    title: row['title'] as String,
+                    messages: (row['messages'] as List? ?? [])
+                        .map((m) => _ChatMsg.fromJson(
+                            Map<String, dynamic>.from(m as Map)))
+                        .toList(),
+                    history: (row['history'] as List? ?? [])
+                        .map((h) => Map<String, String>.from(h as Map))
+                        .toList(),
+                    createdAt: DateTime.parse(row['created_at'] as String),
+                    isArchived: row['is_archived'] as bool? ?? false,
+                    projectId: row['project_id'] as String?,
+                  ))
+              .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         }
         if (loaded.isEmpty) loaded = [_newConvo()];
 
         // Cache convos locally
-        await ss.write(_prefsKey, jsonEncode(loaded.map((c) => c.toJson()).toList()));
+        await ss.write(
+            _prefsKey, jsonEncode(loaded.map((c) => c.toJson()).toList()));
 
         if (mounted) {
           final active = loaded.where((c) => !c.isArchived).toList();
@@ -228,7 +242,8 @@ class _CoachScreenState extends State<CoachScreen> {
           return;
         }
       } catch (e) {
-        if (kDebugMode) debugPrint('[Coach] Cloud load failed, falling back to local: $e');
+        if (kDebugMode)
+          debugPrint('[Coach] Cloud load failed, falling back to local: $e');
       }
     }
 
@@ -237,7 +252,9 @@ class _CoachScreenState extends State<CoachScreen> {
     if (projRaw != null) {
       try {
         final pList = jsonDecode(projRaw) as List;
-        _projects = pList.map((j) => _Project.fromJson(j as Map<String, dynamic>)).toList();
+        _projects = pList
+            .map((j) => _Project.fromJson(j as Map<String, dynamic>))
+            .toList();
       } catch (_) {}
     }
 
@@ -264,18 +281,25 @@ class _CoachScreenState extends State<CoachScreen> {
       } catch (_) {}
     }
     final fresh = _newConvo();
-    if (mounted) setState(() { _convos = [fresh]; _current = fresh; _ready = true; });
+    if (mounted)
+      setState(() {
+        _convos = [fresh];
+        _current = fresh;
+        _ready = true;
+      });
   }
 
   // ── Local save ──
   Future<void> _save() async {
     final ss = SecureStorageService.instance;
-    await ss.write(_prefsKey, jsonEncode(_convos.map((c) => c.toJson()).toList()));
+    await ss.write(
+        _prefsKey, jsonEncode(_convos.map((c) => c.toJson()).toList()));
   }
 
   Future<void> _saveProjects() async {
     final ss = SecureStorageService.instance;
-    await ss.write(_projectsPrefsKey, jsonEncode(_projects.map((p) => p.toJson()).toList()));
+    await ss.write(_projectsPrefsKey,
+        jsonEncode(_projects.map((p) => p.toJson()).toList()));
   }
 
   // ── Cloud sync helpers ──
@@ -292,7 +316,8 @@ class _CoachScreenState extends State<CoachScreen> {
   Future<void> _uploadAllToCloud(String uid) async {
     try {
       await SupabaseSyncService.saveAllConversations(
-        uid, _convos.map((c) => c.toJson()).toList(),
+        uid,
+        _convos.map((c) => c.toJson()).toList(),
       );
       for (final p in _projects) {
         await SupabaseSyncService.saveProject(uid, p.toJson());
@@ -304,7 +329,8 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Mutation methods (local + cloud) ──
   void _addProject(String name) {
-    final p = _Project(id: const Uuid().v4(), name: name, createdAt: DateTime.now());
+    final p =
+        _Project(id: const Uuid().v4(), name: name, createdAt: DateTime.now());
     setState(() => _projects.add(p));
     _saveProjects();
     _syncProjectToCloud(p);
@@ -422,46 +448,68 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Financial context ────────────────────────────────────────
   Map<String, dynamic> _buildContext(AppProvider p) {
-    final now       = DateTime.now();
+    final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
-    final monthTxns = p.transactions.where((t) => !DateTime.parse(t.date).isBefore(monthStart)).toList();
-    final income    = monthTxns.where((t) => t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-    final expenses  = monthTxns.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
-    final catMap    = <String, double>{};
+    final monthTxns = p.transactions
+        .where((t) => !DateTime.parse(t.date).isBefore(monthStart))
+        .toList();
+    final income = monthTxns
+        .where((t) => t.type == 'income')
+        .fold(0.0, (s, t) => s + t.amount);
+    final expenses = monthTxns
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final catMap = <String, double>{};
     for (final t in monthTxns.where((t) => t.type == 'expense')) {
       final name = t.categoryId != null
-          ? p.categories.where((c) => c.id == t.categoryId).firstOrNull?.name ?? 'Other'
+          ? p.categories.where((c) => c.id == t.categoryId).firstOrNull?.name ??
+              'Other'
           : 'Other';
       catMap[name] = (catMap[name] ?? 0) + t.amount;
     }
-    final topCats = (catMap.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
-        .take(4).map((e) => {'name': e.key, 'amount': e.value}).toList();
+    final topCats = (catMap.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value)))
+        .take(4)
+        .map((e) => {'name': e.key, 'amount': e.value})
+        .toList();
     return {
-      'currency':            p.settings.currency,
-      'net_worth':           p.getNetWorth(),
-      'bank_balance':        p.accounts.fold(0.0, (s, a) => s + a.balance),
-      'cash_on_hand':        p.totalCash,
-      'monthly_income':      p.settings.monthlyIncome,
-      'this_month_income':   income,
+      'currency': p.settings.currency,
+      'net_worth': p.getNetWorth(),
+      'bank_balance': p.accounts.fold(0.0, (s, a) => s + a.balance),
+      'cash_on_hand': p.totalCash,
+      'monthly_income': p.settings.monthlyIncome,
+      'this_month_income': income,
       'this_month_expenses': expenses,
-      'top_categories':      topCats,
-      'goals': p.goals.where((g) => g.type == 'goal').map((g) => {
-        'name': g.name,
-        'progress': g.targetAmount > 0 ? ((g.currentAmount / g.targetAmount) * 100).round() : 0,
-      }).toList(),
-      'debts': p.goals.where((g) => g.type == 'debt').map((g) => {
-        'name': g.name,
-        'remaining': g.targetAmount - g.currentAmount,
-      }).toList(),
+      'top_categories': topCats,
+      'goals': p.goals
+          .where((g) => g.type == 'goal')
+          .map((g) => {
+                'name': g.name,
+                'progress': g.targetAmount > 0
+                    ? ((g.currentAmount / g.targetAmount) * 100).round()
+                    : 0,
+              })
+          .toList(),
+      'debts': p.goals
+          .where((g) => g.type == 'debt')
+          .map((g) => {
+                'name': g.name,
+                'remaining': g.targetAmount - g.currentAmount,
+              })
+          .toList(),
     };
   }
 
   // ── Project context — gather summaries from sibling conversations ──
   String? _buildProjectContextSummary() {
     if (_current.projectId == null) return null;
-    final project = _projects.where((p) => p.id == _current.projectId).firstOrNull;
+    final project =
+        _projects.where((p) => p.id == _current.projectId).firstOrNull;
     final siblings = _convos
-        .where((c) => c.projectId == _current.projectId && c.id != _current.id && c.history.isNotEmpty)
+        .where((c) =>
+            c.projectId == _current.projectId &&
+            c.id != _current.id &&
+            c.history.isNotEmpty)
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     if (siblings.isEmpty) return null;
@@ -484,7 +532,8 @@ class _CoachScreenState extends State<CoachScreen> {
       for (final msg in recent) {
         final role = msg['role'] == 'user' ? 'User' : 'Assistant';
         final content = msg['content'] ?? '';
-        final snippet = content.length > 300 ? '${content.substring(0, 300)}...' : content;
+        final snippet =
+            content.length > 300 ? '${content.substring(0, 300)}...' : content;
         buf.writeln('$role: $snippet');
         totalChars += snippet.length;
         if (totalChars >= maxChars) break;
@@ -496,11 +545,11 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Send ─────────────────────────────────────────────────────
   Future<void> _send(AppProvider provider) async {
-    final text      = _msgCtrl.text.trim();
-    final imgPath   = _pendingImage;
-    final docPath   = _pendingFile;
-    final docName   = _pendingFileName;
-    final docMime   = _pendingFileMime;
+    final text = _msgCtrl.text.trim();
+    final imgPath = _pendingImage;
+    final docPath = _pendingFile;
+    final docName = _pendingFileName;
+    final docMime = _pendingFileMime;
     final hasAttach = imgPath != null || docPath != null;
     if ((text.isEmpty && !hasAttach) || _isTyping) return;
 
@@ -509,21 +558,32 @@ class _CoachScreenState extends State<CoachScreen> {
       displayTxt = imgPath != null ? '📷 Image' : '📄 $docName';
     }
     String historyContent = text.isNotEmpty ? text : '';
-    if (imgPath != null) historyContent += (historyContent.isEmpty ? '' : '\n') + '[User attached an image]';
-    if (docPath != null) historyContent += (historyContent.isEmpty ? '' : '\n') + '[User attached document: $docName]';
+    if (imgPath != null)
+      historyContent +=
+          (historyContent.isEmpty ? '' : '\n') + '[User attached an image]';
+    if (docPath != null)
+      historyContent += (historyContent.isEmpty ? '' : '\n') +
+          '[User attached document: $docName]';
 
-    final userMsg = _ChatMsg(text: displayTxt, isUser: true, imagePath: imgPath, filePath: docPath, fileName: docName);
+    final userMsg = _ChatMsg(
+        text: displayTxt,
+        isUser: true,
+        imagePath: imgPath,
+        filePath: docPath,
+        fileName: docName);
 
     setState(() {
       _current.messages.add(userMsg);
       _current.history.add({'role': 'user', 'content': historyContent});
-      _isTyping        = true;
-      _pendingImage    = null;
-      _pendingFile     = null;
+      _isTyping = true;
+      _pendingImage = null;
+      _pendingFile = null;
       _pendingFileName = null;
       _pendingFileMime = null;
       if (_current.title == 'New conversation') {
-        _current.title = displayTxt.length > 40 ? '${displayTxt.substring(0, 40)}...' : displayTxt;
+        _current.title = displayTxt.length > 40
+            ? '${displayTxt.substring(0, 40)}...'
+            : displayTxt;
       }
     });
     _msgCtrl.clear();
@@ -532,18 +592,21 @@ class _CoachScreenState extends State<CoachScreen> {
     try {
       String? attachBase64, attachMime;
       if (imgPath != null) {
-        final bytes  = await File(imgPath).readAsBytes();
+        final bytes = await File(imgPath).readAsBytes();
         attachBase64 = base64Encode(bytes);
-        attachMime   = imgPath.toLowerCase().endsWith('.png') ? 'image/png'
-            : imgPath.toLowerCase().endsWith('.webp') ? 'image/webp'
-            : 'image/jpeg';
+        attachMime = imgPath.toLowerCase().endsWith('.png')
+            ? 'image/png'
+            : imgPath.toLowerCase().endsWith('.webp')
+                ? 'image/webp'
+                : 'image/jpeg';
       } else if (docPath != null && docMime != null) {
-        final bytes  = await File(docPath).readAsBytes();
+        final bytes = await File(docPath).readAsBytes();
         attachBase64 = base64Encode(bytes);
-        attachMime   = docMime;
+        attachMime = docMime;
       }
 
-      final token = Supabase.instance.client.auth.currentSession?.accessToken ?? '';
+      final token =
+          Supabase.instance.client.auth.currentSession?.accessToken ?? '';
 
       // Build financial context, inject project context if applicable
       final ctx = _buildContext(provider);
@@ -553,7 +616,9 @@ class _CoachScreenState extends State<CoachScreen> {
       }
 
       final reply = await ChatService.sendMessage(
-        history: _current.history.map((h) => ChatMessage(role: h['role']!, content: h['content']!)).toList(),
+        history: _current.history
+            .map((h) => ChatMessage(role: h['role']!, content: h['content']!))
+            .toList(),
         financialContext: ctx,
         token: token,
         attachmentBase64: attachBase64,
@@ -570,8 +635,10 @@ class _CoachScreenState extends State<CoachScreen> {
       if (!mounted) return;
       setState(() {
         _current.messages.add(_ChatMsg(
-          text: 'Something went wrong. Please check your connection and try again.',
-          isUser: false, isError: true,
+          text:
+              'Something went wrong. Please check your connection and try again.',
+          isUser: false,
+          isError: true,
         ));
         _isTyping = false;
       });
@@ -599,31 +666,53 @@ class _CoachScreenState extends State<CoachScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _AttachSheet(
-        onPhoto:    () { Navigator.pop(context); _pickImage(); },
-        onCamera:   () { Navigator.pop(context); _pickCamera(); },
-        onDocument: () { Navigator.pop(context); _pickDocument(); },
+        onPhoto: () {
+          Navigator.pop(context);
+          _pickImage();
+        },
+        onCamera: () {
+          Navigator.pop(context);
+          _pickCamera();
+        },
+        onDocument: () {
+          Navigator.pop(context);
+          _pickDocument();
+        },
       ),
     );
   }
 
   Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (picked != null && mounted) setState(() { _pendingImage = picked.path; _pendingFile = null; });
+    final picked =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked != null && mounted)
+      setState(() {
+        _pendingImage = picked.path;
+        _pendingFile = null;
+      });
   }
 
   Future<void> _pickCamera() async {
-    final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-    if (picked != null && mounted) setState(() { _pendingImage = picked.path; _pendingFile = null; });
+    final picked =
+        await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+    if (picked != null && mounted)
+      setState(() {
+        _pendingImage = picked.path;
+        _pendingFile = null;
+      });
   }
 
   Future<void> _pickDocument() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf'], allowMultiple: false);
+    final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false);
     if (result != null && result.files.single.path != null && mounted) {
       setState(() {
-        _pendingFile     = result.files.single.path;
+        _pendingFile = result.files.single.path;
         _pendingFileName = result.files.single.name;
         _pendingFileMime = 'application/pdf';
-        _pendingImage    = null;
+        _pendingImage = null;
       });
     }
   }
@@ -631,8 +720,9 @@ class _CoachScreenState extends State<CoachScreen> {
   // ── Left drawer — ChatGPT-style conversation sidebar ────────
   Widget _buildDrawer(BuildContext context, bool isDark, AppProvider provider) {
     final s = S.of(context);
-    final drawerBg = isDark ? const Color(0xFF0D0D0D) : Colors.white;
-    final surfaceColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
+    final drawerBg = isDark ? AppTheme.darkBackground : const Color(0xFFF7F8F8);
+    final surfaceColor =
+        isDark ? const Color(0xFF27292A) : const Color(0xFFEDEFF0);
 
     // Group conversations: Today, Yesterday, Previous 7 Days, Older
     final now = DateTime.now();
@@ -659,31 +749,53 @@ class _CoachScreenState extends State<CoachScreen> {
 
     return Drawer(
       backgroundColor: drawerBg,
-      width: MediaQuery.of(context).size.width * 0.78,
-      shape: const RoundedRectangleBorder(),
+      width: MediaQuery.of(context).size.width * 0.88,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(32)),
+      ),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Header ────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
+              padding: const EdgeInsets.fromLTRB(18, 14, 12, 10),
               child: Row(
                 children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppTheme.adaptiveIconSurface(context),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      IOSIcons.auto_awesome_rounded,
+                      size: 17,
+                      color: AppTheme.adaptiveIcon(context),
+                    ),
+                  ),
+                  const SizedBox(width: 11),
                   Text(
                     'SafeSpend AI',
                     style: GoogleFonts.inter(
-                      fontSize: 20,
+                      fontSize: 19,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : Colors.black,
+                      color: isDark
+                          ? AppTheme.darkTextPrimary
+                          : AppTheme.lightTextPrimary,
                     ),
                   ),
                   const Spacer(),
-                  // Search placeholder
                   IconButton(
-                    icon: Iconify(AppIcons.search, size: 18,
-                        color: isDark ? Colors.white60 : Colors.black45),
-                    onPressed: () {},
+                    tooltip: 'Close',
+                    icon: Icon(
+                      IOSIcons.close_rounded,
+                      size: 19,
+                      color: isDark ? Colors.white60 : Colors.black45,
+                    ),
+                    onPressed: () => Navigator.pop(context),
                     splashRadius: 20,
                   ),
                 ],
@@ -695,26 +807,32 @@ class _CoachScreenState extends State<CoachScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Material(
                 color: surfaceColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(18),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   onTap: () {
                     Navigator.pop(context);
                     _startNewConvo();
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 13),
                     child: Row(
                       children: [
-                        Iconify(AppIcons.edit, size: 18,
-                            color: isDark ? Colors.white70 : Colors.black54),
+                        Icon(
+                          IOSIcons.edit_rounded,
+                          size: 19,
+                          color: AppTheme.adaptiveIcon(context),
+                        ),
                         const SizedBox(width: 12),
                         Text(
                           s.newChat,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white : Colors.black,
+                            color: isDark
+                                ? AppTheme.darkTextPrimary
+                                : AppTheme.lightTextPrimary,
                           ),
                         ),
                       ],
@@ -743,7 +861,8 @@ class _CoachScreenState extends State<CoachScreen> {
                     const Spacer(),
                     GestureDetector(
                       onTap: () => _showNewProjectDialog(isDark),
-                      child: Iconify(AppIcons.add, size: 18,
+                      child: AppIcon(AppIcons.add,
+                          size: 18,
                           color: isDark ? Colors.white38 : Colors.black38),
                     ),
                   ],
@@ -761,7 +880,8 @@ class _CoachScreenState extends State<CoachScreen> {
               const SizedBox(height: 8),
             ] else ...[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                 child: Material(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
@@ -769,10 +889,12 @@ class _CoachScreenState extends State<CoachScreen> {
                     borderRadius: BorderRadius.circular(10),
                     onTap: () => _showNewProjectDialog(isDark),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       child: Row(
                         children: [
-                          Iconify(AppIcons.folder, size: 18,
+                          AppIcon(AppIcons.folder,
+                              size: 18,
                               color: isDark ? Colors.white38 : Colors.black38),
                           const SizedBox(width: 12),
                           Text(
@@ -816,11 +938,13 @@ class _CoachScreenState extends State<CoachScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white38 : Colors.black38,
+                                  color:
+                                      isDark ? Colors.white38 : Colors.black38,
                                 ),
                               ),
                             ),
-                            for (final conv in groups[label]!) _buildConvoTile(conv, isDark),
+                            for (final conv in groups[label]!)
+                              _buildConvoTile(conv, isDark),
                           ],
                       ],
                     ),
@@ -841,11 +965,11 @@ class _CoachScreenState extends State<CoachScreen> {
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: isActive
-            ? (isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF0F0F0))
+            ? AppTheme.goldPrimary.withOpacity(isDark ? 0.20 : 0.11)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           onTap: () {
             _switchConvo(conv);
             Navigator.pop(context);
@@ -863,8 +987,11 @@ class _CoachScreenState extends State<CoachScreen> {
                         conv.title,
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-                          color: isDark ? Colors.white : Colors.black,
+                          fontWeight:
+                              isActive ? FontWeight.w500 : FontWeight.w400,
+                          color: isDark
+                              ? AppTheme.darkTextPrimary
+                              : AppTheme.lightTextPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -873,8 +1000,10 @@ class _CoachScreenState extends State<CoachScreen> {
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            Iconify(AppIcons.folder, size: 11,
-                                color: isDark ? Colors.white30 : Colors.black26),
+                            AppIcon(AppIcons.folder,
+                                size: 11,
+                                color:
+                                    isDark ? Colors.white30 : Colors.black26),
                             const SizedBox(width: 4),
                             Text(
                               project.name,
@@ -899,7 +1028,8 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Project tile in drawer ─────────────────────────────────
   Widget _buildProjectTile(_Project proj, bool isDark) {
-    final convoCount = _convos.where((c) => c.projectId == proj.id && !c.isArchived).length;
+    final convoCount =
+        _convos.where((c) => c.projectId == proj.id && !c.isArchived).length;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -917,8 +1047,8 @@ class _CoachScreenState extends State<CoachScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Iconify(AppIcons.folder, size: 18,
-                    color: isDark ? Colors.white54 : Colors.black45),
+                AppIcon(AppIcons.folder,
+                    size: 18, color: isDark ? Colors.white54 : Colors.black45),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -953,7 +1083,8 @@ class _CoachScreenState extends State<CoachScreen> {
     final bg = isDark ? const Color(0xFF0D0D0D) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtleColor = isDark ? Colors.white60 : Colors.black54;
-    final surfaceColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
+    final surfaceColor =
+        isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
 
     showModalBottomSheet(
       context: context,
@@ -971,7 +1102,8 @@ class _CoachScreenState extends State<CoachScreen> {
             height: MediaQuery.of(ctx).size.height * 0.85,
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -983,13 +1115,15 @@ class _CoachScreenState extends State<CoachScreen> {
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(ctx),
-                        child: Iconify(AppIcons.minus, size: 28,
+                        child: AppIcon(AppIcons.minus,
+                            size: 28,
                             color: isDark ? Colors.white60 : Colors.black45),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: surfaceColor,
                             borderRadius: BorderRadius.circular(20),
@@ -1007,7 +1141,8 @@ class _CoachScreenState extends State<CoachScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: Iconify(AppIcons.more, size: 22, color: subtleColor),
+                        icon: AppIcon(AppIcons.more,
+                            size: 22, color: subtleColor),
                         onPressed: () {
                           Navigator.pop(ctx);
                           _showProjectActions(proj, isDark);
@@ -1023,7 +1158,8 @@ class _CoachScreenState extends State<CoachScreen> {
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                   child: Row(
                     children: [
-                      Iconify(AppIcons.folder, size: 32,
+                      AppIcon(AppIcons.folder,
+                          size: 32,
                           color: isDark ? Colors.white70 : Colors.black54),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1044,7 +1180,8 @@ class _CoachScreenState extends State<CoachScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
                       color: surfaceColor,
                       borderRadius: BorderRadius.circular(20),
@@ -1069,14 +1206,17 @@ class _CoachScreenState extends State<CoachScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Iconify(AppIcons.chat, size: 40,
-                                  color: isDark ? Colors.white12 : Colors.black12),
+                              AppIcon(AppIcons.chat,
+                                  size: 40,
+                                  color:
+                                      isDark ? Colors.white12 : Colors.black12),
                               const SizedBox(height: 12),
                               Text(
                                 s.noConversationsYet,
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
-                                  color: isDark ? Colors.white24 : Colors.black26,
+                                  color:
+                                      isDark ? Colors.white24 : Colors.black26,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -1084,7 +1224,8 @@ class _CoachScreenState extends State<CoachScreen> {
                                 s.addConversationsFromMenu,
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white12 : Colors.black12,
+                                  color:
+                                      isDark ? Colors.white12 : Colors.black12,
                                 ),
                               ),
                             ],
@@ -1093,7 +1234,8 @@ class _CoachScreenState extends State<CoachScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: projConvos.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 2),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 2),
                           itemBuilder: (_, i) {
                             final conv = projConvos[i];
                             final lastMsg = conv.messages.isNotEmpty
@@ -1116,7 +1258,8 @@ class _CoachScreenState extends State<CoachScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 14),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         conv.title,
@@ -1170,10 +1313,11 @@ class _CoachScreenState extends State<CoachScreen> {
                         _syncConvoToCloud(c);
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 14),
                         child: Row(
                           children: [
-                            Iconify(AppIcons.add, size: 20, color: subtleColor),
+                            AppIcon(AppIcons.add, size: 20, color: subtleColor),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -1219,7 +1363,8 @@ class _CoachScreenState extends State<CoachScreen> {
           children: [
             Center(
               child: Container(
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
@@ -1227,13 +1372,14 @@ class _CoachScreenState extends State<CoachScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            _actionTile(ctx, AppIcons.edit, s.renameProject,
-                textColor, subtleColor, onTap: () {
+            _actionTile(
+                ctx, AppIcons.edit, s.renameProject, textColor, subtleColor,
+                onTap: () {
               Navigator.pop(ctx);
               _showRenameProjectDialog(proj, isDark);
             }),
-            _actionTile(ctx, AppIcons.delete, s.deleteProject,
-                Colors.redAccent, Colors.redAccent, onTap: () {
+            _actionTile(ctx, AppIcons.delete, s.deleteProject, Colors.redAccent,
+                Colors.redAccent, onTap: () {
               Navigator.pop(ctx);
               _confirmDeleteProject(proj, isDark);
             }),
@@ -1252,7 +1398,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.renameProject, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.renameProject,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -1277,8 +1425,9 @@ class _CoachScreenState extends State<CoachScreen> {
               }
               Navigator.pop(ctx);
             },
-            child: Text(s.save, style: GoogleFonts.inter(
-                color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+            child: Text(s.save,
+                style: GoogleFonts.inter(
+                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1294,7 +1443,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.deleteProject, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.deleteProject,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Text(
           'This will delete "${proj.name}". $convoCount conversation${convoCount == 1 ? '' : 's'} will be unlinked but not deleted.',
           style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
@@ -1309,7 +1460,9 @@ class _CoachScreenState extends State<CoachScreen> {
               Navigator.pop(ctx);
               _deleteProject(proj.id);
             },
-            child: Text(s.delete, style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+            child: Text(s.delete,
+                style: GoogleFonts.inter(
+                    color: Colors.redAccent, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1337,7 +1490,8 @@ class _CoachScreenState extends State<CoachScreen> {
           children: [
             Center(
               child: Container(
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2),
@@ -1346,27 +1500,28 @@ class _CoachScreenState extends State<CoachScreen> {
             ),
             const SizedBox(height: 8),
             // Add to project
-            _actionTile(ctx, AppIcons.folder, s.addToProject,
-                textColor, subtleColor, trailing: AppIcons.caretRight,
-                onTap: () {
+            _actionTile(
+                ctx, AppIcons.folder, s.addToProject, textColor, subtleColor,
+                trailing: AppIcons.caretRight, onTap: () {
               Navigator.pop(ctx);
               _showProjectPicker(conv, isDark);
             }),
             // Rename
-            _actionTile(ctx, AppIcons.edit, s.rename,
-                textColor, subtleColor, onTap: () {
+            _actionTile(ctx, AppIcons.edit, s.rename, textColor, subtleColor,
+                onTap: () {
               Navigator.pop(ctx);
               _showRenameDialog(conv, isDark);
             }),
             // Archive
-            _actionTile(ctx, AppIcons.archive, s.archive,
-                textColor, subtleColor, onTap: () {
+            _actionTile(
+                ctx, AppIcons.archive, s.archive, textColor, subtleColor,
+                onTap: () {
               Navigator.pop(ctx);
               _archiveConvo(conv);
             }),
             // Delete
-            _actionTile(ctx, AppIcons.delete, s.delete,
-                Colors.redAccent, Colors.redAccent, onTap: () {
+            _actionTile(ctx, AppIcons.delete, s.delete, Colors.redAccent,
+                Colors.redAccent, onTap: () {
               Navigator.pop(ctx);
               _confirmDeleteConvo(conv, isDark);
             }),
@@ -1377,7 +1532,8 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   Widget _actionTile(BuildContext ctx, String icon, String label,
-      Color textColor, Color iconColor, {VoidCallback? onTap, String? trailing}) {
+      Color textColor, Color iconColor,
+      {VoidCallback? onTap, String? trailing}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1387,14 +1543,17 @@ class _CoachScreenState extends State<CoachScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Row(
             children: [
-              Iconify(icon, size: 20, color: iconColor),
+              AppIcon(icon, size: 20, color: AppTheme.adaptiveIcon(ctx)),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(label, style: GoogleFonts.inter(
-                    fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
+                child: Text(label,
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: textColor)),
               ),
               if (trailing != null)
-                Iconify(trailing, size: 20, color: iconColor),
+                AppIcon(trailing, size: 20, color: AppTheme.adaptiveIcon(ctx)),
             ],
           ),
         ),
@@ -1411,7 +1570,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.rename, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.rename,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -1434,8 +1595,9 @@ class _CoachScreenState extends State<CoachScreen> {
               }
               Navigator.pop(ctx);
             },
-            child: Text(s.save, style: GoogleFonts.inter(
-                color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+            child: Text(s.save,
+                style: GoogleFonts.inter(
+                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1450,7 +1612,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.deleteConversation, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.deleteConversation,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Text(
           'This will permanently delete "${conv.title}".',
           style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
@@ -1465,7 +1629,9 @@ class _CoachScreenState extends State<CoachScreen> {
               Navigator.pop(ctx);
               _deleteConvo(conv.id);
             },
-            child: Text(s.delete, style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+            child: Text(s.delete,
+                style: GoogleFonts.inter(
+                    color: Colors.redAccent, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1492,14 +1658,16 @@ class _CoachScreenState extends State<CoachScreen> {
             ),
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Center(
                   child: Container(
-                    width: 36, height: 4,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: Colors.grey.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(2),
@@ -1511,8 +1679,11 @@ class _CoachScreenState extends State<CoachScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      Text(s.addToProject, style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+                      Text(s.addToProject,
+                          style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textColor)),
                       const Spacer(),
                       if (conv.projectId != null)
                         GestureDetector(
@@ -1520,8 +1691,11 @@ class _CoachScreenState extends State<CoachScreen> {
                             _removeConvoFromProject(conv);
                             Navigator.pop(ctx);
                           },
-                          child: Text(s.remove, style: GoogleFonts.inter(
-                              fontSize: 13, fontWeight: FontWeight.w500, color: Colors.redAccent)),
+                          child: Text(s.remove,
+                              style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent)),
                         ),
                     ],
                   ),
@@ -1536,8 +1710,13 @@ class _CoachScreenState extends State<CoachScreen> {
                   });
                 }),
                 if (_projects.isNotEmpty) ...[
-                  Divider(height: 1, indent: 20, endIndent: 20,
-                      color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
+                  Divider(
+                      height: 1,
+                      indent: 20,
+                      endIndent: 20,
+                      color: isDark
+                          ? Colors.white10
+                          : Colors.black.withOpacity(0.06)),
                   const SizedBox(height: 4),
                 ],
                 // Existing projects
@@ -1548,7 +1727,8 @@ class _CoachScreenState extends State<CoachScreen> {
                     itemBuilder: (_, i) {
                       final p = _projects[i];
                       final isAssigned = conv.projectId == p.id;
-                      final convoCount = _convos.where((c) => c.projectId == p.id).length;
+                      final convoCount =
+                          _convos.where((c) => c.projectId == p.id).length;
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
@@ -1558,24 +1738,35 @@ class _CoachScreenState extends State<CoachScreen> {
                             Navigator.pop(ctx);
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
                             child: Row(
                               children: [
-                                Iconify(AppIcons.folder, size: 20, color: subtleColor),
+                                AppIcon(AppIcons.folder,
+                                    size: 20, color: subtleColor),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(p.name, style: GoogleFonts.inter(
-                                          fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
-                                      Text('$convoCount conversation${convoCount == 1 ? '' : 's'}',
-                                          style: GoogleFonts.inter(fontSize: 12, color: subtleColor)),
+                                      Text(p.name,
+                                          style: GoogleFonts.inter(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w500,
+                                              color: textColor)),
+                                      Text(
+                                          '$convoCount conversation${convoCount == 1 ? '' : 's'}',
+                                          style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: subtleColor)),
                                     ],
                                   ),
                                 ),
                                 if (isAssigned)
-                                  const Iconify(AppIcons.check, size: 20, color: Color(0xFF10A37F)),
+                                  AppIcon(AppIcons.check,
+                                      size: 20,
+                                      color: AppTheme.adaptiveIcon(context)),
                               ],
                             ),
                           ),
@@ -1593,7 +1784,8 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   // ── New project dialog ──────────────────────────────────────
-  void _showNewProjectDialog(bool isDark, {void Function(String projectId)? onCreated}) {
+  void _showNewProjectDialog(bool isDark,
+      {void Function(String projectId)? onCreated}) {
     final s = S.forLocale(S.fallbackLocale);
     final ctrl = TextEditingController();
     showDialog(
@@ -1601,7 +1793,9 @@ class _CoachScreenState extends State<CoachScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.newProject, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        title: Text(s.newProject,
+            style:
+                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -1620,7 +1814,10 @@ class _CoachScreenState extends State<CoachScreen> {
             onPressed: () {
               final name = ctrl.text.trim();
               if (name.isNotEmpty) {
-                final p = _Project(id: const Uuid().v4(), name: name, createdAt: DateTime.now());
+                final p = _Project(
+                    id: const Uuid().v4(),
+                    name: name,
+                    createdAt: DateTime.now());
                 setState(() => _projects.add(p));
                 _saveProjects();
                 _syncProjectToCloud(p);
@@ -1628,8 +1825,9 @@ class _CoachScreenState extends State<CoachScreen> {
                 onCreated?.call(p.id);
               }
             },
-            child: Text(s.create, style: GoogleFonts.inter(
-                color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
+            child: Text(s.create,
+                style: GoogleFonts.inter(
+                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1639,9 +1837,9 @@ class _CoachScreenState extends State<CoachScreen> {
   String _fmtDate(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours   < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays    < 1) return '${diff.inHours}h ago';
-    if (diff.inDays    < 7) return '${diff.inDays}d ago';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
     return DateFormat('MMM d').format(dt);
   }
 
@@ -1650,16 +1848,18 @@ class _CoachScreenState extends State<CoachScreen> {
   Widget build(BuildContext context) {
     return Consumer2<AppProvider, AuthService>(
       builder: (context, provider, auth, _) {
-        final isDark    = Theme.of(context).brightness == Brightness.dark;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         final hasAccess = _hasAccess(auth.user?.email);
-        final bgColor   = isDark ? const Color(0xFF0D0D0D) : Colors.white;
+        final bgColor =
+            isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
 
         if (!_ready) {
           return Scaffold(
             backgroundColor: bgColor,
             body: Center(
               child: SizedBox(
-                width: 24, height: 24,
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   color: Colors.white.withOpacity(0.3),
@@ -1673,20 +1873,15 @@ class _CoachScreenState extends State<CoachScreen> {
           key: _scaffoldKey,
           backgroundColor: bgColor,
           drawerEdgeDragWidth: 40,
+          drawerScrimColor: Colors.black.withOpacity(isDark ? 0.52 : 0.24),
           drawer: _buildDrawer(context, isDark, provider),
           body: SafeArea(
             child: Column(
               children: [
                 _buildHeader(context, isDark),
-                Divider(
-                  height: 1,
-                  color: isDark
-                      ? Colors.white.withOpacity(0.06)
-                      : Colors.black.withOpacity(0.06),
-                ),
                 Expanded(
                   child: _current.messages.isEmpty
-                      ? _buildWelcome(context, isDark, provider, hasAccess)
+                      ? _buildWelcome(context, isDark, provider)
                       : _buildMessageList(context, isDark),
                 ),
                 if (hasAccess) _buildInputArea(context, isDark, provider),
@@ -1701,139 +1896,228 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Header ───────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context, bool isDark) {
-    final s = S.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-      color: isDark ? const Color(0xFF0D0D0D) : Colors.white,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Menu / history button — horizontal lines like ChatGPT
-          IconButton(
-            icon: Iconify(
-              AppIcons.list,
-              size: 20,
-              color: isDark ? Colors.white70 : Colors.black54,
-            ),
+          _GlassIconButton(
+            icon: IOSIcons.menu_rounded,
+            tooltip: 'Conversations',
+            isDark: isDark,
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-            splashRadius: 20,
           ),
-          const Spacer(),
-          // Title — minimal like ChatGPT
           GestureDetector(
             onTap: () => _scaffoldKey.currentState?.openDrawer(),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  s.financialCoach,
-                  style: GoogleFonts.inter(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black,
+            child: _GlassSurface(
+              isDark: isDark,
+              radius: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: AppTheme.adaptiveIconSurface(context),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      IOSIcons.auto_awesome_rounded,
+                      size: 14,
+                      color: AppTheme.adaptiveIcon(context),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 3),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: isDark ? Colors.white38 : Colors.black38,
-                ),
-              ],
+                  const SizedBox(width: 9),
+                  Text(
+                    'SafeSpend AI',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : AppTheme.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Icon(
+                    IOSIcons.expand_more_rounded,
+                    size: 18,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ],
+              ),
             ),
           ),
-          const Spacer(),
-          // New chat button
-          IconButton(
-            icon: Icon(
-              Icons.edit_outlined,
-              size: 22,
-              color: isDark ? Colors.white70 : Colors.black54,
-            ),
-            tooltip: s.newChat,
+          _GlassIconButton(
+            icon: IOSIcons.edit_outlined,
+            tooltip: S.of(context).newChat,
+            isDark: isDark,
             onPressed: _startNewConvo,
-            splashRadius: 20,
           ),
         ],
       ),
     );
   }
 
-  // ── Welcome state — ChatGPT style: typewriter + bottom suggestions ──
-  Widget _buildWelcome(BuildContext context, bool isDark, AppProvider provider, bool hasAccess) {
+  // ── Welcome state ───────────────────────────────────────────
+  Widget _buildWelcome(
+      BuildContext context, bool isDark, AppProvider provider) {
     final s = S.of(context);
     final suggestions = [
-      {'title': s.monthlyOverview, 'sub': 'how am I doing this month?'},
-      {'title': s.spendingAnalysis, 'sub': 'where does my money go?'},
-      {'title': s.analyzeReceipt, 'sub': 'attach a photo or PDF'},
-      {'title': s.savingsTips, 'sub': 'help me save more money'},
-      {'title': s.goalProgress, 'sub': 'how close am I to my goals?'},
-      {'title': s.budgetPlan, 'sub': 'create a plan for me'},
+      (
+        s.monthlyOverview,
+        'How am I doing this month?',
+        IOSIcons.calendar_today_rounded
+      ),
+      (
+        s.spendingAnalysis,
+        'Where does my money go?',
+        IOSIcons.pie_chart_outline_rounded
+      ),
+      (s.savingsTips, 'Help me save more money', IOSIcons.savings_outlined),
+      (
+        s.budgetPlan,
+        'Create a plan for me',
+        IOSIcons.account_balance_wallet_outlined
+      ),
     ];
-    return Column(
-      children: [
-        const Spacer(),
-        // Typewriter animation in center
-        _TypewriterWelcome(isDark: isDark),
-        const Spacer(),
-        // Suggestion cards — horizontal scroll at the bottom
-        SizedBox(
-          height: 76,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: suggestions.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => SuggestionCard(
-              text: suggestions[i]['title']!,
-              subtitle: suggestions[i]['sub'],
-              isDark: isDark,
-              onTap: () {
-                _msgCtrl.text = suggestions[i]['sub']!;
-                _send(provider);
-              },
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 28, 20, 18),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 46),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.adaptiveIconSurface(context),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.adaptiveIcon(context, alpha: 0.16),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  IOSIcons.auto_awesome_rounded,
+                  size: 27,
+                  color: AppTheme.adaptiveIcon(context),
+                ),
+              ).animate().fadeIn(duration: 300.ms).scale(
+                    begin: const Offset(0.92, 0.92),
+                    end: const Offset(1, 1),
+                    duration: 300.ms,
+                  ),
+              const SizedBox(height: 22),
+              Text(
+                'What can I help you plan?',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? AppTheme.darkTextPrimary
+                      : AppTheme.lightTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Ask about your spending, budget, savings, or financial goals.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: isDark
+                      ? AppTheme.darkTextSecondary
+                      : AppTheme.lightTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 28),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: LayoutBuilder(
+                  builder: (context, promptConstraints) {
+                    final cardWidth = (promptConstraints.maxWidth - 10) / 2;
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final prompt in suggestions)
+                          SizedBox(
+                            width: cardWidth,
+                            child: SuggestionCard(
+                              text: prompt.$1,
+                              subtitle: prompt.$2,
+                              icon: prompt.$3,
+                              isDark: isDark,
+                              onTap: () {
+                                _msgCtrl.text = prompt.$2;
+                                _send(provider);
+                              },
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ).animate().fadeIn(delay: 100.ms, duration: 350.ms).slideY(
+                    begin: 0.06,
+                    end: 0,
+                    duration: 350.ms,
+                  ),
+            ],
           ),
-        ).animate().fadeIn(delay: 150.ms, duration: 350.ms)
-            .slideY(begin: 0.1, end: 0, duration: 350.ms),
-        const SizedBox(height: 12),
-      ],
+        ),
+      ),
     );
   }
 
   // ── Message list ─────────────────────────────────────────────
   Widget _buildMessageList(BuildContext context, bool isDark) {
-    return ListView.builder(
-      controller: _scrollCtrl,
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 8),
-      itemCount: _current.messages.length + (_isTyping ? 1 : 0),
-      itemBuilder: (ctx, i) {
-        if (i == _current.messages.length) {
-          return TypingIndicator(isDark: isDark)
-              .animate()
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.15, end: 0, duration: 300.ms);
-        }
-        final msg = _current.messages[i];
-        return MessageBubble(
-          text: msg.text,
-          isUser: msg.isUser,
-          isError: msg.isError,
-          isDark: isDark,
-          imagePath: msg.imagePath,
-          filePath: msg.filePath,
-          fileName: msg.fileName,
-        ).animate().fadeIn(duration: 250.ms).slideY(
-          begin: msg.isUser ? 0.05 : 0.08,
-          end: 0,
-          duration: 250.ms,
-          curve: Curves.easeOut,
-        );
-      },
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: ListView.builder(
+          controller: _scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+          itemCount: _current.messages.length + (_isTyping ? 1 : 0),
+          itemBuilder: (ctx, i) {
+            if (i == _current.messages.length) {
+              return TypingIndicator(isDark: isDark)
+                  .animate()
+                  .fadeIn(duration: 300.ms)
+                  .slideY(begin: 0.15, end: 0, duration: 300.ms);
+            }
+            final msg = _current.messages[i];
+            return MessageBubble(
+              text: msg.text,
+              isUser: msg.isUser,
+              isError: msg.isError,
+              isDark: isDark,
+              imagePath: msg.imagePath,
+              filePath: msg.filePath,
+              fileName: msg.fileName,
+            ).animate().fadeIn(duration: 250.ms).slideY(
+                  begin: msg.isUser ? 0.05 : 0.08,
+                  end: 0,
+                  duration: 250.ms,
+                  curve: Curves.easeOut,
+                );
+          },
+        ),
+      ),
     );
   }
 
   // ── Input area ─────────────────────────────────────────────
-  Widget _buildInputArea(BuildContext context, bool isDark, AppProvider provider) {
+  Widget _buildInputArea(
+      BuildContext context, bool isDark, AppProvider provider) {
     return ChatInputBar(
       controller: _msgCtrl,
       isTyping: _isTyping,
@@ -1856,28 +2140,22 @@ class _CoachScreenState extends State<CoachScreen> {
   // ── Locked banner ────────────────────────────────────────────
   Widget _buildLockedBanner(BuildContext context, bool isDark) {
     final s = S.of(context);
-    final bgColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
-    final borderColor = isDark
-        ? Colors.white.withOpacity(0.06)
-        : Colors.black.withOpacity(0.06);
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
+    return _GlassSurface(
+      isDark: isDark,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+      padding: const EdgeInsets.all(14),
+      radius: 24,
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.goldPrimary.withOpacity(0.12),
+              color: AppTheme.adaptiveIconSurface(context),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.lock_outline_rounded, color: Color(0xFF10A37F), size: 20),
+            child: Icon(IOSIcons.lock_outline_rounded,
+                color: AppTheme.adaptiveIcon(context), size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1901,6 +2179,94 @@ class _CoachScreenState extends State<CoachScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GlassSurface extends StatelessWidget {
+  final bool isDark;
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry margin;
+  final double radius;
+
+  const _GlassSurface({
+    required this.isDark,
+    required this.child,
+    this.padding = EdgeInsets.zero,
+    this.margin = EdgeInsets.zero,
+    this.radius = 22,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: margin,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF282A2B).withOpacity(0.82)
+                  : const Color(0xFFF1F3F4).withOpacity(0.86),
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withOpacity(0.11)
+                    : Colors.white.withOpacity(0.96),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.20 : 0.07),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool isDark;
+  final VoidCallback onPressed;
+
+  const _GlassIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.isDark,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassSurface(
+      isDark: isDark,
+      radius: 23,
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: onPressed,
+          icon: Icon(
+            icon,
+            size: 21,
+            color: isDark
+                ? Colors.white.withOpacity(0.88)
+                : AppTheme.lightTextPrimary,
+          ),
+        ),
       ),
     );
   }
@@ -1935,7 +2301,8 @@ class _AttachSheet extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
@@ -1954,11 +2321,14 @@ class _AttachSheet extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              _option(context, isDark, Icons.photo_library_rounded, s.photo, AppTheme.goldPrimary, onPhoto),
+              _option(context, isDark, IOSIcons.photo_library_rounded, s.photo,
+                  onPhoto),
               const SizedBox(width: 12),
-              _option(context, isDark, Icons.camera_alt_rounded, s.camera, const Color(0xFF6C6EF7), onCamera),
+              _option(context, isDark, IOSIcons.camera_alt_rounded, s.camera,
+                  onCamera),
               const SizedBox(width: 12),
-              _option(context, isDark, Icons.picture_as_pdf_rounded, s.document, Colors.red, onDocument),
+              _option(context, isDark, IOSIcons.picture_as_pdf_rounded,
+                  s.document, onDocument),
             ],
           ),
         ],
@@ -1966,7 +2336,8 @@ class _AttachSheet extends StatelessWidget {
     );
   }
 
-  Widget _option(BuildContext context, bool isDark, IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _option(BuildContext context, bool isDark, IconData icon, String label,
+      VoidCallback onTap) {
     return Expanded(
       child: Material(
         color: isDark ? const Color(0xFF252525) : const Color(0xFFF4F4F4),
@@ -1979,12 +2350,14 @@ class _AttachSheet extends StatelessWidget {
             child: Column(
               children: [
                 Container(
-                  width: 48, height: 48,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: AppTheme.adaptiveIconSurface(context),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon,
+                      color: AppTheme.adaptiveIcon(context), size: 24),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -1999,109 +2372,6 @@ class _AttachSheet extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ── Typewriter welcome animation ──────────────────────────────
-class _TypewriterWelcome extends StatefulWidget {
-  final bool isDark;
-  const _TypewriterWelcome({required this.isDark});
-  @override
-  State<_TypewriterWelcome> createState() => _TypewriterWelcomeState();
-}
-
-class _TypewriterWelcomeState extends State<_TypewriterWelcome> {
-  static const _phrase1 = 'Welcome to SafeSpend AI';
-  static const _phrase2 = 'How can we help you today?';
-  static const _typeSpeed    = Duration(milliseconds: 55);
-  static const _deleteSpeed  = Duration(milliseconds: 30);
-  static const _pauseAfterType   = Duration(milliseconds: 1200);
-  static const _pauseAfterDelete = Duration(milliseconds: 400);
-
-  String _display = '';
-  bool _showCursor = true;
-  bool _disposed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _startCursorBlink();
-    _runSequence();
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
-
-  Future<void> _wait(Duration d) => Future.delayed(d);
-
-  void _startCursorBlink() async {
-    while (!_disposed) {
-      await _wait(const Duration(milliseconds: 530));
-      if (_disposed) return;
-      if (mounted) setState(() => _showCursor = !_showCursor);
-    }
-  }
-
-  Future<void> _runSequence() async {
-    await _wait(const Duration(milliseconds: 600));
-
-    // Type phrase 1
-    for (int i = 0; i <= _phrase1.length; i++) {
-      if (_disposed) return;
-      setState(() => _display = _phrase1.substring(0, i));
-      await _wait(_typeSpeed);
-    }
-    await _wait(_pauseAfterType);
-
-    // Delete phrase 1
-    for (int i = _phrase1.length; i >= 0; i--) {
-      if (_disposed) return;
-      setState(() => _display = _phrase1.substring(0, i));
-      await _wait(_deleteSpeed);
-    }
-    await _wait(_pauseAfterDelete);
-
-    // Type phrase 2
-    for (int i = 0; i <= _phrase2.length; i++) {
-      if (_disposed) return;
-      setState(() => _display = _phrase2.substring(0, i));
-      await _wait(_typeSpeed);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: _display,
-              style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: widget.isDark ? Colors.white : Colors.black,
-              ),
-            ),
-            TextSpan(
-              text: _showCursor ? '|' : ' ',
-              style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.w300,
-                color: widget.isDark
-                    ? Colors.white.withOpacity(0.5)
-                    : Colors.black.withOpacity(0.4),
-              ),
-            ),
-          ],
-        ),
-        textAlign: TextAlign.center,
       ),
     );
   }

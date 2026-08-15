@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../utils/currency_helper.dart';
@@ -96,7 +97,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                             boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                            icon: const Icon(IOSIcons.arrow_back_rounded, size: 20),
                             onPressed: () => Navigator.pop(context),
                             padding: EdgeInsets.zero,
                           ),
@@ -268,7 +269,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                             decoration: AppTheme.premiumCard(context),
                             child: Column(
                               children: [
-                                Icon(Icons.receipt_long_rounded, size: 72, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
+                                Icon(IOSIcons.receipt_long_rounded, size: 72, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
                                 const SizedBox(height: 16),
                                 Text('No expenses yet', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                               ],
@@ -297,8 +298,8 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                         children: [
                                           Container(
                                             width: 44, height: 44,
-                                            decoration: BoxDecoration(color: AppTheme.error.withOpacity(0.12), borderRadius: BorderRadius.circular(14)),
-                                            child: const Icon(Icons.arrow_upward_rounded, color: AppTheme.error, size: 20),
+                                            decoration: BoxDecoration(color: AppTheme.adaptiveIconSurface(context), borderRadius: BorderRadius.circular(14)),
+                                            child: Icon(IOSIcons.arrow_upward_rounded, color: AppTheme.adaptiveIcon(context), size: 20),
                                           ),
                                           const SizedBox(width: 14),
                                           Expanded(
@@ -325,10 +326,10 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: AppTheme.error.withOpacity(0.1),
+                                                    color: AppTheme.adaptiveIconSurface(context),
                                                     borderRadius: BorderRadius.circular(6),
                                                   ),
-                                                  child: Text(cat.name, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.error)),
+                                                  child: Text(cat.name, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.adaptiveIcon(context))),
                                                 ),
                                               ],
                                             ],

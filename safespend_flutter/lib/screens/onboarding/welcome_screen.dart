@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_logo.dart';
@@ -76,7 +77,11 @@ class WelcomeScreen extends StatelessWidget {
                     const AppLogoWidget(size: 118, onDark: false)
                         .animate()
                         .fadeIn(duration: 600.ms)
-                        .scaleXY(begin: 0.75, end: 1.0, duration: 600.ms, curve: Curves.easeOutBack),
+                        .scaleXY(
+                            begin: 0.75,
+                            end: 1.0,
+                            duration: 600.ms,
+                            curve: Curves.easeOutBack),
 
                     const SizedBox(height: 36),
 
@@ -115,7 +120,10 @@ class WelcomeScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                         ),
                       ],
-                    ).animate().fadeIn(duration: 500.ms, delay: 200.ms).slideY(begin: 0.15, end: 0),
+                    )
+                        .animate()
+                        .fadeIn(duration: 500.ms, delay: 200.ms)
+                        .slideY(begin: 0.15, end: 0),
 
                     const SizedBox(height: 40),
 
@@ -123,11 +131,13 @@ class WelcomeScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _featurePill(Icons.shield_rounded, 'Secure'),
+                        _featurePill(
+                            context, IOSIcons.shield_rounded, 'Secure'),
                         const SizedBox(width: 10),
-                        _featurePill(Icons.trending_up_rounded, 'Smart'),
+                        _featurePill(
+                            context, IOSIcons.trending_up_rounded, 'Smart'),
                         const SizedBox(width: 10),
-                        _featurePill(Icons.bolt_rounded, 'Fast'),
+                        _featurePill(context, IOSIcons.bolt_rounded, 'Fast'),
                       ],
                     ).animate().fadeIn(duration: 500.ms, delay: 350.ms),
 
@@ -153,21 +163,28 @@ class WelcomeScreen extends StatelessWidget {
                           backgroundColor: Colors.white,
                           foregroundColor: AppTheme.gold700,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18)),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               'Get Started',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3),
                             ),
                             SizedBox(width: 8),
-                            Icon(Icons.arrow_forward_rounded, size: 20),
+                            Icon(IOSIcons.arrow_forward_rounded, size: 20),
                           ],
                         ),
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 500.ms).slideY(begin: 0.2, end: 0),
+                    )
+                        .animate()
+                        .fadeIn(duration: 500.ms, delay: 500.ms)
+                        .slideY(begin: 0.2, end: 0),
 
                     const SizedBox(height: 20),
 
@@ -191,7 +208,7 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _featurePill(IconData icon, String label) {
+  Widget _featurePill(BuildContext context, IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
@@ -202,11 +219,12 @@ class WelcomeScreen extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 14),
+          Icon(icon, color: AppTheme.adaptiveIcon(context), size: 14),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ],
       ),

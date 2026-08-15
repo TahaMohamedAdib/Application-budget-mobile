@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +12,8 @@ import '../utils/currency_helper.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/supabase_config.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/account_picker_field.dart';
+import '../widgets/app_form_sheet.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -63,7 +66,7 @@ class AccountsScreen extends StatelessWidget {
                             ),
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back, size: 20),
+                            icon: const Icon(IOSIcons.arrow_back, size: 20),
                             onPressed: () => Navigator.pop(context),
                             padding: EdgeInsets.zero,
                           ),
@@ -78,12 +81,13 @@ class AccountsScreen extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: AppTheme.goldPrimary,
+                            color: AppTheme.adaptiveIconSurface(context),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.add,
-                                size: 20, color: Colors.white),
+                            icon: Icon(IOSIcons.add,
+                                size: 20,
+                                color: AppTheme.adaptiveIcon(context)),
                             onPressed: () =>
                                 _showAddAccountModal(context, provider, s),
                             padding: EdgeInsets.zero,
@@ -101,7 +105,7 @@ class AccountsScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.account_balance_wallet_outlined,
+                                  IOSIcons.account_balance_wallet_outlined,
                                   size: 64,
                                   color: Theme.of(context)
                                       .textTheme
@@ -172,11 +176,16 @@ class AccountsScreen extends StatelessWidget {
                                       child: Container(
                                         width: 48,
                                         height: 48,
-                                        decoration: const BoxDecoration(
-                                            color: AppTheme.error,
-                                            shape: BoxShape.circle),
-                                        child: const Icon(Icons.delete_rounded,
-                                            color: Colors.white, size: 20),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.adaptiveIconSurface(
+                                              context),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          IOSIcons.delete_rounded,
+                                          color: AppTheme.adaptiveIcon(context),
+                                          size: 20,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -195,15 +204,17 @@ class AccountsScreen extends StatelessWidget {
                                             width: 44,
                                             height: 44,
                                             decoration: BoxDecoration(
-                                              color: _getAccountColor(
-                                                      account.color)
-                                                  .withOpacity(0.15),
+                                              color:
+                                                  AppTheme.adaptiveIconSurface(
+                                                      context),
                                               borderRadius:
                                                   BorderRadius.circular(14),
                                               border: Border(
                                                   left: BorderSide(
-                                                      color: _getAccountColor(
-                                                          account.color),
+                                                      color:
+                                                          AppTheme.adaptiveIcon(
+                                                              context,
+                                                              alpha: 0.28),
                                                       width: 3)),
                                             ),
                                             child: account.imagePath != null
@@ -216,24 +227,26 @@ class AccountsScreen extends StatelessWidget {
                                                         ? Image.network(
                                                             account.imagePath!,
                                                             fit: BoxFit.cover,
-                                                            errorBuilder: (_, __,
-                                                                    ___) =>
+                                                            errorBuilder: (_,
+                                                                    __, ___) =>
                                                                 Icon(_getAccountIcon(account.type),
-                                                                    color: _getAccountColor(account
-                                                                        .color),
+                                                                    color: AppTheme.adaptiveIcon(
+                                                                        context),
                                                                     size: 20))
                                                         : Image.file(File(account.imagePath!),
                                                             fit: BoxFit.cover,
-                                                            errorBuilder: (_, __, ___) => Icon(
-                                                                _getAccountIcon(account.type),
-                                                                color: _getAccountColor(account.color),
-                                                                size: 20)),
+                                                            errorBuilder:
+                                                                (_, __, ___) => Icon(
+                                                                    _getAccountIcon(account.type),
+                                                                    color: AppTheme.adaptiveIcon(context),
+                                                                    size: 20)),
                                                   )
                                                 : Icon(
                                                     _getAccountIcon(
                                                         account.type),
-                                                    color: _getAccountColor(
-                                                        account.color),
+                                                    color:
+                                                        AppTheme.adaptiveIcon(
+                                                            context),
                                                     size: 20,
                                                   ),
                                           ),
@@ -347,15 +360,15 @@ class AccountsScreen extends StatelessWidget {
   IconData _getAccountIcon(String type) {
     switch (type) {
       case 'bank':
-        return Icons.account_balance;
+        return IOSIcons.account_balance;
       case 'savings':
-        return Icons.savings;
+        return IOSIcons.savings;
       case 'investment':
-        return Icons.trending_up;
+        return IOSIcons.investment;
       case 'debt':
-        return Icons.credit_card;
+        return IOSIcons.credit_card;
       default:
-        return Icons.account_balance_wallet;
+        return IOSIcons.account_balance_wallet;
     }
   }
 
@@ -480,33 +493,22 @@ class _AddAccountModalState extends State<AddAccountModal> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SafeArea(
+    return AppFormSheet(
+      builder: (context, scrollController) => SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    widget.account == null ? s.addAccount : s.edit,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+              const AppFormSheetHandle(),
+              const SizedBox(height: 16),
+              AppFormSheetHeader(
+                title: widget.account == null ? s.addAccount : s.edit,
+                icon: IOSIcons.account_balance_rounded,
+                accent: AppTheme.adaptiveIcon(context),
               ),
               const SizedBox(height: 24),
 
@@ -520,7 +522,8 @@ class _AddAccountModalState extends State<AddAccountModal> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  prefixIcon: const Icon(Icons.account_balance_wallet),
+                  prefixIcon: Icon(IOSIcons.account_balance_wallet,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -535,7 +538,8 @@ class _AddAccountModalState extends State<AddAccountModal> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  prefixIcon: const Icon(Icons.account_balance),
+                  prefixIcon: Icon(IOSIcons.account_balance,
+                      color: AppTheme.adaptiveIcon(context)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -595,16 +599,16 @@ class _AddAccountModalState extends State<AddAccountModal> {
                                 ? Image.network(_imagePath!,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => const Icon(
-                                        Icons.broken_image_rounded,
+                                        IOSIcons.broken_image_rounded,
                                         size: 28))
                                 : Image.file(File(_imagePath!),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => const Icon(
-                                        Icons.broken_image_rounded,
+                                        IOSIcons.broken_image_rounded,
                                         size: 28)),
                           )
                         : Icon(_typeIcon(_selectedType),
-                            size: 28, color: AppTheme.goldPrimary),
+                            size: 28, color: AppTheme.adaptiveIcon(context)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -638,8 +642,9 @@ class _AddAccountModalState extends State<AddAccountModal> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.photo_library_rounded,
-                                size: 18, color: AppTheme.goldPrimary),
+                            Icon(IOSIcons.photo_library_rounded,
+                                size: 18,
+                                color: AppTheme.adaptiveIcon(context)),
                             const SizedBox(width: 8),
                             Text(s.uploadFromGallery,
                                 style: const TextStyle(
@@ -722,7 +727,8 @@ class _AddAccountModalState extends State<AddAccountModal> {
                       labelText: s.paymentDayOfMonth,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.calendar_today_rounded),
+                      prefixIcon: Icon(IOSIcons.calendar_today_rounded,
+                          color: AppTheme.adaptiveIcon(context)),
                     ),
                     items: List.generate(
                         28,
@@ -738,25 +744,14 @@ class _AddAccountModalState extends State<AddAccountModal> {
                         .where(
                             (a) => a.type != 'debt' && a.type != 'investment')
                         .toList();
-                    return DropdownButtonFormField<String>(
+                    return AccountPickerField(
+                      provider: provider,
+                      label: s.payFromAccount,
                       value: _debtPaymentSourceId,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: s.payFromAccount,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.account_balance_rounded),
-                      ),
-                      hint: Text(s.selectAccount),
-                      items: [
-                        DropdownMenuItem(
-                            value: AppProvider.cashOnHandId,
-                            child: Text(s.cashOnHand)),
-                        ...bankAccounts.map((a) =>
-                            DropdownMenuItem(value: a.id, child: Text(a.name))),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _debtPaymentSourceId = v),
+                      accounts: bankAccounts,
+                      cashLabel: s.cashOnHand,
+                      onChanged: (value) =>
+                          setState(() => _debtPaymentSourceId = value),
                     );
                   }),
                 ],
@@ -855,7 +850,8 @@ class _AddAccountModalState extends State<AddAccountModal> {
               : null,
         ),
         child: isSelected
-            ? const Icon(Icons.check, color: Colors.white, size: 20)
+            ? Icon(IOSIcons.check,
+                color: AppTheme.adaptiveIcon(context), size: 20)
             : null,
       ),
     );
@@ -864,13 +860,13 @@ class _AddAccountModalState extends State<AddAccountModal> {
   IconData _typeIcon(String type) {
     switch (type) {
       case 'savings':
-        return Icons.savings;
+        return IOSIcons.savings;
       case 'investment':
-        return Icons.trending_up;
+        return IOSIcons.investment;
       case 'debt':
-        return Icons.credit_card;
+        return IOSIcons.credit_card;
       default:
-        return Icons.account_balance;
+        return IOSIcons.account_balance;
     }
   }
 

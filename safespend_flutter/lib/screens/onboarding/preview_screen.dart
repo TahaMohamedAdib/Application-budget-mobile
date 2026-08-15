@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import '../../theme/app_theme.dart';
 
 class PreviewScreen extends StatelessWidget {
@@ -29,7 +30,7 @@ class PreviewScreen extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: const Icon(IOSIcons.arrow_back),
                       onPressed: onBack,
                     ),
                   ],
@@ -38,8 +39,8 @@ class PreviewScreen extends StatelessWidget {
                 Text(
                   'Everything You Need',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -56,36 +57,31 @@ class PreviewScreen extends StatelessWidget {
                         context,
                         'Today',
                         'See your safe-to-spend amount and recent activity',
-                        Icons.today,
-                        Colors.blue,
+                        IOSIcons.today,
                       ),
                       _buildPreviewCard(
                         context,
                         'Plan',
                         'Manage bills and recurring expenses',
-                        Icons.calendar_month,
-                        Colors.purple,
+                        IOSIcons.calendar_month,
                       ),
                       _buildPreviewCard(
                         context,
                         'Wealth',
                         'Track your net worth and investments',
-                        Icons.trending_up,
-                        AppTheme.goldPrimary,
+                        IOSIcons.trending_up,
                       ),
                       _buildPreviewCard(
                         context,
                         'Accounts',
                         'Manage all your bank accounts',
-                        Icons.account_balance_wallet,
-                        Colors.green,
+                        IOSIcons.account_balance_wallet,
                       ),
                       _buildPreviewCard(
                         context,
                         'AI Coach',
                         'Get personalized financial advice',
-                        Icons.psychology,
-                        Colors.orange,
+                        IOSIcons.psychology,
                       ),
                     ],
                   ),
@@ -125,7 +121,6 @@ class PreviewScreen extends StatelessWidget {
     String title,
     String description,
     IconData icon,
-    Color color,
   ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -137,10 +132,11 @@ class PreviewScreen extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: AppTheme.adaptiveIconSurface(context),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(icon, color: color, size: 28),
+              child:
+                  Icon(icon, color: AppTheme.adaptiveIcon(context), size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -150,8 +146,8 @@ class PreviewScreen extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: 4),
                   Text(

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
+import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_helper.dart';
 import '../models/daret.dart';
+import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
+import '../widgets/wealth_ui.dart';
 import '../l10n/app_localizations.dart';
 
 class DaretScreen extends StatefulWidget {
@@ -34,173 +38,116 @@ class _DaretScreenState extends State<DaretScreen> {
         return Scaffold(
           backgroundColor:
               isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
-          body: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 140,
-                floating: false,
-                pinned: true,
-                backgroundColor:
-                    isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
-                leading: IconButton(
-                  icon: Icon(Icons.arrow_back_ios_new_rounded,
-                      color: isDark ? Colors.white : Colors.black),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                flexibleSpace: FlexibleSpaceBar(
-                  titlePadding: const EdgeInsets.only(left: 52, bottom: 16),
-                  title: Text(s.savingsCircle,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : Colors.black,
-                      )),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.add_rounded,
-                        color: AppTheme.goldPrimary, size: 26),
-                    onPressed: () => _showAddDaretModal(context, provider),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: AppTheme.premiumCard(context),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFF6366F1).withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(Icons.groups_rounded,
-                                  color: Color(0xFF6366F1), size: 24),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(s.activeDarets,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall),
-                                  Text('${activeDarets.length}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .headlineSmall
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.w700)),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(s.remaining,
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall),
-                                Text(cf.format(totalLiability),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+          body: SafeArea(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: WealthPageHeader(
+                      title: s.savingsCircle,
+                      subtitle: 'Plan contributions and payouts',
+                      onBack: () => Navigator.pop(context),
+                      onAdd: () => _showAddDaretModal(context, provider),
+                      addTooltip: 'Add savings circle',
                     ),
-                  ).animate().fadeIn(duration: 280.ms, delay: 60.ms),
+                  ).animate().fadeIn(duration: 260.ms),
                 ),
-              ),
-              if (activeDarets.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                    child: Text(s.activeUppercase,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600, letterSpacing: 0.8)),
+                    padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+                    child: WealthOverviewCard(
+                      icon: IOSIcons.wealthSavingsCircle,
+                      label: s.remaining,
+                      amount: cf.format(totalLiability),
+                      amountColor:
+                          totalLiability > 0 ? AppTheme.expenseIcon : null,
+                      firstLabel: s.activeDarets,
+                      firstValue: '${activeDarets.length}',
+                      secondLabel: s.completedUppercase,
+                      secondValue: '${completedDarets.length}',
+                    ).animate().fadeIn(duration: 280.ms, delay: 60.ms),
                   ),
                 ),
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final daret = activeDarets[index];
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                      child:
-                          _buildDaretCard(context, daret, provider, cf, isDark),
-                    )
-                        .animate()
-                        .fadeIn(duration: 280.ms, delay: (80 + index * 40).ms);
-                  },
-                  childCount: activeDarets.length,
-                ),
-              ),
-              if (completedDarets.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                    child: Text(s.completedUppercase,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600, letterSpacing: 0.8)),
+                if (activeDarets.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                      child: WealthSectionHeader(
+                        title: s.activeUppercase,
+                        count: '${activeDarets.length}',
+                      ),
+                    ),
                   ),
-                ),
-              if (completedDarets.isNotEmpty)
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final daret = completedDarets[index];
+                      final daret = activeDarets[index];
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                         child: _buildDaretCard(
                             context, daret, provider, cf, isDark),
-                      );
+                      ).animate().fadeIn(
+                          duration: 280.ms, delay: (80 + index * 40).ms);
                     },
-                    childCount: completedDarets.length,
+                    childCount: activeDarets.length,
                   ),
                 ),
-              if (provider.darets.isEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Column(
-                      children: [
-                        Icon(Icons.groups_rounded,
-                            size: 64,
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.color
-                                ?.withOpacity(0.3)),
-                        const SizedBox(height: 16),
-                        Text(s.noDaretsYet,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 8),
-                        Text(s.tapToCreateDaret,
-                            style: Theme.of(context).textTheme.bodySmall,
-                            textAlign: TextAlign.center),
-                      ],
+                if (completedDarets.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                      child: WealthSectionHeader(
+                        title: s.completedUppercase,
+                        count: '${completedDarets.length}',
+                      ),
                     ),
                   ),
-                ),
-              const SliverToBoxAdapter(child: SizedBox(height: 110)),
-            ],
+                if (completedDarets.isNotEmpty)
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final daret = completedDarets[index];
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                          child: _buildDaretCard(
+                              context, daret, provider, cf, isDark),
+                        );
+                      },
+                      childCount: completedDarets.length,
+                    ),
+                  ),
+                if (provider.darets.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        children: [
+                          Icon(IOSIcons.groups_rounded,
+                              size: 64,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color
+                                  ?.withOpacity(0.3)),
+                          const SizedBox(height: 16),
+                          Text(s.noDaretsYet,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          Text(s.tapToCreateDaret,
+                              style: Theme.of(context).textTheme.bodySmall,
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 110)),
+              ],
+            ),
           ),
         );
       },
@@ -210,22 +157,11 @@ class _DaretScreenState extends State<DaretScreen> {
   Widget _buildDaretCard(BuildContext context, Daret daret,
       AppProvider provider, NumberFormat cf, bool isDark) {
     final s = S.of(context);
-    final sourceAccount = daret.paymentSourceId == AppProvider.cashOnHandId
-        ? null
-        : provider.accounts
-            .where((a) => a.id == daret.paymentSourceId)
-            .firstOrNull;
-    final destAccount = daret.destinationAccountId == AppProvider.cashOnHandId
-        ? null
-        : provider.accounts
-            .where((a) => a.id == daret.destinationAccountId)
-            .firstOrNull;
-
     return GestureDetector(
       onTap: () => _showDaretDetail(context, daret, provider, cf, isDark),
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: AppTheme.premiumCard(context),
+        decoration: wealthGlassDecoration(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -235,7 +171,7 @@ class _DaretScreenState extends State<DaretScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withOpacity(0.12),
+                    color: AppTheme.adaptiveIconSurface(context),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Center(
@@ -264,7 +200,9 @@ class _DaretScreenState extends State<DaretScreen> {
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                            ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.expenseIcon)),
                     Text(s.perMonth,
                         style: Theme.of(context).textTheme.bodySmall),
                   ],
@@ -278,8 +216,8 @@ class _DaretScreenState extends State<DaretScreen> {
                 value: daret.progress,
                 backgroundColor:
                     isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    AppTheme.adaptiveIcon(context)),
                 minHeight: 6,
               ),
             ),
@@ -300,14 +238,14 @@ class _DaretScreenState extends State<DaretScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.12),
+                      color: AppTheme.incomeIcon.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                         s.payoutMonth
                             .replaceAll('{month}', '${daret.nextPayoutMonth}'),
                         style: const TextStyle(
-                            color: Colors.green,
+                            color: AppTheme.incomeIcon,
                             fontSize: 12,
                             fontWeight: FontWeight.w600)),
                   )
@@ -383,7 +321,7 @@ class _DaretScreenState extends State<DaretScreen> {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.12),
+                          color: AppTheme.adaptiveIconSurface(ctx),
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: const Center(
@@ -410,36 +348,42 @@ class _DaretScreenState extends State<DaretScreen> {
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: AppTheme.premiumCard(ctx),
+                    decoration: wealthGlassDecoration(ctx),
                     child: Column(
                       children: [
                         _detailRow(ctx, s, s.contributionPerShare,
                             cf.format(daret.contributionPerShare)),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.monthlyPayment,
-                            cf.format(daret.monthlyPayment)),
+                            cf.format(daret.monthlyPayment),
+                            valueColor: AppTheme.expenseIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.singlePayout,
-                            cf.format(daret.singlePayoutAmount)),
+                            cf.format(daret.singlePayoutAmount),
+                            valueColor: AppTheme.incomeIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.totalCyclePayout,
-                            cf.format(daret.totalCyclePayout)),
+                            cf.format(daret.totalCyclePayout),
+                            valueColor: AppTheme.incomeIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.totalPaidSoFar,
-                            cf.format(daret.totalPaidSoFar)),
+                            cf.format(daret.totalPaidSoFar),
+                            valueColor: AppTheme.expenseIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.totalReceivedSoFar,
-                            cf.format(daret.totalReceivedSoFar)),
+                            cf.format(daret.totalReceivedSoFar),
+                            valueColor: AppTheme.incomeIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.remainingLiability,
-                            cf.format(daret.remainingLiability)),
+                            cf.format(daret.remainingLiability),
+                            valueColor: AppTheme.expenseIcon),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: AppTheme.premiumCard(ctx),
+                    decoration: wealthGlassDecoration(ctx),
                     child: Column(
                       children: [
                         _detailRow(ctx, s, s.sourceAccount,
@@ -469,7 +413,7 @@ class _DaretScreenState extends State<DaretScreen> {
                   ),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: AppTheme.premiumCard(ctx),
+                    decoration: wealthGlassDecoration(ctx),
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -484,10 +428,11 @@ class _DaretScreenState extends State<DaretScreen> {
                           decoration: BoxDecoration(
                             color: isPayout
                                 ? (isPast
-                                    ? Colors.green
-                                    : Colors.green.withOpacity(0.15))
+                                    ? AppTheme.incomeIcon
+                                    : AppTheme.incomeIcon
+                                        .withValues(alpha: 0.15))
                                 : isCurrent
-                                    ? const Color(0xFF6366F1).withOpacity(0.15)
+                                    ? AppTheme.adaptiveIconSurface(ctx)
                                     : isPast
                                         ? (isDark
                                             ? Colors.white10
@@ -496,9 +441,10 @@ class _DaretScreenState extends State<DaretScreen> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isCurrent
-                                  ? const Color(0xFF6366F1)
+                                  ? AppTheme.adaptiveIcon(ctx)
                                   : (isPayout
-                                      ? Colors.green.withOpacity(0.3)
+                                      ? AppTheme.incomeIcon
+                                          .withValues(alpha: 0.3)
                                       : (isDark
                                           ? Colors.white10
                                           : Colors.black.withOpacity(0.08))),
@@ -513,9 +459,11 @@ class _DaretScreenState extends State<DaretScreen> {
                                       ? FontWeight.w700
                                       : FontWeight.w500,
                                   color: isPayout
-                                      ? (isPast ? Colors.white : Colors.green)
+                                      ? (isPast
+                                          ? Colors.white
+                                          : AppTheme.incomeIcon)
                                       : isCurrent
-                                          ? const Color(0xFF6366F1)
+                                          ? AppTheme.adaptiveIcon(ctx)
                                           : Theme.of(ctx)
                                               .textTheme
                                               .bodySmall
@@ -529,10 +477,10 @@ class _DaretScreenState extends State<DaretScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _legendDot(s, Colors.green, s.payoutMonth),
+                      _legendDot(s, AppTheme.incomeIcon, s.payoutMonth),
                       const SizedBox(width: 16),
                       _legendDot(
-                          s, const Color(0xFF6366F1), s.currentMonthLabel),
+                          s, AppTheme.adaptiveIcon(ctx), s.currentMonthLabel),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -544,7 +492,7 @@ class _DaretScreenState extends State<DaretScreen> {
                             Navigator.pop(ctx);
                             _showEditDaretModal(context, daret, provider);
                           },
-                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          icon: const Icon(IOSIcons.edit_rounded, size: 18),
                           label: Text(s.edit),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -561,8 +509,8 @@ class _DaretScreenState extends State<DaretScreen> {
                             Navigator.pop(ctx);
                             _confirmDelete(context, daret, provider);
                           },
-                          icon: Icon(Icons.delete_rounded,
-                              size: 18, color: AppTheme.error),
+                          icon: Icon(IOSIcons.delete_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
                           label: Text(s.delete,
                               style: TextStyle(color: AppTheme.error)),
                           style: OutlinedButton.styleFrom(
@@ -585,7 +533,8 @@ class _DaretScreenState extends State<DaretScreen> {
     );
   }
 
-  Widget _detailRow(BuildContext ctx, S s, String label, String value) {
+  Widget _detailRow(BuildContext ctx, S s, String label, String value,
+      {Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -594,7 +543,7 @@ class _DaretScreenState extends State<DaretScreen> {
             style: Theme.of(ctx)
                 .textTheme
                 .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
+                ?.copyWith(fontWeight: FontWeight.w600, color: valueColor)),
       ],
     );
   }
@@ -770,159 +719,66 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
     final cf = CurrencyHelper.formatter(widget.provider.settings.currency);
     final accounts = widget.provider.accounts;
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Center(
-              child: Container(
-                  width: 48,
-                  height: 5,
-                  decoration: BoxDecoration(
-                      color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(3)))),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Text(_isEditing ? s.editDaret : s.newDaret,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                const Spacer(),
-                IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 22),
-                    onPressed: () => Navigator.pop(context)),
-              ],
+    return AppFormSheet(
+      builder: (context, scrollController) => SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            const AppFormSheetHandle(),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: AppFormSheetHeader(
+                title: _isEditing ? s.editDaret : s.newDaret,
+                icon: IOSIcons.wealthSavingsCircle,
+                accent: AppTheme.adaptiveIcon(context),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-              children: [
-                _label(s, s.name),
-                TextField(
-                  controller: _nameController,
-                  decoration: _inputDecoration(isDark, s.contributionHint),
-                ),
-                const SizedBox(height: 20),
-                _label(s, s.contributionPerShare),
-                TextField(
-                  controller: _contributionController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration:
-                      _inputDecoration(isDark, s.contributionAmountHint),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 20),
-                _label(s, s.totalShares),
-                TextField(
-                  controller: _totalSharesController,
-                  keyboardType: TextInputType.number,
-                  decoration: _inputDecoration(isDark, s.totalSharesHint),
-                  onChanged: (_) {
-                    setState(() {
-                      for (int i = 0; i < _payoutMonths.length; i++) {
-                        if (_payoutMonths[i] != null &&
-                            _payoutMonths[i]! > _totalShares) {
-                          _payoutMonths[i] = null;
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                children: [
+                  _label(s, s.name),
+                  TextField(
+                    controller: _nameController,
+                    decoration: _inputDecoration(isDark, s.contributionHint),
+                  ),
+                  const SizedBox(height: 20),
+                  _label(s, s.contributionPerShare),
+                  TextField(
+                    controller: _contributionController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration:
+                        _inputDecoration(isDark, s.contributionAmountHint),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 20),
+                  _label(s, s.totalShares),
+                  TextField(
+                    controller: _totalSharesController,
+                    keyboardType: TextInputType.number,
+                    decoration: _inputDecoration(isDark, s.totalSharesHint),
+                    onChanged: (_) {
+                      setState(() {
+                        for (int i = 0; i < _payoutMonths.length; i++) {
+                          if (_payoutMonths[i] != null &&
+                              _payoutMonths[i]! > _totalShares) {
+                            _payoutMonths[i] = null;
+                          }
                         }
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 20),
-                _label(s, s.yourShares),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppTheme.darkSurfaceElevated
-                        : AppTheme.lightBackground,
-                    borderRadius: BorderRadius.circular(12),
+                      });
+                    },
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(s.howManySlots,
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ),
-                      IconButton(
-                        onPressed: _userShares > 1
-                            ? () => setState(() {
-                                  _userShares--;
-                                  if (_payoutMonths.length > _userShares) {
-                                    _payoutMonths =
-                                        _payoutMonths.sublist(0, _userShares);
-                                  }
-                                })
-                            : null,
-                        icon: Icon(Icons.remove_circle_rounded,
-                            color: _userShares > 1
-                                ? AppTheme.goldPrimary
-                                : Colors.grey),
-                      ),
-                      Text('$_userShares',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      IconButton(
-                        onPressed:
-                            _userShares < (_totalShares > 0 ? _totalShares : 10)
-                                ? () => setState(() {
-                                      _userShares++;
-                                      if (_payoutMonths.length < _userShares) {
-                                        _payoutMonths.add(null);
-                                      }
-                                    })
-                                : null,
-                        icon: Icon(Icons.add_circle_rounded,
-                            color: _userShares <
-                                    (_totalShares > 0 ? _totalShares : 10)
-                                ? AppTheme.goldPrimary
-                                : Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _label(s, s.payoutMonths),
-                ...List.generate(_userShares, (i) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildPayoutMonthSelector(isDark, i, s),
-                  );
-                }),
-                const SizedBox(height: 8),
-                _label(s, s.paymentDayOfMonth),
-                _buildDaySelector(isDark),
-                const SizedBox(height: 20),
-                _label(s, s.startDate),
-                GestureDetector(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _startDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2035),
-                    );
-                    if (picked != null) setState(() => _startDate = picked);
-                  },
-                  child: Container(
+                  const SizedBox(height: 20),
+                  _label(s, s.yourShares),
+                  Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
+                        horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isDark
                           ? AppTheme.darkSurfaceElevated
@@ -931,117 +787,198 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today_rounded,
-                            size: 18, color: AppTheme.goldPrimary),
-                        const SizedBox(width: 12),
-                        Text(DateFormat.yMMMd().format(_startDate),
+                        Expanded(
+                          child: Text(s.howManySlots,
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ),
+                        IconButton(
+                          onPressed: _userShares > 1
+                              ? () => setState(() {
+                                    _userShares--;
+                                    if (_payoutMonths.length > _userShares) {
+                                      _payoutMonths =
+                                          _payoutMonths.sublist(0, _userShares);
+                                    }
+                                  })
+                              : null,
+                          icon: Icon(IOSIcons.remove_circle_rounded,
+                              color: AppTheme.adaptiveIcon(context,
+                                  alpha: _userShares > 1 ? 1 : 0.35)),
+                        ),
+                        Text('$_userShares',
                             style: Theme.of(context)
                                 .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w500)),
-                        const Spacer(),
-                        Icon(Icons.chevron_right_rounded,
-                            size: 20,
-                            color:
-                                Theme.of(context).textTheme.bodySmall?.color),
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        IconButton(
+                          onPressed: _userShares <
+                                  (_totalShares > 0 ? _totalShares : 10)
+                              ? () => setState(() {
+                                    _userShares++;
+                                    if (_payoutMonths.length < _userShares) {
+                                      _payoutMonths.add(null);
+                                    }
+                                  })
+                              : null,
+                          icon: Icon(IOSIcons.add_circle_rounded,
+                              color: AppTheme.adaptiveIcon(context,
+                                  alpha: _userShares <
+                                          (_totalShares > 0 ? _totalShares : 10)
+                                      ? 1
+                                      : 0.35)),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                _label(s, s.sourceAccount),
-                AppPickerField(
-                  label: s.sourceAccount,
-                  value: _paymentSourceId,
-                  items: [
-                    AppPickerItem(
-                        value: AppProvider.cashOnHandId,
-                        label: s.cashOnHand,
-                        leadingIcon: 'Icons.money_rounded'),
-                    ...accounts.map((a) => AppPickerItem(
-                          value: a.id,
-                          label: a.name,
-                          leadingIcon: _iconForAccountType(a.type),
-                          imagePath: a.imagePath,
-                        )),
-                  ],
-                  onChanged: (v) => setState(() => _paymentSourceId = v),
-                ),
-                const SizedBox(height: 20),
-                _label(s, s.destinationAccount),
-                AppPickerField(
-                  label: s.destinationAccount,
-                  value: _destinationAccountId,
-                  items: [
-                    AppPickerItem(
-                        value: AppProvider.cashOnHandId,
-                        label: s.cashOnHand,
-                        leadingIcon: 'Icons.money_rounded'),
-                    ...accounts.map((a) => AppPickerItem(
-                          value: a.id,
-                          label: a.name,
-                          leadingIcon: _iconForAccountType(a.type),
-                          imagePath: a.imagePath,
-                        )),
-                  ],
-                  onChanged: (v) => setState(() => _destinationAccountId = v),
-                ),
-                const SizedBox(height: 24),
-                if (_contribution > 0 && _totalShares > 0) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 8),
-                    child: Text(s.summary,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600, letterSpacing: 0.8)),
+                  const SizedBox(height: 20),
+                  _label(s, s.payoutMonths),
+                  ...List.generate(_userShares, (i) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildPayoutMonthSelector(isDark, i, s),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  _label(s, s.paymentDayOfMonth),
+                  _buildDaySelector(isDark),
+                  const SizedBox(height: 20),
+                  _label(s, s.startDate),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2035),
+                      );
+                      if (picked != null) setState(() => _startDate = picked);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppTheme.darkSurfaceElevated
+                            : AppTheme.lightBackground,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(IOSIcons.calendar_today_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(context)),
+                          const SizedBox(width: 12),
+                          Text(DateFormat.yMMMd().format(_startDate),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w500)),
+                          const Spacer(),
+                          Icon(IOSIcons.chevron_right_rounded,
+                              size: 20, color: AppTheme.adaptiveIcon(context)),
+                        ],
+                      ),
+                    ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color: const Color(0xFF6366F1).withOpacity(0.2)),
-                    ),
-                    child: Column(
-                      children: [
-                        _summaryRow(s.monthlyPayment,
-                            cf.format(_contribution * _userShares)),
-                        const SizedBox(height: 8),
-                        _summaryRow(s.singlePayout,
-                            cf.format(_contribution * _totalShares)),
-                        const SizedBox(height: 8),
-                        _summaryRow(
-                            s.totalCyclePayout,
-                            cf.format(
-                                _contribution * _totalShares * _userShares)),
-                        const SizedBox(height: 8),
-                        _summaryRow(
-                            s.remainingLiability,
-                            cf.format(
-                                (_totalShares * _contribution * _userShares)
-                                    .abs())),
-                      ],
-                    ),
+                  const SizedBox(height: 20),
+                  _label(s, s.sourceAccount),
+                  AppPickerField(
+                    label: s.sourceAccount,
+                    value: _paymentSourceId,
+                    items: [
+                      AppPickerItem(
+                          value: AppProvider.cashOnHandId,
+                          label: s.cashOnHand,
+                          leadingIcon: 'IOSIcons.money_rounded',
+                          iconColor: AppTheme.cashOnHandIcon),
+                      ...accounts.map((a) => AppPickerItem(
+                            value: a.id,
+                            label: a.name,
+                            leadingIcon: _iconForAccountType(a.type),
+                            imagePath: a.imagePath,
+                          )),
+                    ],
+                    onChanged: (v) => setState(() => _paymentSourceId = v),
+                  ),
+                  const SizedBox(height: 20),
+                  _label(s, s.destinationAccount),
+                  AppPickerField(
+                    label: s.destinationAccount,
+                    value: _destinationAccountId,
+                    items: [
+                      AppPickerItem(
+                          value: AppProvider.cashOnHandId,
+                          label: s.cashOnHand,
+                          leadingIcon: 'IOSIcons.money_rounded',
+                          iconColor: AppTheme.cashOnHandIcon),
+                      ...accounts.map((a) => AppPickerItem(
+                            value: a.id,
+                            label: a.name,
+                            leadingIcon: _iconForAccountType(a.type),
+                            imagePath: a.imagePath,
+                          )),
+                    ],
+                    onChanged: (v) => setState(() => _destinationAccountId = v),
                   ),
                   const SizedBox(height: 24),
-                ],
-                ElevatedButton(
-                  onPressed: _canSave ? _save : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.goldPrimary,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                  if (_contribution > 0 && _totalShares > 0) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: Text(s.summary,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.8)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: wealthGlassDecoration(context, radius: 18),
+                      child: Column(
+                        children: [
+                          _summaryRow(s.monthlyPayment,
+                              cf.format(_contribution * _userShares),
+                              valueColor: AppTheme.expenseIcon),
+                          const SizedBox(height: 8),
+                          _summaryRow(s.singlePayout,
+                              cf.format(_contribution * _totalShares),
+                              valueColor: AppTheme.incomeIcon),
+                          const SizedBox(height: 8),
+                          _summaryRow(
+                              s.totalCyclePayout,
+                              cf.format(
+                                  _contribution * _totalShares * _userShares),
+                              valueColor: AppTheme.incomeIcon),
+                          const SizedBox(height: 8),
+                          _summaryRow(
+                              s.remainingLiability,
+                              cf.format(
+                                  (_totalShares * _contribution * _userShares)
+                                      .abs()),
+                              valueColor: AppTheme.expenseIcon),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  ElevatedButton(
+                    onPressed: _canSave ? _save : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.goldPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: Text(_isEditing ? s.saveChanges : s.createDaret,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 16)),
                   ),
-                  child: Text(_isEditing ? s.saveChanges : s.createDaret,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 16)),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1177,29 +1114,32 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
     }
   }
 
-  Widget _summaryRow(String label, String value) {
+  Widget _summaryRow(String label, String value, {Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontSize: 13)),
         Text(value,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            style: TextStyle(
+                fontWeight: FontWeight.w700, fontSize: 14, color: valueColor)),
       ],
     );
   }
 
   String _iconForAccountType(String type) {
+    // These must be AppIcons constants — AppIcon() resolves them by identity,
+    // so a bare name string falls through to a blank circle.
     switch (type) {
       case 'bank':
-        return 'Icons.account_balance_rounded';
+        return AppIcons.bank;
       case 'savings':
-        return 'Icons.savings_rounded';
+        return AppIcons.savings;
       case 'investment':
-        return 'Icons.trending_up_rounded';
+        return AppIcons.investments;
       case 'debt':
-        return 'Icons.credit_card_rounded';
+        return AppIcons.creditCard;
       default:
-        return 'Icons.account_balance_wallet_rounded';
+        return AppIcons.wallet;
     }
   }
 }

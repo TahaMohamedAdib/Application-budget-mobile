@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/auth_service.dart';
@@ -140,9 +141,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     onTap: () => Navigator.pop(context),
                     child: Padding(
                       padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.arrow_back_rounded,
-                          size: 22,
-                          color: isDark ? Colors.white : Colors.black),
+                      child: Icon(IOSIcons.arrow_back_rounded,
+                          size: 22, color: AppTheme.adaptiveIcon(context)),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -176,12 +176,13 @@ class _AccountScreenState extends State<AccountScreen> {
                           width: 72,
                           height: 72,
                           decoration: BoxDecoration(
-                            color: AppTheme.goldPrimary.withOpacity(0.12),
+                            color: AppTheme.adaptiveIconSurface(context),
                             borderRadius: BorderRadius.circular(22),
                           ),
-                          child: const Center(
-                              child: Icon(Icons.person_rounded,
-                                  color: AppTheme.goldPrimary, size: 36)),
+                          child: Center(
+                              child: Icon(IOSIcons.person_rounded,
+                                  color: AppTheme.adaptiveIcon(context),
+                                  size: 36)),
                         ),
                         const SizedBox(width: 20),
                         Expanded(
@@ -234,12 +235,13 @@ class _AccountScreenState extends State<AccountScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: AppTheme.goldPrimary.withOpacity(0.12),
+                                color: AppTheme.adaptiveIconSurface(context),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
-                                  child: Icon(Icons.badge_rounded,
-                                      size: 20, color: AppTheme.goldPrimary)),
+                              child: Center(
+                                  child: Icon(IOSIcons.badge_rounded,
+                                      size: 20,
+                                      color: AppTheme.adaptiveIcon(context))),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -372,13 +374,13 @@ class _AccountScreenState extends State<AccountScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFF3B82F6).withOpacity(0.12),
+                                color: AppTheme.adaptiveIconSurface(context),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
-                                  child: Icon(Icons.email_rounded,
-                                      size: 20, color: Color(0xFF3B82F6))),
+                              child: Center(
+                                  child: Icon(IOSIcons.email_rounded,
+                                      size: 20,
+                                      color: AppTheme.adaptiveIcon(context))),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -452,13 +454,13 @@ class _AccountScreenState extends State<AccountScreen> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFF10B981).withOpacity(0.12),
+                                  color: AppTheme.adaptiveIconSurface(context),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Center(
-                                    child: Icon(Icons.lock_rounded,
-                                        size: 20, color: Color(0xFF10B981))),
+                                child: Center(
+                                    child: Icon(IOSIcons.lock_rounded,
+                                        size: 20,
+                                        color: AppTheme.adaptiveIcon(context))),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -513,8 +515,9 @@ class _AccountScreenState extends State<AccountScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.error_outline_rounded,
-                                        size: 18, color: AppTheme.error),
+                                    Icon(IOSIcons.error_outline_rounded,
+                                        size: 18,
+                                        color: AppTheme.adaptiveIcon(context)),
                                     const SizedBox(width: 10),
                                     Expanded(
                                         child: Text(_errorMessage!,
@@ -543,8 +546,8 @@ class _AccountScreenState extends State<AccountScreen> {
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                       _showCurrentPassword
-                                          ? Icons.visibility_off_rounded
-                                          : Icons.visibility_rounded,
+                                          ? IOSIcons.visibility_off_rounded
+                                          : IOSIcons.visibility_rounded,
                                       size: 20),
                                   onPressed: () => setState(() =>
                                       _showCurrentPassword =
@@ -570,8 +573,8 @@ class _AccountScreenState extends State<AccountScreen> {
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                       _showNewPassword
-                                          ? Icons.visibility_off_rounded
-                                          : Icons.visibility_rounded,
+                                          ? IOSIcons.visibility_off_rounded
+                                          : IOSIcons.visibility_rounded,
                                       size: 20),
                                   onPressed: () => setState(() =>
                                       _showNewPassword = !_showNewPassword),
@@ -596,8 +599,8 @@ class _AccountScreenState extends State<AccountScreen> {
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                       _showConfirmPassword
-                                          ? Icons.visibility_off_rounded
-                                          : Icons.visibility_rounded,
+                                          ? IOSIcons.visibility_off_rounded
+                                          : IOSIcons.visibility_rounded,
                                       size: 20),
                                   onPressed: () => setState(() =>
                                       _showConfirmPassword =

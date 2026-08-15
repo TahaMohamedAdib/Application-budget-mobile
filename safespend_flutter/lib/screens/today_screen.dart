@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../utils/currency_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:iconify_flutter/iconify_flutter.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
@@ -18,6 +18,8 @@ import 'spending_screen.dart';
 import 'transactions_screen.dart';
 import 'all_subscriptions_screen.dart';
 import '../widgets/add_transaction_modal.dart';
+import '../widgets/account_picker_field.dart';
+import '../widgets/app_picker_field.dart';
 import '../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -63,6 +65,9 @@ class HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
+            // Let content flow under the floating nav pill instead of
+            // stopping at a hard edge above it.
+            bottom: false,
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
@@ -72,46 +77,57 @@ class HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Row(
                       children: [
-                        GestureDetector(
-                          onTap: () => _showAccountPicker(context, provider),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppTheme.darkSurface
-                                  : AppTheme.lightSurface,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
+                        AccountPickerField(
+                          provider: provider,
+                          label: s.selectAccount,
+                          value: provider.selectedAccountId,
+                          includeCashOnHand: false,
+                          includeAllAccounts: true,
+                          allAccountsLabel: s.allAccounts,
+                          onChanged: provider.setSelectedAccount,
+                          triggerBuilder: (context, selected, open) =>
+                              GestureDetector(
+                            onTap: open,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
                                 color: isDark
-                                    ? Colors.white.withOpacity(0.08)
-                                    : AppTheme.lightBorder,
-                              ),
-                              boxShadow: isDark ? [] : AppTheme.cardShadowLight,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildHeaderAccountIcon(provider),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _getSelectedAccountName(provider),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? AppTheme.darkTextPrimary
-                                        : AppTheme.lightTextPrimary,
-                                  ),
+                                    ? AppTheme.darkSurface
+                                    : AppTheme.lightSurface,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.white.withOpacity(0.08)
+                                      : AppTheme.lightBorder,
                                 ),
-                                const SizedBox(width: 4),
-                                Iconify(AppIcons.caretUpDown,
-                                    size: 16,
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.color),
-                              ],
+                                boxShadow:
+                                    isDark ? [] : AppTheme.cardShadowLight,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildHeaderAccountIcon(provider),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _getSelectedAccountName(provider),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppTheme.darkTextPrimary
+                                          : AppTheme.lightTextPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  AppIcon(AppIcons.caretUpDown,
+                                      size: 16,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.color),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -158,13 +174,15 @@ class HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                       child: Container(
                         padding: const EdgeInsets.all(24),
-                        decoration: AppTheme.goldCard(),
+                        decoration: AppTheme.goldCard(isDark: isDark),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(s.totalBalance,
                                 style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: isDark
+                                        ? Colors.white.withOpacity(0.8)
+                                        : const Color(0xFF5F6368),
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500)),
                             const SizedBox(height: 8),
@@ -173,10 +191,12 @@ class HomeScreenState extends State<HomeScreen> {
                                   ? currencyFormat
                                       .format(_getAccountBalance(provider))
                                   : '••••••',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 34,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1C1C1E),
                                   letterSpacing: -1),
                             ),
                             const SizedBox(height: 4),
@@ -186,7 +206,9 @@ class HomeScreenState extends State<HomeScreen> {
                                   : _getSelectedAccountName(provider),
                               style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.white.withOpacity(0.6)),
+                                  color: isDark
+                                      ? Colors.white.withOpacity(0.6)
+                                      : const Color(0xFF74777C)),
                             ),
                           ],
                         ),
@@ -207,7 +229,7 @@ class HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                       child: Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: AppTheme.goldCard(),
+                        decoration: AppTheme.goldCard(isDark: isDark),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -222,8 +244,10 @@ class HomeScreenState extends State<HomeScreen> {
                                     children: [
                                       Text(
                                         s.balanceEvolution,
-                                        style: const TextStyle(
-                                          color: Colors.white60,
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white60
+                                              : const Color(0xFF686C72),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
                                           letterSpacing: 0.2,
@@ -233,8 +257,10 @@ class HomeScreenState extends State<HomeScreen> {
                                       Text(
                                         currencyFormat.format(
                                             _getAccountBalance(provider)),
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? Colors.white
+                                              : const Color(0xFF1C1C1E),
                                           fontSize: 22,
                                           fontWeight: FontWeight.w700,
                                           letterSpacing: -0.5,
@@ -260,7 +286,10 @@ class HomeScreenState extends State<HomeScreen> {
                                         decoration: BoxDecoration(
                                           color: isActive
                                               ? AppTheme.goldPrimary
-                                              : Colors.white.withOpacity(0.08),
+                                              : (isDark
+                                                  ? Colors.white
+                                                      .withOpacity(0.08)
+                                                  : const Color(0xFFDDE0E3)),
                                           borderRadius:
                                               BorderRadius.circular(6),
                                         ),
@@ -271,7 +300,9 @@ class HomeScreenState extends State<HomeScreen> {
                                             fontWeight: FontWeight.w600,
                                             color: isActive
                                                 ? Colors.white
-                                                : Colors.white60,
+                                                : (isDark
+                                                    ? Colors.white60
+                                                    : const Color(0xFF5F6368)),
                                           ),
                                         ),
                                       ),
@@ -332,7 +363,7 @@ class HomeScreenState extends State<HomeScreen> {
                                 child: _buildAccountRow(
                                   context: context,
                                   icon: _iconForAccountType(account.type),
-                                  iconColor: _colorFromHex(account.color),
+                                  iconColor: AppTheme.adaptiveIcon(context),
                                   label: account.name,
                                   sublabel: account.bankName ??
                                       account.type[0].toUpperCase() +
@@ -352,7 +383,8 @@ class HomeScreenState extends State<HomeScreen> {
                             child: _buildAccountRow(
                               context: context,
                               icon: AppIcons.money,
-                              iconColor: AppTheme.warning,
+                              iconColor: AppTheme.adaptiveIcon(context),
+                              amountColor: AppTheme.cashOnHandIcon,
                               label: s.cashOnHand,
                               sublabel: 'From withdrawals',
                               amount: totalCash,
@@ -368,8 +400,8 @@ class HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _buildAccountRow(
                               context: context,
-                              icon: AppIcons.trendUp,
-                              iconColor: const Color(0xFF8B5CF6),
+                              icon: AppIcons.investments,
+                              iconColor: AppTheme.adaptiveIcon(context),
                               label: s.investments,
                               sublabel: '${provider.holdings.length} holdings',
                               amount: provider.totalInvestmentValue,
@@ -386,13 +418,12 @@ class HomeScreenState extends State<HomeScreen> {
                               child: _buildAccountRow(
                                 context: context,
                                 icon: AppIcons.creditCard,
-                                iconColor: AppTheme.error,
+                                iconColor: AppTheme.adaptiveIcon(context),
                                 label: s.debt,
                                 sublabel:
                                     '${provider.goals.where((g) => g.type == "debt").length} items',
                                 amount: -provider.totalDebtRemaining,
                                 cf: currencyFormat,
-                                isNegative: true,
                                 onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -430,8 +461,9 @@ class HomeScreenState extends State<HomeScreen> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Iconify(AppIcons.add,
-                                        color: AppTheme.goldPrimary, size: 28),
+                                    AppIcon(AppIcons.add,
+                                        color: AppTheme.adaptiveIcon(context),
+                                        size: 28),
                                     const SizedBox(width: 14),
                                     Text(s.addAccount,
                                         style: Theme.of(context)
@@ -578,30 +610,30 @@ class HomeScreenState extends State<HomeScreen> {
                                                                         imgPath,
                                                                         fit: BoxFit
                                                                             .cover,
-                                                                        errorBuilder: (_, __, ___) => const Iconify(
+                                                                        errorBuilder: (_, __, ___) => AppIcon(
                                                                             AppIcons
                                                                                 .autoRenew,
                                                                             color: AppTheme
-                                                                                .goldPrimary,
+                                                                                .adaptiveIcon(context),
                                                                             size:
                                                                                 20))
                                                                     : Image.file(
                                                                         File(imgPath),
                                                                         fit: BoxFit.cover,
-                                                                        errorBuilder: (_, __, ___) => const Iconify(AppIcons.autoRenew, color: AppTheme.goldPrimary, size: 20)),
+                                                                        errorBuilder: (_, __, ___) => AppIcon(AppIcons.autoRenew, color: AppTheme.adaptiveIcon(context), size: 20)),
                                                               )
                                                             : cat != null
-                                                                ? Iconify(
+                                                                ? AppIcon(
                                                                     _subCategoryIcon(cat
                                                                         .icon),
                                                                     color: AppTheme
-                                                                        .goldPrimary,
+                                                                        .adaptiveIcon(context),
                                                                     size: 20)
-                                                                : const Iconify(
+                                                                : AppIcon(
                                                                     AppIcons
                                                                         .autoRenew,
                                                                     color: AppTheme
-                                                                        .goldPrimary,
+                                                                        .adaptiveIcon(context),
                                                                     size: 20),
                                                       );
                                                     }),
@@ -712,7 +744,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     prefixIcon: Padding(
                                       padding: const EdgeInsets.only(
                                           left: 14, right: 8),
-                                      child: Iconify(AppIcons.search,
+                                      child: AppIcon(AppIcons.search,
                                           size: 16,
                                           color: Theme.of(context)
                                               .textTheme
@@ -740,7 +772,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     () => _txShowFilters = !_txShowFilters),
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: Iconify(
+                                  child: AppIcon(
                                     AppIcons.sliders,
                                     size: 24,
                                     color: _txShowFilters
@@ -767,7 +799,6 @@ class HomeScreenState extends State<HomeScreen> {
                                       'withdrawal': s.withdrawal
                                     },
                                     (v) => setState(() => _txFilterType = v),
-                                    isDark,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -782,7 +813,6 @@ class HomeScreenState extends State<HomeScreen> {
                                       'lowest': s.sortLowest
                                     },
                                     (v) => setState(() => _txSortBy = v),
-                                    isDark,
                                   ),
                                 ),
                               ],
@@ -847,7 +877,7 @@ class HomeScreenState extends State<HomeScreen> {
                                             : AppTheme.lightBackground,
                                         borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: Iconify(AppIcons.receipt,
+                                      child: AppIcon(AppIcons.receipt,
                                           size: 32,
                                           color: Theme.of(context)
                                               .textTheme
@@ -903,7 +933,12 @@ class HomeScreenState extends State<HomeScreen> {
                     })(),
                   ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 110)),
+                // Clearance for the floating nav pill (its height is exposed
+                // as the body's bottom padding by Scaffold(extendBody: true)).
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                      height: MediaQuery.of(context).padding.bottom + 16),
+                ),
               ],
             ),
           ),
@@ -915,10 +950,12 @@ class HomeScreenState extends State<HomeScreen> {
   // ── Balance Chart ──
   Widget _buildBalanceChart(AppProvider provider, bool isDark, S s) {
     final spots = _computeBalanceSpots(provider);
+    final chartColor = isDark ? Colors.white : AppTheme.success;
+    final mutedColor = isDark ? Colors.white54 : const Color(0xFF6E7278);
     if (spots.isEmpty || spots.length < 2) {
       return Center(
           child: Text(s.notEnoughData,
-              style: const TextStyle(color: Colors.white54, fontSize: 13)));
+              style: TextStyle(color: mutedColor, fontSize: 13)));
     }
 
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
@@ -970,7 +1007,9 @@ class HomeScreenState extends State<HomeScreen> {
           drawVerticalLine: false,
           horizontalInterval: range == 0 ? 100 : range / 4,
           getDrawingHorizontalLine: (_) => FlLine(
-            color: Colors.white.withOpacity(0.08),
+            color: isDark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.black.withOpacity(0.08),
             strokeWidth: 1,
           ),
         ),
@@ -991,8 +1030,7 @@ class HomeScreenState extends State<HomeScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: Text(formatYLabel(value),
-                      style:
-                          const TextStyle(fontSize: 10, color: Colors.white54)),
+                      style: TextStyle(fontSize: 10, color: mutedColor)),
                 );
               },
             ),
@@ -1025,8 +1063,7 @@ class HomeScreenState extends State<HomeScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(label,
-                      style:
-                          const TextStyle(fontSize: 9, color: Colors.white54)),
+                      style: TextStyle(fontSize: 9, color: mutedColor)),
                 );
               },
             ),
@@ -1038,15 +1075,15 @@ class HomeScreenState extends State<HomeScreen> {
               spotIndexes.map((i) {
             return TouchedSpotIndicatorData(
               FlLine(
-                  color: Colors.white.withOpacity(0.5),
+                  color: chartColor.withOpacity(0.5),
                   strokeWidth: 1.5,
                   dashArray: [4, 4]),
               FlDotData(
                 getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
                   radius: 5,
-                  color: Colors.white,
+                  color: chartColor,
                   strokeWidth: 2.5,
-                  strokeColor: Colors.white.withOpacity(0.3),
+                  strokeColor: chartColor.withOpacity(0.3),
                 ),
               ),
             );
@@ -1072,12 +1109,11 @@ class HomeScreenState extends State<HomeScreen> {
             spots: spots,
             isCurved: true,
             curveSmoothness: 0.42,
-            color: Colors.white,
+            color: chartColor,
             barWidth: 3,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
-            shadow:
-                Shadow(color: Colors.white.withOpacity(0.4), blurRadius: 12),
+            shadow: Shadow(color: chartColor.withOpacity(0.4), blurRadius: 12),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
@@ -1085,8 +1121,8 @@ class HomeScreenState extends State<HomeScreen> {
                 end: Alignment.bottomCenter,
                 stops: const [0.0, 0.75],
                 colors: [
-                  Colors.white.withOpacity(0.22),
-                  Colors.white.withOpacity(0.0)
+                  chartColor.withOpacity(0.22),
+                  chartColor.withOpacity(0.0)
                 ],
               ),
             ),
@@ -1194,7 +1230,7 @@ class HomeScreenState extends State<HomeScreen> {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: Iconify(
+        child: AppIcon(
           icon,
           size: 24,
           color: Theme.of(context).iconTheme.color,
@@ -1278,7 +1314,7 @@ class HomeScreenState extends State<HomeScreen> {
       case 'savings':
         return AppIcons.savings;
       case 'investment':
-        return AppIcons.trendUp;
+        return AppIcons.investments;
       case 'debt':
         return AppIcons.creditCard;
       default:
@@ -1295,7 +1331,9 @@ class HomeScreenState extends State<HomeScreen> {
     required double amount,
     required NumberFormat cf,
     required VoidCallback onTap,
-    bool isNegative = false,
+    /// Colour for the amount only — icons stay neutral across the app.
+    /// Leave null to colour by the sign of [amount].
+    Color? amountColor,
     String? imagePath,
   }) {
     return GestureDetector(
@@ -1318,15 +1356,15 @@ class HomeScreenState extends State<HomeScreen> {
                                 height: 44,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) =>
-                                    Iconify(icon, color: iconColor, size: 28))
+                                    AppIcon(icon, color: iconColor, size: 28))
                             : Image.file(File(imagePath),
                                 width: 44,
                                 height: 44,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) =>
-                                    Iconify(icon, color: iconColor, size: 28)),
+                                    AppIcon(icon, color: iconColor, size: 28)),
                       )
-                    : Iconify(icon, color: iconColor, size: 28),
+                    : AppIcon(icon, color: iconColor, size: 28),
               ),
             ),
             const SizedBox(width: 14),
@@ -1350,12 +1388,14 @@ class HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: isNegative
-                      ? AppTheme.error
-                      : Theme.of(context).textTheme.bodyMedium?.color),
+                  // Only Cash on Hand pins its own colour; every other row
+                  // takes it from the sign of the balance.
+                  color: amountColor ??
+                      AppTheme.balanceColor(amount) ??
+                      Theme.of(context).textTheme.bodyMedium?.color),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded,
+            Icon(IOSIcons.chevron_right_rounded,
                 size: 18, color: Theme.of(context).textTheme.bodySmall?.color),
           ],
         ),
@@ -1444,44 +1484,63 @@ class HomeScreenState extends State<HomeScreen> {
     return list;
   }
 
-  Widget _buildTxDropdown(
-      String label,
-      String value,
-      Map<String, String> options,
-      ValueChanged<String> onChanged,
-      bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: DropdownButton<String>(
-            value: value,
-            isExpanded: true,
-            underline: const SizedBox(),
-            borderRadius: BorderRadius.circular(12),
-            items: options.entries
-                .map((e) => DropdownMenuItem(
-                    value: e.key,
-                    child: Text(e.value, style: const TextStyle(fontSize: 13))))
-                .toList(),
-            onChanged: (v) {
-              if (v != null) onChanged(v);
-            },
-          ),
-        ),
-      ],
+  Widget _buildTxDropdown(String label, String value,
+      Map<String, String> options, ValueChanged<String> onChanged) {
+    return AppPickerField<String>(
+      label: label,
+      value: value,
+      prefixIcon:
+          label == S.of(context).type ? AppIcons.filter : AppIcons.caretUpDown,
+      items: options.entries.map((e) {
+        return AppPickerItem<String>(
+          value: e.key,
+          label: e.value,
+          leadingIcon: _txPickerIcon(e.key),
+          iconColor: _txPickerColor(e.key),
+        );
+      }).toList(),
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
     );
+  }
+
+  String _txPickerIcon(String value) {
+    switch (value) {
+      case 'expense':
+        return AppIcons.expense;
+      case 'income':
+        return AppIcons.income;
+      case 'transfer':
+        return AppIcons.transfer;
+      case 'withdrawal':
+        return AppIcons.withdrawal;
+      case 'newest':
+        return AppIcons.clock;
+      case 'oldest':
+        return AppIcons.calendar;
+      case 'highest':
+        return AppIcons.sortDescending;
+      case 'lowest':
+        return AppIcons.sortAscending;
+      default:
+        return AppIcons.list;
+    }
+  }
+
+  Color _txPickerColor(String value) {
+    switch (value) {
+      case 'expense':
+        return AppTheme.expenseIcon;
+      case 'income':
+        return AppTheme.incomeIcon;
+      case 'transfer':
+        return AppTheme.transferIcon;
+      case 'withdrawal':
+        return AppTheme.withdrawalIcon;
+      default:
+        return AppTheme.adaptiveIcon(context);
+    }
   }
 
   Widget _buildGroupedTransactions(
@@ -1522,7 +1581,9 @@ class HomeScreenState extends State<HomeScreen> {
                 children: items.asMap().entries.map((e) {
                   final isLast = e.key == items.length - 1;
                   final t = e.value;
-                  final tColor = _getTransactionColor(t.type);
+                  final tColor = AppTheme.transactionAmountColor(
+                      context, t.type,
+                      isCash: t.accountId == AppProvider.cashOnHandId);
                   final tDate = DateTime.parse(t.date);
 
                   // Look up category for icon
@@ -1546,15 +1607,15 @@ class HomeScreenState extends State<HomeScreen> {
                                 width: 44,
                                 height: 44,
                                 decoration: BoxDecoration(
-                                  color: isDark
-                                      ? tColor.withOpacity(0.12)
-                                      : tColor.withOpacity(0.08),
+                                  color: AppTheme.adaptiveIconSurface(context),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: cat != null
-                                    ? _buildCategoryIcon(cat.icon, tColor)
+                                    ? _buildCategoryIcon(
+                                        cat.icon, AppTheme.adaptiveIcon(context))
                                     : Icon(_getTransactionIcon(t.type),
-                                        color: tColor, size: 20),
+                                        color: AppTheme.adaptiveIcon(context),
+                                        size: 20),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -1603,7 +1664,8 @@ class HomeScreenState extends State<HomeScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: tColor.withOpacity(0.1),
+                                        color:
+                                            AppTheme.adaptiveIconSurface(context),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -1611,7 +1673,8 @@ class HomeScreenState extends State<HomeScreen> {
                                         style: TextStyle(
                                             fontSize: 9,
                                             fontWeight: FontWeight.w600,
-                                            color: tColor),
+                                            color:
+                                                AppTheme.adaptiveIcon(context)),
                                       ),
                                     )
                                   else
@@ -1671,7 +1734,8 @@ class HomeScreenState extends State<HomeScreen> {
         : null;
     final account =
         provider?.accounts.where((a) => a.id == t.accountId).firstOrNull;
-    final tColor = _getTransactionColor(t.type);
+    final tColor = AppTheme.transactionAmountColor(context, t.type,
+        isCash: t.accountId == AppProvider.cashOnHandId);
     final date = DateTime.parse(t.date);
     final s = S.of(context);
 
@@ -1710,12 +1774,13 @@ class HomeScreenState extends State<HomeScreen> {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                          color: tColor.withOpacity(0.12),
+                          color: AppTheme.adaptiveIconSurface(ctx),
                           borderRadius: BorderRadius.circular(16)),
                       child: cat != null
-                          ? _buildCategoryIcon(cat.icon, tColor)
+                          ? _buildCategoryIcon(
+                              cat.icon, AppTheme.adaptiveIcon(ctx))
                           : Icon(_getTransactionIcon(t.type),
-                              color: tColor, size: 24),
+                              color: AppTheme.adaptiveIcon(ctx), size: 24),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1753,26 +1818,27 @@ class HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 20),
                 // Info rows
                 if (t.description != null && t.description!.isNotEmpty)
-                  _detailInfoRow(
-                      ctx, Icons.notes_rounded, s.description, t.description!),
+                  _detailInfoRow(ctx, IOSIcons.notes_rounded, s.description,
+                      t.description!),
                 if (account != null)
-                  _detailInfoRow(ctx, Icons.account_balance_rounded, s.account,
-                      account.name),
+                  _detailInfoRow(ctx, IOSIcons.account_balance_rounded,
+                      s.account, account.name),
                 if (cat != null)
                   _detailInfoRow(
-                      ctx, Icons.category_rounded, s.category, cat.name),
+                      ctx, IOSIcons.category_rounded, s.category, cat.name),
                 if (t.type != null)
-                  _detailInfoRow(ctx, Icons.label_rounded, s.type,
+                  _detailInfoRow(ctx, IOSIcons.label_rounded, s.type,
                       _getTransactionTypeLabel(t.type)),
                 if (t.expenseSubType != null)
                   _detailInfoRow(
                       ctx,
-                      Icons.repeat_rounded,
+                      IOSIcons.repeat_rounded,
                       s.subtype,
                       t.expenseSubType![0].toUpperCase() +
                           t.expenseSubType!.substring(1)),
                 if (t.isRecurring)
-                  _detailInfoRow(ctx, Icons.repeat_rounded, s.recurring, s.yes),
+                  _detailInfoRow(
+                      ctx, IOSIcons.repeat_rounded, s.recurring, s.yes),
 
                 // Receipt image
                 if (t.imagePath != null) ...[
@@ -1792,7 +1858,7 @@ class HomeScreenState extends State<HomeScreen> {
                                 height: 180,
                                 color: Colors.grey.withOpacity(0.1),
                                 child: const Center(
-                                    child: Icon(Icons.broken_image_rounded,
+                                    child: Icon(IOSIcons.broken_image_rounded,
                                         size: 40))))
                         : Image.file(File(t.imagePath!),
                             width: double.infinity,
@@ -1802,7 +1868,7 @@ class HomeScreenState extends State<HomeScreen> {
                                 height: 180,
                                 color: Colors.grey.withOpacity(0.1),
                                 child: const Center(
-                                    child: Icon(Icons.broken_image_rounded,
+                                    child: Icon(IOSIcons.broken_image_rounded,
                                         size: 40)))),
                   ),
                   const SizedBox(height: 16),
@@ -1849,7 +1915,7 @@ class HomeScreenState extends State<HomeScreen> {
                               );
                             }
                           },
-                          icon: const Icon(Icons.delete_outline_rounded,
+                          icon: const Icon(IOSIcons.delete_outline_rounded,
                               size: 18),
                           label: const Text('Delete',
                               style: TextStyle(fontWeight: FontWeight.w600)),
@@ -1879,7 +1945,7 @@ class HomeScreenState extends State<HomeScreen> {
                                   AddTransactionModal(initialTransaction: t),
                             );
                           },
-                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          icon: const Icon(IOSIcons.edit_rounded, size: 18),
                           label: Text(s.edit + ' ' + 'Transaction',
                               style: const TextStyle(
                                   fontSize: 15,
@@ -1935,7 +2001,7 @@ class HomeScreenState extends State<HomeScreen> {
           height: 40,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) =>
-              Icon(Icons.category_rounded, color: color, size: 18),
+              Icon(IOSIcons.category_rounded, color: color, size: 18),
         ),
       );
     }
@@ -1945,91 +2011,75 @@ class HomeScreenState extends State<HomeScreen> {
   IconData _categoryIconData(String iconName) {
     switch (iconName) {
       case 'home':
-        return Icons.home_rounded;
+        return IOSIcons.home_rounded;
       case 'flash':
-        return Icons.flash_on_rounded;
+        return IOSIcons.flash_on_rounded;
       case 'phone':
-        return Icons.phone_android_rounded;
+        return IOSIcons.phone_android_rounded;
       case 'tv':
-        return Icons.tv_rounded;
+        return IOSIcons.tv_rounded;
       case 'shield':
-        return Icons.shield_rounded;
+        return IOSIcons.shield_rounded;
       case 'credit_card':
-        return Icons.credit_card_rounded;
+        return IOSIcons.credit_card_rounded;
       case 'shopping_cart':
-        return Icons.shopping_cart_rounded;
+        return IOSIcons.shopping_cart_rounded;
       case 'car':
-        return Icons.directions_car_rounded;
+        return IOSIcons.directions_car_rounded;
       case 'restaurant':
-        return Icons.restaurant_rounded;
+        return IOSIcons.restaurant_rounded;
       case 'shopping_bag':
-        return Icons.shopping_bag_rounded;
+        return IOSIcons.shopping_bag_rounded;
       case 'favorite':
-        return Icons.favorite_rounded;
+        return IOSIcons.favorite_rounded;
       case 'sports_esports':
-        return Icons.sports_esports_rounded;
+        return IOSIcons.sports_esports_rounded;
       case 'face':
-        return Icons.face_rounded;
+        return IOSIcons.face_rounded;
       case 'school':
-        return Icons.school_rounded;
+        return IOSIcons.school_rounded;
       case 'flight':
-        return Icons.flight_rounded;
+        return IOSIcons.flight_rounded;
       case 'card_giftcard':
-        return Icons.card_giftcard_rounded;
+        return IOSIcons.card_giftcard_rounded;
       case 'pets':
-        return Icons.pets_rounded;
+        return IOSIcons.pets_rounded;
       case 'autorenew':
-        return Icons.autorenew_rounded;
+        return IOSIcons.autorenew_rounded;
       case 'fitness_center':
-        return Icons.fitness_center_rounded;
+        return IOSIcons.fitness_center_rounded;
       case 'local_cafe':
-        return Icons.local_cafe_rounded;
+        return IOSIcons.local_cafe_rounded;
       case 'child_care':
-        return Icons.child_care_rounded;
+        return IOSIcons.child_care_rounded;
       case 'build':
-        return Icons.build_rounded;
+        return IOSIcons.build_rounded;
       default:
-        return Icons.category_rounded;
+        return IOSIcons.category_rounded;
     }
   }
 
   IconData _getTransactionIcon(String type) {
     switch (type) {
       case 'expense':
-        return Icons.arrow_upward_rounded;
+        return IOSIcons.arrow_upward_rounded;
       case 'income':
-        return Icons.arrow_downward_rounded;
+        return IOSIcons.arrow_downward_rounded;
       case 'transfer':
-        return Icons.swap_horiz_rounded;
+        return IOSIcons.swap_horiz_rounded;
       case 'withdrawal':
-        return Icons.account_balance_wallet_rounded;
+        return IOSIcons.account_balance_wallet_rounded;
       case 'goal_contribution':
-        return Icons.savings_rounded;
+        return IOSIcons.savings_rounded;
       case 'debt_payment':
-        return Icons.credit_card_rounded;
+        return IOSIcons.credit_card_rounded;
       default:
-        return Icons.receipt_long_rounded;
+        return IOSIcons.receipt_long_rounded;
     }
   }
 
-  Color _getTransactionColor(String type) {
-    switch (type) {
-      case 'expense':
-        return AppTheme.error;
-      case 'income':
-        return AppTheme.success;
-      case 'transfer':
-        return AppTheme.info;
-      case 'withdrawal':
-        return AppTheme.warning;
-      case 'goal_contribution':
-        return AppTheme.goldPrimary;
-      case 'debt_payment':
-        return const Color(0xFF8B5CF6);
-      default:
-        return AppTheme.lightTextTertiary;
-    }
-  }
+  // Transaction amount colours now come from AppTheme.transactionAmountColor
+  // so every screen shares one definition.
 
   String _getSelectedAccountName(AppProvider provider) {
     if (provider.selectedAccountId == null) return 'All Accounts';
@@ -2055,123 +2105,44 @@ class HomeScreenState extends State<HomeScreen> {
                     errorBuilder: (_, __, ___) => Icon(
                         _getAccountIcon(provider),
                         size: 16,
-                        color: AppTheme.goldPrimary))
+                        color: AppTheme.adaptiveIcon(context)))
                 : Image.file(File(path),
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Icon(
                         _getAccountIcon(provider),
                         size: 16,
-                        color: AppTheme.goldPrimary)),
+                        color: AppTheme.adaptiveIcon(context))),
           ),
         );
       }
     }
     return Icon(
       provider.selectedAccountId == null
-          ? Icons.account_balance_wallet_rounded
+          ? IOSIcons.account_balance_wallet_rounded
           : _getAccountIcon(provider),
       size: 16,
-      color: AppTheme.goldPrimary,
+      color: AppTheme.adaptiveIcon(context),
     );
   }
 
   IconData _getAccountIcon(AppProvider provider) {
     if (provider.selectedAccountId == null)
-      return Icons.account_balance_wallet_rounded;
+      return IOSIcons.account_balance_wallet_rounded;
     final account =
         provider.accounts.where((a) => a.id == provider.selectedAccountId);
-    if (account.isEmpty) return Icons.account_balance_wallet_rounded;
+    if (account.isEmpty) return IOSIcons.account_balance_wallet_rounded;
     switch (account.first.type) {
       case 'bank':
-        return Icons.account_balance_rounded;
+        return IOSIcons.account_balance_rounded;
       case 'savings':
-        return Icons.savings_rounded;
+        return IOSIcons.savings_rounded;
       case 'investment':
-        return Icons.trending_up_rounded;
+        return IOSIcons.investment;
       case 'debt':
-        return Icons.credit_card_rounded;
+        return IOSIcons.credit_card_rounded;
       default:
-        return Icons.account_balance_wallet_rounded;
+        return IOSIcons.account_balance_wallet_rounded;
     }
-  }
-
-  void _showAccountPicker(BuildContext context, AppProvider provider) {
-    final s = S.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Center(
-                  child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: Theme.of(ctx).dividerColor,
-                          borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(s.selectAccount,
-                    style: Theme.of(ctx)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-              ),
-              const SizedBox(height: 16),
-              _buildAccountOption(ctx, null, s.allAccounts,
-                  Icons.account_balance_wallet_rounded, null, provider),
-              if (provider.accounts.isNotEmpty)
-                Divider(
-                    height: 1, indent: 72, color: Theme.of(ctx).dividerColor),
-              ...provider.accounts.asMap().entries.map((entry) {
-                final account = entry.value;
-                final isLast = entry.key == provider.accounts.length - 1;
-                IconData icon;
-                switch (account.type) {
-                  case 'bank':
-                    icon = Icons.account_balance_rounded;
-                    break;
-                  case 'savings':
-                    icon = Icons.savings_rounded;
-                    break;
-                  case 'investment':
-                    icon = Icons.trending_up_rounded;
-                    break;
-                  case 'debt':
-                    icon = Icons.credit_card_rounded;
-                    break;
-                  default:
-                    icon = Icons.account_balance_wallet_rounded;
-                }
-                return Column(
-                  children: [
-                    _buildAccountOption(ctx, account.id, account.name, icon,
-                        account.balance, provider,
-                        imagePath: account.imagePath),
-                    if (!isLast)
-                      Divider(
-                          height: 1,
-                          indent: 72,
-                          color: Theme.of(ctx).dividerColor),
-                  ],
-                );
-              }),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _showAllSubscriptions(BuildContext context, AppProvider provider) {
@@ -2231,7 +2202,7 @@ class HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.autorenew_rounded,
+                            Icon(IOSIcons.autorenew_rounded,
                                 size: 48,
                                 color:
                                     Theme.of(ctx).textTheme.bodySmall?.color),
@@ -2263,13 +2234,11 @@ class HomeScreenState extends State<HomeScreen> {
                                   width: 42,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: isDark
-                                        ? AppTheme.darkSurfaceElevated
-                                        : AppTheme.lightBackground,
+                                    color: AppTheme.adaptiveIconSurface(ctx),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(Icons.autorenew_rounded,
-                                      color: AppTheme.goldPrimary, size: 20),
+                                  child: Icon(IOSIcons.autorenew_rounded,
+                                      color: AppTheme.adaptiveIcon(ctx), size: 20),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -2308,75 +2277,6 @@ class HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccountOption(BuildContext ctx, String? accountId, String name,
-      IconData icon, double? balance, AppProvider provider,
-      {String? imagePath}) {
-    final isSelected = provider.selectedAccountId == accountId;
-    final isDark = Theme.of(ctx).brightness == Brightness.dark;
-    final currencyFormat = CurrencyHelper.formatter(provider.settings.currency);
-    final iconColor = isSelected
-        ? AppTheme.goldPrimary
-        : Theme.of(ctx).textTheme.bodySmall?.color;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        provider.setSelectedAccount(accountId);
-        Navigator.pop(ctx);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.goldPrimary.withOpacity(0.12)
-                    : (isDark
-                        ? AppTheme.darkSurfaceElevated
-                        : AppTheme.lightBackground),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: imagePath != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: imagePath.startsWith('http')
-                          ? Image.network(imagePath,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  Icon(icon, size: 20, color: iconColor))
-                          : Image.file(File(imagePath),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  Icon(icon, size: 20, color: iconColor)),
-                    )
-                  : Icon(icon, size: 20, color: iconColor),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name,
-                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? AppTheme.goldPrimary : null)),
-                  if (balance != null)
-                    Text(currencyFormat.format(balance),
-                        style: Theme.of(ctx).textTheme.bodySmall),
-                ],
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded,
-                  color: AppTheme.goldPrimary, size: 22),
-          ],
         ),
       ),
     );

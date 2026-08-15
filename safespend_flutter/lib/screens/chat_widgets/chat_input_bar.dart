@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_theme.dart';
 
 class ChatInputBar extends StatelessWidget {
   final TextEditingController controller;
@@ -35,99 +38,133 @@ class ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      color: isDark ? const Color(0xFF0D0D0D) : Colors.white,
+    final foreground =
+        isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final canSend = _hasContent && !isTyping;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Attachment previews ──────────────────────────────
           if (pendingImage != null) _buildImagePreview(),
-          if (pendingFile != null) _buildFilePreview(),
-
-          // ── Input row ───────────────────────────────────────
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Attach [+] button — dark circle
-              GestureDetector(
-                onTap: onAttach,
-                child: Container(
-                  width: 38, height: 38,
-                  margin: const EdgeInsets.only(bottom: 2),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE8E8E8),
-                    shape: BoxShape.circle,
+          if (pendingFile != null) _buildFilePreview(context),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(29),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 56),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF252728).withOpacity(0.94)
+                      : const Color(0xFFF0F2F3).withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(29),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withOpacity(0.11)
+                        : Colors.white.withOpacity(0.98),
                   ),
-                  child: Icon(
-                    Icons.add_rounded,
-                    size: 22,
-                    color: isDark ? Colors.white60 : Colors.black45,
-                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.22 : 0.08),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 10),
-              // Text field — separate pill
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white.withOpacity(0.06)
-                          : Colors.black.withOpacity(0.06),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: controller,
-                    enabled: !isTyping,
-                    maxLines: 5,
-                    minLines: 1,
-                    keyboardType: TextInputType.multiline,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: onChanged,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Ask SafeSpend AI...',
-                      hintStyle: GoogleFonts.inter(
-                        fontSize: 15,
-                        color: isDark ? Colors.white.withOpacity(0.3) : Colors.black.withOpacity(0.3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: 'Attach',
+                      child: IconButton(
+                        onPressed: isTyping ? null : onAttach,
+                        constraints: const BoxConstraints.tightFor(
+                            width: 52, height: 54),
+                        icon: Icon(
+                          IOSIcons.add_rounded,
+                          size: 25,
+                          color: isTyping
+                              ? foreground.withOpacity(0.25)
+                              : foreground.withOpacity(0.82),
+                        ),
                       ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     ),
-                  ),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        enabled: !isTyping,
+                        maxLines: 5,
+                        minLines: 1,
+                        keyboardType: TextInputType.multiline,
+                        textCapitalization: TextCapitalization.sentences,
+                        onChanged: onChanged,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          height: 1.35,
+                          color: foreground,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Ask SafeSpend AI',
+                          hintStyle: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: isDark
+                                ? AppTheme.darkTextTertiary
+                                : AppTheme.lightTextTertiary,
+                          ),
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(7, 7, 7, 7),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: canSend
+                              ? AppTheme.goldPrimary
+                              : (isDark
+                                  ? Colors.white.withOpacity(0.08)
+                                  : Colors.black.withOpacity(0.06)),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          tooltip: isTyping ? 'Thinking' : 'Send',
+                          padding: EdgeInsets.zero,
+                          onPressed: canSend ? onSend : null,
+                          icon: isTyping
+                              ? SizedBox(
+                                  width: 17,
+                                  height: 17,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: foreground.withOpacity(0.45),
+                                  ),
+                                )
+                              : Icon(
+                                  IOSIcons.arrow_upward_rounded,
+                                  size: 19,
+                                  color: canSend
+                                      ? Colors.white
+                                      : foreground.withOpacity(0.28),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 10),
-              // Send button — white circle when active, dark when inactive
-              GestureDetector(
-                onTap: _hasContent && !isTyping ? onSend : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 38, height: 38,
-                  margin: const EdgeInsets.only(bottom: 2),
-                  decoration: BoxDecoration(
-                    color: _hasContent && !isTyping
-                        ? Colors.white
-                        : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0)),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isTyping ? Icons.stop_rounded : Icons.arrow_upward_rounded,
-                    size: 20,
-                    color: _hasContent && !isTyping
-                        ? Colors.black
-                        : (isDark ? Colors.white24 : Colors.black26),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -137,28 +174,32 @@ class ChatInputBar extends StatelessWidget {
   // ── Image preview ─────────────────────────────────────────────
   Widget _buildImagePreview() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10, left: 48),
+      padding: const EdgeInsets.only(bottom: 10, left: 8),
       child: Stack(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: Image.file(
               File(pendingImage!),
-              height: 90, width: 90,
+              height: 90,
+              width: 90,
               fit: BoxFit.cover,
             ),
           ),
           Positioned(
-            top: 4, right: 4,
+            top: 4,
+            right: 4,
             child: GestureDetector(
               onTap: onClearImage,
               child: Container(
-                width: 22, height: 22,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.7),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close_rounded, size: 13, color: Colors.white),
+                child: const Icon(IOSIcons.close_rounded,
+                    size: 13, color: Colors.white),
               ),
             ),
           ),
@@ -168,12 +209,12 @@ class ChatInputBar extends StatelessWidget {
   }
 
   // ── File preview ──────────────────────────────────────────────
-  Widget _buildFilePreview() {
-    final bg = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4);
-    final border = isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06);
+  Widget _buildFilePreview(BuildContext context) {
+    final bg = isDark ? const Color(0xFF252728) : const Color(0xFFF0F2F3);
+    final border = isDark ? Colors.white.withOpacity(0.10) : Colors.white;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10, left: 48),
+      padding: const EdgeInsets.only(bottom: 10, left: 8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
@@ -187,10 +228,11 @@ class ChatInputBar extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: AppTheme.adaptiveIconSurface(context),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.picture_as_pdf_rounded, color: Colors.red, size: 18),
+              child: Icon(IOSIcons.picture_as_pdf_rounded,
+                  color: AppTheme.adaptiveIcon(context), size: 18),
             ),
             const SizedBox(width: 10),
             ConstrainedBox(
@@ -209,7 +251,8 @@ class ChatInputBar extends StatelessWidget {
             GestureDetector(
               onTap: onClearFile,
               child: Icon(
-                Icons.close_rounded, size: 16,
+                IOSIcons.close_rounded,
+                size: 16,
                 color: isDark ? Colors.white38 : Colors.black38,
               ),
             ),

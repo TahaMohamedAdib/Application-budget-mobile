@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../utils/currency_helper.dart';
@@ -83,8 +84,9 @@ class _PlanScreenState extends State<PlanScreen> {
                               shape: BoxShape.circle,
                               boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                             ),
-                            child:
-                                const Icon(Icons.arrow_back_rounded, size: 20),
+                            child: Icon(IOSIcons.arrow_back_rounded,
+                                size: 20,
+                                color: AppTheme.adaptiveIcon(context)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -120,7 +122,8 @@ class _PlanScreenState extends State<PlanScreen> {
                             shape: BoxShape.circle,
                             boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                           ),
-                          child: const Icon(Icons.settings_rounded, size: 18),
+                          child: Icon(IOSIcons.settings_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(context)),
                         ),
                       ),
                     ],
@@ -175,17 +178,23 @@ class _PlanScreenState extends State<PlanScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 6),
                                   decoration: BoxDecoration(
-                                      color: AppTheme.goldPrimary,
+                                      color:
+                                          AppTheme.adaptiveIconSurface(context),
                                       borderRadius: BorderRadius.circular(20)),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.add_rounded,
-                                          size: 16, color: Colors.white),
+                                      Icon(IOSIcons.add_rounded,
+                                          size: 16,
+                                          color:
+                                              AppTheme.adaptiveIcon(context)),
                                       const SizedBox(width: 4),
                                       Text(s.add,
-                                          style: const TextStyle(
-                                              color: Colors.white,
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyLarge
+                                                  ?.color,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600)),
                                     ],
@@ -211,7 +220,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                             : AppTheme.lightBackground,
                                         borderRadius:
                                             BorderRadius.circular(16)),
-                                    child: Icon(Icons.receipt_long_rounded,
+                                    child: Icon(IOSIcons.receipt_long_rounded,
                                         size: 28,
                                         color: Theme.of(context)
                                             .textTheme
@@ -276,11 +285,12 @@ class _PlanScreenState extends State<PlanScreen> {
                                     alignment: Alignment.centerRight,
                                     padding: const EdgeInsets.only(right: 24),
                                     decoration: BoxDecoration(
-                                        color: AppTheme.error.withOpacity(0.1),
+                                        color: AppTheme.adaptiveIconSurface(
+                                            context),
                                         borderRadius:
                                             BorderRadius.circular(20)),
-                                    child: const Icon(Icons.delete_rounded,
-                                        color: AppTheme.error),
+                                    child: Icon(IOSIcons.delete_rounded,
+                                        color: AppTheme.adaptiveIcon(context)),
                                   ),
                                   onDismissed: (_) =>
                                       provider.deleteRecurringRule(rule.id),
@@ -306,15 +316,15 @@ class _PlanScreenState extends State<PlanScreen> {
                                             width: 46,
                                             height: 46,
                                             decoration: BoxDecoration(
-                                                color: isDark
-                                                    ? AppTheme
-                                                        .darkSurfaceElevated
-                                                    : AppTheme.lightBackground,
+                                                color: AppTheme
+                                                    .adaptiveIconSurface(
+                                                        context),
                                                 borderRadius:
                                                     BorderRadius.circular(13)),
-                                            child: const Icon(
-                                                Icons.receipt_long_rounded,
-                                                color: AppTheme.goldPrimary,
+                                            child: Icon(
+                                                IOSIcons.receipt_long_rounded,
+                                                color: AppTheme.adaptiveIcon(
+                                                    context),
                                                 size: 22),
                                           ),
                                           const SizedBox(width: 14),
@@ -483,12 +493,15 @@ class _PlanScreenState extends State<PlanScreen> {
                                             height: 42,
                                             decoration: BoxDecoration(
                                               color:
-                                                  statusColor.withOpacity(0.1),
+                                                  AppTheme.adaptiveIconSurface(
+                                                      context),
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                             ),
                                             child: Icon(_categoryIcon(cat.icon),
-                                                color: statusColor, size: 20),
+                                                color: AppTheme.adaptiveIcon(
+                                                    context),
+                                                size: 20),
                                           ),
                                           const SizedBox(width: 14),
                                           Expanded(
@@ -597,17 +610,23 @@ class _PlanScreenState extends State<PlanScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 6),
                                   decoration: BoxDecoration(
-                                      color: AppTheme.goldPrimary,
+                                      color:
+                                          AppTheme.adaptiveIconSurface(context),
                                       borderRadius: BorderRadius.circular(20)),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.add_rounded,
-                                          size: 16, color: Colors.white),
-                                      SizedBox(width: 4),
+                                      Icon(IOSIcons.add_rounded,
+                                          size: 16,
+                                          color:
+                                              AppTheme.adaptiveIcon(context)),
+                                      const SizedBox(width: 4),
                                       Text('Add',
                                           style: TextStyle(
-                                              color: Colors.white,
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyLarge
+                                                  ?.color,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600)),
                                     ],
@@ -722,8 +741,10 @@ class _PlanScreenState extends State<PlanScreen> {
                                         child: ElevatedButton.icon(
                                           onPressed: () => _showContributeModal(
                                               context, provider, goal),
-                                          icon: const Icon(Icons.add_rounded,
-                                              size: 18),
+                                          icon: Icon(IOSIcons.add_rounded,
+                                              size: 18,
+                                              color: AppTheme.adaptiveIcon(
+                                                  context)),
                                           label: Text(
                                               goal.type == 'debt'
                                                   ? 'Make Payment'
@@ -878,43 +899,43 @@ class _PlanScreenState extends State<PlanScreen> {
   IconData _categoryIcon(String iconName) {
     switch (iconName) {
       case 'home':
-        return Icons.home_rounded;
+        return IOSIcons.home_rounded;
       case 'flash':
-        return Icons.flash_on_rounded;
+        return IOSIcons.flash_on_rounded;
       case 'phone':
-        return Icons.phone_android_rounded;
+        return IOSIcons.phone_android_rounded;
       case 'tv':
-        return Icons.tv_rounded;
+        return IOSIcons.tv_rounded;
       case 'shield':
-        return Icons.shield_rounded;
+        return IOSIcons.shield_rounded;
       case 'credit_card':
-        return Icons.credit_card_rounded;
+        return IOSIcons.credit_card_rounded;
       case 'shopping_cart':
-        return Icons.shopping_cart_rounded;
+        return IOSIcons.shopping_cart_rounded;
       case 'car':
-        return Icons.directions_car_rounded;
+        return IOSIcons.directions_car_rounded;
       case 'restaurant':
-        return Icons.restaurant_rounded;
+        return IOSIcons.restaurant_rounded;
       case 'shopping_bag':
-        return Icons.shopping_bag_rounded;
+        return IOSIcons.shopping_bag_rounded;
       case 'favorite':
-        return Icons.favorite_rounded;
+        return IOSIcons.favorite_rounded;
       case 'sports_esports':
-        return Icons.sports_esports_rounded;
+        return IOSIcons.sports_esports_rounded;
       case 'face':
-        return Icons.face_rounded;
+        return IOSIcons.face_rounded;
       case 'school':
-        return Icons.school_rounded;
+        return IOSIcons.school_rounded;
       case 'flight':
-        return Icons.flight_rounded;
+        return IOSIcons.flight_rounded;
       case 'card_giftcard':
-        return Icons.card_giftcard_rounded;
+        return IOSIcons.card_giftcard_rounded;
       case 'pets':
-        return Icons.pets_rounded;
+        return IOSIcons.pets_rounded;
       case 'more_horiz':
-        return Icons.more_horiz_rounded;
+        return IOSIcons.more_horiz_rounded;
       default:
-        return Icons.category_rounded;
+        return IOSIcons.category_rounded;
     }
   }
 
@@ -953,7 +974,7 @@ class _PlanScreenState extends State<PlanScreen> {
                 Row(
                   children: [
                     Icon(_categoryIcon(cat.icon),
-                        color: AppTheme.goldPrimary, size: 24),
+                        color: AppTheme.adaptiveIcon(ctx), size: 24),
                     const SizedBox(width: 12),
                     Text('Set Budget for ${cat.name}',
                         style: Theme.of(ctx)
@@ -1099,14 +1120,9 @@ class _PlanScreenState extends State<PlanScreen> {
                             ),
                             child: Column(
                               children: [
-                                Icon(Icons.savings_rounded,
+                                Icon(IOSIcons.savings_rounded,
                                     size: 24,
-                                    color: selectedType == 'savings'
-                                        ? AppTheme.success
-                                        : Theme.of(ctx)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.color),
+                                    color: AppTheme.adaptiveIcon(ctx)),
                                 const SizedBox(height: 6),
                                 Text(s.savingsGoal,
                                     style: TextStyle(
@@ -1142,14 +1158,9 @@ class _PlanScreenState extends State<PlanScreen> {
                             ),
                             child: Column(
                               children: [
-                                Icon(Icons.credit_card_rounded,
+                                Icon(IOSIcons.credit_card_rounded,
                                     size: 24,
-                                    color: selectedType == 'debt'
-                                        ? AppTheme.error
-                                        : Theme.of(ctx)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.color),
+                                    color: AppTheme.adaptiveIcon(ctx)),
                                 const SizedBox(height: 6),
                                 Text(s.debtPayoff,
                                     style: TextStyle(
@@ -1180,9 +1191,11 @@ class _PlanScreenState extends State<PlanScreen> {
                               : 'e.g., Vacation, Emergency Fund',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: Icon(selectedType == 'debt'
-                              ? Icons.credit_card_rounded
-                              : Icons.flag_rounded))),
+                          prefixIcon: Icon(
+                              selectedType == 'debt'
+                                  ? IOSIcons.credit_card_rounded
+                                  : IOSIcons.flag_rounded,
+                              color: AppTheme.adaptiveIcon(ctx)))),
                   const SizedBox(height: 16),
                   TextField(
                       controller: amountCtrl,
@@ -1194,7 +1207,8 @@ class _PlanScreenState extends State<PlanScreen> {
                           hintText: '0.00',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: const Icon(Icons.attach_money_rounded))),
+                          prefixIcon: Icon(IOSIcons.attach_money_rounded,
+                              color: AppTheme.adaptiveIcon(ctx)))),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
@@ -1331,7 +1345,8 @@ class _PlanScreenState extends State<PlanScreen> {
                       hintText: '0.00',
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: const Icon(Icons.attach_money_rounded),
+                      prefixIcon: Icon(IOSIcons.attach_money_rounded,
+                          color: AppTheme.adaptiveIcon(ctx)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -1346,7 +1361,7 @@ class _PlanScreenState extends State<PlanScreen> {
                         label: 'Cash on Hand',
                         subtitle: cf.format(provider.totalCash),
                         leadingIcon: AppIcons.payment,
-                        iconColor: AppTheme.warning,
+                        iconColor: AppTheme.cashOnHandIcon,
                       ),
                       ...provider.accounts
                           .where((a) => a.type != 'debt')
@@ -1355,7 +1370,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                 label: a.name,
                                 subtitle: cf.format(a.balance),
                                 leadingIcon: AppIcons.bank,
-                                iconColor: AppTheme.goldPrimary,
+                                iconColor: AppTheme.adaptiveIcon(ctx),
                                 imagePath: a.imagePath,
                               )),
                     ],
@@ -1494,7 +1509,8 @@ class _AddBillModalState extends State<AddBillModal> {
                           hintText: 'e.g., Rent, Netflix',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: const Icon(Icons.receipt_long_rounded))),
+                          prefixIcon: Icon(IOSIcons.receipt_long_rounded,
+                              color: AppTheme.adaptiveIcon(context)))),
                   const SizedBox(height: 16),
                   TextField(
                       controller: _amountController,
@@ -1504,7 +1520,8 @@ class _AddBillModalState extends State<AddBillModal> {
                           hintText: '0.00',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: const Icon(Icons.attach_money_rounded))),
+                          prefixIcon: Icon(IOSIcons.attach_money_rounded,
+                              color: AppTheme.adaptiveIcon(context)))),
                   const SizedBox(height: 16),
                   // Account picker with Cash on Hand
                   AppPickerField<String>(
@@ -1517,14 +1534,14 @@ class _AddBillModalState extends State<AddBillModal> {
                         label: 'Cash on Hand',
                         subtitle: cf.format(provider.totalCash),
                         leadingIcon: AppIcons.payment,
-                        iconColor: AppTheme.warning,
+                        iconColor: AppTheme.cashOnHandIcon,
                       ),
                       ...provider.accounts.map((a) => AppPickerItem(
                             value: a.id,
                             label: a.name,
                             subtitle: cf.format(a.balance),
                             leadingIcon: AppIcons.bank,
-                            iconColor: AppTheme.goldPrimary,
+                            iconColor: AppTheme.adaptiveIcon(context),
                             imagePath: a.imagePath,
                           )),
                     ],
@@ -1597,10 +1614,8 @@ class _AddBillModalState extends State<AddBillModal> {
                       decoration: AppTheme.borderedCard(context),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today_rounded,
-                              size: 18,
-                              color:
-                                  Theme.of(context).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.calendar_today_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(context)),
                           const SizedBox(width: 12),
                           Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1617,10 +1632,8 @@ class _AddBillModalState extends State<AddBillModal> {
                                             fontWeight: FontWeight.w600)),
                               ]),
                           const Spacer(),
-                          Icon(Icons.chevron_right_rounded,
-                              size: 20,
-                              color:
-                                  Theme.of(context).textTheme.bodySmall?.color),
+                          Icon(IOSIcons.chevron_right_rounded,
+                              size: 20, color: AppTheme.adaptiveIcon(context)),
                         ],
                       ),
                     ),
@@ -1655,15 +1668,15 @@ class _AddBillModalState extends State<AddBillModal> {
   IconData _accountIcon(String type) {
     switch (type) {
       case 'bank':
-        return Icons.account_balance_rounded;
+        return IOSIcons.account_balance_rounded;
       case 'savings':
-        return Icons.savings_rounded;
+        return IOSIcons.savings_rounded;
       case 'investment':
-        return Icons.trending_up_rounded;
+        return IOSIcons.investment;
       case 'debt':
-        return Icons.credit_card_rounded;
+        return IOSIcons.credit_card_rounded;
       default:
-        return Icons.account_balance_wallet_rounded;
+        return IOSIcons.account_balance_wallet_rounded;
     }
   }
 

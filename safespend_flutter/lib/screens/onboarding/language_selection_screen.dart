@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/app_provider.dart';
@@ -8,7 +9,8 @@ class LanguageSelectionScreen extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  const LanguageSelectionScreen({super.key, required this.onNext, required this.onBack});
+  const LanguageSelectionScreen(
+      {super.key, required this.onNext, required this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -55,23 +57,23 @@ class LanguageSelectionScreen extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: const Icon(IOSIcons.arrow_back),
                       onPressed: onBack,
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Icon(
-                  Icons.language_rounded,
+                  IOSIcons.language_rounded,
                   size: 64,
-                  color: AppTheme.goldPrimary,
+                  color: AppTheme.adaptiveIcon(context),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   S.of(context).selectLanguage,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -99,15 +101,23 @@ class LanguageSelectionScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? AppTheme.goldPrimary.withOpacity(0.12)
-                                  : (isDark ? AppTheme.darkSurface : AppTheme.lightSurface),
+                                  : (isDark
+                                      ? AppTheme.darkSurface
+                                      : AppTheme.lightSurface),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isSelected
                                     ? AppTheme.goldPrimary
-                                    : (isDark ? Colors.white.withOpacity(0.09) : AppTheme.lightBorder),
+                                    : (isDark
+                                        ? Colors.white.withOpacity(0.09)
+                                        : AppTheme.lightBorder),
                                 width: isSelected ? 2 : 1,
                               ),
-                              boxShadow: isDark ? [] : (isSelected ? AppTheme.goldGlow : AppTheme.cardShadowLight),
+                              boxShadow: isDark
+                                  ? []
+                                  : (isSelected
+                                      ? AppTheme.goldGlow
+                                      : AppTheme.cardShadowLight),
                             ),
                             child: Row(
                               children: [
@@ -117,7 +127,9 @@ class LanguageSelectionScreen extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? AppTheme.goldPrimary.withOpacity(0.12)
-                                        : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+                                        : (isDark
+                                            ? AppTheme.darkSurfaceElevated
+                                            : AppTheme.lightBackground),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -131,16 +143,21 @@ class LanguageSelectionScreen extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     lang['name']!,
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelected ? AppTheme.goldPrimary : null,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: isSelected
+                                              ? AppTheme.goldPrimary
+                                              : null,
+                                        ),
                                   ),
                                 ),
                                 if (isSelected)
-                                  const Icon(
-                                    Icons.check_circle_rounded,
-                                    color: AppTheme.goldPrimary,
+                                  Icon(
+                                    IOSIcons.check_circle_rounded,
+                                    color: AppTheme.adaptiveIcon(context),
                                     size: 24,
                                   ),
                               ],

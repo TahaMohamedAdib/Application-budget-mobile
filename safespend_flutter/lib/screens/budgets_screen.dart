@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -12,6 +12,7 @@ import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../models/category.dart';
+import '../widgets/glass_action_button.dart';
 import 'settings_screen.dart';
 import '../l10n/app_localizations.dart';
 
@@ -40,6 +41,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
+            // Let content flow under the floating nav pill.
+            bottom: false,
             child: Column(
               children: [
                 // Header
@@ -71,7 +74,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                 builder: (_) => const SettingsScreen())),
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: Iconify(
+                          child: AppIcon(
                             AppIcons.settings,
                             size: 24,
                             color: Theme.of(context).iconTheme.color,
@@ -91,7 +94,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                     child: Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: AppTheme.goldCard(),
+                      decoration: AppTheme.goldCard(isDark: isDark),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -100,13 +103,17 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             children: [
                               Text(s.monthlyBudget,
                                   style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: isDark
+                                          ? Colors.white.withOpacity(0.8)
+                                          : const Color(0xFF5F6368),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500)),
                               Text(
                                 '${(totalBudget > 0 ? (totalSpent / totalBudget * 100) : 0).round()}%',
-                                style: const TextStyle(
-                                    color: Colors.white,
+                                style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF1C1C1E),
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700),
                               ),
@@ -119,10 +126,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                 provider.settings.currency);
                             return Text(
                               '${rawFmt.format(totalSpent)} / ${rawFmt.format(totalBudget)} $symbol',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 28,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1C1C1E),
                                   letterSpacing: -0.5),
                             );
                           }),
@@ -135,16 +144,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                       .clamp(0, 1)
                                       .toDouble()
                                   : 0,
-                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundColor: isDark
+                                  ? Colors.white.withOpacity(0.2)
+                                  : Colors.black.withOpacity(0.08),
                               color: totalSpent > totalBudget
                                   ? AppTheme.error
-                                  : Colors.white,
+                                  : (isDark ? Colors.white : AppTheme.success),
                               minHeight: 7,
                             ),
                           ).animate(onPlay: (c) => c.forward()).shimmer(
                               duration: 1200.ms,
                               delay: 400.ms,
-                              color: Colors.white.withOpacity(0.3)),
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.3)
+                                  : AppTheme.success.withOpacity(0.14)),
                           const SizedBox(height: 8),
                           Text(
                             totalSpent > totalBudget
@@ -152,7 +165,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                 : '${cf.format(totalBudget - totalSpent)} ${s.remaining}',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.white.withOpacity(0.7)),
+                                color: isDark
+                                    ? Colors.white.withOpacity(0.7)
+                                    : const Color(0xFF686C72)),
                           ),
                         ],
                       ),
@@ -173,11 +188,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                               width: 80,
                               height: 80,
                               decoration: BoxDecoration(
-                                color: AppTheme.goldPrimary.withOpacity(0.1),
+                                color: AppTheme.adaptiveIconSurface(context),
                                 borderRadius: BorderRadius.circular(24),
                               ),
-                              child: const Iconify(AppIcons.chartPie,
-                                  size: 40, color: AppTheme.goldPrimary),
+                              child: AppIcon(AppIcons.chartPie,
+                                  size: 40,
+                                  color: AppTheme.adaptiveIcon(context)),
                             ),
                             const SizedBox(height: 24),
                             Text(s.noBudgetCategories,
@@ -205,7 +221,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: () =>
                                     _showAddCategoryModal(context, provider),
-                                icon: const Iconify(AppIcons.add),
+                                icon: const AppIcon(AppIcons.add),
                                 label: Text(s.createFirstCategory,
                                     style: const TextStyle(
                                         fontSize: 16,
@@ -231,7 +247,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                      padding: EdgeInsets.fromLTRB(
+                          20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -308,12 +325,15 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                           child: Container(
                                             width: 48,
                                             height: 48,
-                                            decoration: const BoxDecoration(
-                                                color: AppTheme.error,
-                                                shape: BoxShape.circle),
-                                            child: const Iconify(
-                                                AppIcons.delete,
-                                                color: Colors.white,
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  AppTheme.adaptiveIconSurface(
+                                                      context),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: AppIcon(AppIcons.delete,
+                                                color: AppTheme.adaptiveIcon(
+                                                    context),
                                                 size: 20),
                                           ),
                                         ),
@@ -351,7 +371,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                     child: Center(
                                                       child: _buildCatIcon(
                                                           cat.icon,
-                                                          statusColor,
+                                                          AppTheme.adaptiveIcon(
+                                                              context),
                                                           44),
                                                     ),
                                                   ),
@@ -442,10 +463,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                       padding:
                                                           const EdgeInsets.all(
                                                               4.0),
-                                                      child: Iconify(
+                                                      child: AppIcon(
                                                           AppIcons.edit,
                                                           size: 20,
-                                                          color: statusColor),
+                                                          color: AppTheme
+                                                              .adaptiveIcon(
+                                                                  context)),
                                                     ),
                                                   ),
                                                 ],
@@ -483,39 +506,16 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
                           // Add Category card
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: GestureDetector(
+                            padding: const EdgeInsets.only(top: 4, bottom: 10),
+                            child: GlassActionButton(
+                              label: s.addCategory,
+                              // Grey plus + green label, matching the other
+                              // "Add …" buttons across the app.
+                              icon: AppIcon(AppIcons.add,
+                                  color: AppTheme.adaptiveIcon(context),
+                                  size: 24),
                               onTap: () =>
                                   _showAddCategoryModal(context, provider),
-                              child: Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color:
-                                        AppTheme.goldPrimary.withOpacity(0.3),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Iconify(AppIcons.add,
-                                        color: AppTheme.goldPrimary, size: 28),
-                                    const SizedBox(width: 14),
-                                    Text(
-                                      s.addCategory,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.goldPrimary,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ).animate().fadeIn(
                               duration: 260.ms,
@@ -544,11 +544,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           height: containerSize,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) =>
-              Iconify(AppIcons.image, color: color, size: containerSize * 0.45),
+              AppIcon(AppIcons.image, color: color, size: containerSize * 0.45),
         ),
       );
     }
-    return Iconify(_categoryIcon(iconStr),
+    return AppIcon(_categoryIcon(iconStr),
         color: color, size: containerSize * 0.65);
   }
 
@@ -651,8 +651,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       width: 44,
                       height: 44,
                       child: Center(
-                        child:
-                            _buildCatIcon(cat.icon, AppTheme.goldPrimary, 44),
+                        child: _buildCatIcon(
+                            cat.icon, AppTheme.adaptiveIcon(context), 44),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -686,7 +686,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Iconify(AppIcons.receipt,
+                            AppIcon(AppIcons.receipt,
                                 size: 48,
                                 color:
                                     Theme.of(ctx).textTheme.bodySmall?.color),
@@ -722,10 +722,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.error.withOpacity(0.12),
+                                    color: AppTheme.adaptiveIconSurface(ctx),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Iconify(AppIcons.expense,
+                                  child: const AppIcon(AppIcons.expense,
                                       color: AppTheme.error, size: 20),
                                 ),
                                 const SizedBox(width: 14),
@@ -855,13 +855,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     File(selectedIcon.substring(4)),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
-                                        const Iconify(AppIcons.image)),
+                                        const AppIcon(AppIcons.image)),
                               ),
                             )
                           : Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
-                              child: Iconify(
+                              child: AppIcon(
                                 _categoryIcon(selectedIcon),
                                 size: 18,
                                 color: isDark ? Colors.white : Colors.black,
@@ -907,11 +907,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     height: 64,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
-                                        const Iconify(AppIcons.image, size: 48),
+                                        const AppIcon(AppIcons.image, size: 48),
                                   ),
                                 )
-                              : Iconify(_categoryIcon(selectedIcon),
-                                  size: 48, color: AppTheme.goldPrimary),
+                              : AppIcon(_categoryIcon(selectedIcon),
+                                  size: 48, color: AppTheme.adaptiveIcon(ctx)),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -937,13 +937,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   color: AppTheme.goldPrimary.withOpacity(0.3),
                                   width: 1.5),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Iconify(AppIcons.image,
-                                    size: 18, color: AppTheme.goldPrimary),
-                                SizedBox(width: 8),
-                                Text('Upload from Gallery',
+                                AppIcon(AppIcons.image,
+                                    size: 18,
+                                    color: AppTheme.adaptiveIcon(ctx)),
+                                const SizedBox(width: 8),
+                                const Text('Upload from Gallery',
                                     style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
@@ -985,11 +986,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     color: AppTheme.goldPrimary, width: 2)
                                 : null,
                           ),
-                          child: Iconify(entry.value,
-                              size: 20,
-                              color: isSelected
-                                  ? AppTheme.goldPrimary
-                                  : Theme.of(ctx).textTheme.bodySmall?.color),
+                          child: AppIcon(entry.value,
+                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
                         ),
                       );
                     }).toList(),
@@ -1119,13 +1117,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     File(selectedIcon.substring(4)),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
-                                        const Iconify(AppIcons.image)),
+                                        const AppIcon(AppIcons.image)),
                               ),
                             )
                           : Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
-                              child: Iconify(
+                              child: AppIcon(
                                 _categoryIcon(selectedIcon),
                                 size: 18,
                                 color: isDark ? Colors.white : Colors.black,
@@ -1168,11 +1166,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     height: 64,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
-                                        const Iconify(AppIcons.image, size: 48),
+                                        const AppIcon(AppIcons.image, size: 48),
                                   ),
                                 )
-                              : Iconify(_categoryIcon(selectedIcon),
-                                  size: 48, color: AppTheme.goldPrimary),
+                              : AppIcon(_categoryIcon(selectedIcon),
+                                  size: 48, color: AppTheme.adaptiveIcon(ctx)),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -1198,13 +1196,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   color: AppTheme.goldPrimary.withOpacity(0.3),
                                   width: 1.5),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Iconify(AppIcons.image,
-                                    size: 18, color: AppTheme.goldPrimary),
-                                SizedBox(width: 8),
-                                Text('Upload from Gallery',
+                                AppIcon(AppIcons.image,
+                                    size: 18,
+                                    color: AppTheme.adaptiveIcon(ctx)),
+                                const SizedBox(width: 8),
+                                const Text('Upload from Gallery',
                                     style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
@@ -1246,11 +1245,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     color: AppTheme.goldPrimary, width: 2)
                                 : null,
                           ),
-                          child: Iconify(entry.value,
-                              size: 20,
-                              color: isSelected
-                                  ? AppTheme.goldPrimary
-                                  : Theme.of(ctx).textTheme.bodySmall?.color),
+                          child: AppIcon(entry.value,
+                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
                         ),
                       );
                     }).toList(),

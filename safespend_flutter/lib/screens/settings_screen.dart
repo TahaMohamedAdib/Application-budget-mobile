@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../models/settings.dart';
@@ -37,15 +38,22 @@ class SettingsScreen extends StatelessWidget {
                         onTap: () => Navigator.pop(context),
                         child: Padding(
                           padding: const EdgeInsets.all(4),
-                          child: Icon(Icons.arrow_back_rounded, size: 22,
-                              color: isDarkTheme ? Colors.white : Colors.black),
+                          child: Icon(IOSIcons.arrow_back_rounded,
+                              size: 22, color: AppTheme.adaptiveIcon(context)),
                         ),
                       ),
                       const SizedBox(width: 14),
-                      Text(s.settings, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(s.settings,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700)),
                     ],
                   ),
-                ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut).slideY(begin: -0.05, end: 0, curve: Curves.easeOut),
+                )
+                    .animate()
+                    .fadeIn(duration: 260.ms, curve: Curves.easeOut)
+                    .slideY(begin: -0.05, end: 0, curve: Curves.easeOut),
 
                 // Content
                 Expanded(
@@ -60,20 +68,41 @@ class SettingsScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(s.appearance, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                            Text(s.appearance,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                _buildThemeOption(context, icon: Icons.light_mode_rounded, label: s.light, isSelected: settings.themeMode == 'light', onTap: () => provider.setThemeMode('light')),
+                                _buildThemeOption(context,
+                                    icon: IOSIcons.light_mode_rounded,
+                                    label: s.light,
+                                    isSelected: settings.themeMode == 'light',
+                                    onTap: () =>
+                                        provider.setThemeMode('light')),
                                 const SizedBox(width: 10),
-                                _buildThemeOption(context, icon: Icons.dark_mode_rounded, label: s.dark, isSelected: settings.themeMode == 'dark', onTap: () => provider.setThemeMode('dark')),
+                                _buildThemeOption(context,
+                                    icon: IOSIcons.dark_mode_rounded,
+                                    label: s.dark,
+                                    isSelected: settings.themeMode == 'dark',
+                                    onTap: () => provider.setThemeMode('dark')),
                                 const SizedBox(width: 10),
-                                _buildThemeOption(context, icon: Icons.smartphone_rounded, label: s.system, isSelected: settings.themeMode == 'system', onTap: () => provider.setThemeMode('system')),
+                                _buildThemeOption(context,
+                                    icon: IOSIcons.smartphone_rounded,
+                                    label: s.system,
+                                    isSelected: settings.themeMode == 'system',
+                                    onTap: () =>
+                                        provider.setThemeMode('system')),
                               ],
                             ),
                           ],
                         ),
-                      ).animate().fadeIn(duration: 280.ms, delay: 80.ms, curve: Curves.easeOut),
+                      ).animate().fadeIn(
+                          duration: 280.ms,
+                          delay: 80.ms,
+                          curve: Curves.easeOut),
 
                       const SizedBox(height: 16),
 
@@ -86,28 +115,39 @@ class SettingsScreen extends StatelessWidget {
                           child: Row(
                             children: [
                               Container(
-                                width: 44, height: 44,
+                                width: 44,
+                                height: 44,
                                 decoration: BoxDecoration(
                                   color: AppTheme.goldPrimary.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Center(child: Text('💱', style: TextStyle(fontSize: 20))),
+                                child: const Center(
+                                    child: Text('💱',
+                                        style: TextStyle(fontSize: 20))),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(s.currency, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                    Text(s.currency,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w700)),
                                     const SizedBox(height: 2),
                                     Text(
                                       '${CurrencyHelper.getSymbol(provider.settings.currency)} · ${provider.settings.currency} · ${CurrencyHelper.getName(provider.settings.currency)}',
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ],
                                 ),
                               ),
-                              Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(context).textTheme.bodySmall?.color),
+                              Icon(IOSIcons.chevron_right_rounded,
+                                  size: 20,
+                                  color: AppTheme.adaptiveIcon(context)),
                             ],
                           ),
                         ),
@@ -124,9 +164,11 @@ class SettingsScreen extends StatelessWidget {
                           child: Row(
                             children: [
                               Container(
-                                width: 44, height: 44,
+                                width: 44,
+                                height: 44,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF6366F1).withOpacity(0.12),
+                                  color:
+                                      const Color(0xFF6366F1).withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Center(
@@ -141,13 +183,24 @@ class SettingsScreen extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(s.language, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                                    Text(s.language,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w700)),
                                     const SizedBox(height: 2),
-                                    Text(S.displayNameForLocale(settings.locale), style: Theme.of(context).textTheme.bodySmall),
+                                    Text(
+                                        S.displayNameForLocale(settings.locale),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall),
                                   ],
                                 ),
                               ),
-                              Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(context).textTheme.bodySmall?.color),
+                              Icon(IOSIcons.chevron_right_rounded,
+                                  size: 20,
+                                  color: AppTheme.adaptiveIcon(context)),
                             ],
                           ),
                         ),
@@ -160,16 +213,41 @@ class SettingsScreen extends StatelessWidget {
                         decoration: AppTheme.premiumCard(context),
                         child: Column(
                           children: [
-                            _buildMenuItem(context, icon: Icons.person_rounded, label: s.account, onTap: () => _showAccountDialog(context)),
-                            Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.notifications_rounded, label: s.notifications, onTap: () => _showNotificationsDialog(context, provider)),
-                            Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.shield_rounded, label: s.privacy, onTap: () => _showPrivacyDialog(context)),
-                            Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context, icon: Icons.help_outline_rounded, label: s.helpAndSupport, onTap: () => _showHelpDialog(context)),
+                            _buildMenuItem(context,
+                                icon: IOSIcons.person_rounded,
+                                label: s.account,
+                                onTap: () => _showAccountDialog(context)),
+                            Divider(
+                                height: 1,
+                                indent: 56,
+                                color: Theme.of(context).dividerColor),
+                            _buildMenuItem(context,
+                                icon: IOSIcons.notifications_rounded,
+                                label: s.notifications,
+                                onTap: () => _showNotificationsDialog(
+                                    context, provider)),
+                            Divider(
+                                height: 1,
+                                indent: 56,
+                                color: Theme.of(context).dividerColor),
+                            _buildMenuItem(context,
+                                icon: IOSIcons.shield_rounded,
+                                label: s.privacy,
+                                onTap: () => _showPrivacyDialog(context)),
+                            Divider(
+                                height: 1,
+                                indent: 56,
+                                color: Theme.of(context).dividerColor),
+                            _buildMenuItem(context,
+                                icon: IOSIcons.help_outline_rounded,
+                                label: s.helpAndSupport,
+                                onTap: () => _showHelpDialog(context)),
                           ],
                         ),
-                      ).animate().fadeIn(duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
+                      ).animate().fadeIn(
+                          duration: 280.ms,
+                          delay: 120.ms,
+                          curve: Curves.easeOut),
 
                       const SizedBox(height: 16),
 
@@ -177,23 +255,37 @@ class SettingsScreen extends StatelessWidget {
                       GestureDetector(
                         onTap: () => _confirmLogOut(context, provider),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
                           decoration: AppTheme.premiumCard(context),
                           child: Row(
                             children: [
-                              Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
+                              Icon(IOSIcons.logout_rounded,
+                                  color: AppTheme.adaptiveIcon(context),
+                                  size: 20),
                               const SizedBox(width: 14),
-                              Text(s.logOut, style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.error, fontSize: 15)),
+                              Text(s.logOut,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.error,
+                                      fontSize: 15)),
                             ],
                           ),
                         ),
-                      ).animate().fadeIn(duration: 280.ms, delay: 160.ms, curve: Curves.easeOut),
+                      ).animate().fadeIn(
+                          duration: 280.ms,
+                          delay: 160.ms,
+                          curve: Curves.easeOut),
 
                       const SizedBox(height: 32),
 
                       Center(
-                        child: Text(s.version, style: Theme.of(context).textTheme.bodySmall),
-                      ).animate().fadeIn(duration: 280.ms, delay: 200.ms, curve: Curves.easeOut),
+                        child: Text(s.version,
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ).animate().fadeIn(
+                          duration: 280.ms,
+                          delay: 200.ms,
+                          curve: Curves.easeOut),
                     ],
                   ),
                 ),
@@ -220,7 +312,11 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildThemeOption(BuildContext context, {required IconData icon, required String label, required bool isSelected, required VoidCallback onTap}) {
+  Widget _buildThemeOption(BuildContext context,
+      {required IconData icon,
+      required String label,
+      required bool isSelected,
+      required VoidCallback onTap}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: GestureDetector(
@@ -229,15 +325,27 @@ class SettingsScreen extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 18),
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.goldPrimary.withOpacity(isDark ? 0.2 : 0.1) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+            color: isSelected
+                ? AppTheme.goldPrimary.withOpacity(isDark ? 0.2 : 0.1)
+                : (isDark
+                    ? AppTheme.darkSurfaceElevated
+                    : AppTheme.lightBackground),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: isSelected ? AppTheme.goldPrimary : Colors.transparent, width: 2),
+            border: Border.all(
+                color: isSelected ? AppTheme.goldPrimary : Colors.transparent,
+                width: 2),
           ),
           child: Column(
             children: [
-              Icon(icon, size: 22, color: isSelected ? AppTheme.goldPrimary : Theme.of(context).textTheme.bodySmall?.color),
+              Icon(icon, size: 22, color: AppTheme.adaptiveIcon(context)),
               const SizedBox(height: 8),
-              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : Theme.of(context).textTheme.bodySmall?.color)),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? AppTheme.goldPrimary
+                          : Theme.of(context).textTheme.bodySmall?.color)),
             ],
           ),
         ),
@@ -245,7 +353,10 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildMenuItem(BuildContext context,
+      {required IconData icon,
+      required String label,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -253,10 +364,16 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: Theme.of(context).textTheme.bodySmall?.color),
+            Icon(icon, size: 20, color: AppTheme.adaptiveIcon(context)),
             const SizedBox(width: 16),
-            Expanded(child: Text(label, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500))),
-            Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(context).textTheme.bodySmall?.color),
+            Expanded(
+                child: Text(label,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w500))),
+            Icon(IOSIcons.chevron_right_rounded,
+                size: 20, color: AppTheme.adaptiveIcon(context)),
           ],
         ),
       ),
@@ -264,7 +381,8 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showAccountDialog(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen()));
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const AccountScreen()));
   }
 
   void _showNotificationsDialog(BuildContext context, AppProvider provider) {
@@ -273,11 +391,15 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(children: [
-            const Icon(Icons.notifications_rounded, color: AppTheme.goldPrimary),
+            Icon(IOSIcons.notifications_rounded,
+                color: AppTheme.adaptiveIcon(ctx)),
             const SizedBox(width: 10),
-            Text(s.notifications, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            Text(s.notifications,
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           ]),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -285,7 +407,8 @@ class SettingsScreen extends StatelessWidget {
               SwitchListTile(
                 value: provider.settings.notificationsEnabled ?? true,
                 onChanged: (v) {
-                  provider.updateSettings(provider.settings.copyWith(notificationsEnabled: v));
+                  provider.updateSettings(
+                      provider.settings.copyWith(notificationsEnabled: v));
                   setS(() {});
                 },
                 title: Text(s.pushNotifications),
@@ -295,7 +418,9 @@ class SettingsScreen extends StatelessWidget {
               ),
             ],
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.done))],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.done))
+          ],
         ),
       ),
     );
@@ -308,12 +433,17 @@ class SettingsScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(children: [
-          const Icon(Icons.shield_rounded, color: AppTheme.goldPrimary),
+          Icon(IOSIcons.shield_rounded, color: AppTheme.adaptiveIcon(ctx)),
           const SizedBox(width: 10),
-          Text(s.privacy, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          Text(s.privacy,
+              style:
+                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         ]),
-        content: Text(s.privacyDesc, style: const TextStyle(height: 1.5, fontSize: 13)),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.gotIt))],
+        content: Text(s.privacyDesc,
+            style: const TextStyle(height: 1.5, fontSize: 13)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.gotIt))
+        ],
       ),
     );
   }
@@ -325,9 +455,12 @@ class SettingsScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(children: [
-          const Icon(Icons.help_outline_rounded, color: AppTheme.goldPrimary),
+          Icon(IOSIcons.help_outline_rounded,
+              color: AppTheme.adaptiveIcon(ctx)),
           const SizedBox(width: 10),
-          Text(s.helpAndSupport, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          Text(s.helpAndSupport,
+              style:
+                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -340,7 +473,9 @@ class SettingsScreen extends StatelessWidget {
             _HelpItem(q: s.helpQ3, a: s.helpA3),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close))],
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close))
+        ],
       ),
     );
   }
@@ -351,10 +486,12 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(s.logOutConfirm, style: const TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(s.logOutConfirm,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
         content: Text(s.logOutDesc),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.cancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: Text(s.cancel)),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -391,15 +528,27 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(ctx).dividerColor, borderRadius: BorderRadius.circular(3)))),
+              Center(
+                  child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                          color: Theme.of(ctx).dividerColor,
+                          borderRadius: BorderRadius.circular(3)))),
               const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
                   children: [
-                    Text(s.selectLanguage, style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(s.selectLanguage,
+                        style: Theme.of(ctx)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700)),
                     const Spacer(),
-                    IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(ctx)),
+                    IconButton(
+                        icon: const Icon(IOSIcons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx)),
                   ],
                 ),
               ),
@@ -421,11 +570,18 @@ class SettingsScreen extends StatelessWidget {
                       },
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.goldPrimary.withOpacity(isDark ? 0.15 : 0.08) : Colors.transparent,
+                          color: isSelected
+                              ? AppTheme.goldPrimary
+                                  .withOpacity(isDark ? 0.15 : 0.08)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                          border: isSelected ? Border.all(color: AppTheme.goldPrimary, width: 1.5) : null,
+                          border: isSelected
+                              ? Border.all(
+                                  color: AppTheme.goldPrimary, width: 1.5)
+                              : null,
                         ),
                         child: Row(
                           children: [
@@ -435,13 +591,23 @@ class SettingsScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(name, style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : null)),
-                                  Text(code.toUpperCase(), style: Theme.of(ctx).textTheme.bodySmall),
+                                  Text(name,
+                                      style: Theme.of(ctx)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected
+                                                  ? AppTheme.goldPrimary
+                                                  : null)),
+                                  Text(code.toUpperCase(),
+                                      style: Theme.of(ctx).textTheme.bodySmall),
                                 ],
                               ),
                             ),
                             if (isSelected)
-                              const Icon(Icons.check_circle_rounded, color: AppTheme.goldPrimary, size: 22),
+                              Icon(IOSIcons.check_circle_rounded,
+                                  color: AppTheme.adaptiveIcon(ctx), size: 22),
                           ],
                         ),
                       ),
@@ -464,9 +630,12 @@ class _HelpItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(q, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+      Text(q,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
       const SizedBox(height: 3),
-      Text(a, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.4)),
+      Text(a,
+          style: TextStyle(
+              fontSize: 12, color: Colors.grey.shade600, height: 1.4)),
     ]);
   }
 }
@@ -474,7 +643,8 @@ class _HelpItem extends StatelessWidget {
 class _CurrencyPickerSheet extends StatefulWidget {
   final String currentCurrency;
   final ValueChanged<String> onSelect;
-  const _CurrencyPickerSheet({required this.currentCurrency, required this.onSelect});
+  const _CurrencyPickerSheet(
+      {required this.currentCurrency, required this.onSelect});
 
   @override
   State<_CurrencyPickerSheet> createState() => _CurrencyPickerSheetState();
@@ -486,11 +656,82 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
 
   static const _sections = {
     'Popular': ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY'],
-    'Americas': ['BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'UYU', 'DOP', 'JMD', 'TTD', 'NZD'],
-    'Europe': ['SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK', 'ISK', 'RUB', 'UAH', 'TRY', 'GEL'],
-    'Asia & Pacific': ['INR', 'PKR', 'BDT', 'LKR', 'NPR', 'KRW', 'HKD', 'SGD', 'TWD', 'THB', 'VND', 'MYR', 'IDR', 'PHP', 'MMK', 'KHR'],
-    'Middle East': ['AED', 'SAR', 'QAR', 'KWD', 'BHD', 'OMR', 'JOD', 'ILS', 'EGP', 'LBP', 'IQD', 'IRR'],
-    'Africa': ['ZAR', 'NGN', 'KES', 'GHS', 'TZS', 'UGX', 'ETB', 'MAD', 'TND', 'DZD', 'XOF', 'XAF', 'RWF'],
+    'Americas': [
+      'BRL',
+      'MXN',
+      'ARS',
+      'CLP',
+      'COP',
+      'PEN',
+      'UYU',
+      'DOP',
+      'JMD',
+      'TTD',
+      'NZD'
+    ],
+    'Europe': [
+      'SEK',
+      'NOK',
+      'DKK',
+      'PLN',
+      'CZK',
+      'HUF',
+      'RON',
+      'BGN',
+      'HRK',
+      'ISK',
+      'RUB',
+      'UAH',
+      'TRY',
+      'GEL'
+    ],
+    'Asia & Pacific': [
+      'INR',
+      'PKR',
+      'BDT',
+      'LKR',
+      'NPR',
+      'KRW',
+      'HKD',
+      'SGD',
+      'TWD',
+      'THB',
+      'VND',
+      'MYR',
+      'IDR',
+      'PHP',
+      'MMK',
+      'KHR'
+    ],
+    'Middle East': [
+      'AED',
+      'SAR',
+      'QAR',
+      'KWD',
+      'BHD',
+      'OMR',
+      'JOD',
+      'ILS',
+      'EGP',
+      'LBP',
+      'IQD',
+      'IRR'
+    ],
+    'Africa': [
+      'ZAR',
+      'NGN',
+      'KES',
+      'GHS',
+      'TZS',
+      'UGX',
+      'ETB',
+      'MAD',
+      'TND',
+      'DZD',
+      'XOF',
+      'XAF',
+      'RWF'
+    ],
   };
 
   @override
@@ -517,13 +758,25 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
             child: Column(
               children: [
-                Center(child: Container(width: 48, height: 5, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(3)))),
+                Center(
+                    child: Container(
+                        width: 48,
+                        height: 5,
+                        decoration: BoxDecoration(
+                            color: Theme.of(context).dividerColor,
+                            borderRadius: BorderRadius.circular(3)))),
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Text(s.selectCurrency, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(s.selectCurrency,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700)),
                     const Spacer(),
-                    IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(context)),
+                    IconButton(
+                        icon: const Icon(IOSIcons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(context)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -535,14 +788,26 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                     hintText: s.searchCurrency,
                     prefixIcon: Padding(
                       padding: const EdgeInsets.only(left: 14, right: 8),
-                      child: Icon(Icons.search_rounded, size: 18,
-                          color: isDark ? Colors.white38 : Colors.black38),
+                      child: Icon(IOSIcons.search_rounded,
+                          size: 18, color: AppTheme.adaptiveIcon(context)),
                     ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
-                    suffixIcon: _query.isNotEmpty ? IconButton(icon: const Icon(Icons.clear_rounded, size: 18), onPressed: () { _searchController.clear(); setState(() => _query = ''); }) : null,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    prefixIconConstraints:
+                        const BoxConstraints(minWidth: 38, minHeight: 38),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(IOSIcons.clear_rounded, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _query = '');
+                            })
+                        : null,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none),
                     filled: true,
-                    fillColor: isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground,
+                    fillColor: isDark
+                        ? AppTheme.darkSurfaceElevated
+                        : AppTheme.lightBackground,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -573,14 +838,20 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
         if (_query.isEmpty) return true;
         final name = CurrencyHelper.getName(code).toLowerCase();
         final symbol = CurrencyHelper.getSymbol(code).toLowerCase();
-        return code.toLowerCase().contains(_query) || name.contains(_query) || symbol.contains(_query);
+        return code.toLowerCase().contains(_query) ||
+            name.contains(_query) ||
+            symbol.contains(_query);
       }).toList();
 
       if (codes.isEmpty) continue;
 
       widgets.add(Padding(
         padding: const EdgeInsets.only(top: 20, bottom: 10),
-        child: Text(sectionName, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+        child: Text(sectionName,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
       ));
 
       widgets.add(Container(
@@ -599,34 +870,64 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                   behavior: HitTestBehavior.opaque,
                   onTap: () => widget.onSelect(code),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                     child: Row(
                       children: [
                         Container(
-                          width: 38, height: 38,
+                          width: 38,
+                          height: 38,
                           decoration: BoxDecoration(
-                            color: isSelected ? AppTheme.goldPrimary.withOpacity(0.12) : (isDark ? AppTheme.darkSurfaceElevated : AppTheme.lightBackground),
+                            color: isSelected
+                                ? AppTheme.goldPrimary.withOpacity(0.12)
+                                : (isDark
+                                    ? AppTheme.darkSurfaceElevated
+                                    : AppTheme.lightBackground),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Center(child: Text(symbol, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isSelected ? AppTheme.goldPrimary : Theme.of(context).textTheme.bodyMedium?.color))),
+                          child: Center(
+                              child: Text(symbol,
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: isSelected
+                                          ? AppTheme.goldPrimary
+                                          : Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.color))),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(name, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: isSelected ? AppTheme.goldPrimary : null)),
-                              Text(code, style: Theme.of(context).textTheme.bodySmall),
+                              Text(name,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: isSelected
+                                              ? AppTheme.goldPrimary
+                                              : null)),
+                              Text(code,
+                                  style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
                         ),
                         if (isSelected)
-                          const Icon(Icons.check_circle_rounded, color: AppTheme.goldPrimary, size: 22),
+                          Icon(IOSIcons.check_circle_rounded,
+                              color: AppTheme.adaptiveIcon(context), size: 22),
                       ],
                     ),
                   ),
                 ),
-                if (!isLast) Divider(height: 1, indent: 68, color: Theme.of(context).dividerColor),
+                if (!isLast)
+                  Divider(
+                      height: 1,
+                      indent: 68,
+                      color: Theme.of(context).dividerColor),
               ],
             );
           }).toList(),
@@ -637,7 +938,9 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
     if (widgets.isEmpty) {
       widgets.add(Padding(
         padding: const EdgeInsets.only(top: 60),
-        child: Center(child: Text(s.noCurrenciesFound, style: Theme.of(context).textTheme.bodySmall)),
+        child: Center(
+            child: Text(s.noCurrenciesFound,
+                style: Theme.of(context).textTheme.bodySmall)),
       ));
     }
 

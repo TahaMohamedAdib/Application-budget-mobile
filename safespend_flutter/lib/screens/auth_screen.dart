@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/auth_service.dart';
@@ -79,8 +80,8 @@ class _AuthScreenState extends State<AuthScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.mark_email_unread_rounded,
-                color: AppTheme.goldPrimary),
+            Icon(IOSIcons.mark_email_unread_rounded,
+                color: AppTheme.adaptiveIcon(ctx)),
             const SizedBox(width: 10),
             Text(s.confirmEmail,
                 style:
@@ -168,11 +169,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppTheme.goldPrimary.withOpacity(0.12),
+                    color: AppTheme.adaptiveIconSurface(context),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.account_balance_wallet_rounded,
-                      size: 40, color: AppTheme.goldPrimary),
+                  child: Icon(IOSIcons.account_balance_wallet_rounded,
+                      size: 40, color: AppTheme.adaptiveIcon(context)),
                 )
                     .animate()
                     .fadeIn(duration: 260.ms, curve: Curves.easeOut)
@@ -223,7 +224,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         decoration: InputDecoration(
                           labelText: s.email,
                           hintText: 'you@example.com',
-                          prefixIcon: const Icon(Icons.email_outlined),
+                          prefixIcon: Icon(IOSIcons.email_outlined,
+                              color: AppTheme.adaptiveIcon(context)),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14)),
                         ),
@@ -247,11 +249,12 @@ class _AuthScreenState extends State<AuthScreen> {
                         decoration: InputDecoration(
                           labelText: s.password,
                           hintText: '••••••••',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          prefixIcon: Icon(IOSIcons.lock_outline_rounded,
+                              color: AppTheme.adaptiveIcon(context)),
                           suffixIcon: IconButton(
                             icon: Icon(_obscurePassword
-                                ? Icons.visibility_off_rounded
-                                : Icons.visibility_rounded),
+                                ? IOSIcons.visibility_off_rounded
+                                : IOSIcons.visibility_rounded),
                             onPressed: () => setState(
                                 () => _obscurePassword = !_obscurePassword),
                           ),
@@ -281,13 +284,15 @@ class _AuthScreenState extends State<AuthScreen> {
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             hintText: '••••••••',
-                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            prefixIcon: Icon(IOSIcons.lock_outline_rounded,
+                                color: AppTheme.adaptiveIcon(context)),
                             suffixIcon: IconButton(
                               icon: Icon(_obscureConfirmPassword
-                                  ? Icons.visibility_off_rounded
-                                  : Icons.visibility_rounded),
-                              onPressed: () => setState(
-                                  () => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                  ? IOSIcons.visibility_off_rounded
+                                  : IOSIcons.visibility_rounded),
+                              onPressed: () => setState(() =>
+                                  _obscureConfirmPassword =
+                                      !_obscureConfirmPassword),
                             ),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14)),
