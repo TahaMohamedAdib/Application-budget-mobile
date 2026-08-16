@@ -12,16 +12,17 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/secure_storage_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
-import '../services/chat_service.dart';
+import '../services/ai/ai_models.dart';
+import '../services/ai/ai_service_factory.dart';
 import '../services/env_config.dart';
 import '../services/supabase_sync_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/ai_confirmation_card.dart';
 import 'chat_widgets/chat_input_bar.dart';
 import 'chat_widgets/message_bubble.dart';
 import 'chat_widgets/suggestion_card.dart';
@@ -31,6 +32,16 @@ final _allowedEmails = EnvConfig.allowedEmails;
 const _openToAll = EnvConfig.aiOpenToAll;
 
 // ── Data models ────────────────────────────────────────────────
+/// An AI-requested mutation held pending user approval.
+class _PendingAction {
+  final AIToolCall call;
+  final String summary;
+  bool resolved = false;
+  String? resolvedLabel;
+
+  _PendingAction({required this.call, required this.summary});
+}
+
 class _ChatMsg {
   final String text;
   final bool isUser;
@@ -155,6 +166,10 @@ class _CoachScreenState extends State<CoachScreen> {
   List<_Project> _projects = [];
   late _Convo _current;
   bool _isTyping = false;
+
+  /// Mutations awaiting user approval. Rendered as confirmation cards below
+  /// the transcript; nothing executes while an entry sits here.
+  final List<_PendingAction> _pendingActions = [];
   bool _ready = false;
   String? _pendingImage;
   String? _pendingFile;
@@ -447,57 +462,68 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   // ── Financial context ────────────────────────────────────────
-  Map<String, dynamic> _buildContext(AppProvider p) {
-    final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
-    final monthTxns = p.transactions
-        .where((t) => !DateTime.parse(t.date).isBefore(monthStart))
-        .toList();
-    final income = monthTxns
-        .where((t) => t.type == 'income')
-        .fold(0.0, (s, t) => s + t.amount);
-    final expenses = monthTxns
-        .where((t) => t.type == 'expense')
-        .fold(0.0, (s, t) => s + t.amount);
-    final catMap = <String, double>{};
-    for (final t in monthTxns.where((t) => t.type == 'expense')) {
-      final name = t.categoryId != null
-          ? p.categories.where((c) => c.id == t.categoryId).firstOrNull?.name ??
-              'Other'
-          : 'Other';
-      catMap[name] = (catMap[name] ?? 0) + t.amount;
+  // ── Tool calls ───────────────────────────────────────────────
+  /// Routes model-requested tools through the executor.
+  ///
+  /// Reads run immediately; writes surface a confirmation card and change
+  /// nothing until the user approves. No backend returns tool calls yet, so
+  /// this is dormant with the Gemini provider.
+  void _handleToolCalls(AIResponse response, AppProvider provider) {
+    final executor = AIToolExecutor(provider);
+    final pending = <_PendingAction>[];
+    final notes = <String>[];
+
+    for (final call in response.toolCalls) {
+      final outcome = executor.submit(call);
+      switch (outcome.decision) {
+        case AIToolDecision.needsConfirmation:
+          pending.add(_PendingAction(
+            call: outcome.call,
+            summary: outcome.confirmationSummary ?? call.name,
+          ));
+        case AIToolDecision.rejected:
+          notes.add(outcome.result?.errorMessage ??
+              "I couldn't complete that action.");
+        case AIToolDecision.executed:
+          break;
+      }
     }
-    final topCats = (catMap.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(4)
-        .map((e) => {'name': e.key, 'amount': e.value})
-        .toList();
-    return {
-      'currency': p.settings.currency,
-      'net_worth': p.getNetWorth(),
-      'bank_balance': p.accounts.fold(0.0, (s, a) => s + a.balance),
-      'cash_on_hand': p.totalCash,
-      'monthly_income': p.settings.monthlyIncome,
-      'this_month_income': income,
-      'this_month_expenses': expenses,
-      'top_categories': topCats,
-      'goals': p.goals
-          .where((g) => g.type == 'goal')
-          .map((g) => {
-                'name': g.name,
-                'progress': g.targetAmount > 0
-                    ? ((g.currentAmount / g.targetAmount) * 100).round()
-                    : 0,
-              })
-          .toList(),
-      'debts': p.goals
-          .where((g) => g.type == 'debt')
-          .map((g) => {
-                'name': g.name,
-                'remaining': g.targetAmount - g.currentAmount,
-              })
-          .toList(),
-    };
+
+    setState(() {
+      _isTyping = false;
+      if (response.text.isNotEmpty) {
+        _current.messages.add(_ChatMsg(text: response.text, isUser: false));
+        _current.history
+            .add({'role': 'assistant', 'content': response.text});
+      }
+      for (final note in notes) {
+        _current.messages.add(_ChatMsg(text: note, isUser: false));
+      }
+      _pendingActions.addAll(pending);
+    });
+    _scrollToBottom();
+  }
+
+  /// Executes an approved mutation.
+  void _confirmAction(_PendingAction action, AppProvider provider) {
+    final result = AIToolExecutor(provider).confirm(action.call);
+    setState(() {
+      action.resolved = true;
+      action.resolvedLabel = result.ok ? 'Done' : 'Failed';
+      if (!result.ok) {
+        _current.messages.add(_ChatMsg(
+          text: result.errorMessage ?? 'That action could not be completed.',
+          isUser: false,
+        ));
+      }
+    });
+  }
+
+  void _cancelAction(_PendingAction action) {
+    setState(() {
+      action.resolved = true;
+      action.resolvedLabel = 'Cancelled';
+    });
   }
 
   // ── Project context — gather summaries from sibling conversations ──
@@ -590,41 +616,64 @@ class _CoachScreenState extends State<CoachScreen> {
     _scrollToBottom();
 
     try {
-      String? attachBase64, attachMime;
+      Uint8List? attachBytes;
+      String? attachMime;
+      String? attachName;
+      bool attachIsImage = false;
       if (imgPath != null) {
-        final bytes = await File(imgPath).readAsBytes();
-        attachBase64 = base64Encode(bytes);
+        attachBytes = await File(imgPath).readAsBytes();
+        attachIsImage = true;
         attachMime = imgPath.toLowerCase().endsWith('.png')
             ? 'image/png'
             : imgPath.toLowerCase().endsWith('.webp')
                 ? 'image/webp'
                 : 'image/jpeg';
       } else if (docPath != null && docMime != null) {
-        final bytes = await File(docPath).readAsBytes();
-        attachBase64 = base64Encode(bytes);
+        attachBytes = await File(docPath).readAsBytes();
         attachMime = docMime;
+        attachName = docName;
       }
 
-      final token =
-          Supabase.instance.client.auth.currentSession?.accessToken ?? '';
-
-      // Build financial context, inject project context if applicable
-      final ctx = _buildContext(provider);
+      // Financial context is computed by SafeSpend, never by the model.
+      var ctx = FinancialContextService.build(provider);
       final projectCtx = _buildProjectContextSummary();
       if (projectCtx != null) {
-        ctx['project_context'] = projectCtx;
+        ctx = ctx.withExtras({'project_context': projectCtx});
       }
 
-      final reply = await ChatService.sendMessage(
+      final attachments = <AIAttachment>[];
+      if (attachBytes != null && attachMime != null) {
+        attachments.add(attachIsImage
+            ? AIAttachment.image(bytes: attachBytes, mimeType: attachMime)
+            : AIAttachment.document(
+                bytes: attachBytes,
+                mimeType: attachMime,
+                fileName: attachName));
+      }
+
+      final response = await AIServiceFactory.instance.sendMessage(
         history: _current.history
-            .map((h) => ChatMessage(role: h['role']!, content: h['content']!))
+            .map((h) => AIMessage(
+                  role: h['role'] == 'assistant' ? AIRole.assistant : AIRole.user,
+                  text: h['content'] ?? '',
+                ))
             .toList(),
-        financialContext: ctx,
-        token: token,
-        attachmentBase64: attachBase64,
-        attachmentMimeType: attachMime,
+        context: ctx,
+        attachments: attachments.isEmpty ? null : attachments,
+        conversationId: _current.id,
       );
       if (!mounted) return;
+
+      // Tool calls need approval before anything changes; until a backend
+      // returns them this stays dormant.
+      if (response.hasToolCalls) {
+        _handleToolCalls(response, provider);
+        return;
+      }
+
+      final reply = response.text.isEmpty
+          ? (response.error?.message ?? 'No response received.')
+          : response.text;
       setState(() {
         _current.messages.add(_ChatMsg(text: reply, isUser: false));
         _current.history.add({'role': 'assistant', 'content': reply});
@@ -2086,9 +2135,25 @@ class _CoachScreenState extends State<CoachScreen> {
         child: ListView.builder(
           controller: _scrollCtrl,
           padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
-          itemCount: _current.messages.length + (_isTyping ? 1 : 0),
+          itemCount: _current.messages.length +
+              _pendingActions.length +
+              (_isTyping ? 1 : 0),
           itemBuilder: (ctx, i) {
-            if (i == _current.messages.length) {
+            // Confirmation cards sit after the transcript, before the typing
+            // indicator, so a pending approval is the last thing on screen.
+            if (i >= _current.messages.length) {
+              final j = i - _current.messages.length;
+              if (j < _pendingActions.length) {
+                final action = _pendingActions[j];
+                return AIConfirmationCard(
+                  summary: action.summary,
+                  isResolved: action.resolved,
+                  resolvedLabel: action.resolvedLabel,
+                  onConfirm: () => _confirmAction(
+                      action, context.read<AppProvider>()),
+                  onCancel: () => _cancelAction(action),
+                ).animate().fadeIn(duration: 250.ms);
+              }
               return TypingIndicator(isDark: isDark)
                   .animate()
                   .fadeIn(duration: 300.ms)

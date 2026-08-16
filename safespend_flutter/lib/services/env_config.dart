@@ -30,6 +30,22 @@ class EnvConfig {
     defaultValue: 'io.supabase.timctayytkcvxvpukvlq://login-callback/',
   );
 
+  // ── AI provider selection ──
+  // Concrete provider settings live in services/ai/ai_config.dart; these are
+  // re-exposed here so `isConfigured` can reason about the active backend.
+  static const String aiProvider = String.fromEnvironment(
+    'AI_PROVIDER',
+    defaultValue: 'gemini',
+  );
+
+  /// Base URL of the self-hosted SafeSpend AI backend. No hosting credential
+  /// is ever compiled into the app — the backend authenticates callers with
+  /// their existing Supabase session token.
+  static const String aiBaseUrl = String.fromEnvironment(
+    'AI_BASE_URL',
+    defaultValue: '',
+  );
+
   // ── AI access control ──
   static const String _allowedEmailsRaw = String.fromEnvironment(
     'AI_ALLOWED_EMAILS',
@@ -44,9 +60,9 @@ class EnvConfig {
     defaultValue: false,
   );
 
-  /// True when all required secrets are present.
+  /// True when all required secrets are present for the active AI provider.
   static bool get isConfigured =>
-      geminiApiKey.isNotEmpty &&
+      (aiProvider == 'safespend' ? aiBaseUrl.isNotEmpty : geminiApiKey.isNotEmpty) &&
       supabaseUrl.isNotEmpty &&
       supabaseAnonKey.isNotEmpty;
 }
