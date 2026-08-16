@@ -796,21 +796,6 @@ class _IOSQuickActionRowState extends State<_IOSQuickActionRow> {
                   ),
                 ),
               ),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: widget.color,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _alpha(widget.color, 0.32),
-                      blurRadius: 8,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
