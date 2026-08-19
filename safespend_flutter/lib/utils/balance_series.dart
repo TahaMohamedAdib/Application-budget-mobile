@@ -99,27 +99,50 @@ List<BalancePoint> buildBalanceSeries({
 bool _touchesScope(Transaction t, String? scope) =>
     scope == null || t.accountId == scope || t.toAccountId == scope;
 
-/// Signed effect of [t] on the scope's balance.
-double _delta(Transaction t, String? scope) {
-  final fromScope = scope == null || t.accountId == scope;
-  final intoScope = scope != null && t.toAccountId == scope;
+/// Cash on hand is a tally, not one of the accounts whose balances the app
+/// stores, so money moving through it never moves this line. Kept as a literal
+/// rather than importing `AppProvider` so this stays a pure function.
+const _cashOnHandId = 'cash_on_hand';
 
-  switch (t.type) {
-    case 'transfer':
-      // Across all accounts an internal transfer nets to nothing; it only
-      // moves the balance when one specific account is in view.
-      if (scope == null) return 0;
-      if (intoScope) return t.amount;
-      if (fromScope) return -t.amount;
-      return 0;
-    case 'income':
-      return fromScope ? t.amount : 0;
-    case 'expense':
-    case 'withdrawal':
-      return fromScope ? -t.amount : 0;
-    default:
-      return 0;
+/// Signed effect of [t] on the scope's balance.
+///
+/// Mirrors the rules `AppProvider` applies when it writes account balances.
+/// Anything this misses shows up as a line that disagrees with the figure
+/// printed directly above it.
+double _delta(Transaction t, String? scope) {
+  var delta = 0.0;
+
+  // The account the money leaves (or arrives in, for income).
+  final fromScope =
+      t.accountId != _cashOnHandId && (scope == null || t.accountId == scope);
+  if (fromScope) {
+    switch (t.type) {
+      case 'expense':
+      case 'withdrawal':
+      case 'transfer':
+      case 'goal_contribution':
+      case 'debt_payment':
+        // Bank fees leave the account alongside the amount, so a chart built
+        // on `amount` drifts a little further from the truth with every fee.
+        delta -= t.totalWithFees;
+        break;
+      case 'income':
+      case 'lending_collection':
+        delta += t.amount;
+        break;
+    }
   }
+
+  // The receiving side of a transfer. Across all accounts the two sides cancel
+  // out and only the fee is really gone.
+  if (t.type == 'transfer' &&
+      t.toAccountId != null &&
+      t.toAccountId != _cashOnHandId &&
+      (scope == null || t.toAccountId == scope)) {
+    delta += t.amount;
+  }
+
+  return delta;
 }
 
 /// Bucket closing instants, oldest first, ending at [end].

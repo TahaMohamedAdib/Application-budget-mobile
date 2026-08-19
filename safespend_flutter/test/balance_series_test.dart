@@ -12,11 +12,13 @@ Transaction tx({
   required String date,
   String accountId = 'A',
   String? toAccountId,
+  double fees = 0,
 }) =>
     Transaction(
       id: '$type-$date-$amount',
       type: type,
       amount: amount,
+      fees: fees,
       date: date,
       accountId: accountId,
       toAccountId: toAccountId,
@@ -178,6 +180,78 @@ void main() {
         scope: 'A',
       );
       expect(points.every((p) => p.balance == 1000), isTrue);
+    });
+  });
+
+  group('ledger rules', () {
+    // Each of these moved the real account balance while leaving the chart
+    // flat, so the line quietly disagreed with the figure above it.
+    test('bank fees leave the account along with the amount', () {
+      final points = series(
+        [tx(type: 'expense', amount: 200, date: '2026-08-15', fees: 15)],
+        current: 785,
+      );
+      expect(points.firstWhere((p) => p.time.day == 14).balance, 1000);
+      expect(points.firstWhere((p) => p.time.day == 15).balance, 785);
+    });
+
+    test('a goal contribution steps the line down', () {
+      final points = series(
+        [tx(type: 'goal_contribution', amount: 300, date: '2026-08-13')],
+        current: 700,
+      );
+      expect(points.firstWhere((p) => p.time.day == 12).balance, 1000);
+      expect(points.firstWhere((p) => p.time.day == 13).balance, 700);
+    });
+
+    test('a debt payment steps the line down', () {
+      final points = series(
+        [tx(type: 'debt_payment', amount: 150, date: '2026-08-13')],
+        current: 850,
+      );
+      expect(points.firstWhere((p) => p.time.day == 13).balance, 850);
+    });
+
+    test('collecting a loan steps the line up', () {
+      final points = series(
+        [tx(type: 'lending_collection', amount: 400, date: '2026-08-11')],
+        current: 1400,
+      );
+      expect(points.firstWhere((p) => p.time.day == 10).balance, 1000);
+      expect(points.firstWhere((p) => p.time.day == 11).balance, 1400);
+    });
+
+    test('spending from cash on hand leaves account balances alone', () {
+      final points = series(
+        [
+          tx(
+            type: 'expense',
+            amount: 90,
+            date: '2026-08-12',
+            accountId: 'cash_on_hand',
+          ),
+        ],
+        current: 1000,
+      );
+      expect(points.every((p) => p.balance == 1000), isTrue);
+    });
+
+    test('across all accounts a transfer costs exactly its fee', () {
+      final points = series(
+        [
+          tx(
+            type: 'transfer',
+            amount: 250,
+            date: '2026-08-14',
+            accountId: 'A',
+            toAccountId: 'B',
+            fees: 10,
+          ),
+        ],
+        current: 990,
+      );
+      expect(points.firstWhere((p) => p.time.day == 13).balance, 1000);
+      expect(points.firstWhere((p) => p.time.day == 14).balance, 990);
     });
   });
 
