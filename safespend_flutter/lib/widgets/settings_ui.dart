@@ -247,10 +247,11 @@ class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.2,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.2,
+                                ),
                       ),
                     ),
                   ),
@@ -512,7 +513,9 @@ class _SettingsRowState extends State<SettingsRow> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 110),
         color: _pressed
-            ? (isDark ? _alpha(Colors.white, 0.05) : _alpha(Colors.black, 0.035))
+            ? (isDark
+                ? _alpha(Colors.white, 0.05)
+                : _alpha(Colors.black, 0.035))
             : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
@@ -708,9 +711,8 @@ class SettingsSegmented<T> extends StatelessWidget {
         height: 62,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: isDark
-              ? _alpha(Colors.black, 0.28)
-              : _alpha(Colors.black, 0.045),
+          color:
+              isDark ? _alpha(Colors.black, 0.28) : _alpha(Colors.black, 0.045),
           borderRadius: BorderRadius.circular(17),
         ),
         child: LayoutBuilder(
@@ -728,9 +730,7 @@ class SettingsSegmented<T> extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(13),
-                      color: isDark
-                          ? _alpha(Colors.white, 0.13)
-                          : Colors.white,
+                      color: isDark ? _alpha(Colors.white, 0.13) : Colors.white,
                       border: Border.all(
                         color: isDark
                             ? _alpha(Colors.white, 0.16)
@@ -766,7 +766,10 @@ class SettingsSegmented<T> extends StatelessWidget {
                                 seg.icon,
                                 size: 19,
                                 color: active
-                                    ? Theme.of(context).textTheme.titleMedium?.color
+                                    ? Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.color
                                     : AppTheme.adaptiveIcon(context),
                               ),
                               const SizedBox(height: 5),
@@ -778,7 +781,10 @@ class SettingsSegmented<T> extends StatelessWidget {
                                 fontWeight:
                                     active ? FontWeight.w600 : FontWeight.w500,
                                 color: active
-                                    ? Theme.of(context).textTheme.titleMedium?.color
+                                    ? Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.color
                                     : Theme.of(context)
                                         .textTheme
                                         .bodySmall
@@ -860,6 +866,97 @@ class SettingsSliderRow extends StatelessWidget {
               max: max,
               divisions: divisions,
               onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Text entry that reads as a settings row: leading icon tile, label on the
+/// left, the field itself right-aligned where a value would normally sit.
+///
+/// Forms in this app used boxed Material [TextField]s, which put a heavy
+/// outlined rectangle around every input and looked nothing like the grouped
+/// rows the rest of the app is built from. This keeps entry inside the same
+/// glass panel as everything else.
+class SettingsTextFieldRow extends StatelessWidget {
+  const SettingsTextFieldRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.keyboardType,
+    this.textCapitalization = TextCapitalization.none,
+    this.prefix,
+  });
+
+  final IconData icon;
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final TextCapitalization textCapitalization;
+
+  /// Sits immediately before the entered text — a currency symbol, usually.
+  final Widget? prefix;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+      child: Row(
+        children: [
+          SettingsIconTile(icon: icon),
+          const SizedBox(width: 14),
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              // Long labels in other languages must shorten rather than wrap;
+              // a two-line label pushes the row out of step with its
+              // neighbours in the same panel.
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w500, fontSize: 15),
+            ),
+          ),
+          Expanded(
+            flex: 6,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (prefix != null) ...[prefix!, const SizedBox(width: 5)],
+                Flexible(
+                  child: TextField(
+                    controller: controller,
+                    keyboardType: keyboardType,
+                    textCapitalization: textCapitalization,
+                    textAlign: TextAlign.right,
+                    style: theme.textTheme.titleSmall?.copyWith(fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: hint,
+                      hintStyle: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 15,
+                          color: _alpha(
+                              theme.textTheme.bodySmall?.color ?? Colors.grey,
+                              0.55)),
+                      // The panel is the container; the field must not draw a
+                      // second one inside it.
+                      isDense: true,
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1017,9 +1114,8 @@ class _IOSAlert extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final divider = isDark
-        ? _alpha(Colors.white, 0.14)
-        : _alpha(Colors.black, 0.12);
+    final divider =
+        isDark ? _alpha(Colors.white, 0.14) : _alpha(Colors.black, 0.12);
     final shape = RoundedSuperellipseBorder(
       borderRadius: BorderRadius.circular(26),
     );
@@ -1123,7 +1219,6 @@ class _IOSAlert extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _AlertButton extends StatefulWidget {
@@ -1171,8 +1266,7 @@ class _AlertButtonState extends State<_AlertButton> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 16.5,
-              fontWeight:
-                  widget.emphasised ? FontWeight.w600 : FontWeight.w400,
+              fontWeight: widget.emphasised ? FontWeight.w600 : FontWeight.w400,
               color: widget.color ?? AppTheme.goldPrimary,
             ),
           ),
