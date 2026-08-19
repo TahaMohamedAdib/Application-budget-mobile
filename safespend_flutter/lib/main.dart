@@ -396,7 +396,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _screens = [
-      HomeScreen(key: _homeKey),
+      HomeScreen(key: _homeKey, onOpenWealth: () => _onTabTapped(3)),
       const CoachScreen(),
       const BudgetsScreen(),
       const WealthScreen(),

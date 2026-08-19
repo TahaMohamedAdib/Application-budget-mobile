@@ -10,7 +10,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
-import 'accounts_screen.dart';
 import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
 import 'portfolio_screen.dart';
@@ -20,13 +19,19 @@ import 'transactions_screen.dart';
 import 'all_subscriptions_screen.dart';
 import '../widgets/add_transaction_modal.dart';
 import '../widgets/account_picker_field.dart';
+import '../widgets/add_account_modal.dart';
 import '../widgets/app_picker_field.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/balance_series.dart';
 import '../utils/money_format.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.onOpenWealth});
+
+  /// Switches the shell to the Wealth tab. A callback rather than a pushed
+  /// route so "See All" lands on the real tab, keeping the nav bar and the
+  /// back-stack intact.
+  final VoidCallback? onOpenWealth;
 
   @override
   State<HomeScreen> createState() => HomeScreenState();
@@ -361,17 +366,33 @@ class HomeScreenState extends State<HomeScreen> {
                               Text(s.accounts,
                                   style:
                                       Theme.of(context).textTheme.titleLarge),
-                              GestureDetector(
-                                onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const AccountsScreen())),
-                                child: Text(s.seeAll,
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppTheme.goldPrimary,
-                                        fontWeight: FontWeight.w500)),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Adding an account used to live on the
+                                  // Accounts screen this section replaces.
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => showAddAccountSheet(context),
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.only(right: 14),
+                                      child: Icon(IOSIcons.add,
+                                          size: 20,
+                                          color: AppTheme.adaptiveIcon(
+                                              context)),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: widget.onOpenWealth,
+                                    child: Text(s.seeAll,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppTheme.goldPrimary,
+                                            fontWeight: FontWeight.w500)),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -389,11 +410,8 @@ class HomeScreenState extends State<HomeScreen> {
                                   amount: account.balance,
                                   cf: currencyFormat,
                                   imagePath: account.imagePath,
-                                  onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              const AccountsScreen())),
+                                  onTap: () =>
+                                      showEditAccountSheet(context, account),
                                 ),
                               )),
                           Padding(
