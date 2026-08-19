@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../utils/currency_helper.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/money_format.dart';
 
 class SpendingScreen extends StatefulWidget {
   const SpendingScreen({super.key});
@@ -60,7 +60,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final s = S.of(context);
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
 
         final weeklySpending = _getWeeklySpending(provider);
         final monthlySpending = _getMonthlySpending(provider);
@@ -320,7 +320,7 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              Text('-${cf.format(t.amount)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.error)),
+                                              Text(cf.signed(t.amount, positive: false), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.error)),
                                               if (cat != null) ...[
                                                 const SizedBox(height: 3),
                                                 Container(

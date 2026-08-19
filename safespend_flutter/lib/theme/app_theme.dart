@@ -256,6 +256,12 @@ class AppTheme {
         TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
       },
     ),
+    // The app is designed once, to the iOS spec. Left to inherit the host
+    // platform, Flutter would still hand Android its own text-selection
+    // handles, selection toolbar and long-press behaviour inside every text
+    // field — small divergences the design never accounts for. Pinning the
+    // platform makes the widgets that branch on it behave the same on both.
+    platform: TargetPlatform.iOS,
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -371,6 +377,12 @@ class AppTheme {
         TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
       },
     ),
+    // The app is designed once, to the iOS spec. Left to inherit the host
+    // platform, Flutter would still hand Android its own text-selection
+    // handles, selection toolbar and long-press behaviour inside every text
+    // field — small divergences the design never accounts for. Pinning the
+    // platform makes the widgets that branch on it behave the same on both.
+    platform: TargetPlatform.iOS,
   );
 
   // ── Card decoration helpers (backward-compat API) ─────────────────────────

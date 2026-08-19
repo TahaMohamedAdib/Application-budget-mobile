@@ -12,6 +12,7 @@ import '../models/goal.dart';
 import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/wealth_ui.dart';
+import '../utils/money_format.dart';
 
 // ── PersonalDebtsScreen ────────────────────────────────────────────────────
 // Tracks informal money the user owes to people (friends, family, etc.).
@@ -27,7 +28,7 @@ class PersonalDebtsScreen extends StatelessWidget {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final entries =
             provider.goals.where((g) => g.type == 'personal_debt').toList();
 
@@ -142,7 +143,7 @@ class PersonalDebtsScreen extends StatelessWidget {
   }
 
   List<Widget> _buildReturnHistory(BuildContext context, AppProvider provider,
-      NumberFormat cf, bool isDark) {
+      MoneyFormat cf, bool isDark) {
     final returnTransactions = provider.transactions
         .where((t) =>
             t.type == 'personal_debt_return' ||
@@ -247,7 +248,7 @@ class PersonalDebtsScreen extends StatelessWidget {
                                       ?.copyWith(fontSize: 11)),
                             ]),
                           ])),
-                      Text('${isIncoming ? '+' : '-'}${cf.format(t.amount)}',
+                      Text(cf.signed(t.amount, positive: isIncoming),
                           style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -270,7 +271,7 @@ class PersonalDebtsScreen extends StatelessWidget {
 
   // ── Entry card ──
   Widget _buildCard(BuildContext context, AppProvider provider, Goal goal,
-      NumberFormat cf, bool isDark, Color accent, int index) {
+      MoneyFormat cf, bool isDark, Color accent, int index) {
     final returned = goal.currentAmount;
     final remaining = goal.targetAmount - returned;
     final progress =
@@ -454,7 +455,7 @@ class PersonalDebtsScreen extends StatelessWidget {
 
   // ── Record how much was returned ──
   void _showReturnModal(
-      BuildContext context, AppProvider provider, Goal goal, NumberFormat cf) {
+      BuildContext context, AppProvider provider, Goal goal, MoneyFormat cf) {
     final ctrl = TextEditingController();
     final remaining = goal.targetAmount - goal.currentAmount;
     String targetAccountId = AppProvider.cashOnHandId;

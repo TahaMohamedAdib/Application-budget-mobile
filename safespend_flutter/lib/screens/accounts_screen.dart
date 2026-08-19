@@ -14,6 +14,7 @@ import '../services/supabase_config.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/account_picker_field.dart';
 import '../widgets/app_form_sheet.dart';
+import '../utils/money_format.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -22,7 +23,7 @@ class AccountsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final s = S.of(context);
         return Scaffold(
           body: Container(

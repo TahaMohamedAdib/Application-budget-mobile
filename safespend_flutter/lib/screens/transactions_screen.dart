@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import '../utils/currency_helper.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
@@ -14,6 +13,7 @@ import '../models/transaction.dart';
 import '../widgets/add_transaction_modal.dart';
 import '../widgets/modern_chart.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/money_format.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -355,7 +355,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Widget _buildSpendingChart(BuildContext context, AppProvider provider, S s) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final cf = MoneyFormat.of(provider.settings);
     final now = DateTime.now();
 
     // Determine chart color and label based on filter
@@ -510,7 +510,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   List<Widget> _buildTransactionGroups(
       List transactions, AppProvider provider, BuildContext context, S s) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final cf = MoneyFormat.of(provider.settings);
 
     final groups = <String, List>{};
     for (final t in transactions) {
@@ -689,7 +689,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}',
+                                  cf.signed(t.amount, positive: t.type == 'income'),
                                   style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -726,7 +726,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   void _showTransactionDetail(BuildContext context, Transaction t,
-      AppProvider provider, NumberFormat cf, bool isDark, S s) {
+      AppProvider provider, MoneyFormat cf, bool isDark, S s) {
     final cat = t.categoryId != null
         ? provider.categories.where((c) => c.id == t.categoryId).firstOrNull
         : null;
@@ -802,7 +802,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       ),
                     ),
                     Text(
-                      '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}',
+                      cf.signed(t.amount, positive: t.type == 'income'),
                       style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,

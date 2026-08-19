@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_config.dart';
@@ -194,16 +196,41 @@ class AuthService with ChangeNotifier {
   // Get display name
   String? get displayName => _user?.userMetadata?['display_name'] as String?;
 
-  // Sign out
+  /// Signs the user out without making them wait on the network.
+  ///
+  /// GoTrue's `signOut()` drops the local session synchronously and *then*
+  /// awaits a request that revokes the token server-side. Awaiting the whole
+  /// call meant a slow or unreachable network froze the app on the settings
+  /// screen with no indication anything was happening — sometimes for the
+  /// full HTTP timeout.
+  ///
+  /// Local state is therefore cleared first and the revocation is left to
+  /// finish in the background. Nothing is lost by not waiting: the session is
+  /// already gone from this device either way, and the request retries
+  /// nothing — it only tells the server to invalidate a token that will
+  /// expire on its own regardless.
   Future<void> signOut() async {
-    if (_client != null) {
-      try {
-        await _client!.auth.signOut();
-      } catch (_) {}
-    }
+    final client = _client;
+
     _user = null;
     _session = null;
     _localMode = false;
     notifyListeners();
+
+    if (client == null) return;
+
+    // Calling this without awaiting still clears GoTrue's in-memory session
+    // and notifies its subscribers, because both happen before its first
+    // await. Only the server round trip is left running.
+    unawaited(
+      client.auth
+          .signOut()
+          .timeout(const Duration(seconds: 10))
+          .catchError((Object error) {
+        if (kDebugMode) {
+          debugPrint('[AuthService] background sign-out failed: $error');
+        }
+      }),
+    );
   }
 }

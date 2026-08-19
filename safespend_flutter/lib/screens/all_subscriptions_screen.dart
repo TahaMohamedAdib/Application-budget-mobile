@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../utils/currency_helper.dart';
 import '../models/recurring_rule.dart';
 import '../models/transaction.dart';
+import '../utils/money_format.dart';
 
 class AllSubscriptionsScreen extends StatelessWidget {
   const AllSubscriptionsScreen({super.key});
@@ -18,7 +19,7 @@ class AllSubscriptionsScreen extends StatelessWidget {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final now = DateTime.now();
         final allRules = provider.recurringRules
             .where((r) => r.isActive && DateTime.parse(r.nextDate).isAfter(now))
@@ -371,7 +372,7 @@ class AllSubscriptionsScreen extends StatelessWidget {
   }
 
   void _showEditSubscriptionModal(BuildContext context, AppProvider provider,
-      RecurringRule rule, NumberFormat cf) {
+      RecurringRule rule, MoneyFormat cf) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final noteCtrl =
         TextEditingController(text: rule.templateTransaction.note ?? '');

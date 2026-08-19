@@ -48,6 +48,10 @@ dependencies:
   flutter_markdown: ^0.6.18
   flutter_secure_storage: ^10.0.0
 
+  # Already present transitively (via supabase); declared so the app-lock PIN
+  # hashing can import it. Pure Dart — no native config, nothing new to fetch.
+  crypto: ^3.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

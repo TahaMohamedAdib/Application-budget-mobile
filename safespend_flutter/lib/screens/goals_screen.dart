@@ -16,6 +16,7 @@ import '../models/transaction.dart';
 import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/wealth_ui.dart';
+import '../utils/money_format.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -31,7 +32,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final savingsGoals =
             provider.goals.where((g) => g.type == 'savings').toList();
         final totalSaved =
@@ -137,7 +138,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   Widget _buildGoalCard(BuildContext context, Goal goal, AppProvider provider,
-      NumberFormat cf, bool isDark, int index) {
+      MoneyFormat cf, bool isDark, int index) {
     final progress = goal.targetAmount > 0
         ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
         : 0.0;
@@ -397,7 +398,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   void _showGoalDetails(
-      BuildContext context, Goal goal, AppProvider provider, NumberFormat cf) {
+      BuildContext context, Goal goal, AppProvider provider, MoneyFormat cf) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -550,7 +551,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   void _showContributeModal(
-      BuildContext context, Goal goal, AppProvider provider, NumberFormat cf) {
+      BuildContext context, Goal goal, AppProvider provider, MoneyFormat cf) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final amountCtrl = TextEditingController();
     String? selectedAccountId = AppProvider.cashOnHandId;
@@ -698,7 +699,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   void _showGoalForm(
       BuildContext context, AppProvider provider, Goal? existingGoal) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final cf = MoneyFormat.of(provider.settings);
     final isEditing = existingGoal != null;
 
     final nameCtrl = TextEditingController(text: existingGoal?.name ?? '');

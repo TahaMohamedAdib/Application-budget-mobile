@@ -417,6 +417,61 @@ class SupabaseSyncService {
     );
   }
 
+
+  // ============================================
+  // SCHEMA-TOLERANT WRITES
+  // ============================================
+
+  /// Columns PostgREST has told us this deployment does not have.
+  ///
+  /// A row is rejected wholesale when it names a column the database lacks
+  /// (PGRST204), so one un-run migration takes the whole table's sync down
+  /// rather than just the new field. Clients update on their own schedule and
+  /// databases migrate on another, so the two are routinely out of step.
+  /// Remembering the rejected column and retrying without it degrades to
+  /// "everything except the new field syncs", which is the behaviour a user
+  /// would expect.
+  static final Set<String> _missingColumns = <String>{};
+
+  /// Reads the column name out of a PGRST204 message, which reads:
+  /// `Could not find the 'salary_frequency' column of 'accounts' in the
+  /// schema cache`. Returns null for any other failure.
+  static String? _missingColumnFrom(Object error) {
+    if (error is! PostgrestException) return null;
+    if (error.code != 'PGRST204') return null;
+    final match = RegExp(r"'([^']+)' column").firstMatch(error.message);
+    return match?.group(1);
+  }
+
+  static Map<String, dynamic> _withoutMissing(Map<String, dynamic> row) =>
+      _missingColumns.isEmpty
+          ? row
+          : (Map<String, dynamic>.of(row)
+            ..removeWhere((key, _) => _missingColumns.contains(key)));
+
+  /// Upserts [rows], dropping any column the database turns out not to have
+  /// and retrying, until the write succeeds or fails for some other reason.
+  static Future<void> _upsertTolerant(
+      String table, List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return;
+    while (true) {
+      try {
+        await _db.from(table).upsert(rows.map(_withoutMissing).toList());
+        return;
+      } catch (e) {
+        final column = _missingColumnFrom(e);
+        // Not a schema mismatch, or one we have already stripped — the caller
+        // queues it for retry as before.
+        if (column == null || !_missingColumns.add(column)) rethrow;
+        if (kDebugMode) {
+          debugPrint(
+              "[Supabase] '$table' has no '$column' column; syncing without it. "
+              'Run the pending migrations to persist that field.');
+        }
+      }
+    }
+  }
+
   // ============================================
   // ACCOUNTS
   // ============================================
@@ -434,7 +489,9 @@ class SupabaseSyncService {
     'image_path': a.imagePath,
     'added_at': a.addedAt,
     'salary_amount': a.salaryAmount,
+    'salary_frequency': a.salaryFrequency,
     'salary_day': a.salaryDay,
+    'salary_anchor_date': a.salaryAnchorDate,
     'last_salary_date': a.lastSalaryDate,
     'debt_payment_amount': a.debtPaymentAmount,
     'debt_payment_day': a.debtPaymentDay,
@@ -453,7 +510,9 @@ class SupabaseSyncService {
     imagePath: a['image_path'] ?? a['icon'],
     addedAt: a['added_at'] ?? a['created_at'],
     salaryAmount: (a['salary_amount'] as num?)?.toDouble(),
+    salaryFrequency: a['salary_frequency'] as String?,
     salaryDay: a['salary_day'] as int?,
+    salaryAnchorDate: a['salary_anchor_date'] as String?,
     lastSalaryDate: a['last_salary_date'],
     debtPaymentAmount: (a['debt_payment_amount'] as num?)?.toDouble(),
     debtPaymentDay: a['debt_payment_day'] as int?,
@@ -475,7 +534,7 @@ class SupabaseSyncService {
   }
 
   static Future<void> _saveAccountRemote(String userId, Account account) async {
-    await _db.from('accounts').upsert(_accountToRow(userId, account));
+    await _upsertTolerant('accounts', [_accountToRow(userId, account)]);
   }
 
   static Future<void> saveAccount(String userId, Account account) async {
@@ -492,7 +551,7 @@ class SupabaseSyncService {
   static Future<void> _saveMultipleAccountsRemote(
       String userId, List<Account> accounts) async {
     final rows = accounts.map((account) => _accountToRow(userId, account)).toList();
-    await _db.from('accounts').upsert(rows);
+    await _upsertTolerant('accounts', rows);
   }
 
   static Future<void> saveMultipleAccounts(

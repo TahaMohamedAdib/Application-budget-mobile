@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/app_logo.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
+import '../../theme/ios_icons.dart';
+import '../../widgets/app_logo.dart';
+import '../../widgets/onboarding_ui.dart';
+
+/// First screen of the first run.
+///
+/// It used to paint its own slate gradient and pin white text over it, which
+/// meant it ignored the user's theme and looked like a different app than the
+/// one behind it. It now sits on the shared lit backdrop and takes its colours
+/// from the theme, so light mode is genuinely light.
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onNext;
 
@@ -11,220 +20,122 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0F172A), // slate-900
-              Color(0xFF1E293B), // slate-800
-              Color(0xFF334155), // slate-700
+    final s = S.of(context);
+
+    return OnboardingScaffold(
+      scrollable: false,
+      footer: Column(
+        children: [
+          OnboardingButton(
+            label: s.getStarted,
+            icon: IOSIcons.arrow_forward_rounded,
+            onTap: onNext,
+          )
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 420.ms)
+              .slideY(begin: 0.18, end: 0, curve: Curves.easeOutCubic),
+          const SizedBox(height: 14),
+          Text(
+            s.obWelcomeFootnote,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+          ).animate().fadeIn(duration: 500.ms, delay: 560.ms),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Spacer(flex: 3),
+          const AppLogoWidget(size: 112, onDark: false)
+              .animate()
+              .fadeIn(duration: 600.ms)
+              .scaleXY(
+                begin: 0.78,
+                end: 1,
+                duration: 600.ms,
+                curve: Curves.easeOutBack,
+              ),
+          const SizedBox(height: 34),
+          Column(
+            children: [
+              Text(
+                s.obWelcomeTo,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'SafeSpend',
+                style: TextStyle(
+                  fontSize: 52,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -2,
+                  height: 1.05,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                s.obTagline,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.5,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Decorative background circles
-            Positioned(
-              top: -80,
-              right: -60,
-              child: Container(
-                width: 280,
-                height: 280,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.06),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -100,
-              left: -80,
-              child: Container(
-                width: 340,
-                height: 340,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.05),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 160,
-              left: -40,
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.04),
-                ),
-              ),
-            ),
-
-            // Main content
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  children: [
-                    const Spacer(flex: 2),
-
-                    // Logo
-                    const AppLogoWidget(size: 118, onDark: false)
-                        .animate()
-                        .fadeIn(duration: 600.ms)
-                        .scaleXY(
-                            begin: 0.75,
-                            end: 1.0,
-                            duration: 600.ms,
-                            curve: Curves.easeOutBack),
-
-                    const SizedBox(height: 36),
-
-                    // Brand name
-                    Column(
-                      children: [
-                        Text(
-                          'Welcome to',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.75),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'SafeSpend',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 54,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -2.0,
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Your personal financial companion.\nTrack, plan, and grow your wealth.',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 16,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    )
-                        .animate()
-                        .fadeIn(duration: 500.ms, delay: 200.ms)
-                        .slideY(begin: 0.15, end: 0),
-
-                    const SizedBox(height: 40),
-
-                    // Feature pills
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _featurePill(
-                            context, IOSIcons.shield_rounded, 'Secure'),
-                        const SizedBox(width: 10),
-                        _featurePill(
-                            context, IOSIcons.trending_up_rounded, 'Smart'),
-                        const SizedBox(width: 10),
-                        _featurePill(context, IOSIcons.bolt_rounded, 'Fast'),
-                      ],
-                    ).animate().fadeIn(duration: 500.ms, delay: 350.ms),
-
-                    const Spacer(flex: 3),
-
-                    // CTA button
-                    Container(
-                      width: double.infinity,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.18),
-                            blurRadius: 24,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: onNext,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppTheme.gold700,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18)),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Get Started',
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.3),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(IOSIcons.arrow_forward_rounded, size: 20),
-                          ],
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .fadeIn(duration: 500.ms, delay: 500.ms)
-                        .slideY(begin: 0.2, end: 0),
-
-                    const SizedBox(height: 20),
-
-                    Text(
-                      'No account required · 100% offline',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 600.ms),
-
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          )
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 180.ms)
+              .slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic),
+          const SizedBox(height: 34),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _Pill(icon: IOSIcons.shield_rounded, label: s.obPillPrivate),
+              _Pill(icon: IOSIcons.auto_awesome_rounded, label: s.obPillSmart),
+              _Pill(icon: IOSIcons.bolt_rounded, label: s.obPillFast),
+            ],
+          ).animate().fadeIn(duration: 500.ms, delay: 320.ms),
+          const Spacer(flex: 4),
+        ],
       ),
     );
   }
+}
 
-  Widget _featurePill(BuildContext context, IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
-      ),
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnboardingGlass(
+      radius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: AppTheme.adaptiveIcon(context), size: 14),
-          const SizedBox(width: 6),
+          Icon(icon, size: 15, color: AppTheme.adaptiveIcon(context)),
+          const SizedBox(width: 7),
           Text(
             label,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).textTheme.titleMedium?.color,
+            ),
           ),
         ],
       ),

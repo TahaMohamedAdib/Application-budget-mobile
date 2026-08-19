@@ -1,198 +1,81 @@
 import 'package:flutter/material.dart';
-import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../providers/app_provider.dart';
-import '../../theme/app_theme.dart';
+import '../../theme/ios_icons.dart';
+import '../../widgets/onboarding_ui.dart';
 
+/// Language picker, shown second so the rest of the flow can be read.
+///
+/// The list is driven off [S.supportedLocales] rather than a hardcoded copy,
+/// so adding a locale to the app adds it here without a second edit — the old
+/// duplicate list could silently fall out of step.
 class LanguageSelectionScreen extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  const LanguageSelectionScreen(
-      {super.key, required this.onNext, required this.onBack});
+  const LanguageSelectionScreen({
+    super.key,
+    required this.onNext,
+    required this.onBack,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<AppProvider>(context);
-    final currentLocale = provider.settings.locale;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
+    final provider = context.watch<AppProvider>();
+    final current = S.normalizeLocaleCode(provider.settings.locale);
 
-    final languages = [
-      {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
-      {'code': 'fr', 'name': 'Français', 'flag': '🇫🇷'},
-      {'code': 'ar', 'name': 'العربية', 'flag': '🇸🇦'},
-      {'code': 'es', 'name': 'Español', 'flag': '🇪🇸'},
-      {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
-      {'code': 'pt', 'name': 'Português', 'flag': '🇵🇹'},
-      {'code': 'it', 'name': 'Italiano', 'flag': '🇮🇹'},
-      {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
-      {'code': 'nl', 'name': 'Nederlands', 'flag': '🇳🇱'},
-      {'code': 'ru', 'name': 'Русский', 'flag': '🇷🇺'},
-      {'code': 'zh', 'name': '中文', 'flag': '🇨🇳'},
-      {'code': 'ja', 'name': '日本語', 'flag': '🇯🇵'},
-      {'code': 'ko', 'name': '한국어', 'flag': '🇰🇷'},
-      {'code': 'hi', 'name': 'हिन्दी', 'flag': '🇮🇳'},
-      {'code': 'id', 'name': 'Bahasa Indonesia', 'flag': '🇮🇩'},
-      {'code': 'pl', 'name': 'Polski', 'flag': '🇵🇱'},
-    ];
-
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).scaffoldBackgroundColor,
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
+    return OnboardingScaffold(
+      onBack: onBack,
+      footer: OnboardingButton(
+        label: s.next,
+        icon: IOSIcons.arrow_forward_rounded,
+        onTap: onNext,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          OnboardingHero(
+            icon: IOSIcons.language_rounded,
+            title: s.obLanguageTitle,
+            subtitle: s.obLanguageSubtitle,
           ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(IOSIcons.arrow_back),
-                      onPressed: onBack,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Icon(
-                  IOSIcons.language_rounded,
-                  size: 64,
-                  color: AppTheme.adaptiveIcon(context),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  S.of(context).selectLanguage,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Choose your preferred language',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                Expanded(
-                  child: ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: languages.length,
-                    itemBuilder: (context, index) {
-                      final lang = languages[index];
-                      final isSelected = currentLocale == lang['code'];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: GestureDetector(
-                          onTap: () {
-                            provider.setLocale(lang['code']!);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppTheme.goldPrimary.withOpacity(0.12)
-                                  : (isDark
-                                      ? AppTheme.darkSurface
-                                      : AppTheme.lightSurface),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppTheme.goldPrimary
-                                    : (isDark
-                                        ? Colors.white.withOpacity(0.09)
-                                        : AppTheme.lightBorder),
-                                width: isSelected ? 2 : 1,
-                              ),
-                              boxShadow: isDark
-                                  ? []
-                                  : (isSelected
-                                      ? AppTheme.goldGlow
-                                      : AppTheme.cardShadowLight),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppTheme.goldPrimary.withOpacity(0.12)
-                                        : (isDark
-                                            ? AppTheme.darkSurfaceElevated
-                                            : AppTheme.lightBackground),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      lang['flag']!,
-                                      style: const TextStyle(fontSize: 24),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Text(
-                                    lang['name']!,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: isSelected
-                                              ? AppTheme.goldPrimary
-                                              : null,
-                                        ),
-                                  ),
-                                ),
-                                if (isSelected)
-                                  Icon(
-                                    IOSIcons.check_circle_rounded,
-                                    color: AppTheme.adaptiveIcon(context),
-                                    size: 24,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      S.of(context).next,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 26),
+          for (final locale in S.supportedLocales)
+            OnboardingChoice(
+              title: S.displayNameForLocale(locale.languageCode),
+              subtitle: S.languageNames[locale.languageCode] == null
+                  ? null
+                  : locale.languageCode.toUpperCase(),
+              selected: current == locale.languageCode,
+              onTap: () =>
+                  context.read<AppProvider>().setLocale(locale.languageCode),
+              leading: _Flag(code: locale.languageCode),
             ),
-          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _Flag extends StatelessWidget {
+  const _Flag({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 42,
+      height: 42,
+      child: Center(
+        child: Text(
+          S.flagForLocale(code),
+          style: const TextStyle(fontSize: 26),
         ),
       ),
     );

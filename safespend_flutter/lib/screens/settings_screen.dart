@@ -1,949 +1,291 @@
 import 'package:flutter/material.dart';
-import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+
+import '../l10n/app_localizations.dart';
 import '../models/settings.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
-import '../utils/currency_helper.dart';
-import '../l10n/app_localizations.dart';
+import '../theme/ios_icons.dart';
+import '../utils/money_format.dart';
+import '../widgets/settings_ui.dart';
 import 'account_screen.dart';
+import 'settings/about_screen.dart';
+import 'settings/appearance_screen.dart';
+import 'settings/currency_format_screen.dart';
+import 'settings/data_storage_screen.dart';
+import 'settings/help_support_screen.dart';
+import 'settings/language_screen.dart';
+import 'settings/income_screen.dart';
+import 'settings/notifications_screen.dart';
+import 'settings/security_screen.dart';
 
+/// Settings hub. Each row is a doorway to a focused screen rather than an
+/// inline dialog, so every preference has room to explain itself.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
 
-    return Selector<AppProvider, Settings>(
-      selector: (_, p) => p.settings,
-      builder: (context, settings, _) {
-        final provider = context.read<AppProvider>();
-        final isDark = settings.isDarkMode;
-        final s = S.of(context);
-
-        return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: SafeArea(
-            child: Column(
+    // Selecting a record rather than watching the whole provider keeps the
+    // hub from rebuilding on every transaction, while still reacting when the
+    // income summary shown on the Income row changes.
+    return Selector<AppProvider, ({Settings settings, double monthlyIncome})>(
+      selector: (_, p) =>
+          (settings: p.settings, monthlyIncome: p.monthlyIncomeFromSalaries),
+      builder: (context, selected, _) {
+        final settings = selected.settings;
+        return SettingsScaffold(
+          title: s.settings,
+          children: [
+            const _ProfileCard(),
+            SettingsGroup(
+              header: s.preferences,
               children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: Icon(IOSIcons.arrow_back_rounded,
-                              size: 22, color: AppTheme.adaptiveIcon(context)),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Text(s.settings,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                )
-                    .animate()
-                    .fadeIn(duration: 260.ms, curve: Curves.easeOut)
-                    .slideY(begin: -0.05, end: 0, curve: Curves.easeOut),
-
-                // Content
-                Expanded(
-                  child: ListView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-                    children: [
-                      // Appearance
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: AppTheme.premiumCard(context),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s.appearance,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                _buildThemeOption(context,
-                                    icon: IOSIcons.light_mode_rounded,
-                                    label: s.light,
-                                    isSelected: settings.themeMode == 'light',
-                                    onTap: () =>
-                                        provider.setThemeMode('light')),
-                                const SizedBox(width: 10),
-                                _buildThemeOption(context,
-                                    icon: IOSIcons.dark_mode_rounded,
-                                    label: s.dark,
-                                    isSelected: settings.themeMode == 'dark',
-                                    onTap: () => provider.setThemeMode('dark')),
-                                const SizedBox(width: 10),
-                                _buildThemeOption(context,
-                                    icon: IOSIcons.smartphone_rounded,
-                                    label: s.system,
-                                    isSelected: settings.themeMode == 'system',
-                                    onTap: () =>
-                                        provider.setThemeMode('system')),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ).animate().fadeIn(
-                          duration: 280.ms,
-                          delay: 80.ms,
-                          curve: Curves.easeOut),
-
-                      const SizedBox(height: 16),
-
-                      // Currency
-                      GestureDetector(
-                        onTap: () => _showCurrencyPicker(context, provider),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: AppTheme.premiumCard(context),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.goldPrimary.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: const Center(
-                                    child: Text('💱',
-                                        style: TextStyle(fontSize: 20))),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(s.currency,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.w700)),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${CurrencyHelper.getSymbol(provider.settings.currency)} · ${provider.settings.currency} · ${CurrencyHelper.getName(provider.settings.currency)}',
-                                      style:
-                                          Theme.of(context).textTheme.bodySmall,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(IOSIcons.chevron_right_rounded,
-                                  size: 20,
-                                  color: AppTheme.adaptiveIcon(context)),
-                            ],
-                          ),
-                        ),
-                      ).animate().fadeIn(duration: 500.ms, delay: 150.ms),
-
-                      const SizedBox(height: 16),
-
-                      // Language
-                      GestureDetector(
-                        onTap: () => _showLanguagePicker(context, provider),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: AppTheme.premiumCard(context),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFF6366F1).withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    S.flagForLocale(settings.locale),
-                                    style: const TextStyle(fontSize: 20),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(s.language,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.w700)),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                        S.displayNameForLocale(settings.locale),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall),
-                                  ],
-                                ),
-                              ),
-                              Icon(IOSIcons.chevron_right_rounded,
-                                  size: 20,
-                                  color: AppTheme.adaptiveIcon(context)),
-                            ],
-                          ),
-                        ),
-                      ).animate().fadeIn(duration: 500.ms, delay: 170.ms),
-
-                      const SizedBox(height: 16),
-
-                      // Menu Items
-                      Container(
-                        decoration: AppTheme.premiumCard(context),
-                        child: Column(
-                          children: [
-                            _buildMenuItem(context,
-                                icon: IOSIcons.person_rounded,
-                                label: s.account,
-                                onTap: () => _showAccountDialog(context)),
-                            Divider(
-                                height: 1,
-                                indent: 56,
-                                color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context,
-                                icon: IOSIcons.notifications_rounded,
-                                label: s.notifications,
-                                onTap: () => _showNotificationsDialog(
-                                    context, provider)),
-                            Divider(
-                                height: 1,
-                                indent: 56,
-                                color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context,
-                                icon: IOSIcons.shield_rounded,
-                                label: s.privacy,
-                                onTap: () => _showPrivacyDialog(context)),
-                            Divider(
-                                height: 1,
-                                indent: 56,
-                                color: Theme.of(context).dividerColor),
-                            _buildMenuItem(context,
-                                icon: IOSIcons.help_outline_rounded,
-                                label: s.helpAndSupport,
-                                onTap: () => _showHelpDialog(context)),
-                          ],
-                        ),
-                      ).animate().fadeIn(
-                          duration: 280.ms,
-                          delay: 120.ms,
-                          curve: Curves.easeOut),
-
-                      const SizedBox(height: 16),
-
-                      // Log Out
-                      GestureDetector(
-                        onTap: () => _confirmLogOut(context, provider),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 16),
-                          decoration: AppTheme.premiumCard(context),
-                          child: Row(
-                            children: [
-                              Icon(IOSIcons.logout_rounded,
-                                  color: AppTheme.adaptiveIcon(context),
-                                  size: 20),
-                              const SizedBox(width: 14),
-                              Text(s.logOut,
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.error,
-                                      fontSize: 15)),
-                            ],
-                          ),
-                        ),
-                      ).animate().fadeIn(
-                          duration: 280.ms,
-                          delay: 160.ms,
-                          curve: Curves.easeOut),
-
-                      const SizedBox(height: 32),
-
-                      Center(
-                        child: Text(s.version,
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ).animate().fadeIn(
-                          duration: 280.ms,
-                          delay: 200.ms,
-                          curve: Curves.easeOut),
-                    ],
-                  ),
+                SettingsRow(
+                  icon: IOSIcons.light_mode_rounded,
+                  label: s.appearance,
+                  detail: s.appearanceDetail,
+                  value: _themeLabel(s, settings.themeMode),
+                  onTap: () => _open(context, const AppearanceScreen()),
+                ),
+                SettingsRow(
+                  icon: IOSIcons.attach_money_rounded,
+                  label: s.currencyAndFormat,
+                  detail: s.currencyAndFormatDetail,
+                  value: settings.currency,
+                  onTap: () => _open(context, const CurrencyFormatScreen()),
+                ),
+                SettingsRow(
+                  icon: IOSIcons.language_rounded,
+                  label: s.language,
+                  detail: s.languageDetail,
+                  value: S.displayNameForLocale(settings.locale),
+                  onTap: () => _open(context, const LanguageScreen()),
+                ),
+                SettingsRow(
+                  icon: IOSIcons.payments_rounded,
+                  label: s.incomeSettings,
+                  detail: s.incomeSettingsDetail,
+                  value: selected.monthlyIncome > 0
+                      ? MoneyFormat.of(settings).format(selected.monthlyIncome)
+                      : s.incomeNoSalary,
+                  onTap: () => _open(context, const IncomeScreen()),
+                ),
+                SettingsRow(
+                  icon: IOSIcons.notifications_rounded,
+                  label: s.notifications,
+                  detail: s.notificationsDetail,
+                  value: (settings.notificationsEnabled ?? true) ? s.on : s.off,
+                  onTap: () => _open(context, const NotificationsScreen()),
                 ),
               ],
             ),
-          ),
+            SettingsGroup(
+              header: s.privacyAndData,
+              children: [
+                SettingsRow(
+                  icon: IOSIcons.lock_rounded,
+                  label: s.securityAndPrivacy,
+                  detail: s.securityAndPrivacyDetail,
+                  value: settings.appLockEnabled ? s.locked : null,
+                  onTap: () => _open(context, const SecurityScreen()),
+                ),
+                SettingsRow(
+                  icon: IOSIcons.account_balance_wallet_rounded,
+                  label: s.dataAndStorage,
+                  detail: s.dataAndStorageDetail,
+                  onTap: () => _open(context, const DataStorageScreen()),
+                ),
+              ],
+            ),
+            SettingsGroup(
+              header: s.support,
+              children: [
+                SettingsRow(
+                  icon: IOSIcons.help_outline_rounded,
+                  label: s.helpAndSupport,
+                  detail: s.helpAndSupportDetail,
+                  onTap: () => _open(context, const HelpSupportScreen()),
+                ),
+                SettingsRow(
+                  icon: IOSIcons.info_outline_rounded,
+                  label: s.about,
+                  detail: s.aboutDetail,
+                  onTap: () => _open(context, const AboutScreen()),
+                ),
+              ],
+            ),
+            SettingsGroup(
+              children: [
+                SettingsActionRow(
+                  icon: IOSIcons.logout_rounded,
+                  label: s.logOut,
+                  destructive: true,
+                  onTap: () => _logOut(context),
+                ),
+              ],
+            ),
+            Center(
+              child: Text(
+                'SafeSpend ${AboutScreen.appVersion}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
-  void _showCurrencyPicker(BuildContext context, AppProvider provider) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _CurrencyPickerSheet(
-        currentCurrency: provider.settings.currency,
-        onSelect: (code) {
-          provider.updateSettings(provider.settings.copyWith(currency: code));
-          Navigator.pop(ctx);
-        },
-      ),
-    );
+  static void _open(BuildContext context, Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  Widget _buildThemeOption(BuildContext context,
-      {required IconData icon,
-      required String label,
-      required bool isSelected,
-      required VoidCallback onTap}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Expanded(
+  static String _themeLabel(S s, String mode) => switch (mode) {
+        'light' => s.light,
+        'dark' => s.dark,
+        _ => s.system,
+      };
+
+  static Future<void> _logOut(BuildContext context) async {
+    final s = S.of(context);
+    final confirmed = await showSettingsConfirm(
+      context,
+      title: s.logOutConfirm,
+      message: s.logOutDesc,
+      confirmLabel: s.logOut,
+      cancelLabel: s.cancel,
+      destructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final provider = context.read<AppProvider>();
+    await auth.signOut();
+    provider.clearData();
+    if (context.mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+}
+
+/// Identity card at the top of the hub — who you're signed in as, and the
+/// headline numbers the rest of settings applies to.
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final auth = context.watch<AuthService>();
+    final provider = context.watch<AppProvider>();
+
+    final email = auth.user?.email;
+    final displayName =
+        (auth.user?.userMetadata?['display_name'] as String?)?.trim();
+    final name = (displayName?.isNotEmpty ?? false)
+        ? displayName!
+        : (email?.split('@').first ?? s.user);
+
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22),
       child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppTheme.goldPrimary.withOpacity(isDark ? 0.2 : 0.1)
-                : (isDark
-                    ? AppTheme.darkSurfaceElevated
-                    : AppTheme.lightBackground),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: isSelected ? AppTheme.goldPrimary : Colors.transparent,
-                width: 2),
-          ),
-          child: Column(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AccountScreen()),
+        ),
+        child: GlassPanel(
+          elevated: true,
+          padding: const EdgeInsets.all(18),
+          child: Row(
             children: [
-              Icon(icon, size: 22, color: AppTheme.adaptiveIcon(context)),
-              const SizedBox(height: 8),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? AppTheme.goldPrimary
-                          : Theme.of(context).textTheme.bodySmall?.color)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(BuildContext context,
-      {required IconData icon,
-      required String label,
-      required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: AppTheme.adaptiveIcon(context)),
-            const SizedBox(width: 16),
-            Expanded(
-                child: Text(label,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w500))),
-            Icon(IOSIcons.chevron_right_rounded,
-                size: 20, color: AppTheme.adaptiveIcon(context)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAccountDialog(BuildContext context) {
-    Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const AccountScreen()));
-  }
-
-  void _showNotificationsDialog(BuildContext context, AppProvider provider) {
-    final s = S.of(context);
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(children: [
-            Icon(IOSIcons.notifications_rounded,
-                color: AppTheme.adaptiveIcon(ctx)),
-            const SizedBox(width: 10),
-            Text(s.notifications,
-                style:
-                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-          ]),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                value: provider.settings.notificationsEnabled ?? true,
-                onChanged: (v) {
-                  provider.updateSettings(
-                      provider.settings.copyWith(notificationsEnabled: v));
-                  setS(() {});
-                },
-                title: Text(s.pushNotifications),
-                subtitle: Text(s.remindersForBills),
-                activeColor: AppTheme.goldPrimary,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.done))
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPrivacyDialog(BuildContext context) {
-    final s = S.of(context);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(children: [
-          Icon(IOSIcons.shield_rounded, color: AppTheme.adaptiveIcon(ctx)),
-          const SizedBox(width: 10),
-          Text(s.privacy,
-              style:
-                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        ]),
-        content: Text(s.privacyDesc,
-            style: const TextStyle(height: 1.5, fontSize: 13)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.gotIt))
-        ],
-      ),
-    );
-  }
-
-  void _showHelpDialog(BuildContext context) {
-    final s = S.of(context);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(children: [
-          Icon(IOSIcons.help_outline_rounded,
-              color: AppTheme.adaptiveIcon(ctx)),
-          const SizedBox(width: 10),
-          Text(s.helpAndSupport,
-              style:
-                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _HelpItem(q: s.helpQ1, a: s.helpA1),
-            const SizedBox(height: 12),
-            _HelpItem(q: s.helpQ2, a: s.helpA2),
-            const SizedBox(height: 12),
-            _HelpItem(q: s.helpQ3, a: s.helpA3),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.close))
-        ],
-      ),
-    );
-  }
-
-  void _confirmLogOut(BuildContext context, AppProvider provider) {
-    final s = S.of(context);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(s.logOutConfirm,
-            style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: Text(s.logOutDesc),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: Text(s.cancel)),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final auth = Provider.of<AuthService>(context, listen: false);
-              await auth.signOut();
-              provider.clearData();
-              if (context.mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-            child: Text(s.logOut),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLanguagePicker(BuildContext context, AppProvider provider) {
-    final s = S.of(context);
-    final currentLocale = S.normalizeLocaleCode(provider.settings.locale);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Center(
-                  child: Container(
-                      width: 48,
-                      height: 5,
-                      decoration: BoxDecoration(
-                          color: Theme.of(ctx).dividerColor,
-                          borderRadius: BorderRadius.circular(3)))),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
+              _Avatar(initial: initial),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(s.selectLanguage,
-                        style: Theme.of(ctx)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    IconButton(
-                        icon: const Icon(IOSIcons.close_rounded, size: 20),
-                        onPressed: () => Navigator.pop(ctx)),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      email ?? s.localMode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      // Built by hand this printed an unseparated figure with
+                      // the symbol jammed against it — and ignored the hide
+                      // setting, leaving net worth legible on the one screen
+                      // you open to turn hiding on.
+                      '${provider.accounts.length} ${s.accounts.toLowerCase()} · '
+                      '${MoneyFormat.of(provider.settings).negativeSigned(provider.getNetWorth())} '
+                      '${s.netWorth.toLowerCase()}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(fontSize: 11.5),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                  children: S.localeDisplayNames.entries.map((entry) {
-                    final code = entry.key;
-                    final name = entry.value;
-                    final flag = S.flagForLocale(code);
-                    final isSelected = code == currentLocale;
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        provider.setLocale(code);
-                        Navigator.pop(ctx);
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppTheme.goldPrimary
-                                  .withOpacity(isDark ? 0.15 : 0.08)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
-                          border: isSelected
-                              ? Border.all(
-                                  color: AppTheme.goldPrimary, width: 1.5)
-                              : null,
-                        ),
-                        child: Row(
-                          children: [
-                            Text(flag, style: const TextStyle(fontSize: 24)),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(name,
-                                      style: Theme.of(ctx)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              color: isSelected
-                                                  ? AppTheme.goldPrimary
-                                                  : null)),
-                                  Text(code.toUpperCase(),
-                                      style: Theme.of(ctx).textTheme.bodySmall),
-                                ],
-                              ),
-                            ),
-                            if (isSelected)
-                              Icon(IOSIcons.check_circle_rounded,
-                                  color: AppTheme.adaptiveIcon(ctx), size: 22),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
+              Icon(IOSIcons.chevron_right_rounded,
+                  size: 19, color: AppTheme.adaptiveIcon(context, alpha: 0.7)),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
 
-class _HelpItem extends StatelessWidget {
-  final String q;
-  final String a;
-  const _HelpItem({required this.q, required this.a});
-  @override
-  Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(q,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-      const SizedBox(height: 3),
-      Text(a,
-          style: TextStyle(
-              fontSize: 12, color: Colors.grey.shade600, height: 1.4)),
-    ]);
-  }
-}
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.initial});
 
-class _CurrencyPickerSheet extends StatefulWidget {
-  final String currentCurrency;
-  final ValueChanged<String> onSelect;
-  const _CurrencyPickerSheet(
-      {required this.currentCurrency, required this.onSelect});
-
-  @override
-  State<_CurrencyPickerSheet> createState() => _CurrencyPickerSheetState();
-}
-
-class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
-  final _searchController = TextEditingController();
-  String _query = '';
-
-  static const _sections = {
-    'Popular': ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY'],
-    'Americas': [
-      'BRL',
-      'MXN',
-      'ARS',
-      'CLP',
-      'COP',
-      'PEN',
-      'UYU',
-      'DOP',
-      'JMD',
-      'TTD',
-      'NZD'
-    ],
-    'Europe': [
-      'SEK',
-      'NOK',
-      'DKK',
-      'PLN',
-      'CZK',
-      'HUF',
-      'RON',
-      'BGN',
-      'HRK',
-      'ISK',
-      'RUB',
-      'UAH',
-      'TRY',
-      'GEL'
-    ],
-    'Asia & Pacific': [
-      'INR',
-      'PKR',
-      'BDT',
-      'LKR',
-      'NPR',
-      'KRW',
-      'HKD',
-      'SGD',
-      'TWD',
-      'THB',
-      'VND',
-      'MYR',
-      'IDR',
-      'PHP',
-      'MMK',
-      'KHR'
-    ],
-    'Middle East': [
-      'AED',
-      'SAR',
-      'QAR',
-      'KWD',
-      'BHD',
-      'OMR',
-      'JOD',
-      'ILS',
-      'EGP',
-      'LBP',
-      'IQD',
-      'IRR'
-    ],
-    'Africa': [
-      'ZAR',
-      'NGN',
-      'KES',
-      'GHS',
-      'TZS',
-      'UGX',
-      'ETB',
-      'MAD',
-      'TND',
-      'DZD',
-      'XOF',
-      'XAF',
-      'RWF'
-    ],
-  };
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  final String initial;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final s = S.of(context);
-
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
+      width: 52,
+      height: 52,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        shape: BoxShape.circle,
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.10)
+            : Colors.black.withValues(alpha: 0.05),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.14)
+              : Colors.black.withValues(alpha: 0.06),
+        ),
       ),
-      child: Column(
-        children: [
-          // Handle + header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-            child: Column(
-              children: [
-                Center(
-                    child: Container(
-                        width: 48,
-                        height: 5,
-                        decoration: BoxDecoration(
-                            color: Theme.of(context).dividerColor,
-                            borderRadius: BorderRadius.circular(3)))),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Text(s.selectCurrency,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    IconButton(
-                        icon: const Icon(IOSIcons.close_rounded, size: 20),
-                        onPressed: () => Navigator.pop(context)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Search bar
-                TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _query = v.toLowerCase()),
-                  decoration: InputDecoration(
-                    hintText: s.searchCurrency,
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 14, right: 8),
-                      child: Icon(IOSIcons.search_rounded,
-                          size: 18, color: AppTheme.adaptiveIcon(context)),
-                    ),
-                    prefixIconConstraints:
-                        const BoxConstraints(minWidth: 38, minHeight: 38),
-                    suffixIcon: _query.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(IOSIcons.clear_rounded, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _query = '');
-                            })
-                        : null,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none),
-                    filled: true,
-                    fillColor: isDark
-                        ? AppTheme.darkSurfaceElevated
-                        : AppTheme.lightBackground,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ],
+      child: Text(
+        initial,
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).textTheme.titleLarge?.color,
             ),
-          ),
-          const SizedBox(height: 12),
-          // Currency list
-          Expanded(
-            child: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-              children: _buildSections(isDark),
-            ),
-          ),
-        ],
       ),
     );
-  }
-
-  List<Widget> _buildSections(bool isDark) {
-    final widgets = <Widget>[];
-    final s = S.of(context);
-
-    for (final entry in _sections.entries) {
-      final sectionName = entry.key;
-      final codes = entry.value.where((code) {
-        if (_query.isEmpty) return true;
-        final name = CurrencyHelper.getName(code).toLowerCase();
-        final symbol = CurrencyHelper.getSymbol(code).toLowerCase();
-        return code.toLowerCase().contains(_query) ||
-            name.contains(_query) ||
-            symbol.contains(_query);
-      }).toList();
-
-      if (codes.isEmpty) continue;
-
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 10),
-        child: Text(sectionName,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-      ));
-
-      widgets.add(Container(
-        decoration: AppTheme.premiumCard(context),
-        child: Column(
-          children: codes.asMap().entries.map((e) {
-            final code = e.value;
-            final isLast = e.key == codes.length - 1;
-            final isSelected = code == widget.currentCurrency;
-            final symbol = CurrencyHelper.getSymbol(code);
-            final name = CurrencyHelper.getName(code);
-
-            return Column(
-              children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.onSelect(code),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppTheme.goldPrimary.withOpacity(0.12)
-                                : (isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                              child: Text(symbol,
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: isSelected
-                                          ? AppTheme.goldPrimary
-                                          : Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.color))),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: isSelected
-                                              ? AppTheme.goldPrimary
-                                              : null)),
-                              Text(code,
-                                  style: Theme.of(context).textTheme.bodySmall),
-                            ],
-                          ),
-                        ),
-                        if (isSelected)
-                          Icon(IOSIcons.check_circle_rounded,
-                              color: AppTheme.adaptiveIcon(context), size: 22),
-                      ],
-                    ),
-                  ),
-                ),
-                if (!isLast)
-                  Divider(
-                      height: 1,
-                      indent: 68,
-                      color: Theme.of(context).dividerColor),
-              ],
-            );
-          }).toList(),
-        ),
-      ));
-    }
-
-    if (widgets.isEmpty) {
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(top: 60),
-        child: Center(
-            child: Text(s.noCurrenciesFound,
-                style: Theme.of(context).textTheme.bodySmall)),
-      ));
-    }
-
-    return widgets;
   }
 }

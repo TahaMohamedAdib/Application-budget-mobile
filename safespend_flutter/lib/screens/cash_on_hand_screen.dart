@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../utils/currency_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/money_format.dart';
 
 class CashOnHandScreen extends StatelessWidget {
   const CashOnHandScreen({super.key});
@@ -16,7 +16,7 @@ class CashOnHandScreen extends StatelessWidget {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final totalCash = provider.totalCash;
 
         // Get all cash-related transactions sorted by date descending
@@ -274,7 +274,7 @@ class CashOnHandScreen extends StatelessWidget {
                                             ),
                                           ),
                                           Text(
-                                            '${addsCash ? '+' : '-'}${cf.format(t.amount)}',
+                                            cf.signed(t.amount, positive: addsCash),
                                             style: const TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w700,
