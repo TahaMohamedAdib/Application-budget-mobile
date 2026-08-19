@@ -366,33 +366,14 @@ class HomeScreenState extends State<HomeScreen> {
                               Text(s.accounts,
                                   style:
                                       Theme.of(context).textTheme.titleLarge),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Adding an account used to live on the
-                                  // Accounts screen this section replaces.
-                                  GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () => showAddAccountSheet(context),
-                                    child: Padding(
-                                      padding:
-                                          const EdgeInsets.only(right: 14),
-                                      child: Icon(IOSIcons.add,
-                                          size: 20,
-                                          color: AppTheme.adaptiveIcon(
-                                              context)),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: widget.onOpenWealth,
-                                    child: Text(s.seeAll,
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: AppTheme.goldPrimary,
-                                            fontWeight: FontWeight.w500)),
-                                  ),
-                                ],
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: widget.onOpenWealth,
+                                child: Text(s.seeAll,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.goldPrimary,
+                                        fontWeight: FontWeight.w500)),
                               ),
                             ],
                           ),
