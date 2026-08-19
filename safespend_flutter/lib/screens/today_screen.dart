@@ -10,6 +10,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
+import 'accounts_screen.dart';
 import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
 import 'portfolio_screen.dart';
@@ -19,7 +20,6 @@ import 'transactions_screen.dart';
 import 'all_subscriptions_screen.dart';
 import '../widgets/add_transaction_modal.dart';
 import '../widgets/account_picker_field.dart';
-import '../widgets/add_account_modal.dart';
 import '../widgets/app_picker_field.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/balance_series.dart';
@@ -391,8 +391,11 @@ class HomeScreenState extends State<HomeScreen> {
                                   amount: account.balance,
                                   cf: currencyFormat,
                                   imagePath: account.imagePath,
-                                  onTap: () =>
-                                      showEditAccountSheet(context, account),
+                                  onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const AccountsScreen())),
                                 ),
                               )),
                           Padding(

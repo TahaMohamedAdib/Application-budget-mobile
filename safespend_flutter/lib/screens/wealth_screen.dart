@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/account_picker_field.dart';
+import 'accounts_screen.dart';
 import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
 import 'personal_debts_screen.dart';
@@ -356,6 +357,10 @@ class _WealthScreenState extends State<WealthScreen> {
                             sublabel: selectedAccount?.name ?? s.checkingCurrent,
                             amount: totalBank,
                             isFirst: true,
+                            onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const AccountsScreen())),
                           ),
                           _buildBreakdownItem(
                             context: context,
@@ -459,9 +464,7 @@ class _WealthScreenState extends State<WealthScreen> {
     required String label,
     required String sublabel,
     required double amount,
-    /// Null leaves the row inert — the Accounts row has nowhere to drill into
-    /// since the standalone Accounts screen was removed.
-    VoidCallback? onTap,
+    required VoidCallback onTap,
     /// Colour for the amount only — icons stay neutral across the app.
     /// Null leaves the amount in the default text colour.
     Color? amountColor,
