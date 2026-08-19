@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:safespend_flutter/theme/ios_icons.dart';
-import '../../theme/app_theme.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../theme/ios_icons.dart';
+import '../../widgets/onboarding_ui.dart';
+
+/// The problem statement, before the app explains itself.
+///
+/// Rewritten away from "78% of Americans" — an unsourced statistic about one
+/// country, shown to a user who has just picked one of sixteen languages, is
+/// worse than no number at all.
 class HookScreen extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
@@ -10,118 +18,47 @@ class HookScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).scaffoldBackgroundColor,
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(IOSIcons.arrow_back),
-                      onPressed: onBack,
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Icon(
-                  IOSIcons.warning_amber_rounded,
-                  size: 80,
-                  color: AppTheme.adaptiveIcon(context),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Living Paycheck to Paycheck?',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'You\'re not alone. 78% of Americans struggle to manage their money effectively.',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                _buildProblemItem(
-                  context,
-                  IOSIcons.credit_card,
-                  'Unexpected bills catch you off guard',
-                ),
-                _buildProblemItem(
-                  context,
-                  IOSIcons.trending_down,
-                  'Money disappears before month ends',
-                ),
-                _buildProblemItem(
-                  context,
-                  IOSIcons.help_outline,
-                  'No clear picture of your finances',
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'I Need Help',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+    final s = S.of(context);
 
-  Widget _buildProblemItem(BuildContext context, IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
+    return OnboardingScaffold(
+      onBack: onBack,
+      footer: OnboardingButton(label: s.obHookCta, onTap: onNext),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.adaptiveIconSurface(context),
-              borderRadius: BorderRadius.circular(14),
+          const SizedBox(height: 12),
+          OnboardingHero(
+            icon: IOSIcons.help_outline_rounded,
+            title: s.obHookTitle,
+            subtitle: s.obHookSubtitle,
+          ).animate().fadeIn(duration: 420.ms).slideY(
+                begin: 0.08,
+                end: 0,
+                curve: Curves.easeOutCubic,
+              ),
+          const SizedBox(height: 28),
+          ...[
+            OnboardingBullet(
+              icon: IOSIcons.receipt_long_rounded,
+              title: s.obHookPoint1,
+              detail: s.obHookPoint1Detail,
             ),
-            child: Icon(icon, color: AppTheme.adaptiveIcon(context)),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyLarge,
+            OnboardingBullet(
+              icon: IOSIcons.trending_down,
+              title: s.obHookPoint2,
+              detail: s.obHookPoint2Detail,
             ),
-          ),
+            OnboardingBullet(
+              icon: IOSIcons.visibility_off_rounded,
+              title: s.obHookPoint3,
+              detail: s.obHookPoint3Detail,
+            ),
+          ].animate(interval: 90.ms).fadeIn(duration: 380.ms).slideY(
+                begin: 0.12,
+                end: 0,
+                curve: Curves.easeOutCubic,
+              ),
+          const SizedBox(height: 12),
         ],
       ),
     );

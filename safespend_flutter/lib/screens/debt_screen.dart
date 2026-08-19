@@ -14,6 +14,7 @@ import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/wealth_ui.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/money_format.dart';
 
 class DebtScreen extends StatelessWidget {
   const DebtScreen({super.key});
@@ -24,7 +25,7 @@ class DebtScreen extends StatelessWidget {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final s = S.of(context);
 
         final debtGoals =
@@ -502,7 +503,7 @@ class DebtScreen extends StatelessWidget {
                                   const SizedBox(width: 8),
                                   Flexible(
                                     flex: 0,
-                                    child: Text('-${cf.format(t.amount)}',
+                                    child: Text(cf.signed(t.amount, positive: false),
                                         style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -534,7 +535,7 @@ class DebtScreen extends StatelessWidget {
   }
 
   void _showPayDebtModal(
-      BuildContext context, AppProvider provider, Goal goal, NumberFormat cf) {
+      BuildContext context, AppProvider provider, Goal goal, MoneyFormat cf) {
     final s = S.of(context);
     final amountCtrl = TextEditingController();
     String? selectedAccountId;

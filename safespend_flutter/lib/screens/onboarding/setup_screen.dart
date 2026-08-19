@@ -1,233 +1,947 @@
-import 'package:flutter/material.dart';
-import 'package:safespend_flutter/theme/ios_icons.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:uuid/uuid.dart';
 import 'dart:io';
-import '../../l10n/app_localizations.dart';
-import '../../providers/app_provider.dart';
-import '../../models/account.dart';
-import '../../theme/app_theme.dart';
-import '../../utils/currency_helper.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../models/account.dart';
+import '../../providers/app_provider.dart';
+import '../../theme/app_theme.dart';
+import '../../theme/ios_icons.dart';
+import '../../utils/currency_helper.dart';
+import '../../widgets/onboarding_ui.dart';
+
+/// The first-run questionnaire: currency, first account, balance, and pay.
+///
+/// Five short steps rather than three crowded ones. The ordering is load
+/// bearing:
+///
+/// 1. **Currency first.** Every later step shows amounts, and showing them
+///    against the wrong symbol while the user types is the sort of detail that
+///    costs trust on the very first screen.
+/// 2. **Account, then balance.** Two questions about the same account, split so
+///    neither screen asks for more than it needs to.
+/// 3. **Pay last, and skippable.** It is the most personal question, so it is
+///    asked once the user has already invested a few taps — and never blocks
+///    finishing.
+/// 4. **A summary.** The user sees exactly what is about to be created before
+///    anything is written.
+///
+/// What the answers drive:
+///
+/// * `Settings.currency` and `Settings.monthlyIncome` — the latter feeds
+///   safe-to-spend, and was previously never written at all, leaving every new
+///   user's budget stuck at zero.
+/// * `Account.salaryAmount` / `salaryFrequency` / `salaryDay` /
+///   `salaryAnchorDate` — the pay cycle the auto-credit engine walks.
 class SetupScreen extends StatefulWidget {
   final VoidCallback onComplete;
   final VoidCallback onBack;
 
-  const SetupScreen(
-      {super.key, required this.onComplete, required this.onBack});
+  const SetupScreen({
+    super.key,
+    required this.onComplete,
+    required this.onBack,
+  });
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
 }
 
+/// Steps, in order. Named so the page logic reads as intent rather than index
+/// arithmetic.
+enum _Step { currency, account, balance, income, summary }
+
 class _SetupScreenState extends State<SetupScreen> {
   final PageController _pageController = PageController();
-  int _currentPage = 0;
+  _Step _step = _Step.currency;
 
-  // Step 1 — Account
+  // Currency
+  String _currency = 'USD';
+  final _currencySearchController = TextEditingController();
+  String _currencyQuery = '';
+
+  // Account
   final _accountNameController = TextEditingController();
   final _bankNameController = TextEditingController();
   String? _logoPath;
+  String? _nameError;
 
-  // Step 2 — Balance & Currency
+  // Balance
   final _balanceController = TextEditingController();
-  String _currency = 'USD';
+  String? _balanceError;
 
-  // Step 3 — Salary
-  final _salaryController = TextEditingController();
+  // Income
+  final _wageController = TextEditingController();
   String _payFrequency = 'monthly';
+
+  /// Day of month (1–31) when monthly; ISO weekday (1–7) otherwise.
   int _payDay = 1;
+  bool _incomeSkipped = false;
+  String? _wageError;
 
   bool _isSaving = false;
+
+  static const _commonCurrencies = [
+    'USD',
+    'EUR',
+    'GBP',
+    'MAD',
+    'AED',
+    'CAD',
+    'AUD',
+    'CHF',
+    'JPY',
+    'INR',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Seed from whatever the app already knows, so returning to onboarding
+    // after a partial run does not reset the user's choice.
+    final settings = context.read<AppProvider>().settings;
+    _currency = settings.currency;
+    _currencySearchController.addListener(
+      () => setState(() => _currencyQuery = _currencySearchController.text),
+    );
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _currencySearchController.dispose();
     _accountNameController.dispose();
     _bankNameController.dispose();
     _balanceController.dispose();
-    _salaryController.dispose();
+    _wageController.dispose();
     super.dispose();
   }
 
-  void _nextPage() {
-    if (_currentPage == 0 && _accountNameController.text.trim().isEmpty) {
-      _showError('Please enter an account name.');
-      return;
-    }
-    if (_currentPage == 1 && _balanceController.text.trim().isEmpty) {
-      _showError('Please enter your current balance.');
-      return;
-    }
-    _pageController.nextPage(
-      duration: const Duration(milliseconds: 350),
+  // ── Navigation ─────────────────────────────────────────────────────────────
+
+  void _goTo(_Step step) {
+    FocusScope.of(context).unfocus();
+    _pageController.animateToPage(
+      step.index,
+      duration: const Duration(milliseconds: 340),
       curve: Curves.easeOutCubic,
     );
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppTheme.error),
+  void _next() {
+    if (!_validateCurrentStep()) {
+      HapticFeedback.heavyImpact();
+      return;
+    }
+    HapticFeedback.selectionClick();
+    if (_step == _Step.summary) {
+      _finish();
+    } else {
+      _goTo(_Step.values[_step.index + 1]);
+    }
+  }
+
+  void _back() {
+    if (_step == _Step.currency) {
+      widget.onBack();
+    } else {
+      _goTo(_Step.values[_step.index - 1]);
+    }
+  }
+
+  /// Validates only the step being left, and reports inline rather than in a
+  /// snackbar so the message sits next to the field it is about.
+  bool _validateCurrentStep() {
+    final s = S.of(context);
+    switch (_step) {
+      case _Step.account:
+        final empty = _accountNameController.text.trim().isEmpty;
+        setState(() => _nameError = empty ? s.obErrorNameRequired : null);
+        return !empty;
+      case _Step.balance:
+        final text = _balanceController.text.trim();
+        if (text.isEmpty) {
+          setState(() => _balanceError = s.obErrorBalanceRequired);
+          return false;
+        }
+        final value = _parseAmount(text);
+        if (value == null) {
+          setState(() => _balanceError = s.obErrorNotANumber);
+          return false;
+        }
+        if (value < 0) {
+          setState(() => _balanceError = s.obErrorNegativeBalance);
+          return false;
+        }
+        setState(() => _balanceError = null);
+        return true;
+      case _Step.income:
+        if (_incomeSkipped || _wageController.text.trim().isEmpty) return true;
+        final value = _parseAmount(_wageController.text);
+        if (value == null) {
+          setState(() => _wageError = s.obErrorNotANumber);
+          return false;
+        }
+        if (value <= 0) {
+          setState(() => _wageError = s.obErrorWagePositive);
+          return false;
+        }
+        setState(() => _wageError = null);
+        return true;
+      case _Step.currency:
+      case _Step.summary:
+        return true;
+    }
+  }
+
+  /// Tolerates both decimal conventions. `1.234,56` and `1,234.56` are the same
+  /// number to a user, and which one they type depends on their keyboard, not
+  /// on the app's locale setting.
+  static double? _parseAmount(String raw) {
+    var text = raw.trim().replaceAll(' ', '');
+    if (text.isEmpty) return null;
+    final lastComma = text.lastIndexOf(',');
+    final lastDot = text.lastIndexOf('.');
+    if (lastComma >= 0 && lastDot >= 0) {
+      // Whichever separator comes last is the decimal point.
+      text = lastComma > lastDot
+          ? text.replaceAll('.', '').replaceAll(',', '.')
+          : text.replaceAll(',', '');
+    } else if (lastComma >= 0) {
+      // A lone comma is a decimal point unless it groups thousands (1,234).
+      final decimals = text.length - lastComma - 1;
+      text = decimals == 3 && text.indexOf(',') != lastComma
+          ? text.replaceAll(',', '')
+          : text.replaceAll(',', '.');
+    }
+    return double.tryParse(text);
+  }
+
+  // ── Derived values ─────────────────────────────────────────────────────────
+
+  double? get _wage =>
+      _incomeSkipped ? null : _parseAmount(_wageController.text);
+
+  /// The account exactly as it will be saved. Built in one place so the summary
+  /// and the write can never drift apart.
+  Account _buildAccount() {
+    final wage = _wage;
+    final hasWage = wage != null && wage > 0;
+    final now = DateTime.now();
+
+    return Account(
+      id: const Uuid().v4(),
+      name: _accountNameController.text.trim(),
+      type: 'bank',
+      balance: _parseAmount(_balanceController.text) ?? 0,
+      bankName: _bankNameController.text.trim().isEmpty
+          ? null
+          : _bankNameController.text.trim(),
+      imagePath: _logoPath,
+      addedAt: now.toIso8601String(),
+      salaryAmount: hasWage ? wage : null,
+      salaryFrequency: hasWage ? _payFrequency : null,
+      salaryDay: hasWage ? _payDay : null,
+      // Anchor a fortnightly cycle to today so it stays on the same fortnight
+      // on every device. Irrelevant for the other frequencies.
+      salaryAnchorDate: hasWage && _payFrequency == 'biweekly'
+          ? now.toIso8601String().substring(0, 10)
+          : null,
+      includeInNetWorth: true,
     );
+  }
+
+  Future<void> _finish() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    final provider = context.read<AppProvider>();
+    final account = _buildAccount();
+
+    provider.updateSettings(
+      provider.settings.copyWith(
+        currency: _currency,
+        // Previously left at zero, which pinned safe-to-spend to zero for every
+        // new user. The account holds one pay packet; settings holds the
+        // per-month figure the budget maths expects.
+        monthlyIncome: account.monthlySalaryEquivalent,
+      ),
+    );
+    provider.addAccount(account);
+
+    HapticFeedback.mediumImpact();
+    widget.onComplete();
   }
 
   Future<void> _pickLogo() async {
     final picker = ImagePicker();
-    final file =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) setState(() => _logoPath = file.path);
-  }
-
-  Future<void> _finish() async {
-    setState(() => _isSaving = true);
-    final provider = Provider.of<AppProvider>(context, listen: false);
-
-    // Update currency in settings
-    provider.updateSettings(provider.settings.copyWith(currency: _currency));
-
-    // Create first account
-    final balance =
-        double.tryParse(_balanceController.text.replaceAll(',', '')) ?? 0;
-    final salary = double.tryParse(_salaryController.text.replaceAll(',', ''));
-    final account = Account(
-      id: const Uuid().v4(),
-      name: _accountNameController.text.trim(),
-      type: 'bank',
-      balance: balance,
-      bankName: _bankNameController.text.trim().isNotEmpty
-          ? _bankNameController.text.trim()
-          : null,
-      imagePath: _logoPath,
-      salaryAmount: (salary != null && salary > 0) ? salary : null,
-      salaryDay: (salary != null && salary > 0) ? _payDay : null,
-      includeInNetWorth: true,
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
     );
-    provider.addAccount(account);
-
-    widget.onComplete();
+    if (file != null && mounted) setState(() => _logoPath = file.path);
   }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final s = S.of(context);
 
-    return Scaffold(
-      backgroundColor:
-          isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header: back button + progress
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 24, 0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: _currentPage == 0
-                        ? widget.onBack
-                        : () {
-                            _pageController.previousPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeOutCubic,
-                            );
-                          },
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? AppTheme.darkSurface
-                            : AppTheme.lightSurface,
-                        shape: BoxShape.circle,
-                        boxShadow: isDark ? [] : AppTheme.cardShadowLight,
-                      ),
-                      child: const Icon(IOSIcons.arrow_back_rounded, size: 18),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Row(
-                      children: List.generate(3, (i) {
-                        final active = i <= _currentPage;
-                        return Expanded(
-                          child: Container(
-                            margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? AppTheme.goldPrimary
-                                  : (isDark
-                                      ? AppTheme.darkSurfaceElevated
-                                      : AppTheme.lightBorder),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${_currentPage + 1}/3',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppTheme.darkTextTertiary
-                          : AppTheme.lightTextTertiary,
-                    ),
-                  ),
-                ],
+    return OnboardingScaffold(
+      onBack: _back,
+      step: _step.index,
+      stepCount: _Step.values.length,
+      scrollable: false,
+      trailing: _step == _Step.income
+          ? OnboardingTextButton(
+              label: s.obSetupSkip,
+              onTap: () {
+                setState(() {
+                  _incomeSkipped = true;
+                  _wageController.clear();
+                  _wageError = null;
+                });
+                _goTo(_Step.summary);
+              },
+            )
+          : null,
+      footer: OnboardingButton(
+        label: _step == _Step.summary ? s.obFinish : s.next,
+        icon: _step == _Step.summary ? null : IOSIcons.arrow_forward_rounded,
+        busy: _isSaving,
+        onTap: _next,
+      ),
+      child: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (i) => setState(() => _step = _Step.values[i]),
+        children: [
+          _stepBody(_buildCurrencyStep(s)),
+          _stepBody(_buildAccountStep(s)),
+          _stepBody(_buildBalanceStep(s)),
+          _stepBody(_buildIncomeStep(s)),
+          _stepBody(_buildSummaryStep(s)),
+        ],
+      ),
+    );
+  }
+
+  /// Each step scrolls independently so a keyboard can never trap a field.
+  Widget _stepBody(Widget child) => SingleChildScrollView(
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        padding: const EdgeInsets.only(top: 14, bottom: 28),
+        child: child,
+      );
+
+  // ── Step 1: currency ───────────────────────────────────────────────────────
+
+  Widget _buildCurrencyStep(S s) {
+    final query = _currencyQuery.trim().toLowerCase();
+    final all = CurrencyHelper.currencies.entries.toList();
+
+    final matches = query.isEmpty
+        ? null
+        : all
+            .where((e) =>
+                e.key.toLowerCase().contains(query) ||
+                (e.value['name'] ?? '').toLowerCase().contains(query))
+            .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OnboardingHero(
+          icon: IOSIcons.money_rounded,
+          title: s.obCurrencyTitle,
+          subtitle: s.obCurrencySubtitle,
+        ),
+        const SizedBox(height: 22),
+        OnboardingSearchField(
+          controller: _currencySearchController,
+          hint: s.obCurrencySearch,
+        ),
+        const SizedBox(height: 18),
+        if (matches == null) ...[
+          _sectionLabel(s.obCurrencyCommon),
+          ..._commonCurrencies
+              .where(CurrencyHelper.currencies.containsKey)
+              .map(_currencyRow),
+        ] else if (matches.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Text(
+              s.obCurrencyNoResults,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
+          )
+        else
+          ...matches.take(40).map((e) => _currencyRow(e.key)),
+      ],
+    );
+  }
 
-            // Pages
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                children: [
-                  _buildAccountPage(isDark),
-                  _buildBalancePage(isDark),
-                  _buildSalaryPage(isDark),
-                ],
-              ),
-            ),
+  Widget _currencyRow(String code) {
+    return OnboardingChoice(
+      title: CurrencyHelper.getName(code),
+      subtitle: code,
+      selected: _currency == code,
+      onTap: () => setState(() => _currency = code),
+      leading: Container(
+        width: 42,
+        height: 42,
+        alignment: Alignment.center,
+        decoration: ShapeDecoration(
+          shape: onboardingShape(14),
+          color: AppTheme.adaptiveIconSurface(context),
+        ),
+        child: Text(
+          CurrencyHelper.getSymbol(code),
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.adaptiveIcon(context),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Bottom button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              child: GestureDetector(
-                onTap: _currentPage < 2 ? _nextPage : _finish,
+  // ── Step 2: account ────────────────────────────────────────────────────────
+
+  Widget _buildAccountStep(S s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OnboardingHero(
+          icon: IOSIcons.account_balance_rounded,
+          title: s.obAccountTitle,
+          subtitle: s.obAccountSubtitle,
+        ),
+        const SizedBox(height: 26),
+        Center(
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: _pickLogo,
                 child: Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: AppTheme.goldPrimary,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: AppTheme.goldGlow,
-                  ),
-                  child: Center(
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2.5),
-                          )
-                        : Text(
-                            _currentPage < 2 ? s.next : s.getStarted,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
+                  width: 92,
+                  height: 92,
+                  decoration: ShapeDecoration(
+                    shape: onboardingShape(
+                      26,
+                      side: _logoPath == null
+                          ? AppTheme.adaptiveIcon(context, alpha: 0.22)
+                          : Colors.transparent,
+                    ),
+                    color: AppTheme.adaptiveIconSurface(context),
+                    image: _logoPath == null
+                        ? null
+                        : DecorationImage(
+                            image: FileImage(File(_logoPath!)),
+                            fit: BoxFit.cover,
                           ),
+                  ),
+                  child: _logoPath != null
+                      ? null
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              IOSIcons.add_a_photo_rounded,
+                              size: 24,
+                              color: AppTheme.adaptiveIcon(context),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              s.obLogoAdd,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                s.obLogoHint,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 26),
+        OnboardingField(
+          controller: _accountNameController,
+          label: s.obAccountNameLabel,
+          hint: s.obAccountNameHint,
+          icon: IOSIcons.credit_card_rounded,
+          error: _nameError,
+          textInputAction: TextInputAction.next,
+          onChanged: (_) {
+            if (_nameError != null) setState(() => _nameError = null);
+          },
+        ),
+        const SizedBox(height: 18),
+        OnboardingField(
+          controller: _bankNameController,
+          label: s.obBankLabel,
+          hint: s.obBankHint,
+          icon: IOSIcons.account_balance_rounded,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _next(),
+        ),
+      ],
+    );
+  }
+
+  // ── Step 3: balance ────────────────────────────────────────────────────────
+
+  Widget _buildBalanceStep(S s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OnboardingHero(
+          icon: IOSIcons.account_balance_wallet_rounded,
+          title: s.obBalanceTitle,
+          subtitle: s.obBalanceSubtitle,
+        ),
+        const SizedBox(height: 26),
+        OnboardingField(
+          controller: _balanceController,
+          label: s.obBalanceLabel,
+          hint: '0',
+          prefix: CurrencyHelper.getSymbol(_currency),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[\d.,\s]')),
+          ],
+          textCapitalization: TextCapitalization.none,
+          error: _balanceError,
+          textInputAction: TextInputAction.done,
+          onChanged: (_) {
+            if (_balanceError != null) setState(() => _balanceError = null);
+            setState(() {});
+          },
+          onSubmitted: (_) => _next(),
+        ),
+        const SizedBox(height: 14),
+        // Echoing the parsed figure back is the cheapest way to catch a
+        // mistyped separator before it becomes the opening balance.
+        _amountEcho(_parseAmount(_balanceController.text)),
+      ],
+    );
+  }
+
+  Widget _amountEcho(double? value) {
+    if (value == null) return const SizedBox.shrink();
+    return Row(
+      children: [
+        Icon(
+          IOSIcons.check_circle_rounded,
+          size: 15,
+          color: AppTheme.adaptiveIcon(context, alpha: 0.7),
+        ),
+        const SizedBox(width: 7),
+        Text(
+          CurrencyHelper.formatter(_currency).format(value),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Step 4: income ─────────────────────────────────────────────────────────
+
+  Widget _buildIncomeStep(S s) {
+    final wage = _parseAmount(_wageController.text);
+    final hasWage = wage != null && wage > 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OnboardingHero(
+          icon: IOSIcons.payments_rounded,
+          title: s.obIncomeTitle,
+          subtitle: s.obIncomeSubtitle,
+        ),
+        const SizedBox(height: 26),
+        OnboardingField(
+          controller: _wageController,
+          label: s.obWageLabel,
+          hint: s.obWageHint,
+          prefix: CurrencyHelper.getSymbol(_currency),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[\d.,\s]')),
+          ],
+          textCapitalization: TextCapitalization.none,
+          error: _wageError,
+          onChanged: (_) => setState(() {
+            _wageError = null;
+            _incomeSkipped = false;
+          }),
+        ),
+        const SizedBox(height: 22),
+        _sectionLabel(s.obFrequencyLabel),
+        OnboardingSegmented<String>(
+          value: _payFrequency,
+          segments: {
+            'weekly': s.obPayWeekly,
+            'biweekly': s.obPayBiweekly,
+            'monthly': s.obPayMonthly,
+          },
+          onChanged: (value) => setState(() {
+            _payFrequency = value;
+            // The two schemes number different things — a day of month cannot
+            // carry over to a weekday — so reset to a sane default.
+            _payDay = value == 'monthly' ? 1 : DateTime.friday;
+          }),
+        ),
+        const SizedBox(height: 22),
+        _sectionLabel(s.obPayDayLabel),
+        _payDayPicker(s),
+        if (hasWage) ...[
+          const SizedBox(height: 20),
+          _incomeSummary(s, wage),
+        ],
+      ],
+    );
+  }
+
+  Widget _payDayPicker(S s) {
+    final monthly = _payFrequency == 'monthly';
+    final label = monthly
+        ? (_payDay == 31 ? s.obPayDayLastDay : s.obPayDayOfMonth(_payDay))
+        : s.obPayEveryWeekday(_weekdayName(_payDay));
+
+    return OnboardingGlass(
+      radius: 20,
+      onTap: () => _showPayDaySheet(s),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      child: Row(
+        children: [
+          Icon(
+            IOSIcons.calendar_today_rounded,
+            size: 19,
+            color: AppTheme.adaptiveIcon(context),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).textTheme.titleMedium?.color,
+              ),
+            ),
+          ),
+          Icon(
+            IOSIcons.chevron_right_rounded,
+            size: 18,
+            color: AppTheme.adaptiveIcon(context, alpha: 0.6),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Weekday name in the user's own language, taken from the active locale
+  /// rather than a hardcoded English list.
+  String _weekdayName(int isoWeekday) {
+    // 2024-01-01 was a Monday, so adding (weekday - 1) days lands on the
+    // right day whatever the value.
+    final date = DateTime(2024, 1, isoWeekday.clamp(1, 7));
+    final locale = Localizations.localeOf(context).languageCode;
+    return DateFormat.EEEE(locale).format(date);
+  }
+
+  void _showPayDaySheet(S s) {
+    final monthly = _payFrequency == 'monthly';
+    final options = monthly
+        ? List.generate(31, (i) => i + 1)
+        : List.generate(7, (i) => i + 1);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.62,
+            ),
+            child: OnboardingGlass(
+              radius: 28,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 38,
+                    height: 5,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      color: AppTheme.adaptiveIcon(context, alpha: 0.25),
+                    ),
+                  ),
+                  Text(
+                    s.obPayDayLabel,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).textTheme.titleLarge?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: options.length,
+                      itemBuilder: (_, i) {
+                        final value = options[i];
+                        return OnboardingChoice(
+                          title: monthly
+                              ? (value == 31
+                                  ? s.obPayDayLastDay
+                                  : s.obPayDayOfMonth(value))
+                              : _weekdayName(value),
+                          selected: _payDay == value,
+                          onTap: () {
+                            setState(() => _payDay = value);
+                            Navigator.pop(sheetContext);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Restates the wage as a monthly figure and names the next pay date.
+  ///
+  /// A weekly earner rarely knows their monthly income offhand, and it is the
+  /// number every budget in the app is built on — so it is shown before they
+  /// commit to it rather than buried in Settings afterwards.
+  Widget _incomeSummary(S s, double wage) {
+    final preview = Account(
+      id: 'preview',
+      name: '',
+      type: 'bank',
+      balance: 0,
+      salaryAmount: wage,
+      salaryFrequency: _payFrequency,
+      salaryDay: _payDay,
+      salaryAnchorDate: DateTime.now().toIso8601String().substring(0, 10),
+    );
+
+    final now = DateTime.now();
+    final upcoming = preview.payDatesBetween(
+      now,
+      DateTime(now.year, now.month + 2, now.day),
+    );
+    final locale = Localizations.localeOf(context).languageCode;
+
+    return OnboardingGlass(
+      radius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                IOSIcons.trending_up_rounded,
+                size: 18,
+                color: AppTheme.adaptiveIcon(context),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  s.obMonthlyEquivalent(
+                    CurrencyHelper.formatter(_currency)
+                        .format(preview.monthlySalaryEquivalent),
+                  ),
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).textTheme.titleMedium?.color,
                   ),
                 ),
+              ),
+            ],
+          ),
+          if (upcoming.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                s.obNextPayday(
+                  DateFormat.MMMMEEEEd(locale).format(upcoming.first),
+                ),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Step 5: summary ────────────────────────────────────────────────────────
+
+  Widget _buildSummaryStep(S s) {
+    final account = _buildAccount();
+    final formatter = CurrencyHelper.formatter(_currency);
+    final income = account.monthlySalaryEquivalent;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OnboardingHero(
+          icon: IOSIcons.check_circle_rounded,
+          title: s.obSummaryTitle,
+          subtitle: s.obSummarySubtitle,
+        ),
+        const SizedBox(height: 26),
+        _summaryRow(
+          s.obSummaryAccount,
+          [account.name, account.bankName].whereType<String>().join(' · '),
+          IOSIcons.account_balance_rounded,
+          _Step.account,
+          s,
+        ),
+        _summaryRow(
+          s.obSummaryBalance,
+          formatter.format(account.balance),
+          IOSIcons.account_balance_wallet_rounded,
+          _Step.balance,
+          s,
+        ),
+        _summaryRow(
+          s.obSummaryIncome,
+          income > 0 ? formatter.format(income) : s.obSummaryIncomeNone,
+          IOSIcons.payments_rounded,
+          _Step.income,
+          s,
+        ),
+        if (income <= 0) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              s.obIncomeSkipNote,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.4,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _summaryRow(
+    String label,
+    String value,
+    IconData icon,
+    _Step target,
+    S s,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: OnboardingGlass(
+        radius: 20,
+        onTap: () => _goTo(target),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: ShapeDecoration(
+                shape: onboardingShape(14),
+                color: AppTheme.adaptiveIconSurface(context),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: AppTheme.adaptiveIcon(context),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    value.isEmpty ? '—' : value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).textTheme.titleMedium?.color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              s.obSummaryEdit,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.goldPrimary,
               ),
             ),
           ],
@@ -236,806 +950,17 @@ class _SetupScreenState extends State<SetupScreen> {
     );
   }
 
-  // ── Step 1: Account ───────────────────────────────────────────────────────
+  // ── Shared ─────────────────────────────────────────────────────────────────
 
-  Widget _buildAccountPage(bool isDark) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildStepHeader(
-            isDark,
-            icon: IOSIcons.account_balance_rounded,
-            title: 'Set Up Your Account',
-            subtitle: "Let's add your main bank account to get started.",
-          ),
-          const SizedBox(height: 32),
-
-          // Logo upload
-          Center(
-            child: GestureDetector(
-              onTap: _pickLogo,
-              child: Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: AppTheme.goldPrimary.withOpacity(0.4),
-                    width: 2,
-                  ),
-                  boxShadow: isDark ? [] : AppTheme.cardShadowLight,
-                  image: _logoPath != null
-                      ? DecorationImage(
-                          image: FileImage(File(_logoPath!)), fit: BoxFit.cover)
-                      : null,
-                ),
-                child: _logoPath == null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(IOSIcons.add_a_photo_rounded,
-                              size: 26, color: AppTheme.adaptiveIcon(context)),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Bank Logo',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.goldPrimary,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      )
-                    : null,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              'Optional — tap to upload',
-              style: TextStyle(
-                  fontSize: 11,
-                  color: isDark
-                      ? AppTheme.darkTextTertiary
-                      : AppTheme.lightTextTertiary),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          _buildField(
-            controller: _accountNameController,
-            label: 'Account Name *',
-            hint: 'e.g., Main Checking, HSBC Account',
-            icon: IOSIcons.credit_card_rounded,
-            isDark: isDark,
-          ),
-          const SizedBox(height: 16),
-          _buildField(
-            controller: _bankNameController,
-            label: 'Bank Name',
-            hint: 'e.g., Chase, Barclays, CIH Bank',
-            icon: IOSIcons.account_balance_rounded,
-            isDark: isDark,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Step 2: Balance & Currency ────────────────────────────────────────────
-
-  Widget _buildBalancePage(bool isDark) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildStepHeader(
-            isDark,
-            icon: IOSIcons.account_balance_wallet_rounded,
-            title: 'Balance & Currency',
-            subtitle:
-                'Enter your current balance and choose your preferred currency.',
-          ),
-          const SizedBox(height: 32),
-
-          _buildField(
-            controller: _balanceController,
-            label: 'Current Balance *',
-            hint: '0.00',
-            icon: IOSIcons.attach_money_rounded,
-            isDark: isDark,
-            isNumeric: true,
-          ),
-          const SizedBox(height: 16),
-
-          // Currency selector
-          GestureDetector(
-            onTap: () => _showCurrencyPicker(isDark),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: isDark
-                        ? Colors.white.withOpacity(0.09)
-                        : AppTheme.lightBorder),
-                boxShadow: isDark ? [] : AppTheme.cardShadowLight,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppTheme.goldPrimary.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        CurrencyHelper.getSymbol(_currency),
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.goldPrimary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Default Currency',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? AppTheme.darkTextTertiary
-                                  : AppTheme.lightTextTertiary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$_currency — ${CurrencyHelper.getName(_currency)}',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: isDark
-                                ? AppTheme.darkTextPrimary
-                                : AppTheme.lightTextPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(IOSIcons.chevron_right_rounded,
-                      size: 20,
-                      color: isDark
-                          ? AppTheme.darkTextTertiary
-                          : AppTheme.lightTextTertiary),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Step 3: Salary ────────────────────────────────────────────────────────
-
-  Widget _buildSalaryPage(bool isDark) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildStepHeader(
-            isDark,
-            icon: IOSIcons.payments_rounded,
-            title: 'Your Salary',
-            subtitle:
-                "Tell us how you get paid so we can auto-track your income.",
-          ),
-          const SizedBox(height: 32),
-          _buildField(
-            controller: _salaryController,
-            label: 'Wage / Salary (${CurrencyHelper.getSymbol(_currency)})',
-            hint: '0.00',
-            icon: IOSIcons.attach_money_rounded,
-            isDark: isDark,
-            isNumeric: true,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'How do you get paid?',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color:
-                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildFrequencyChip('weekly', 'Weekly', isDark),
-              const SizedBox(width: 10),
-              _buildFrequencyChip('biweekly', 'Bi-weekly', isDark),
-              const SizedBox(width: 10),
-              _buildFrequencyChip('monthly', 'Monthly', isDark),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            _payFrequency == 'monthly'
-                ? 'Pay Day (day of month)'
-                : 'Pay Day (day of week)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color:
-                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _payFrequency == 'monthly'
-              ? _buildMonthDayPicker(isDark)
-              : _buildWeekDayPicker(isDark),
-          const SizedBox(height: 16),
-          Text(
-            'You can skip this and configure it later in Settings.',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark
-                  ? AppTheme.darkTextTertiary
-                  : AppTheme.lightTextTertiary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFrequencyChip(String value, String label, bool isDark) {
-    final isSelected = _payFrequency == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() {
-          _payFrequency = value;
-          _payDay = value == 'monthly' ? 1 : 0;
-        }),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.goldPrimary : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: isSelected
-                    ? AppTheme.goldPrimary
-                    : (isDark
-                        ? Colors.white.withOpacity(0.09)
-                        : AppTheme.lightBorder)),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? Colors.white
-                    : (isDark
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthDayPicker(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color:
-                isDark ? Colors.white.withOpacity(0.09) : AppTheme.lightBorder),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: _payDay,
-          isExpanded: true,
-          dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          items: List.generate(31, (i) => i + 1).map((day) {
-            final suffix = day == 1
-                ? 'st'
-                : day == 2
-                    ? 'nd'
-                    : day == 3
-                        ? 'rd'
-                        : 'th';
-            return DropdownMenuItem(
-              value: day,
-              child: Text(
-                '$day$suffix of each month',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: isDark
-                      ? AppTheme.darkTextPrimary
-                      : AppTheme.lightTextPrimary,
-                ),
-              ),
-            );
-          }).toList(),
-          onChanged: (v) => setState(() => _payDay = v ?? 1),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWeekDayPicker(bool isDark) {
-    const days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday'
-    ];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color:
-                isDark ? Colors.white.withOpacity(0.09) : AppTheme.lightBorder),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: _payDay.clamp(0, 6),
-          isExpanded: true,
-          dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          items: List.generate(
-              7,
-              (i) => DropdownMenuItem(
-                    value: i,
-                    child: Text(
-                      'Every ${days[i]}',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: isDark
-                            ? AppTheme.darkTextPrimary
-                            : AppTheme.lightTextPrimary,
-                      ),
-                    ),
-                  )),
-          onChanged: (v) => setState(() => _payDay = v ?? 0),
-        ),
-      ),
-    );
-  }
-
-  // ── Shared helpers ────────────────────────────────────────────────────────
-
-  Widget _buildStepHeader(bool isDark,
-      {required IconData icon,
-      required String title,
-      required String subtitle}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppTheme.adaptiveIconSurface(context),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Icon(icon, size: 28, color: AppTheme.adaptiveIcon(context)),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          title,
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 10),
+        child: Text(
+          text,
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color:
-                isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).textTheme.bodySmall?.color,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            height: 1.5,
-            color: isDark
-                ? AppTheme.darkTextSecondary
-                : AppTheme.lightTextSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    required bool isDark,
-    bool isNumeric = false,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: isNumeric
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : TextInputType.text,
-      inputFormatters: isNumeric
-          ? [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))]
-          : null,
-      style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon, size: 20, color: AppTheme.adaptiveIcon(context)),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-              color: isDark
-                  ? Colors.white.withOpacity(0.09)
-                  : AppTheme.lightBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppTheme.goldPrimary, width: 1.5),
-        ),
-        filled: true,
-        fillColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-      ),
-    );
-  }
-
-  void _showCurrencyPicker(bool isDark) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CurrencyPickerSheet(
-        currentCurrency: _currency,
-        onSelect: (code) {
-          setState(() => _currency = code);
-          Navigator.pop(context);
-        },
-      ),
-    );
-  }
-}
-
-// ── Currency Picker Bottom Sheet ──────────────────────────────────────────────
-
-class _CurrencyPickerSheet extends StatefulWidget {
-  final String currentCurrency;
-  final ValueChanged<String> onSelect;
-  const _CurrencyPickerSheet(
-      {required this.currentCurrency, required this.onSelect});
-
-  @override
-  State<_CurrencyPickerSheet> createState() => _CurrencyPickerSheetState();
-}
-
-class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
-  final _searchController = TextEditingController();
-  String _query = '';
-
-  static const _sections = {
-    'Popular': ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY'],
-    'Americas': [
-      'BRL',
-      'MXN',
-      'ARS',
-      'CLP',
-      'COP',
-      'PEN',
-      'UYU',
-      'DOP',
-      'JMD',
-      'TTD',
-      'NZD'
-    ],
-    'Europe': [
-      'SEK',
-      'NOK',
-      'DKK',
-      'PLN',
-      'CZK',
-      'HUF',
-      'RON',
-      'BGN',
-      'HRK',
-      'ISK',
-      'RUB',
-      'UAH',
-      'TRY',
-      'GEL'
-    ],
-    'Asia & Pacific': [
-      'INR',
-      'PKR',
-      'BDT',
-      'LKR',
-      'NPR',
-      'KRW',
-      'HKD',
-      'SGD',
-      'TWD',
-      'THB',
-      'VND',
-      'MYR',
-      'IDR',
-      'PHP',
-      'MMK',
-      'KHR'
-    ],
-    'Middle East': [
-      'AED',
-      'SAR',
-      'QAR',
-      'KWD',
-      'BHD',
-      'OMR',
-      'JOD',
-      'ILS',
-      'EGP',
-      'LBP',
-      'IQD',
-      'IRR'
-    ],
-    'Africa': [
-      'ZAR',
-      'NGN',
-      'KES',
-      'GHS',
-      'TZS',
-      'UGX',
-      'ETB',
-      'MAD',
-      'TND',
-      'DZD',
-      'XOF',
-      'XAF',
-      'RWF'
-    ],
-  };
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final s = S.of(context);
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-            child: Column(
-              children: [
-                Center(
-                    child: Container(
-                        width: 48,
-                        height: 5,
-                        decoration: BoxDecoration(
-                            color: Theme.of(context).dividerColor,
-                            borderRadius: BorderRadius.circular(3)))),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Text(s.selectCurrency,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    IconButton(
-                        icon: const Icon(IOSIcons.close_rounded, size: 20),
-                        onPressed: () => Navigator.pop(context)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _query = v.toLowerCase()),
-                  decoration: InputDecoration(
-                    hintText: s.searchCurrency,
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 14, right: 8),
-                      child: Icon(IOSIcons.search_rounded,
-                          size: 18,
-                          color: isDark ? Colors.white38 : Colors.black38),
-                    ),
-                    prefixIconConstraints:
-                        const BoxConstraints(minWidth: 38, minHeight: 38),
-                    suffixIcon: _query.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(IOSIcons.clear_rounded, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _query = '');
-                            })
-                        : null,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none),
-                    filled: true,
-                    fillColor: isDark
-                        ? AppTheme.darkSurfaceElevated
-                        : AppTheme.lightBackground,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-              children: _buildSections(isDark),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildSections(bool isDark) {
-    final widgets = <Widget>[];
-    final s = S.of(context);
-    for (final entry in _sections.entries) {
-      final codes = entry.value.where((code) {
-        if (_query.isEmpty) return true;
-        final name = CurrencyHelper.getName(code).toLowerCase();
-        final symbol = CurrencyHelper.getSymbol(code).toLowerCase();
-        return code.toLowerCase().contains(_query) ||
-            name.contains(_query) ||
-            symbol.contains(_query);
-      }).toList();
-      if (codes.isEmpty) continue;
-
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 10),
-        child: Text(entry.key,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-      ));
-
-      widgets.add(Container(
-        decoration: AppTheme.premiumCard(context),
-        child: Column(
-          children: codes.asMap().entries.map((e) {
-            final code = e.value;
-            final isLast = e.key == codes.length - 1;
-            final isSelected = code == widget.currentCurrency;
-            final symbol = CurrencyHelper.getSymbol(code);
-            final name = CurrencyHelper.getName(code);
-            return Column(
-              children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.onSelect(code),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppTheme.goldPrimary.withOpacity(0.12)
-                                : (isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: Text(symbol,
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: isSelected
-                                        ? AppTheme.goldPrimary
-                                        : (isDark
-                                            ? AppTheme.darkTextPrimary
-                                            : AppTheme.lightTextPrimary))),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(code,
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelected
-                                          ? AppTheme.goldPrimary
-                                          : (isDark
-                                              ? AppTheme.darkTextPrimary
-                                              : AppTheme.lightTextPrimary))),
-                              Text(name,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark
-                                          ? AppTheme.darkTextTertiary
-                                          : AppTheme.lightTextTertiary)),
-                            ],
-                          ),
-                        ),
-                        if (isSelected)
-                          Icon(IOSIcons.check_circle_rounded,
-                              size: 20, color: AppTheme.adaptiveIcon(context)),
-                      ],
-                    ),
-                  ),
-                ),
-                if (!isLast)
-                  Divider(
-                      height: 1,
-                      indent: 66,
-                      color: isDark
-                          ? Colors.white.withOpacity(0.09)
-                          : AppTheme.lightBorder),
-              ],
-            );
-          }).toList(),
-        ),
-      ));
-    }
-    if (widgets.isEmpty) {
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(top: 60),
-        child: Center(
-            child: Text(s.noCurrenciesFound,
-                style: Theme.of(context).textTheme.bodySmall)),
-      ));
-    }
-    return widgets;
-  }
+      );
 }

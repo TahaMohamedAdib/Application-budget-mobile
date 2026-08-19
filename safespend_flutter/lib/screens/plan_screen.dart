@@ -15,6 +15,7 @@ import '../models/transaction.dart';
 import '../models/goal.dart';
 import '../l10n/app_localizations.dart';
 import 'settings_screen.dart';
+import '../utils/money_format.dart';
 
 class PlanScreen extends StatefulWidget {
   final int? initialTab; // 0=fixed, 1=variable, 2=sinking
@@ -52,7 +53,7 @@ class _PlanScreenState extends State<PlanScreen> {
             ? 0.0
             : provider.goals.fold(0.0, (sum, g) => sum + (g.targetAmount / 12));
 
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
 
         final defaultSinkingFunds = [
           {'name': 'Car/Repairs', 'icon': '🚗'},
@@ -940,7 +941,7 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   void _showSetBudgetModal(BuildContext context, AppProvider provider,
-      Category cat, NumberFormat cf) {
+      Category cat, MoneyFormat cf) {
     final controller = TextEditingController(
         text: cat.budgetLimit > 0 ? cat.budgetLimit.toStringAsFixed(0) : '');
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1254,7 +1255,7 @@ class _PlanScreenState extends State<PlanScreen> {
         ? provider.accounts.first.id
         : AppProvider.cashOnHandId;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final cf = MoneyFormat.of(provider.settings);
     final isDebt = goal.type == 'debt';
 
     showModalBottomSheet(
@@ -1471,7 +1472,7 @@ class _AddBillModalState extends State<AddBillModal> {
               : AppProvider.cashOnHandId;
         }
 
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final s = S.of(context);
 
         return Container(

@@ -192,9 +192,14 @@ class AppProvider with ChangeNotifier {
     _settings = Settings();
     _isLoading = false;
     _supabaseDataLoaded = false;
-    _localDataLoaded = false;
     _setupComplete = false;
     _supabaseLoadInProgress = false;
+    // Deliberately left true. `localDataLoaded` means "we know what is in local
+    // storage", not "local storage has something in it" — and after this method
+    // we know exactly what is there, because we just emptied it. Clearing the
+    // flag stranded the app on the splash screen after sign-out: the splash is
+    // gated on it, and nothing re-runs loadData() to set it again.
+    _localDataLoaded = true;
     notifyListeners();
     unawaited(SupabaseSyncService.clearPendingRetryQueue());
     _clearLocalCache();
@@ -406,51 +411,85 @@ class AppProvider with ChangeNotifier {
     if (uid != null) SupabaseSyncService.saveRecurringRule(uid, _recurringRules.firstWhere((r) => r.id == ruleId));
   }
 
-  /// Auto-credits salary for each account where today >= salaryDay and
-  /// the salary has not yet been credited this calendar month.
+  /// Auto-credits every pay packet that has fallen due since the account was
+  /// last paid, for all three pay cycles.
+  ///
+  /// Each due date is credited separately rather than merged: a weekly earner
+  /// who opens the app after a month away gets four dated salary transactions,
+  /// so the balance history stays truthful.
+  ///
+  /// The first run for an account has no `lastSalaryDate` to work from. It
+  /// credits only the most recent due date rather than back-filling from the
+  /// beginning of time — inventing months of income the user never told us
+  /// about would be worse than missing one packet.
   void processSalaries() {
     final today = DateTime.now();
-    final thisMonth =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}';
     bool changed = false;
 
     for (int i = 0; i < _accounts.length; i++) {
       final acc = _accounts[i];
-      final amount = acc.salaryAmount;
-      final day = acc.salaryDay;
-      if (amount == null || amount <= 0 || day == null) continue;
-      if (today.day < day) continue; // pay day not reached yet
-      if (acc.lastSalaryDate == thisMonth) continue; // already credited
+      if (!acc.hasSalarySchedule) continue;
 
-      // Build the salary transaction dated on the pay day
-      final payDate = DateTime(today.year, today.month, day);
-      final tx = Transaction(
-        id: const Uuid().v4(),
-        type: 'income',
-        amount: amount,
-        date: payDate.toIso8601String().substring(0, 10),
-        note: 'Salary',
-        accountId: acc.id,
-      );
-      _transactions.add(tx);
+      var due = acc.payDatesBetween(_lastSalaryBoundary(acc), today);
+      if (due.isEmpty) continue;
 
-      _accounts[i] = acc.copyWith(
-        balance: acc.balance + amount,
-        lastSalaryDate: thisMonth,
-      );
+      // No history yet — take the latest due date only.
+      if (acc.lastSalaryDate == null) due = [due.last];
+
+      var account = acc;
+      for (final payDate in due) {
+        final tx = Transaction(
+          id: const Uuid().v4(),
+          type: 'income',
+          amount: account.salaryAmount!,
+          date: payDate.toIso8601String().substring(0, 10),
+          note: 'Salary',
+          accountId: account.id,
+        );
+        _transactions.add(tx);
+        account = account.copyWith(
+          balance: account.balance + account.salaryAmount!,
+          lastSalaryDate: payDate.toIso8601String().substring(0, 10),
+        );
+
+        final uid = _userId;
+        if (uid != null) SupabaseSyncService.saveTransaction(uid, tx);
+      }
+
+      _accounts[i] = account;
       changed = true;
 
       final uid = _userId;
-      if (uid != null) {
-        SupabaseSyncService.saveTransaction(uid, tx);
-        SupabaseSyncService.saveAccount(uid, _accounts[i]);
-      }
+      if (uid != null) SupabaseSyncService.saveAccount(uid, account);
     }
 
     if (changed) {
       _saveToLocal();
       notifyListeners();
     }
+  }
+
+  /// The date after which pay packets are still owed.
+  ///
+  /// Handles both storage formats of `lastSalaryDate`: the current
+  /// 'yyyy-MM-dd', and the legacy 'yyyy-MM' that meant "paid for this month",
+  /// which resolves to the last day of that month.
+  DateTime _lastSalaryBoundary(Account acc) {
+    final raw = acc.lastSalaryDate;
+    if (raw == null) {
+      // Look back one full cycle so exactly one packet can be due.
+      final lookback = switch (acc.effectiveSalaryFrequency) {
+        'weekly' => 8,
+        'biweekly' => 15,
+        _ => 32,
+      };
+      return DateTime.now().subtract(Duration(days: lookback));
+    }
+    if (raw.length == 7) {
+      final month = DateTime.tryParse('$raw-01');
+      if (month != null) return DateTime(month.year, month.month + 1, 0);
+    }
+    return DateTime.tryParse(raw) ?? DateTime.now();
   }
 
   static const String cashOnHandId = 'cash_on_hand';
@@ -1255,6 +1294,51 @@ class AppProvider with ChangeNotifier {
   // ============================================
   // SETTINGS METHODS
   // ============================================
+
+  /// Total monthly income implied by every account's pay schedule.
+  ///
+  /// Derived rather than stored, so it cannot drift from the schedules it
+  /// summarises. Weekly and fortnightly wages are annualised properly — see
+  /// [Account.monthlySalaryEquivalent].
+  double get monthlyIncomeFromSalaries => _accounts.fold(
+        0.0,
+        (sum, account) => sum + account.monthlySalaryEquivalent,
+      );
+
+  /// Writes a pay schedule onto [accountId], or clears it when [amount] is
+  /// null, and keeps `settings.monthlyIncome` in step.
+  ///
+  /// Budgeting reads `settings.monthlyIncome`; the schedule lives on the
+  /// account. Updating one without the other is what left safe-to-spend
+  /// stale, so both move together here.
+  void setAccountSalary(
+    String accountId, {
+    required double? amount,
+    String frequency = 'monthly',
+    int day = 1,
+  }) {
+    final index = _accounts.indexWhere((a) => a.id == accountId);
+    if (index == -1) return;
+
+    _accounts[index] = amount == null || amount <= 0
+        ? _accounts[index].withoutSalary()
+        : _accounts[index].withSalary(
+            amount: amount,
+            frequency: frequency,
+            day: day,
+          );
+
+    _settings = _settings.copyWith(monthlyIncome: monthlyIncomeFromSalaries);
+
+    _saveToLocal();
+    notifyListeners();
+
+    final uid = _userId;
+    if (uid != null) {
+      SupabaseSyncService.saveAccount(uid, _accounts[index]);
+      SupabaseSyncService.saveProfile(uid, _settings);
+    }
+  }
 
   void updateSettings(Settings settings) {
     _settings = settings;

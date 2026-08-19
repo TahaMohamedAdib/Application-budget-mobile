@@ -1,10 +1,11 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../utils/currency_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -21,6 +22,8 @@ import '../widgets/add_transaction_modal.dart';
 import '../widgets/account_picker_field.dart';
 import '../widgets/app_picker_field.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/balance_series.dart';
+import '../utils/money_format.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,7 +39,6 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() => _activeFilter = 'all');
   }
 
-  bool _balanceVisible = true;
   String _selectedTimeframe = '1m';
 
   // Transactions inline filter state
@@ -60,7 +62,7 @@ class HomeScreenState extends State<HomeScreen> {
       builder: (context, provider, _) {
         final totalCash = provider.totalCash;
         final currencyFormat =
-            CurrencyHelper.formatter(provider.settings.currency);
+            MoneyFormat.of(provider.settings);
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -132,6 +134,24 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const Spacer(),
+                        // Quick reveal. The same switch lives in Appearance,
+                        // but hiding balances is something you do reactively —
+                        // someone glances over — so it needs to be one tap
+                        // from the screen showing the numbers.
+                        _headerIcon(
+                          provider.settings.hideAmounts
+                              ? AppIcons.eyeOff
+                              : AppIcons.eyeOn,
+                          () {
+                            HapticFeedback.selectionClick();
+                            provider.updateSettings(
+                              provider.settings.copyWith(
+                                hideAmounts: !provider.settings.hideAmounts,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
                         _headerIcon(AppIcons.settings, () {
                           Navigator.push(
                               context,
@@ -187,10 +207,8 @@ class HomeScreenState extends State<HomeScreen> {
                                     fontWeight: FontWeight.w500)),
                             const SizedBox(height: 8),
                             Text(
-                              _balanceVisible
-                                  ? currencyFormat
-                                      .format(_getAccountBalance(provider))
-                                  : '••••••',
+                              currencyFormat
+                                  .format(_getAccountBalance(provider)),
                               style: TextStyle(
                                   fontSize: 34,
                                   fontWeight: FontWeight.w700,
@@ -430,53 +448,6 @@ class HomeScreenState extends State<HomeScreen> {
                                         builder: (_) => const DebtScreen())),
                               ),
                             ),
-                          // Add Account button
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: GestureDetector(
-                              onTap: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (context) => AddAccountModal(
-                                    onSave: (account) {
-                                      provider.addAccount(account);
-                                      Navigator.pop(context);
-                                    },
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color:
-                                        AppTheme.goldPrimary.withOpacity(0.3),
-                                    width: 1.5,
-                                    style: BorderStyle.solid,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    AppIcon(AppIcons.add,
-                                        color: AppTheme.adaptiveIcon(context),
-                                        size: 28),
-                                    const SizedBox(width: 14),
-                                    Text(s.addAccount,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                                color: AppTheme.goldPrimary)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     )
@@ -949,46 +920,39 @@ class HomeScreenState extends State<HomeScreen> {
 
   // ── Balance Chart ──
   Widget _buildBalanceChart(AppProvider provider, bool isDark, S s) {
-    final spots = _computeBalanceSpots(provider);
     final chartColor = isDark ? Colors.white : AppTheme.success;
     final mutedColor = isDark ? Colors.white54 : const Color(0xFF6E7278);
-    if (spots.isEmpty || spots.length < 2) {
+
+    // The history itself lives in `utils/balance_series.dart`, under test.
+    // The chart's only job is to draw it.
+    final points = buildBalanceSeries(
+      transactions: provider.transactions,
+      currentBalance: _getAccountBalance(provider),
+      timeframeKey: _selectedTimeframe,
+      scopeAccountId: provider.selectedAccountId,
+    );
+
+    if (points.length < 2) {
       return Center(
           child: Text(s.notEnoughData,
               style: TextStyle(color: mutedColor, fontSize: 13)));
     }
 
-    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    final range = maxY - minY;
-    final padding = range == 0 ? 100.0 : range * 0.20;
+    final spots = <FlSpot>[
+      for (var i = 0; i < points.length; i++)
+        FlSpot(i.toDouble(), points[i].balance),
+    ];
 
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
-    final now = DateTime.now();
-    late DateTime chartStart;
-    switch (_selectedTimeframe) {
-      case '1d':
-        chartStart = now.subtract(const Duration(hours: 24));
-        break;
-      case '1w':
-        chartStart = now.subtract(const Duration(days: 7));
-        break;
-      case '1m':
-        chartStart = now.subtract(const Duration(days: 30));
-        break;
-      case '6m':
-        chartStart = now.subtract(const Duration(days: 180));
-        break;
-      case '1y':
-        chartStart = now.subtract(const Duration(days: 365));
-        break;
-      default:
-        chartStart = now.subtract(const Duration(days: 30));
-    }
-    final numPoints = spots.length;
-    final totalDuration = now.difference(chartStart);
-    final intervalMs =
-        numPoints > 1 ? totalDuration.inMilliseconds / (numPoints - 1) : 1.0;
+    final dataMin = points.map((p) => p.balance).reduce(math.min);
+    final dataMax = points.map((p) => p.balance).reduce(math.max);
+    // A little headroom before rounding, so the line never sits flush against
+    // the top or bottom edge of the plot.
+    final headroom = (dataMax - dataMin) * 0.08;
+    final axis =
+        niceBounds(dataMin - headroom, dataMax + headroom, targetTicks: 5);
+
+    final labels = labelIndices(points.length).toSet();
+    final cf = MoneyFormat.of(provider.settings);
 
     String formatYLabel(double v) {
       if (v.abs() >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
@@ -996,16 +960,25 @@ class HomeScreenState extends State<HomeScreen> {
       return v.toStringAsFixed(0);
     }
 
+    String formatDate(DateTime t) => switch (_selectedTimeframe) {
+          '1d' => DateFormat('HH:mm').format(t),
+          '6m' || '1y' => DateFormat('MMM').format(t),
+          _ => DateFormat('d MMM').format(t),
+        };
+
     return LineChart(
       LineChartData(
         minX: 0,
-        maxX: (numPoints - 1).toDouble(),
-        minY: minY - padding,
-        maxY: maxY + padding,
+        maxX: (points.length - 1).toDouble(),
+        minY: axis.min,
+        maxY: axis.max,
+        // Keep the stroke, its glow and the fill inside the plot area so they
+        // cannot bleed over the labels and blur where the line really sits.
+        clipData: const FlClipData.all(),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: range == 0 ? 100 : range / 4,
+          horizontalInterval: axis.step,
           getDrawingHorizontalLine: (_) => FlLine(
             color: isDark
                 ? Colors.white.withOpacity(0.08)
@@ -1023,10 +996,14 @@ class HomeScreenState extends State<HomeScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 46,
-              interval: range == 0 ? 100 : range / 4,
+              interval: axis.step,
               getTitlesWidget: (value, meta) {
-                if (value == meta.min || value == meta.max)
+                // The outer gridlines are pure headroom, so labelling them adds
+                // no information and risks clipping at the edges.
+                if ((value - meta.min).abs() < axis.step / 2 ||
+                    (value - meta.max).abs() < axis.step / 2) {
                   return const SizedBox.shrink();
+                }
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: Text(formatYLabel(value),
@@ -1039,30 +1016,18 @@ class HomeScreenState extends State<HomeScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 24,
-              interval: _selectedTimeframe == '1d'
-                  ? 6
-                  : (_selectedTimeframe == '1w'
-                      ? 2
-                      : (_selectedTimeframe == '1m'
-                          ? 7
-                          : (_selectedTimeframe == '6m' ? 6 : 3))),
+              // One tick per sample, filtered to the indices `labelIndices`
+              // chose — it guarantees both ends are labelled and that no two
+              // labels ever land side by side.
+              interval: 1,
               getTitlesWidget: (value, meta) {
-                final idx = value.toInt();
-                if (idx < 0 || idx >= numPoints) return const SizedBox.shrink();
-                final pointTime = chartStart
-                    .add(Duration(milliseconds: (intervalMs * idx).round()));
-                String label;
-                if (_selectedTimeframe == '1d') {
-                  label = DateFormat('HH:mm').format(pointTime);
-                } else if (_selectedTimeframe == '1w' ||
-                    _selectedTimeframe == '1m') {
-                  label = DateFormat('d MMM').format(pointTime);
-                } else {
-                  label = DateFormat('MMM').format(pointTime);
+                final idx = value.round();
+                if (idx < 0 || idx >= points.length || !labels.contains(idx)) {
+                  return const SizedBox.shrink();
                 }
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(label,
+                  child: Text(formatDate(points[idx].time),
                       style: TextStyle(fontSize: 9, color: mutedColor)),
                 );
               },
@@ -1093,27 +1058,42 @@ class HomeScreenState extends State<HomeScreen> {
             tooltipRoundedRadius: 10,
             tooltipPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            getTooltipItems: (touchedSpots) => touchedSpots
-                .map((s) => LineTooltipItem(
-                      cf.format(s.y),
-                      const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13),
-                    ))
-                .toList(),
+            getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
+              final t = points[spot.x.round().clamp(0, points.length - 1)].time;
+              return LineTooltipItem(
+                cf.format(spot.y),
+                const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13),
+                children: [
+                  TextSpan(
+                    text:
+                        '\n${DateFormat(_selectedTimeframe == '1d' ? 'd MMM, HH:mm' : 'd MMM yyyy').format(t)}',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 11),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         ),
         lineBarsData: [
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            curveSmoothness: 0.42,
+            // A balance moves in steps. A loose spline rounds those steps into
+            // peaks and troughs the balance never actually reached, so keep the
+            // curve tight and clamp it to the real values.
+            curveSmoothness: 0.2,
+            preventCurveOverShooting: true,
             color: chartColor,
-            barWidth: 3,
+            barWidth: 2.5,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
-            shadow: Shadow(color: chartColor.withOpacity(0.4), blurRadius: 12),
+            shadow: Shadow(color: chartColor.withOpacity(0.22), blurRadius: 6),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
@@ -1132,101 +1112,12 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  List<FlSpot> _computeBalanceSpots(AppProvider provider) {
-    final now = DateTime.now();
-    late DateTime start;
-    late int numPoints;
-
-    switch (_selectedTimeframe) {
-      case '1d':
-        start = now.subtract(const Duration(hours: 24));
-        numPoints = 24;
-        break;
-      case '1w':
-        start = now.subtract(const Duration(days: 7));
-        numPoints = 7;
-        break;
-      case '1m':
-        start = now.subtract(const Duration(days: 30));
-        numPoints = 30;
-        break;
-      case '6m':
-        start = now.subtract(const Duration(days: 180));
-        numPoints = 26;
-        break;
-      case '1y':
-        start = now.subtract(const Duration(days: 365));
-        numPoints = 12;
-        break;
-      default:
-        start = now.subtract(const Duration(days: 30));
-        numPoints = 30;
-    }
-
-    // Get relevant transactions for selected account
-    final txns = provider.transactions.where((t) {
-      if (provider.selectedAccountId != null &&
-          t.accountId != provider.selectedAccountId) return false;
-      final d = DateTime.parse(t.date);
-      return d.isAfter(start.subtract(const Duration(days: 1)));
-    }).toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
-
-    // Current balance
-    double currentBalance = _getAccountBalance(provider);
-
-    // Walk backwards: compute balance at start by reversing all transactions
-    double balanceAtStart = currentBalance;
-    for (final t in txns.reversed) {
-      if (t.type == 'income') {
-        balanceAtStart -= t.amount;
-      } else if (t.type == 'expense' || t.type == 'withdrawal') {
-        balanceAtStart += t.amount;
-      } else if (t.type == 'transfer') {
-        if (t.accountId == provider.selectedAccountId) {
-          balanceAtStart += t.amount;
-        } else if (t.toAccountId == provider.selectedAccountId) {
-          balanceAtStart -= t.amount;
-        }
-      }
-    }
-
-    // Build spots by walking forward
-    final totalDuration = now.difference(start);
-    final intervalMs = totalDuration.inMilliseconds / (numPoints - 1);
-    double runningBalance = balanceAtStart;
-    int txnIdx = 0;
-    final spots = <FlSpot>[];
-
-    for (int i = 0; i < numPoints; i++) {
-      final pointTime =
-          start.add(Duration(milliseconds: (intervalMs * i).round()));
-      // Apply all transactions up to this point
-      while (txnIdx < txns.length &&
-          DateTime.parse(txns[txnIdx].date)
-              .isBefore(pointTime.add(const Duration(seconds: 1)))) {
-        final t = txns[txnIdx];
-        if (t.type == 'income') {
-          runningBalance += t.amount;
-        } else if (t.type == 'expense' || t.type == 'withdrawal') {
-          runningBalance -= t.amount;
-        } else if (t.type == 'transfer') {
-          if (t.accountId == provider.selectedAccountId) {
-            runningBalance -= t.amount;
-          } else if (t.toAccountId == provider.selectedAccountId) {
-            runningBalance += t.amount;
-          }
-        }
-        txnIdx++;
-      }
-      spots.add(FlSpot(i.toDouble(), runningBalance));
-    }
-
-    return spots;
-  }
 
   Widget _headerIcon(String icon, VoidCallback onTap) {
     return GestureDetector(
+      // Without this the glyph's transparent pixels are not hit-testable, so
+      // taps that visually land on the icon fall straight through it.
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -1329,7 +1220,7 @@ class HomeScreenState extends State<HomeScreen> {
     required String label,
     required String sublabel,
     required double amount,
-    required NumberFormat cf,
+    required MoneyFormat cf,
     required VoidCallback onTap,
     /// Colour for the amount only — icons stay neutral across the app.
     /// Leave null to colour by the sign of [amount].
@@ -1384,7 +1275,7 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              _balanceVisible ? cf.format(amount) : '••••••',
+              cf.format(amount),
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -1545,7 +1436,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildGroupedTransactions(
     List<dynamic> transactions,
-    NumberFormat cf,
+    MoneyFormat cf,
     BuildContext context,
     bool isDark, {
     AppProvider? provider,
@@ -1649,9 +1540,13 @@ class HomeScreenState extends State<HomeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    _balanceVisible
-                                        ? '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}'
-                                        : '••••',
+                                    // The sign is dropped along with the
+                                    // figure — a lone "+" or "-" beside a mask
+                                    // still tells a bystander which way the
+                                    // money went.
+                                    cf.hidden
+                                        ? cf.format(t.amount)
+                                        : cf.signed(t.amount, positive: t.type == 'income'),
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -1728,7 +1623,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _showTransactionDetail(BuildContext context, dynamic t,
-      AppProvider? provider, NumberFormat cf, bool isDark) {
+      AppProvider? provider, MoneyFormat cf, bool isDark) {
     final cat = (provider != null && t.categoryId != null)
         ? provider!.categories.where((c) => c.id == t.categoryId).firstOrNull
         : null;
@@ -1807,7 +1702,7 @@ class HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     Text(
-                      '${t.type == 'income' ? '+' : '-'}${cf.format(t.amount)}',
+                      cf.signed(t.amount, positive: t.type == 'income'),
                       style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -2147,7 +2042,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   void _showAllSubscriptions(BuildContext context, AppProvider provider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final cf = MoneyFormat.of(provider.settings);
     final allRules = provider.recurringRules.where((r) => r.isActive).toList()
       ..sort((a, b) => a.nextDate.compareTo(b.nextDate));
     final s = S.of(context);

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../utils/currency_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -18,6 +17,7 @@ import 'portfolio_screen.dart';
 import 'goals_screen.dart';
 import 'daret_screen.dart';
 import 'settings_screen.dart';
+import '../utils/money_format.dart';
 
 class WealthScreen extends StatefulWidget {
   const WealthScreen({super.key});
@@ -146,7 +146,7 @@ class _WealthScreenState extends State<WealthScreen> {
                         .subtract(const Duration(days: 1))))
             .fold(0.0, (sum, t) => sum + t.amount);
 
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -459,7 +459,7 @@ class _WealthScreenState extends State<WealthScreen> {
 
   Widget _buildBreakdownItem({
     required BuildContext context,
-    required NumberFormat cf,
+    required MoneyFormat cf,
     required IconData icon,
     required String label,
     required String sublabel,
@@ -516,7 +516,7 @@ class _WealthScreenState extends State<WealthScreen> {
                   ),
                 ),
                 Text(
-                  '${amount < 0 ? '-' : ''}${cf.format(amount.abs())}',
+                  cf.negativeSigned(amount),
                   style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,

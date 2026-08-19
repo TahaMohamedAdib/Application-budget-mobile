@@ -15,6 +15,7 @@ import '../models/category.dart';
 import '../widgets/glass_action_button.dart';
 import 'settings_screen.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/money_format.dart';
 
 class BudgetsScreen extends StatefulWidget {
   const BudgetsScreen({super.key});
@@ -31,7 +32,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final allCategories = provider.categories;
         final totalBudget =
             allCategories.fold(0.0, (sum, c) => sum + c.budgetLimit);
@@ -606,7 +607,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 
   void _showCategoryExpenses(BuildContext context, AppProvider provider,
-      Category cat, NumberFormat cf) {
+      Category cat, MoneyFormat cf) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final s = S.of(context);
     final now = DateTime.now();
@@ -751,7 +752,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '-${cf.format(t.amount)}',
+                                  cf.signed(t.amount, positive: false),
                                   style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -771,7 +772,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 
   void _showEditCategoryModal(BuildContext context, AppProvider provider,
-      Category cat, NumberFormat cf) {
+      Category cat, MoneyFormat cf) {
     final nameCtrl = TextEditingController(text: cat.name);
     final budgetCtrl = TextEditingController(
         text: cat.budgetLimit > 0 ? cat.budgetLimit.toStringAsFixed(0) : '');

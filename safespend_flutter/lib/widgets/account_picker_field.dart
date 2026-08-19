@@ -4,8 +4,8 @@ import '../models/account.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
-import '../utils/currency_helper.dart';
 import 'app_picker_field.dart';
+import '../utils/money_format.dart';
 
 const _allAccountsValue = '__all_accounts__';
 const _noAccountValue = '__no_account__';
@@ -70,7 +70,7 @@ class AccountPickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formatter = CurrencyHelper.formatter(provider.settings.currency);
+    final formatter = MoneyFormat.of(provider.settings);
     final eligibleAccounts = (accounts ?? provider.accounts)
         .where((account) => account.id != excludeAccountId)
         .toList();

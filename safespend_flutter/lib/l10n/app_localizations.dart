@@ -612,4 +612,277 @@ class S {
   String get photo => _t('photo');
   String get camera => _t('camera');
   String get document => _t('document');
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+  String get preferences => _t('preferences');
+  String get privacyAndData => _t('privacyAndData');
+  String get support => _t('support');
+  String get on => _t('on');
+  String get off => _t('off');
+  String get locked => _t('locked');
+  String get preview => _t('preview');
+
+  // Appearance
+  String get appearanceDetail => _t('appearanceDetail');
+  String get appearanceSubtitle => _t('appearanceSubtitle');
+  String get theme => _t('theme');
+  String get themeFooter => _t('themeFooter');
+  String get textSize => _t('textSize');
+  String get textSizeFooter => _t('textSizeFooter');
+  String get textSizeApply => _t('textSizeApply');
+  String get textSizeApplied => _t('textSizeApplied');
+  String get textSizeSmall => _t('textSizeSmall');
+  String get textSizeCompact => _t('textSizeCompact');
+  String get textSizeDefault => _t('textSizeDefault');
+  String get textSizeLarge => _t('textSizeLarge');
+  String get textSizeLarger => _t('textSizeLarger');
+  String get textSizePreviewTitle => _t('textSizePreviewTitle');
+  String get textSizePreviewSubtitle => _t('textSizePreviewSubtitle');
+  String get display => _t('display');
+  String get hideAmounts => _t('hideAmounts');
+  String get hideAmountsDetail => _t('hideAmountsDetail');
+  String get hideAmountsFooter => _t('hideAmountsFooter');
+
+  // Language
+  String get languageDetail => _t('languageDetail');
+  String get languageSubtitle => _t('languageSubtitle');
+  String get languageFooter => _t('languageFooter');
+
+  // Currency & format
+  String get currencyAndFormat => _t('currencyAndFormat');
+  String get currencyAndFormatDetail => _t('currencyAndFormatDetail');
+  String get currencyAndFormatSubtitle => _t('currencyAndFormatSubtitle');
+  String get numberFormat => _t('numberFormat');
+  String get numberFormatFooter => _t('numberFormatFooter');
+  String get decimalsNone => _t('decimalsNone');
+  String get decimalsTwo => _t('decimalsTwo');
+  String get compactNumbers => _t('compactNumbers');
+  String get compactNumbersDetail => _t('compactNumbersDetail');
+  String get dateFormat => _t('dateFormat');
+  String get firstDayOfWeek => _t('firstDayOfWeek');
+  String get firstDayOfWeekFooter => _t('firstDayOfWeekFooter');
+  String get saturday => _t('saturday');
+  String get sunday => _t('sunday');
+  String get monday => _t('monday');
+
+  // Notifications
+  String get notificationsDetail => _t('notificationsDetail');
+  String get notificationsSubtitle => _t('notificationsSubtitle');
+  String get pushNotificationsFooter => _t('pushNotificationsFooter');
+  String get alerts => _t('alerts');
+  String get billReminders => _t('billReminders');
+  String get billRemindersDetail => _t('billRemindersDetail');
+  String get budgetAlerts => _t('budgetAlerts');
+  String get budgetAlertsDetail => _t('budgetAlertsDetail');
+  String get largeTransactionAlerts => _t('largeTransactionAlerts');
+  String get largeTransactionAlertsDetail => _t('largeTransactionAlertsDetail');
+  String get alertThreshold => _t('alertThreshold');
+  String get summaries => _t('summaries');
+  String get dailySummary => _t('dailySummary');
+  String get dailySummaryDetail => _t('dailySummaryDetail');
+  String get weeklyReport => _t('weeklyReport');
+  String get weeklyReportDetail => _t('weeklyReportDetail');
+  String get quietHours => _t('quietHours');
+  String get quietHoursFooter => _t('quietHoursFooter');
+  String get from => _t('from');
+  String get to => _t('to');
+
+  // Security & privacy
+  String get securityAndPrivacy => _t('securityAndPrivacy');
+  String get securityAndPrivacyDetail => _t('securityAndPrivacyDetail');
+  String get securityAndPrivacySubtitle => _t('securityAndPrivacySubtitle');
+  String get appLock => _t('appLock');
+  String get appLockDetail => _t('appLockDetail');
+  String get appLockFooter => _t('appLockFooter');
+  String get changePin => _t('changePin');
+  String get autoLock => _t('autoLock');
+  String get immediately => _t('immediately');
+  String get afterOneMinute => _t('afterOneMinute');
+  String afterNMinutes(int n) => _t('afterNMinutes').replaceAll('{n}', '$n');
+  String get maskOnAppSwitch => _t('maskOnAppSwitch');
+  String get maskOnAppSwitchDetail => _t('maskOnAppSwitchDetail');
+  String get maskOnAppSwitchFooter => _t('maskOnAppSwitchFooter');
+  String get changePasswordDetail => _t('changePasswordDetail');
+  String get diagnostics => _t('diagnostics');
+  String get diagnosticsFooter => _t('diagnosticsFooter');
+  String get usageAnalytics => _t('usageAnalytics');
+  String get usageAnalyticsDetail => _t('usageAnalyticsDetail');
+  String get crashReports => _t('crashReports');
+  String get crashReportsDetail => _t('crashReportsDetail');
+  String get privacyPolicy => _t('privacyPolicy');
+  String get pinUpdated => _t('pinUpdated');
+
+  // PIN entry
+  String get enterPin => _t('enterPin');
+  String get setPin => _t('setPin');
+  String get confirmPin => _t('confirmPin');
+  String get pinHint => _t('pinHint');
+  String get pinIncorrect => _t('pinIncorrect');
+  String get pinMismatch => _t('pinMismatch');
+
+  // Data & storage
+  String get dataAndStorage => _t('dataAndStorage');
+  String get dataAndStorageDetail => _t('dataAndStorageDetail');
+  String get dataAndStorageSubtitle => _t('dataAndStorageSubtitle');
+  String get sync => _t('sync');
+  String get syncStatus => _t('syncStatus');
+  String get syncedToCloud => _t('syncedToCloud');
+  String get syncFooter => _t('syncFooter');
+  String get syncLocalModeFooter => _t('syncLocalModeFooter');
+  String get signedInAs => _t('signedInAs');
+  String get exportData => _t('exportData');
+  String get exportFooter => _t('exportFooter');
+  String get exportAsJson => _t('exportAsJson');
+  String get exportAsJsonDetail => _t('exportAsJsonDetail');
+  String get copyToClipboard => _t('copyToClipboard');
+  String get copyToClipboardDetail => _t('copyToClipboardDetail');
+  String get exportSaved => _t('exportSaved');
+  String get exportCancelled => _t('exportCancelled');
+  String get exportUseClipboard => _t('exportUseClipboard');
+  String get copiedToClipboard => _t('copiedToClipboard');
+  String get storedOnThisDevice => _t('storedOnThisDevice');
+  String get storageOverviewNote => _t('storageOverviewNote');
+  String get dangerZone => _t('dangerZone');
+  String get dangerZoneFooter => _t('dangerZoneFooter');
+  String get clearLocalData => _t('clearLocalData');
+  String get clearLocalDataDetail => _t('clearLocalDataDetail');
+  String get clearLocalDataConfirm => _t('clearLocalDataConfirm');
+
+  // Help & support
+  String get helpAndSupportDetail => _t('helpAndSupportDetail');
+  String get helpAndSupportSubtitle => _t('helpAndSupportSubtitle');
+  String get frequentlyAsked => _t('frequentlyAsked');
+  String get contact => _t('contact');
+  String get contactFooter => _t('contactFooter');
+  String get emailSupport => _t('emailSupport');
+  String get emailCopied => _t('emailCopied');
+  String get helpQ4 => _t('helpQ4');
+  String get helpA4 => _t('helpA4');
+  String get helpQ5 => _t('helpQ5');
+  String get helpA5 => _t('helpA5');
+
+  // About
+  String get about => _t('about');
+  String get aboutDetail => _t('aboutDetail');
+  String get versionLabel => _t('versionLabel');
+  String get openSourceLicenses => _t('openSourceLicenses');
+  String get legal => _t('legal');
+  String get termsOfService => _t('termsOfService');
+  String get termsDesc => _t('termsDesc');
+  String get copyDiagnostics => _t('copyDiagnostics');
+  String get copyDiagnosticsDetail => _t('copyDiagnosticsDetail');
+  String get madeWithCare => _t('madeWithCare');
+
+  // ── Onboarding ──
+  String get obWelcomeTo => _t('obWelcomeTo');
+  String get obTagline => _t('obTagline');
+  String get obPillPrivate => _t('obPillPrivate');
+  String get obPillSmart => _t('obPillSmart');
+  String get obPillFast => _t('obPillFast');
+  String get obWelcomeFootnote => _t('obWelcomeFootnote');
+
+  String get obLanguageTitle => _t('obLanguageTitle');
+  String get obLanguageSubtitle => _t('obLanguageSubtitle');
+
+  String get obHookTitle => _t('obHookTitle');
+  String get obHookSubtitle => _t('obHookSubtitle');
+  String get obHookPoint1 => _t('obHookPoint1');
+  String get obHookPoint1Detail => _t('obHookPoint1Detail');
+  String get obHookPoint2 => _t('obHookPoint2');
+  String get obHookPoint2Detail => _t('obHookPoint2Detail');
+  String get obHookPoint3 => _t('obHookPoint3');
+  String get obHookPoint3Detail => _t('obHookPoint3Detail');
+  String get obHookCta => _t('obHookCta');
+
+  String get obAhaTitle => _t('obAhaTitle');
+  String get obAhaSubtitle => _t('obAhaSubtitle');
+  String get obAhaPoint1 => _t('obAhaPoint1');
+  String get obAhaPoint1Detail => _t('obAhaPoint1Detail');
+  String get obAhaPoint2 => _t('obAhaPoint2');
+  String get obAhaPoint2Detail => _t('obAhaPoint2Detail');
+  String get obAhaPoint3 => _t('obAhaPoint3');
+  String get obAhaPoint3Detail => _t('obAhaPoint3Detail');
+  String get obAhaPoint4 => _t('obAhaPoint4');
+  String get obAhaPoint4Detail => _t('obAhaPoint4Detail');
+  String get obAhaCta => _t('obAhaCta');
+
+  String get obPreviewTitle => _t('obPreviewTitle');
+  String get obPreviewSubtitle => _t('obPreviewSubtitle');
+  String get obPreviewTodayDetail => _t('obPreviewTodayDetail');
+  String get obPreviewPlanDetail => _t('obPreviewPlanDetail');
+  String get obPreviewWealthDetail => _t('obPreviewWealthDetail');
+  String get obPreviewAccountsDetail => _t('obPreviewAccountsDetail');
+  String get obPreviewCoachDetail => _t('obPreviewCoachDetail');
+  String get obPreviewCta => _t('obPreviewCta');
+
+  String get obSetupSkip => _t('obSetupSkip');
+
+  String get obCurrencyTitle => _t('obCurrencyTitle');
+  String get obCurrencySubtitle => _t('obCurrencySubtitle');
+  String get obCurrencySearch => _t('obCurrencySearch');
+  String get obCurrencyCommon => _t('obCurrencyCommon');
+  String get obCurrencyNoResults => _t('obCurrencyNoResults');
+
+  String get obAccountTitle => _t('obAccountTitle');
+  String get obAccountSubtitle => _t('obAccountSubtitle');
+  String get obAccountNameLabel => _t('obAccountNameLabel');
+  String get obAccountNameHint => _t('obAccountNameHint');
+  String get obBankLabel => _t('obBankLabel');
+  String get obBankHint => _t('obBankHint');
+  String get obLogoAdd => _t('obLogoAdd');
+  String get obLogoHint => _t('obLogoHint');
+
+  String get obBalanceTitle => _t('obBalanceTitle');
+  String get obBalanceSubtitle => _t('obBalanceSubtitle');
+  String get obBalanceLabel => _t('obBalanceLabel');
+
+  String get obIncomeTitle => _t('obIncomeTitle');
+  String get obIncomeSubtitle => _t('obIncomeSubtitle');
+  String get obWageLabel => _t('obWageLabel');
+  String get obWageHint => _t('obWageHint');
+  String get obFrequencyLabel => _t('obFrequencyLabel');
+  String get obPayWeekly => _t('obPayWeekly');
+  String get obPayBiweekly => _t('obPayBiweekly');
+  String get obPayMonthly => _t('obPayMonthly');
+  String get obPayDayLabel => _t('obPayDayLabel');
+  String obPayDayOfMonth(int day) =>
+      _t('obPayDayOfMonth').replaceAll('{day}', '$day');
+  String get obPayDayLastDay => _t('obPayDayLastDay');
+  String obPayEveryWeekday(String day) =>
+      _t('obPayEveryWeekday').replaceAll('{day}', day);
+  String obMonthlyEquivalent(String amount) =>
+      _t('obMonthlyEquivalent').replaceAll('{amount}', amount);
+  String obNextPayday(String day) =>
+      _t('obNextPayday').replaceAll('{day}', day);
+  String get obIncomeSkip => _t('obIncomeSkip');
+  String get obIncomeSkipNote => _t('obIncomeSkipNote');
+
+  String get obSummaryTitle => _t('obSummaryTitle');
+  String get obSummarySubtitle => _t('obSummarySubtitle');
+  String get obSummaryAccount => _t('obSummaryAccount');
+  String get obSummaryBalance => _t('obSummaryBalance');
+  String get obSummaryIncome => _t('obSummaryIncome');
+  String get obSummaryIncomeNone => _t('obSummaryIncomeNone');
+  String get obSummaryEdit => _t('obSummaryEdit');
+  String get obFinish => _t('obFinish');
+
+  String get obErrorNameRequired => _t('obErrorNameRequired');
+  String get obErrorBalanceRequired => _t('obErrorBalanceRequired');
+  String get obErrorNotANumber => _t('obErrorNotANumber');
+  String get obErrorNegativeBalance => _t('obErrorNegativeBalance');
+  String get obErrorWagePositive => _t('obErrorWagePositive');
+  String get incomeSettings => _t('incomeSettings');
+  String get incomeSettingsDetail => _t('incomeSettingsDetail');
+  String get incomeSettingsSubtitle => _t('incomeSettingsSubtitle');
+  String get incomePaidInto => _t('incomePaidInto');
+  String get incomeNoSalary => _t('incomeNoSalary');
+  String get incomeNoSalaryDetail => _t('incomeNoSalaryDetail');
+  String get incomeAddSalary => _t('incomeAddSalary');
+  String get incomeRemove => _t('incomeRemove');
+  String get incomeRemoveConfirm => _t('incomeRemoveConfirm');
+  String get incomeRemoveMessage => _t('incomeRemoveMessage');
+  String get incomeSaved => _t('incomeSaved');
+  String get incomeRemoved => _t('incomeRemoved');
+  String get incomeTotalMonthly => _t('incomeTotalMonthly');
+  String get incomeAccountHint => _t('incomeAccountHint');
 }

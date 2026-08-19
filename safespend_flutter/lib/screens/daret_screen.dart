@@ -7,12 +7,12 @@ import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
-import '../utils/currency_helper.dart';
 import '../models/daret.dart';
 import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/wealth_ui.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/money_format.dart';
 
 class DaretScreen extends StatefulWidget {
   const DaretScreen({super.key});
@@ -29,7 +29,7 @@ class _DaretScreenState extends State<DaretScreen> {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        final cf = CurrencyHelper.formatter(provider.settings.currency);
+        final cf = MoneyFormat.of(provider.settings);
         final activeDarets = provider.darets.where((d) => d.isActive).toList();
         final completedDarets =
             provider.darets.where((d) => !d.isActive || d.isComplete).toList();
@@ -155,7 +155,7 @@ class _DaretScreenState extends State<DaretScreen> {
   }
 
   Widget _buildDaretCard(BuildContext context, Daret daret,
-      AppProvider provider, NumberFormat cf, bool isDark) {
+      AppProvider provider, MoneyFormat cf, bool isDark) {
     final s = S.of(context);
     return GestureDetector(
       onTap: () => _showDaretDetail(context, daret, provider, cf, isDark),
@@ -276,7 +276,7 @@ class _DaretScreenState extends State<DaretScreen> {
   }
 
   void _showDaretDetail(BuildContext context, Daret daret, AppProvider provider,
-      NumberFormat cf, bool isDark) {
+      MoneyFormat cf, bool isDark) {
     final s = S.of(context);
     final sourceAccount = daret.paymentSourceId == AppProvider.cashOnHandId
         ? null
@@ -716,7 +716,7 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final s = S.of(context);
-    final cf = CurrencyHelper.formatter(widget.provider.settings.currency);
+    final cf = MoneyFormat.of(widget.provider.settings);
     final accounts = widget.provider.accounts;
 
     return AppFormSheet(

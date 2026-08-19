@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:safespend_flutter/theme/ios_icons.dart';
-import '../../theme/app_theme.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../theme/ios_icons.dart';
+import '../../widgets/onboarding_ui.dart';
+
+/// The answer to [HookScreen]: what the app actually does about it.
 class AhaScreen extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
@@ -10,131 +14,52 @@ class AhaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).scaffoldBackgroundColor,
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(IOSIcons.arrow_back),
-                      onPressed: onBack,
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: AppTheme.adaptiveIconSurface(context),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Icon(
-                    IOSIcons.lightbulb,
-                    size: 50,
-                    color: AppTheme.adaptiveIcon(context),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Meet SafeSpend',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Your intelligent financial companion that helps you take control of your money',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                _buildFeatureItem(
-                  context,
-                  IOSIcons.visibility,
-                  'See exactly where your money goes',
-                ),
-                _buildFeatureItem(
-                  context,
-                  IOSIcons.calendar_today,
-                  'Know what you can safely spend today',
-                ),
-                _buildFeatureItem(
-                  context,
-                  IOSIcons.trending_up,
-                  'Track your net worth in real-time',
-                ),
-                _buildFeatureItem(
-                  context,
-                  IOSIcons.psychology,
-                  'Get AI-powered financial advice',
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Show Me How',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+    final s = S.of(context);
 
-  Widget _buildFeatureItem(BuildContext context, IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
+    return OnboardingScaffold(
+      onBack: onBack,
+      footer: OnboardingButton(label: s.obAhaCta, onTap: onNext),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.adaptiveIconSurface(context),
-              borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 12),
+          OnboardingHero(
+            icon: IOSIcons.lightbulb,
+            title: s.obAhaTitle,
+            subtitle: s.obAhaSubtitle,
+          ).animate().fadeIn(duration: 420.ms).slideY(
+                begin: 0.08,
+                end: 0,
+                curve: Curves.easeOutCubic,
+              ),
+          const SizedBox(height: 28),
+          ...[
+            OnboardingBullet(
+              icon: IOSIcons.today,
+              title: s.obAhaPoint1,
+              detail: s.obAhaPoint1Detail,
             ),
-            child: Icon(icon, color: AppTheme.adaptiveIcon(context)),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyLarge,
+            OnboardingBullet(
+              icon: IOSIcons.account_balance_wallet_rounded,
+              title: s.obAhaPoint2,
+              detail: s.obAhaPoint2Detail,
             ),
-          ),
+            OnboardingBullet(
+              icon: IOSIcons.autorenew_rounded,
+              title: s.obAhaPoint3,
+              detail: s.obAhaPoint3Detail,
+            ),
+            OnboardingBullet(
+              icon: IOSIcons.psychology,
+              title: s.obAhaPoint4,
+              detail: s.obAhaPoint4Detail,
+            ),
+          ].animate(interval: 85.ms).fadeIn(duration: 380.ms).slideY(
+                begin: 0.12,
+                end: 0,
+                curve: Curves.easeOutCubic,
+              ),
+          const SizedBox(height: 12),
         ],
       ),
     );

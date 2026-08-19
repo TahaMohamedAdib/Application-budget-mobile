@@ -8,7 +8,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
-import 'utils/currency_helper.dart';
 import 'widgets/app_picker_field.dart';
 import 'package:uuid/uuid.dart';
 import 'providers/app_provider.dart';
@@ -26,16 +25,65 @@ import 'screens/wealth_screen.dart';
 import 'screens/coach_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
+import 'screens/settings/pin_entry_screen.dart';
 import 'widgets/add_transaction_modal.dart';
+import 'utils/money_format.dart';
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
 
+/// System bar treatment shared by both platforms.
+///
+/// [SystemUiOverlayStyle.light] and [.dark] look like the obvious choice, but
+/// they set an opaque black or white Android navigation bar, so the floating
+/// nav pill ends up sitting on a band that does not exist on iOS. Spelling the
+/// fields out keeps both bars transparent and only varies the icon colour.
+SystemUiOverlayStyle systemOverlayStyle({required bool isDark}) {
+  final iconsLight = isDark ? Brightness.light : Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    // Android reads the icon brightness, iOS reads the (inverted) background
+    // brightness. Both are set so neither platform falls back to a default.
+    statusBarIconBrightness: iconsLight,
+    statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarIconBrightness: iconsLight,
+    // Android would otherwise paint a translucent scrim behind the gesture bar
+    // to guarantee contrast, undoing the transparency above.
+    systemNavigationBarContrastEnforced: false,
+  );
+}
+
+/// One scroll feel on every platform.
+///
+/// Screens were opting into [BouncingScrollPhysics] one scroll view at a time,
+/// so the ones that forgot kept Android's clamping scroll and its stretch
+/// overscroll — two different feels inside the same app, and neither matching
+/// iOS. Setting it here covers every scrollable, including those inside
+/// packages that the app cannot reach.
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+
+  /// The bounce *is* the overscroll indicator; Android's glow/stretch on top
+  /// of it has no iOS counterpart.
+  @override
+  Widget buildOverscrollIndicator(
+          BuildContext context, Widget child, ScrollableDetails details) =>
+      child;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
+  // Android draws its own opaque status and navigation bars by default, which
+  // would frame the app in two grey bands iOS does not have. Going edge to edge
+  // and painting both bars transparent lets the same layout reach the screen
+  // edges on both platforms.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(systemOverlayStyle(isDark: false));
 
   // Catch any init errors so runApp always executes
   try {
@@ -101,10 +149,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only rebuild MaterialApp when theme mode changes
-    return Selector<AppProvider, ({String themeMode, String locale})>(
-      selector: (_, p) =>
-          (themeMode: p.settings.themeMode, locale: p.settings.locale),
+    // Only rebuild MaterialApp when one of these actually changes
+    return Selector<AppProvider,
+        ({String themeMode, String locale, double textScale})>(
+      selector: (_, p) => (
+        themeMode: p.settings.themeMode,
+        locale: p.settings.locale,
+        textScale: p.settings.textScale,
+      ),
       builder: (context, settings, child) {
         final themeMode = settings.themeMode;
         final locale = S.normalizeLocaleCode(settings.locale);
@@ -124,6 +176,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'SafeSpend',
           debugShowCheckedModeBanner: false,
+          scrollBehavior: const AppScrollBehavior(),
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: resolvedThemeMode,
@@ -134,6 +187,22 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+          // The user's text-size preference multiplies the platform scale
+          // rather than replacing it, so system accessibility sizing still
+          // applies on top.
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            return MediaQuery(
+              data: media.copyWith(
+                // scale(1) reads the platform's current factor, so the two
+                // multiply instead of the preference overriding accessibility.
+                textScaler: TextScaler.linear(
+                  media.textScaler.scale(1) * settings.textScale,
+                ),
+              ),
+              child: _PrivacyGate(child: child ?? const SizedBox.shrink()),
+            );
+          },
           // Home screen routing consumes only the fields it needs
           home: Consumer2<AppProvider, AuthService>(
             builder: (context, provider, auth, _) {
@@ -142,6 +211,120 @@ class MyApp extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Enforces the two privacy preferences that have to live above every route:
+/// the app lock, and masking the screen while the app is backgrounded.
+///
+/// Both are driven by app lifecycle rather than navigation, which is why they
+/// wrap the whole `MaterialApp` instead of sitting on a screen.
+class _PrivacyGate extends StatefulWidget {
+  const _PrivacyGate({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PrivacyGate> createState() => _PrivacyGateState();
+}
+
+class _PrivacyGateState extends State<_PrivacyGate>
+    with WidgetsBindingObserver {
+  /// True while the app is off-screen — drives the app-switcher mask.
+  bool _obscured = false;
+
+  bool _locked = false;
+  DateTime? _leftAt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Arm the lock on cold start, before the first frame the user could read.
+    final settings = context.read<AppProvider>().settings;
+    _locked = settings.appLockEnabled;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final settings = context.read<AppProvider>().settings;
+
+    // `inactive` is the state iOS uses while drawing the app-switcher card, so
+    // the mask has to go up there — `paused` is already too late.
+    final offScreen = state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden;
+
+    if (settings.maskOnAppSwitch && offScreen != _obscured) {
+      setState(() => _obscured = offScreen);
+    } else if (!settings.maskOnAppSwitch && _obscured) {
+      setState(() => _obscured = false);
+    }
+
+    if (state == AppLifecycleState.paused) {
+      _leftAt = DateTime.now();
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed) {
+      if (!settings.appLockEnabled || _locked) return;
+      final away = _leftAt == null
+          ? Duration.zero
+          : DateTime.now().difference(_leftAt!);
+      if (away.inMinutes >= settings.autoLockMinutes) {
+        setState(() => _locked = true);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        widget.child,
+
+        // Masking the app-switcher card only needs to hide the pixels, so a
+        // blur is enough and the app underneath keeps its state.
+        if (_obscured && !_locked)
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+              child: ColoredBox(
+                color: Theme.of(context)
+                    .scaffoldBackgroundColor
+                    .withValues(alpha: 0.86),
+                child: Center(
+                  child: Icon(
+                    IOSIcons.lock_rounded,
+                    size: 34,
+                    color: AppTheme.adaptiveIcon(context),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        // The lock renders the pad inline rather than pushing a route: this
+        // gate sits above the Navigator, so it has none to push onto — and
+        // inline means there is no route to dismiss around the lock either.
+        if (_locked)
+          Positioned.fill(
+            child: PinEntryScreen(
+              mode: PinMode.verify,
+              dismissible: false,
+              onCompleted: (ok) {
+                if (ok && mounted) setState(() => _locked = false);
+              },
+            ),
+          ),
+      ],
     );
   }
 }
@@ -308,7 +491,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final navInset = _navBarBottomInset;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      value: systemOverlayStyle(isDark: isDark),
       child: Stack(
         children: [
           // Scaffold — body is just the page view; nav bar is the pill
@@ -843,7 +1026,7 @@ class _QuickAddBillModalState extends State<_QuickAddBillModal> {
           ? provider.accounts.first.id
           : AppProvider.cashOnHandId;
     }
-    final cf = CurrencyHelper.formatter(provider.settings.currency);
+    final cf = MoneyFormat.of(provider.settings);
 
     return Container(
       decoration: BoxDecoration(
