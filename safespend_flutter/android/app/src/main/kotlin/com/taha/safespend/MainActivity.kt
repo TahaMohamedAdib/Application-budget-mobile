@@ -1,4 +1,4 @@
-package com.example.safespend_flutter
+package com.taha.safespend
 
 import io.flutter.embedding.android.FlutterActivity
 
