@@ -25,6 +25,7 @@ import 'screens/wealth_screen.dart';
 import 'screens/coach_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
+import 'screens/onboarding/app_tour_screen.dart';
 import 'screens/settings/pin_entry_screen.dart';
 import 'widgets/add_transaction_modal.dart';
 import 'utils/money_format.dart';
@@ -141,6 +142,10 @@ class MyApp extends StatelessWidget {
 
     // Has data → skip onboarding if accounts exist
     if (provider.setupComplete || provider.accounts.isNotEmpty) {
+      // First launch into the app → show the guided tour once.
+      if (!provider.hasSeenAppTour) {
+        return AppTourScreen(onDone: provider.markAppTourSeen);
+      }
       return const MainScreen();
     }
 

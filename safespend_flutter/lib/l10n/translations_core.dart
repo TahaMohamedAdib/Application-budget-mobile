@@ -11,6 +11,26 @@ const translationsCore = <String, Map<String, String>>{
     'change': 'Change', 'perMonth': '/month', 'of': 'of', 'month': 'Month',
     'months': 'months', 'day': 'Day', 'all': 'All',
     'today': 'Today', 'plan': 'Plan', 'wealth': 'Wealth', 'coach': 'Coach',
+    'tourSkip': 'Skip',
+    'tourNext': 'Next',
+    'tourGetStarted': 'Get Started',
+    'tourReplay': 'Take the tour',
+    'tourReplayDetail': 'Replay the quick app walkthrough',
+    'tourWelcomeTitle': 'Welcome to SafeSpend',
+    'tourWelcomeBody':
+        'Your money, beautifully organized. Here is a quick look at what you can do.',
+    'tourHomeTitle': 'See everything at a glance',
+    'tourHomeBody':
+        'Your available balance, recent activity, and upcoming bills — all on the Home screen.',
+    'tourCoachTitle': 'Ask your AI Coach',
+    'tourCoachBody':
+        'Add expenses, snap a receipt, or ask about your spending in plain language.',
+    'tourBudgetsTitle': 'Plan with budgets',
+    'tourBudgetsBody':
+        'Set limits by category and watch your progress so nothing slips through.',
+    'tourWealthTitle': 'Grow your wealth',
+    'tourWealthBody':
+        'Track accounts, goals, debts, and investments — your whole net worth in one place.',
     'settings': 'Settings', 'appearance': 'Appearance', 'light': 'Light',
     'dark': 'Dark', 'system': 'System', 'currency': 'Currency',
     'selectCurrency': 'Select Currency', 'searchCurrency': 'Search currency...',
@@ -361,6 +381,26 @@ const translationsCore = <String, Map<String, String>>{
     'plan': 'Budget',
     'wealth': 'Patrimoine',
     'coach': 'Conseiller',
+    'tourSkip': 'Passer',
+    'tourNext': 'Suivant',
+    'tourGetStarted': 'Commencer',
+    'tourReplay': 'Refaire la visite',
+    'tourReplayDetail': "Revoir la présentation rapide de l'app",
+    'tourWelcomeTitle': 'Bienvenue sur SafeSpend',
+    'tourWelcomeBody':
+        'Votre argent, parfaitement organisé. Voici un aperçu de ce que vous pouvez faire.',
+    'tourHomeTitle': 'Tout voir en un coup d\'œil',
+    'tourHomeBody':
+        'Votre solde disponible, l\'activité récente et les factures à venir — tout sur l\'écran d\'accueil.',
+    'tourCoachTitle': 'Interrogez votre coach IA',
+    'tourCoachBody':
+        'Ajoutez des dépenses, photographiez un reçu ou posez des questions en langage naturel.',
+    'tourBudgetsTitle': 'Planifiez avec les budgets',
+    'tourBudgetsBody':
+        'Fixez des limites par catégorie et suivez votre progression pour ne rien laisser passer.',
+    'tourWealthTitle': 'Faites croître votre patrimoine',
+    'tourWealthBody':
+        'Suivez comptes, objectifs, dettes et investissements — tout votre patrimoine au même endroit.',
     'settings': 'Paramètres',
     'appearance': 'Apparence',
     'light': 'Clair',
@@ -814,6 +854,25 @@ const translationsCore = <String, Map<String, String>>{
     'plan': 'الميزانية',
     'wealth': 'الثروة',
     'coach': 'المستشار',
+    'tourSkip': 'تخطي',
+    'tourNext': 'التالي',
+    'tourGetStarted': 'ابدأ الآن',
+    'tourReplay': 'جولة تعريفية',
+    'tourReplayDetail': 'أعد المقدمة السريعة للتطبيق',
+    'tourWelcomeTitle': 'مرحبًا بك في SafeSpend',
+    'tourWelcomeBody': 'أموالك منظمة بشكل رائع. إليك لمحة سريعة عمّا يمكنك فعله.',
+    'tourHomeTitle': 'اطّلع على كل شيء بنظرة واحدة',
+    'tourHomeBody':
+        'رصيدك المتاح والنشاط الأخير والفواتير القادمة — كل ذلك في الشاشة الرئيسية.',
+    'tourCoachTitle': 'اسأل مدرّب الذكاء الاصطناعي',
+    'tourCoachBody':
+        'أضف المصروفات أو صوّر إيصالًا أو اسأل عن إنفاقك بلغة طبيعية.',
+    'tourBudgetsTitle': 'خطّط بالميزانيات',
+    'tourBudgetsBody':
+        'حدّد حدودًا لكل فئة وتابع تقدّمك حتى لا يفوتك شيء.',
+    'tourWealthTitle': 'نمِّ ثروتك',
+    'tourWealthBody':
+        'تابع الحسابات والأهداف والديون والاستثمارات — صافي ثروتك بالكامل في مكان واحد.',
     'settings': 'الإعدادات',
     'appearance': 'المظهر',
     'light': 'فاتح',
@@ -1138,6 +1197,26 @@ const translationsCore = <String, Map<String, String>>{
     'plan': 'Plan',
     'wealth': 'Patrimonio',
     'coach': 'Asesor',
+    'tourSkip': 'Omitir',
+    'tourNext': 'Siguiente',
+    'tourGetStarted': 'Empezar',
+    'tourReplay': 'Ver el tour',
+    'tourReplayDetail': 'Repite la presentación rápida de la app',
+    'tourWelcomeTitle': 'Bienvenido a SafeSpend',
+    'tourWelcomeBody':
+        'Tu dinero, perfectamente organizado. Aquí tienes un vistazo rápido a lo que puedes hacer.',
+    'tourHomeTitle': 'Ve todo de un vistazo',
+    'tourHomeBody':
+        'Tu saldo disponible, la actividad reciente y las facturas próximas — todo en la pantalla de inicio.',
+    'tourCoachTitle': 'Pregunta a tu Coach IA',
+    'tourCoachBody':
+        'Añade gastos, haz una foto a un recibo o pregunta sobre tus gastos en lenguaje natural.',
+    'tourBudgetsTitle': 'Planifica con presupuestos',
+    'tourBudgetsBody':
+        'Fija límites por categoría y sigue tu progreso para que nada se te escape.',
+    'tourWealthTitle': 'Haz crecer tu patrimonio',
+    'tourWealthBody':
+        'Controla cuentas, metas, deudas e inversiones — todo tu patrimonio en un solo lugar.',
     'settings': 'Ajustes',
     'appearance': 'Apariencia',
     'light': 'Claro',
@@ -1579,6 +1658,26 @@ const translationsCore = <String, Map<String, String>>{
     'plan': 'Plan',
     'wealth': 'Vermögen',
     'coach': 'Berater',
+    'tourSkip': 'Überspringen',
+    'tourNext': 'Weiter',
+    'tourGetStarted': 'Loslegen',
+    'tourReplay': 'Tour ansehen',
+    'tourReplayDetail': 'Kurze App-Einführung erneut ansehen',
+    'tourWelcomeTitle': 'Willkommen bei SafeSpend',
+    'tourWelcomeBody':
+        'Dein Geld, wunderbar organisiert. Hier ein kurzer Überblick, was du tun kannst.',
+    'tourHomeTitle': 'Alles auf einen Blick',
+    'tourHomeBody':
+        'Dein verfügbares Guthaben, letzte Aktivitäten und anstehende Rechnungen — alles auf dem Startbildschirm.',
+    'tourCoachTitle': 'Frag deinen KI-Coach',
+    'tourCoachBody':
+        'Füge Ausgaben hinzu, fotografiere einen Beleg oder frag in natürlicher Sprache nach deinen Ausgaben.',
+    'tourBudgetsTitle': 'Plane mit Budgets',
+    'tourBudgetsBody':
+        'Lege Limits pro Kategorie fest und behalte deinen Fortschritt im Blick.',
+    'tourWealthTitle': 'Lass dein Vermögen wachsen',
+    'tourWealthBody':
+        'Verfolge Konten, Ziele, Schulden und Investitionen — dein gesamtes Vermögen an einem Ort.',
     'settings': 'Einstellungen',
     'appearance': 'Erscheinungsbild',
     'light': 'Hell',
@@ -2023,6 +2122,26 @@ const translationsCore = <String, Map<String, String>>{
     'plan': 'Plano',
     'wealth': 'Patrimônio',
     'coach': 'Consultor',
+    'tourSkip': 'Pular',
+    'tourNext': 'Próximo',
+    'tourGetStarted': 'Começar',
+    'tourReplay': 'Fazer o tour',
+    'tourReplayDetail': 'Rever a apresentação rápida do app',
+    'tourWelcomeTitle': 'Bem-vindo ao SafeSpend',
+    'tourWelcomeBody':
+        'Seu dinheiro, lindamente organizado. Veja uma prévia do que você pode fazer.',
+    'tourHomeTitle': 'Veja tudo num relance',
+    'tourHomeBody':
+        'Seu saldo disponível, atividade recente e contas a vencer — tudo na tela inicial.',
+    'tourCoachTitle': 'Pergunte ao seu Coach de IA',
+    'tourCoachBody':
+        'Adicione despesas, fotografe um recibo ou pergunte sobre seus gastos em linguagem natural.',
+    'tourBudgetsTitle': 'Planeje com orçamentos',
+    'tourBudgetsBody':
+        'Defina limites por categoria e acompanhe seu progresso para nada passar despercebido.',
+    'tourWealthTitle': 'Faça seu patrimônio crescer',
+    'tourWealthBody':
+        'Acompanhe contas, metas, dívidas e investimentos — todo o seu patrimônio num só lugar.',
     'settings': 'Configurações',
     'appearance': 'Aparência',
     'light': 'Claro',

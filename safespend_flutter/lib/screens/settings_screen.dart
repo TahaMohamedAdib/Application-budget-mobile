@@ -10,6 +10,7 @@ import '../theme/ios_icons.dart';
 import '../utils/money_format.dart';
 import '../widgets/settings_ui.dart';
 import 'account_screen.dart';
+import 'onboarding/app_tour_screen.dart';
 import 'settings/about_screen.dart';
 import 'settings/appearance_screen.dart';
 import 'settings/currency_format_screen.dart';
@@ -104,6 +105,19 @@ class SettingsScreen extends StatelessWidget {
             SettingsGroup(
               header: s.support,
               children: [
+                SettingsRow(
+                  icon: IOSIcons.auto_awesome_rounded,
+                  label: s.tourReplay,
+                  detail: s.tourReplayDetail,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      fullscreenDialog: true,
+                      builder: (ctx) =>
+                          AppTourScreen(onDone: () => Navigator.pop(ctx)),
+                    ),
+                  ),
+                ),
                 SettingsRow(
                   icon: IOSIcons.help_outline_rounded,
                   label: s.helpAndSupport,

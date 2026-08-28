@@ -155,6 +155,23 @@ class S {
   String get day => _t('day');
   String get all => _t('all');
 
+  // Guided tour
+  String get tourSkip => _t('tourSkip');
+  String get tourNext => _t('tourNext');
+  String get tourGetStarted => _t('tourGetStarted');
+  String get tourWelcomeTitle => _t('tourWelcomeTitle');
+  String get tourWelcomeBody => _t('tourWelcomeBody');
+  String get tourHomeTitle => _t('tourHomeTitle');
+  String get tourHomeBody => _t('tourHomeBody');
+  String get tourCoachTitle => _t('tourCoachTitle');
+  String get tourCoachBody => _t('tourCoachBody');
+  String get tourBudgetsTitle => _t('tourBudgetsTitle');
+  String get tourBudgetsBody => _t('tourBudgetsBody');
+  String get tourWealthTitle => _t('tourWealthTitle');
+  String get tourWealthBody => _t('tourWealthBody');
+  String get tourReplay => _t('tourReplay');
+  String get tourReplayDetail => _t('tourReplayDetail');
+
   // Navigation
   String get today => _t('today');
   String get plan => _t('plan');

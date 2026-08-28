@@ -68,6 +68,7 @@ class AppProvider with ChangeNotifier {
   bool _supabaseLoadInProgress = false;
 
   bool _setupComplete = false;
+  bool _hasSeenAppTour = false;
   String? _selectedAccountId; // null = all accounts (shared across screens)
 
   // ── Debounced save ──────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ class AppProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get localDataLoaded => _localDataLoaded;
   bool get setupComplete => _setupComplete;
+  bool get hasSeenAppTour => _hasSeenAppTour;
   bool get supabaseDataLoaded => _supabaseDataLoaded;
   String? get selectedAccountId => _selectedAccountId;
 
@@ -251,6 +253,7 @@ class AppProvider with ChangeNotifier {
       if (parsed.containsKey('categories')) _categories = parsed['categories'] as List<Category>;
 
       _setupComplete = prefs.getBool('setup_complete') ?? false;
+      _hasSeenAppTour = prefs.getBool('has_seen_app_tour') ?? false;
     } catch (e) {
       if (kDebugMode) debugPrint('[AppProvider] Critical error in loadData: $e');
     } finally {
@@ -266,6 +269,16 @@ class AppProvider with ChangeNotifier {
     _setupComplete = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('setup_complete', true);
+    notifyListeners();
+  }
+
+  /// Marks the guided app tour as seen so it never auto-shows again.
+  /// The tour can still be replayed manually (e.g. from Settings).
+  Future<void> markAppTourSeen() async {
+    if (_hasSeenAppTour) return;
+    _hasSeenAppTour = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_app_tour', true);
     notifyListeners();
   }
 
