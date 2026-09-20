@@ -5,7 +5,6 @@ import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -17,6 +16,7 @@ import '../utils/currency_helper.dart';
 import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/feature_help_button.dart';
 
 enum _PortfolioSortOption {
   totalValueHigh,
@@ -258,6 +258,12 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                       color: AppTheme.adaptiveIcon(context)),
                             ),
                           ),
+                        FeatureHelpButton(
+                          title: s.portfolio,
+                          description: s.tourWealthBody,
+                          icon: IOSIcons.trending_up_rounded,
+                        ),
+                        const SizedBox(width: 6),
                         GestureDetector(
                           onTap: () => _showAddHoldingModal(context, provider),
                           child: Padding(
@@ -372,7 +378,10 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
+                                  Wrap(
+                                    runSpacing: 6,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       Text(s.myPortfolio,
                                           style: TextStyle(
@@ -406,7 +415,10 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                     ],
                                   ),
                                   const SizedBox(height: 4),
-                                  Row(
+                                  Wrap(
+                                    runSpacing: 6,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       Text(
                                         '$sym${_formatNumber(totalValue)}',
@@ -417,7 +429,6 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                                 ? Colors.white
                                                 : Colors.black87),
                                       ),
-                                      const Spacer(),
                                       // View toggle
                                       Container(
                                         padding: const EdgeInsets.all(3),
@@ -428,17 +439,17 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                        child: Wrap(
+                                          runSpacing: 6,
                                           children: [
                                             _buildToggleButton(
-                                                'Assets',
+                                                s.assets,
                                                 !_showChartView,
                                                 () => setState(() =>
                                                     _showChartView = false),
                                                 isDark),
                                             _buildToggleButton(
-                                                'Chart',
+                                                s.chart,
                                                 _showChartView,
                                                 () => setState(() =>
                                                     _showChartView = true),
@@ -454,17 +465,19 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                             // Time range selector
                             Padding(
                               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                              child: Row(
+                              child: Wrap(
+                                spacing: 0,
+                                runSpacing: 8,
                                 children:
                                     ['5d', '1mo', '3mo', '1y'].map((range) {
                                   final isSelected = _chartRange == range;
                                   final label = range == '5d'
-                                      ? '1W'
+                                      ? s.oneWeek
                                       : range == '1mo'
-                                          ? '1M'
+                                          ? s.oneMonth
                                           : range == '3mo'
-                                              ? '3M'
-                                              : '1Y';
+                                              ? s.threeMonths
+                                              : s.oneYear;
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 8),
                                     child: GestureDetector(
@@ -509,7 +522,8 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                             SizedBox(
                               height: 200,
                               child: _showChartView
-                                  ? _buildMainChart(isDark, isPositive, fx, sym)
+                                  ? _buildMainChart(
+                                      isDark, isPositive, fx, sym, s)
                                   : _buildTopAssetsView(provider.holdings,
                                       totalValue, isDark, fx, sym),
                             ),
@@ -529,7 +543,10 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                    child: Row(
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         Text(
                           s.assets,
@@ -557,7 +574,6 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                     isDark ? Colors.white70 : Colors.black54),
                           ),
                         ),
-                        const Spacer(),
                         PopupMenuButton<_PortfolioSortOption>(
                           initialValue: _assetSort,
                           tooltip: s.sortBy,
@@ -571,8 +587,8 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                 ),
                               )
                               .toList(),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 s.sortBy,
@@ -666,7 +682,10 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                     builder: (ctx) => AlertDialog(
                                       title: Text(s.deleteHolding),
                                       content: Text(
-                                          '${s.remove} ${holding.symbol} ${s.fromPortfolio}?'),
+                                        s.tr('removeHoldingConfirmation', {
+                                          'symbol': holding.symbol,
+                                        }),
+                                      ),
                                       actions: [
                                         TextButton(
                                             onPressed: () =>
@@ -683,11 +702,14 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                                   );
                                   if (confirm == true) {
                                     provider.deleteHolding(holding.id);
-                                    if (context.mounted)
+                                    if (context.mounted) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
-                                              content: Text(
-                                                  '${holding.symbol} ${s.removed}')));
+                                        content: Text(s.tr('holdingRemoved', {
+                                          'symbol': holding.symbol,
+                                        })),
+                                      ));
+                                    }
                                   }
                                 },
                               )
@@ -891,13 +913,14 @@ class _PortfolioScreenState extends State<PortfolioScreen>
     );
   }
 
-  Widget _buildMainChart(bool isDark, bool isPositive, double fx, String sym) {
+  Widget _buildMainChart(
+      bool isDark, bool isPositive, double fx, String sym, S s) {
     if (_chartLoading) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_chartPoints.length < 2) {
       return Center(
-          child: Text('No chart data',
+          child: Text(s.noChartData,
               style:
                   TextStyle(color: isDark ? Colors.white38 : Colors.black38)));
     }
@@ -1055,9 +1078,17 @@ class _PortfolioScreenState extends State<PortfolioScreen>
     required VoidCallback onSell,
     required VoidCallback onDelete,
   }) {
+    final s = S.of(context);
     final isGain = holding.gainLoss >= 0;
     final gainColor = isGain ? AppTheme.success : AppTheme.error;
     final allocation = totalValue > 0 ? holding.currentValue / totalValue : 0.0;
+    final parsedPurchaseDate = holding.purchaseDate == null
+        ? null
+        : DateTime.tryParse(holding.purchaseDate!);
+    final localizedPurchaseDate = parsedPurchaseDate == null
+        ? holding.purchaseDate
+        : MaterialLocalizations.of(context)
+            .formatMediumDate(parsedPurchaseDate);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1099,7 +1130,14 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${holding.shares} shares${holding.purchaseDate != null ? '  ·  ${holding.purchaseDate}' : ''}',
+                          localizedPurchaseDate == null
+                              ? s.tr('holdingShares', {
+                                  'shares': holding.shares.toString(),
+                                })
+                              : s.tr('holdingSharesPurchasedOn', {
+                                  'shares': holding.shares.toString(),
+                                  'date': localizedPurchaseDate,
+                                }),
                           style: TextStyle(
                               fontSize: 11,
                               color: isDark ? Colors.white54 : Colors.black45),
@@ -1169,7 +1207,7 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                           AppIcon(AppIcons.sell,
                               color: AppTheme.adaptiveIcon(context), size: 14),
                           const SizedBox(width: 5),
-                          Text('Sell',
+                          Text(s.sell,
                               style: TextStyle(
                                   color: AppTheme.error,
                                   fontWeight: FontWeight.w700,
@@ -1191,13 +1229,15 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                       border: Border.all(
                           color: AppTheme.goldPrimary.withOpacity(0.3)),
                     ),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    child: Wrap(
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        alignment: WrapAlignment.center,
                         children: [
                           AppIcon(AppIcons.edit,
                               color: AppTheme.adaptiveIcon(context), size: 14),
                           const SizedBox(width: 5),
-                          Text('Edit',
+                          Text(s.edit,
                               style: TextStyle(
                                   color: AppTheme.goldPrimary,
                                   fontWeight: FontWeight.w700,
@@ -1229,10 +1269,9 @@ class _PortfolioScreenState extends State<PortfolioScreen>
   }
 
   void _showAddHoldingModal(BuildContext context, AppProvider provider) {
-    showModalBottomSheet(
+    final s = S.of(context);
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => AddHoldingModal(
         fxRate: _fxRate,
         onSave: (h) {
@@ -1246,8 +1285,11 @@ class _PortfolioScreenState extends State<PortfolioScreen>
           final sourceName =
               sourceMatches.isEmpty ? null : sourceMatches.first.name;
           final message = h.affectsSourceBalance && sourceName != null
-              ? '${h.symbol} added and funded from $sourceName'
-              : '${h.symbol} added as an existing holding';
+              ? s.tr('holdingAddedAndFunded', {
+                  'symbol': h.symbol,
+                  'account': sourceName,
+                })
+              : s.tr('existingHoldingAdded', {'symbol': h.symbol});
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(message)));
         },
@@ -1257,11 +1299,10 @@ class _PortfolioScreenState extends State<PortfolioScreen>
 
   void _showSellModal(
       BuildContext context, AppProvider provider, Holding holding) {
+    final s = S.of(context);
     final sym = CurrencyHelper.getSymbol(provider.settings.currency);
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => SellHoldingModal(
         holding: holding,
         accounts: provider.accounts,
@@ -1286,14 +1327,18 @@ class _PortfolioScreenState extends State<PortfolioScreen>
               sellPrice *
               _fxRate; // convert USD proceeds to local currency for display
           final dest = accountId == AppProvider.cashOnHandId
-              ? 'Cash'
+              ? s.cashOnHand
               : provider.accounts
                   .firstWhere((a) => a.id == accountId,
                       orElse: () => provider.accounts.first)
                   .name;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Sold $sharesToSell × ${holding.symbol} for $sym${proceeds.toStringAsFixed(2)} → $dest'),
+            content: Text(s.tr('holdingSaleCompleted', {
+              'shares': sharesToSell.toString(),
+              'symbol': holding.symbol,
+              'amount': '$sym${proceeds.toStringAsFixed(2)}',
+              'destination': dest,
+            })),
             backgroundColor: AppTheme.success,
           ));
         },
@@ -1303,18 +1348,17 @@ class _PortfolioScreenState extends State<PortfolioScreen>
 
   void _showEditHoldingModal(
       BuildContext context, AppProvider provider, Holding holding) {
-    showModalBottomSheet(
+    final s = S.of(context);
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => AddHoldingModal(
         holding: holding,
         fxRate: _fxRate,
         onSave: (h) {
           provider.updateHolding(h);
           Navigator.pop(context);
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('${h.symbol} updated')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(s.tr('holdingUpdated', {'symbol': h.symbol}))));
         },
       ),
     );
@@ -1354,8 +1398,6 @@ class _PortfolioChartState extends State<_PortfolioChart> {
   String? _filter;
 
   static const _ranges = ['5d', '1mo', '3mo', '1y'];
-  static const _rangeLabels = ['5D', '1M', '3M', '1Y'];
-
   static const _palette = [
     Color(0xFF6366F1),
     Color(0xFF0B715F),
@@ -1435,6 +1477,8 @@ class _PortfolioChartState extends State<_PortfolioChart> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
+    final materialLocalizations = MaterialLocalizations.of(context);
     final points = _activePoints;
     final lineColor = _singleLineColor;
     final symbols = widget.holdingHistories.keys.toList();
@@ -1477,7 +1521,9 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                     Text(
                       _hoveredPoint != null
                           ? '\$${_hoveredPoint!.value.toStringAsFixed(2)}'
-                          : (_filter == null ? 'Total Portfolio' : _filter!),
+                          : (_filter == null
+                              ? s.tr('totalPortfolio')
+                              : _filter!),
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
@@ -1485,12 +1531,14 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                     ),
                     if (_hoveredPoint != null) ...[
                       const SizedBox(width: 8),
-                      Text(DateFormat('MMM d').format(_hoveredPoint!.date),
+                      Text(
+                          materialLocalizations
+                              .formatCompactDate(_hoveredPoint!.date),
                           style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ] else
                     Text(
-                      'Compare Holdings',
+                      s.compareHoldings,
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
@@ -1520,7 +1568,12 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                             ),
                           ),
                           child: Text(
-                            _rangeLabels[i],
+                            [
+                              s.oneWeek,
+                              s.oneMonth,
+                              s.threeMonths,
+                              s.oneYear
+                            ][i],
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -1549,7 +1602,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                   child: Row(
                     children: [
                       _ChartFilterChip(
-                        label: 'Total',
+                        label: s.tr('totalLabel'),
                         selected: _filter == null,
                         color: AppTheme.success,
                         onTap: () => setState(() {
@@ -1569,7 +1622,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                             }),
                           )),
                       _ChartFilterChip(
-                        label: 'Compare',
+                        label: s.tr('compare'),
                         selected: _isCompare,
                         color: const Color(0xFF7C3AED),
                         onTap: () => setState(() {
@@ -1621,7 +1674,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
       double maxY, Color lineColor, bool isDark) {
     if (points.length < 2) {
       return Center(
-        child: Text('No data available',
+        child: Text(S.of(context).tr('noDataAvailable'),
             style: Theme.of(context).textTheme.bodySmall),
       );
     }
@@ -1721,7 +1774,7 @@ class _PortfolioChartState extends State<_PortfolioChart> {
     final lines = _buildCompareLines();
     if (lines.isEmpty) {
       return Center(
-        child: Text('No data available',
+        child: Text(S.of(context).tr('noDataAvailable'),
             style: Theme.of(context).textTheme.bodySmall),
       );
     }
@@ -1747,7 +1800,9 @@ class _PortfolioChartState extends State<_PortfolioChart> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(DateFormat('MMM d').format(points.first.date),
+          Text(
+              MaterialLocalizations.of(context)
+                  .formatCompactDate(points.first.date),
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -1772,7 +1827,9 @@ class _PortfolioChartState extends State<_PortfolioChart> {
                     fontWeight: FontWeight.bold),
               ),
             ),
-          Text(DateFormat('MMM d').format(points.last.date),
+          Text(
+              MaterialLocalizations.of(context)
+                  .formatCompactDate(points.last.date),
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -1865,76 +1922,79 @@ class _ChartFilterChip extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MarketCountry {
+  final String l10nKey;
   final String name;
   final String flag;
   final String suffix; // Yahoo Finance exchange suffix, '' = US/global
 
-  const _MarketCountry(this.name, this.flag, this.suffix);
+  const _MarketCountry(this.l10nKey, this.name, this.flag, this.suffix);
 }
 
 const _kAllCountries = [
   // ── Global / US (no suffix) ──────────────────────────────────────────
-  _MarketCountry('Global / US', '🌍', ''),
+  _MarketCountry('marketCountryGlobalUs', 'Global / US', '🌍', ''),
   // ── Africa ──────────────────────────────────────────────────────────
-  _MarketCountry('Morocco', '🇲🇦', '.CS'),
-  _MarketCountry('Egypt', '🇪🇬', '.CA'),
-  _MarketCountry('South Africa', '🇿🇦', '.JO'),
-  _MarketCountry('Nigeria', '🇳🇬', '.LA'),
-  _MarketCountry('Kenya', '🇰🇪', '.NR'),
+  _MarketCountry('marketCountryMorocco', 'Morocco', '🇲🇦', '.CS'),
+  _MarketCountry('marketCountryEgypt', 'Egypt', '🇪🇬', '.CA'),
+  _MarketCountry('marketCountrySouthAfrica', 'South Africa', '🇿🇦', '.JO'),
+  _MarketCountry('marketCountryNigeria', 'Nigeria', '🇳🇬', '.LA'),
+  _MarketCountry('marketCountryKenya', 'Kenya', '🇰🇪', '.NR'),
   // ── Middle East ─────────────────────────────────────────────────────
-  _MarketCountry('Saudi Arabia', '🇸🇦', '.SR'),
-  _MarketCountry('UAE', '🇦🇪', '.AE'),
-  _MarketCountry('Qatar', '🇶🇦', '.QA'),
-  _MarketCountry('Kuwait', '🇰🇼', '.KW'),
-  _MarketCountry('Bahrain', '🇧🇭', '.BH'),
-  _MarketCountry('Israel', '🇮🇱', '.TA'),
-  _MarketCountry('Turkey', '🇹🇷', '.IS'),
+  _MarketCountry('marketCountrySaudiArabia', 'Saudi Arabia', '🇸🇦', '.SR'),
+  _MarketCountry('marketCountryUae', 'UAE', '🇦🇪', '.AE'),
+  _MarketCountry('marketCountryQatar', 'Qatar', '🇶🇦', '.QA'),
+  _MarketCountry('marketCountryKuwait', 'Kuwait', '🇰🇼', '.KW'),
+  _MarketCountry('marketCountryBahrain', 'Bahrain', '🇧🇭', '.BH'),
+  _MarketCountry('marketCountryIsrael', 'Israel', '🇮🇱', '.TA'),
+  _MarketCountry('marketCountryTurkey', 'Turkey', '🇹🇷', '.IS'),
   // ── Europe ──────────────────────────────────────────────────────────
-  _MarketCountry('France', '🇫🇷', '.PA'),
-  _MarketCountry('Germany', '🇩🇪', '.DE'),
-  _MarketCountry('United Kingdom', '🇬🇧', '.L'),
-  _MarketCountry('Spain', '🇪🇸', '.MC'),
-  _MarketCountry('Italy', '🇮🇹', '.MI'),
-  _MarketCountry('Netherlands', '🇳🇱', '.AS'),
-  _MarketCountry('Belgium', '🇧🇪', '.BR'),
-  _MarketCountry('Portugal', '🇵🇹', '.LS'),
-  _MarketCountry('Switzerland', '🇨🇭', '.SW'),
-  _MarketCountry('Sweden', '🇸🇪', '.ST'),
-  _MarketCountry('Norway', '🇳🇴', '.OL'),
-  _MarketCountry('Denmark', '🇩🇰', '.CO'),
-  _MarketCountry('Finland', '🇫🇮', '.HE'),
-  _MarketCountry('Austria', '🇦🇹', '.VI'),
-  _MarketCountry('Poland', '🇵🇱', '.WA'),
-  _MarketCountry('Czech Republic', '🇨🇿', '.PR'),
-  _MarketCountry('Hungary', '🇭🇺', '.BD'),
-  _MarketCountry('Russia', '🇷🇺', '.ME'),
-  _MarketCountry('Greece', '🇬🇷', '.AT'),
+  _MarketCountry('marketCountryFrance', 'France', '🇫🇷', '.PA'),
+  _MarketCountry('marketCountryGermany', 'Germany', '🇩🇪', '.DE'),
+  _MarketCountry('marketCountryUnitedKingdom', 'United Kingdom', '🇬🇧', '.L'),
+  _MarketCountry('marketCountrySpain', 'Spain', '🇪🇸', '.MC'),
+  _MarketCountry('marketCountryItaly', 'Italy', '🇮🇹', '.MI'),
+  _MarketCountry('marketCountryNetherlands', 'Netherlands', '🇳🇱', '.AS'),
+  _MarketCountry('marketCountryBelgium', 'Belgium', '🇧🇪', '.BR'),
+  _MarketCountry('marketCountryPortugal', 'Portugal', '🇵🇹', '.LS'),
+  _MarketCountry('marketCountrySwitzerland', 'Switzerland', '🇨🇭', '.SW'),
+  _MarketCountry('marketCountrySweden', 'Sweden', '🇸🇪', '.ST'),
+  _MarketCountry('marketCountryNorway', 'Norway', '🇳🇴', '.OL'),
+  _MarketCountry('marketCountryDenmark', 'Denmark', '🇩🇰', '.CO'),
+  _MarketCountry('marketCountryFinland', 'Finland', '🇫🇮', '.HE'),
+  _MarketCountry('marketCountryAustria', 'Austria', '🇦🇹', '.VI'),
+  _MarketCountry('marketCountryPoland', 'Poland', '🇵🇱', '.WA'),
+  _MarketCountry('marketCountryCzechRepublic', 'Czech Republic', '🇨🇿', '.PR'),
+  _MarketCountry('marketCountryHungary', 'Hungary', '🇭🇺', '.BD'),
+  _MarketCountry('marketCountryRussia', 'Russia', '🇷🇺', '.ME'),
+  _MarketCountry('marketCountryGreece', 'Greece', '🇬🇷', '.AT'),
   // ── Americas ────────────────────────────────────────────────────────
-  _MarketCountry('Canada', '🇨🇦', '.TO'),
-  _MarketCountry('Brazil', '🇧🇷', '.SA'),
-  _MarketCountry('Mexico', '🇲🇽', '.MX'),
-  _MarketCountry('Argentina', '🇦🇷', '.BA'),
-  _MarketCountry('Chile', '🇨🇱', '.SN'),
-  _MarketCountry('Colombia', '🇨🇴', '.BC'),
-  _MarketCountry('Peru', '🇵🇪', '.LM'),
+  _MarketCountry('marketCountryCanada', 'Canada', '🇨🇦', '.TO'),
+  _MarketCountry('marketCountryBrazil', 'Brazil', '🇧🇷', '.SA'),
+  _MarketCountry('marketCountryMexico', 'Mexico', '🇲🇽', '.MX'),
+  _MarketCountry('marketCountryArgentina', 'Argentina', '🇦🇷', '.BA'),
+  _MarketCountry('marketCountryChile', 'Chile', '🇨🇱', '.SN'),
+  _MarketCountry('marketCountryColombia', 'Colombia', '🇨🇴', '.BC'),
+  _MarketCountry('marketCountryPeru', 'Peru', '🇵🇪', '.LM'),
   // ── Asia Pacific ────────────────────────────────────────────────────
-  _MarketCountry('Japan', '🇯🇵', '.T'),
-  _MarketCountry('China (Shanghai)', '🇨🇳', '.SS'),
-  _MarketCountry('China (Shenzhen)', '🇨🇳', '.SZ'),
-  _MarketCountry('Hong Kong', '🇭🇰', '.HK'),
-  _MarketCountry('South Korea', '🇰🇷', '.KS'),
-  _MarketCountry('India (NSE)', '🇮🇳', '.NS'),
-  _MarketCountry('India (BSE)', '🇮🇳', '.BO'),
-  _MarketCountry('Australia', '🇦🇺', '.AX'),
-  _MarketCountry('New Zealand', '🇳🇿', '.NZ'),
-  _MarketCountry('Singapore', '🇸🇬', '.SI'),
-  _MarketCountry('Malaysia', '🇲🇾', '.KL'),
-  _MarketCountry('Thailand', '🇹🇭', '.BK'),
-  _MarketCountry('Indonesia', '🇮🇩', '.JK'),
-  _MarketCountry('Philippines', '🇵🇭', '.PS'),
-  _MarketCountry('Vietnam', '🇻🇳', '.VN'),
-  _MarketCountry('Taiwan', '🇹🇼', '.TW'),
-  _MarketCountry('Pakistan', '🇵🇰', '.KA'),
+  _MarketCountry('marketCountryJapan', 'Japan', '🇯🇵', '.T'),
+  _MarketCountry(
+      'marketCountryChinaShanghai', 'China (Shanghai)', '🇨🇳', '.SS'),
+  _MarketCountry(
+      'marketCountryChinaShenzhen', 'China (Shenzhen)', '🇨🇳', '.SZ'),
+  _MarketCountry('marketCountryHongKong', 'Hong Kong', '🇭🇰', '.HK'),
+  _MarketCountry('marketCountrySouthKorea', 'South Korea', '🇰🇷', '.KS'),
+  _MarketCountry('marketCountryIndiaNse', 'India (NSE)', '🇮🇳', '.NS'),
+  _MarketCountry('marketCountryIndiaBse', 'India (BSE)', '🇮🇳', '.BO'),
+  _MarketCountry('marketCountryAustralia', 'Australia', '🇦🇺', '.AX'),
+  _MarketCountry('marketCountryNewZealand', 'New Zealand', '🇳🇿', '.NZ'),
+  _MarketCountry('marketCountrySingapore', 'Singapore', '🇸🇬', '.SI'),
+  _MarketCountry('marketCountryMalaysia', 'Malaysia', '🇲🇾', '.KL'),
+  _MarketCountry('marketCountryThailand', 'Thailand', '🇹🇭', '.BK'),
+  _MarketCountry('marketCountryIndonesia', 'Indonesia', '🇮🇩', '.JK'),
+  _MarketCountry('marketCountryPhilippines', 'Philippines', '🇵🇭', '.PS'),
+  _MarketCountry('marketCountryVietnam', 'Vietnam', '🇻🇳', '.VN'),
+  _MarketCountry('marketCountryTaiwan', 'Taiwan', '🇹🇼', '.TW'),
+  _MarketCountry('marketCountryPakistan', 'Pakistan', '🇵🇰', '.KA'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1958,12 +2018,14 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
     super.initState();
     _ctrl.addListener(() {
       final q = _ctrl.text.toLowerCase();
+      final s = S.of(context);
       setState(() {
         _filtered = q.isEmpty
             ? _kAllCountries
             : _kAllCountries
                 .where((c) =>
                     c.name.toLowerCase().contains(q) ||
+                    s.tr(c.l10nKey).toLowerCase().contains(q) ||
                     c.suffix.toLowerCase().contains(q))
                 .toList();
       });
@@ -1979,40 +2041,16 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(children: [
-        const SizedBox(height: 12),
-        Center(
-            child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: Theme.of(context).dividerColor,
-                    borderRadius: BorderRadius.circular(2)))),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(children: [
-            const Text('Select Market',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            IconButton(
-                icon: const AppIcon(AppIcons.close),
-                onPressed: () => Navigator.pop(context)),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: TextField(
+    final s = S.of(context);
+    return AppFormSheet(
+        header: Text(s.tr('selectMarket'),
+            style: Theme.of(context).textTheme.titleLarge),
+        body: Column(children: [
+          TextField(
             controller: _ctrl,
-            autofocus: true,
+            autofocus: false,
             decoration: InputDecoration(
-              hintText: 'Search country...',
+              hintText: s.tr('searchCountry'),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 14, right: 8),
                 child: AppIcon(AppIcons.search,
@@ -2029,9 +2067,10 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
               isDense: true,
             ),
           ),
-        ),
-        Expanded(
-          child: ListView.builder(
+          const SizedBox(height: 12),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: _filtered.length,
             itemBuilder: (ctx, i) {
@@ -2059,7 +2098,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                     Text(c.flag, style: const TextStyle(fontSize: 24)),
                     const SizedBox(width: 14),
                     Expanded(
-                        child: Text(c.name,
+                        child: Text(s.tr(c.l10nKey),
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
@@ -2093,10 +2132,8 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                 ),
               );
             },
-          ),
-        ),
-      ]),
-    );
+          )
+        ]));
   }
 }
 
@@ -2211,6 +2248,7 @@ class _HoldingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -2261,7 +2299,12 @@ class _HoldingCard extends StatelessWidget {
                         ],
                         const SizedBox(height: 2),
                         Text(
-                          '${holding.shares} ${holding.symbol.contains('-') ? 'units' : 'shares'}',
+                          s.tr('holdingQuantity', {
+                            'quantity': holding.shares.toString(),
+                            'unit': holding.symbol.contains('-')
+                                ? s.tr('units')
+                                : s.shares,
+                          }),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -2304,13 +2347,13 @@ class _HoldingCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _StatCol(
-                      label: 'Avg Cost',
+                      label: s.tr('averageCost'),
                       value: '\$${holding.costBasis.toStringAsFixed(2)}'),
                   _StatCol(
-                      label: 'Live Price',
+                      label: s.currentPrice,
                       value: '\$${holding.currentPrice.toStringAsFixed(2)}'),
                   _StatCol(
-                    label: 'Gain/Loss',
+                    label: s.gainLoss,
                     value:
                         '${isGain ? '+' : ''}\$${holding.gainLoss.toStringAsFixed(2)}',
                     valueColor: isGain ? AppTheme.success : AppTheme.error,
@@ -2336,7 +2379,7 @@ class _HoldingCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onSell,
                   icon: const AppIcon(AppIcons.sell, size: 16),
-                  label: const Text('Sell'),
+                  label: Text(s.sell),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.error,
                     side: BorderSide(
@@ -2546,25 +2589,26 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
         _titleCtrl.text = quote.companyName!;
       }
     } else {
+      final s = S.of(context);
       setState(() {
-        _fetchError =
-            'Could not find "$sym". Try searching by name above, or use formats: AAPL, ATW.CS, AIR.PA, BTC-USD, EURUSD=X';
+        _fetchError = s.tr('portfolioSymbolNotFound', {'symbol': sym});
         _fetching = false;
       });
     }
   }
 
   void _save() {
+    final s = S.of(context);
     final sym = _symbolCtrl.text.trim().toUpperCase();
     if (sym.isEmpty) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Please enter a symbol')));
+          .showSnackBar(SnackBar(content: Text(s.tr('pleaseEnterSymbol'))));
       return;
     }
     final shares = double.tryParse(_sharesCtrl.text) ?? 0;
     if (shares <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter a valid number of shares')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(s.tr('enterValidShares'))));
       return;
     }
     final costBasis = double.tryParse(_costCtrl.text) ?? 0;
@@ -2605,11 +2649,11 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
     final isEditing = widget.holding != null;
     final selectedFundingAccount = _selectedFundingAccount(provider);
     final trackedPurchase = !isEditing && _shouldDeductFromSource(provider);
+    final materialLocalizations = MaterialLocalizations.of(context);
     final formattedTrackingStart = selectedFundingAccount == null
         ? null
-        : DateFormat('MMM d, yyyy').format(
-            _accountTrackingStart(selectedFundingAccount),
-          );
+        : materialLocalizations
+            .formatMediumDate(_accountTrackingStart(selectedFundingAccount));
     final estimatedSourceAmount = (() {
       final shares = double.tryParse(_sharesCtrl.text) ?? 0;
       final costBasis = double.tryParse(_costCtrl.text) ?? 0;
@@ -2618,584 +2662,553 @@ class _AddHoldingModalState extends State<AddHoldingModal> {
           : null;
     })();
     return AppFormSheet(
-      builder: (context, scrollController) => SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AppFormSheetHandle(),
-              const SizedBox(height: 16),
-              AppFormSheetHeader(
-                title: widget.holding == null ? s.addHolding : s.editHolding,
-                icon: IOSIcons.wealthInvestments,
-                accent: AppTheme.adaptiveIcon(context),
+        header: AppFormSheetHeader(
+          title: widget.holding == null ? s.addHolding : s.editHolding,
+          icon: IOSIcons.wealthInvestments,
+          accent: AppTheme.adaptiveIcon(context),
+        ),
+        body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          GestureDetector(
+            onTap: () async {
+              final picked = await showAppFormSheet<_MarketCountry>(
+                context: context,
+                builder: (_) => _CountryPickerSheet(selected: _selectedCountry),
+              );
+              if (picked != null) {
+                setState(() {
+                  _selectedCountry = picked;
+                  _searchResults = [];
+                  _exchangeFilter = null;
+                });
+                // Re-trigger search with new country
+                if (_symbolCtrl.text.trim().length >= 2) _searchCompanies();
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C3AED).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: const Color(0xFF7C3AED).withOpacity(0.3)),
               ),
-              const SizedBox(height: 24),
-
-              // Country / market selector
-              GestureDetector(
-                onTap: () async {
-                  final picked = await showModalBottomSheet<_MarketCountry>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) =>
-                        _CountryPickerSheet(selected: _selectedCountry),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _selectedCountry = picked;
-                      _searchResults = [];
-                      _exchangeFilter = null;
-                    });
-                    // Re-trigger search with new country
-                    if (_symbolCtrl.text.trim().length >= 2) _searchCompanies();
-                  }
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF7C3AED).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: const Color(0xFF7C3AED).withOpacity(0.3)),
-                  ),
-                  child: Row(children: [
-                    Text(_selectedCountry.flag,
-                        style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text(s.market,
-                              style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF7C3AED))),
-                          Text(_selectedCountry.name,
-                              style: const TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w600),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                        ])),
-                    if (_selectedCountry.suffix.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(_selectedCountry.suffix,
-                            style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF7C3AED))),
-                      ),
-                    AppIcon(AppIcons.caretDown,
-                        color: AppTheme.adaptiveIcon(context), size: 20),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Search bar
-              TextField(
-                controller: _symbolCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  labelText: s.searchByTickerOrName,
-                  hintText: 'e.g., Apple, AAPL, ATW.CS, BTC-USD',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  filled: true,
-                  prefixIcon: _searching
-                      ? const Padding(
-                          padding: EdgeInsets.only(left: 14, right: 8),
-                          child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2)),
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.only(left: 14, right: 8),
-                          child: AppIcon(AppIcons.search,
-                              size: 16,
-                              color:
-                                  Theme.of(context).textTheme.bodySmall?.color),
-                        ),
-                  prefixIconConstraints:
-                      const BoxConstraints(minWidth: 38, minHeight: 38),
-                  suffixIcon: _symbolCtrl.text.isNotEmpty
-                      ? IconButton(
-                          icon: const AppIcon(AppIcons.close, size: 18),
-                          onPressed: () {
-                            _symbolCtrl.clear();
-                            setState(() {
-                              _searchResults = [];
-                              _livePrice = null;
-                              _companyName = null;
-                            });
-                          },
-                        )
-                      : null,
-                ),
-                onSubmitted: (_) => _fetchPrice(),
-              ),
-
-              // Search results dropdown
-              if (_searchResults.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                // Exchange filter chips
-                Builder(builder: (ctx) {
-                  final exchanges = _searchResults
-                      .map((r) => r.exchange)
-                      .where((e) => e.isNotEmpty)
-                      .toSet()
-                      .toList()
-                    ..sort();
-                  if (exchanges.length <= 1) return const SizedBox.shrink();
-                  return SizedBox(
-                    height: 32,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _ExchangeChip(
-                          label: 'All',
-                          selected: _exchangeFilter == null,
-                          onTap: () => setState(() => _exchangeFilter = null),
-                        ),
-                        ...exchanges.map((e) => _ExchangeChip(
-                              label: e,
-                              selected: _exchangeFilter == e,
-                              onTap: () => setState(() => _exchangeFilter =
-                                  _exchangeFilter == e ? null : e),
-                            )),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 6),
-                Builder(builder: (ctx) {
-                  final filtered = _exchangeFilter == null
-                      ? _searchResults
-                      : _searchResults
-                          .where((r) => r.exchange == _exchangeFilter)
-                          .toList();
-                  return Container(
-                    constraints: const BoxConstraints(maxHeight: 320),
+              child: Row(children: [
+                Text(_selectedCountry.flag,
+                    style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(s.market,
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF7C3AED))),
+                      Text(s.tr(_selectedCountry.l10nKey),
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ])),
+                if (_selectedCountry.suffix.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Theme.of(context).dividerColor),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4)),
-                      ],
+                      color: const Color(0xFF7C3AED).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => Divider(
-                            height: 1, color: Theme.of(context).dividerColor),
-                        itemBuilder: (ctx, i) {
-                          final r = filtered[i];
-                          final (typeLabel, typeColor) = switch (r.type) {
-                            'CRYPTOCURRENCY' => (
-                                'CRYPTO',
-                                const Color(0xFFF59E0B)
+                    child: Text(_selectedCountry.suffix,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF7C3AED))),
+                  ),
+                AppIcon(AppIcons.caretDown,
+                    color: AppTheme.adaptiveIcon(context), size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _symbolCtrl,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              labelText: s.searchByTickerOrName,
+              hintText: s.tr('portfolioSearchHint'),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              filled: true,
+              prefixIcon: _searching
+                  ? const Padding(
+                      padding: EdgeInsets.only(left: 14, right: 8),
+                      child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.only(left: 14, right: 8),
+                      child: AppIcon(AppIcons.search,
+                          size: 16,
+                          color: Theme.of(context).textTheme.bodySmall?.color),
+                    ),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 38, minHeight: 38),
+              suffixIcon: _symbolCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const AppIcon(AppIcons.close, size: 18),
+                      onPressed: () {
+                        _symbolCtrl.clear();
+                        setState(() {
+                          _searchResults = [];
+                          _livePrice = null;
+                          _companyName = null;
+                        });
+                      },
+                    )
+                  : null,
+            ),
+            onSubmitted: (_) => _fetchPrice(),
+          ),
+          if (_searchResults.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            // Exchange filter chips
+            Builder(builder: (ctx) {
+              final exchanges = _searchResults
+                  .map((r) => r.exchange)
+                  .where((e) => e.isNotEmpty)
+                  .toSet()
+                  .toList()
+                ..sort();
+              if (exchanges.length <= 1) return const SizedBox.shrink();
+              return SizedBox(
+                height: 32,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _ExchangeChip(
+                      label: s.all,
+                      selected: _exchangeFilter == null,
+                      onTap: () => setState(() => _exchangeFilter = null),
+                    ),
+                    ...exchanges.map((e) => _ExchangeChip(
+                          label: e,
+                          selected: _exchangeFilter == e,
+                          onTap: () => setState(() => _exchangeFilter =
+                              _exchangeFilter == e ? null : e),
+                        )),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 6),
+            Builder(builder: (ctx) {
+              final filtered = _exchangeFilter == null
+                  ? _searchResults
+                  : _searchResults
+                      .where((r) => r.exchange == _exchangeFilter)
+                      .toList();
+              return Container(
+                constraints: const BoxConstraints(maxHeight: 320),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => Divider(
+                        height: 1, color: Theme.of(context).dividerColor),
+                    itemBuilder: (ctx, i) {
+                      final r = filtered[i];
+                      final (typeLabel, typeColor) = switch (r.type) {
+                        'CRYPTOCURRENCY' => (
+                            s.tr('assetTypeCrypto'),
+                            const Color(0xFFF59E0B)
+                          ),
+                        'ETF' => (
+                            s.tr('assetTypeEtf'),
+                            const Color(0xFF8B5CF6)
+                          ),
+                        'CURRENCY' => (
+                            s.tr('assetTypeForex'),
+                            const Color(0xFF06B6D4)
+                          ),
+                        'MUTUALFUND' => (
+                            s.tr('assetTypeFund'),
+                            const Color(0xFF0B715F)
+                          ),
+                        _ => (s.tr('assetTypeStock'), const Color(0xFF3B82F6)),
+                      };
+                      return InkWell(
+                        onTap: () => _selectResult(r),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 11),
+                          child: Row(children: [
+                            // Logo
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: StockLogo(symbol: r.symbol, size: 40),
                               ),
-                            'ETF' => ('ETF', const Color(0xFF8B5CF6)),
-                            'CURRENCY' => ('FOREX', const Color(0xFF06B6D4)),
-                            'MUTUALFUND' => ('FUND', const Color(0xFF0B715F)),
-                            _ => ('STOCK', const Color(0xFF3B82F6)),
-                          };
-                          return InkWell(
-                            onTap: () => _selectResult(r),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 11),
-                              child: Row(children: [
-                                // Logo
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: SizedBox(
-                                    width: 40,
-                                    height: 40,
-                                    child:
-                                        StockLogo(symbol: r.symbol, size: 40),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                // Name + symbol + exchange
-                                Expanded(
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(r.name,
-                                            style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis),
-                                        const SizedBox(height: 2),
-                                        Row(children: [
-                                          Text(r.symbol,
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: typeColor)),
-                                          if (r.exchange.isNotEmpty) ...[
-                                            Text('  ·  ',
+                            ),
+                            const SizedBox(width: 12),
+                            // Name + symbol + exchange
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(r.name,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 2),
+                                    Row(children: [
+                                      Text(r.symbol,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: typeColor)),
+                                      if (r.exchange.isNotEmpty) ...[
+                                        Text('  ·  ',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.color)),
+                                        Flexible(
+                                            child: Text(r.exchange,
                                                 style: TextStyle(
                                                     fontSize: 11,
                                                     color: Theme.of(context)
                                                         .textTheme
                                                         .bodySmall
-                                                        ?.color)),
-                                            Flexible(
-                                                child: Text(r.exchange,
-                                                    style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: Theme.of(context)
-                                                            .textTheme
-                                                            .bodySmall
-                                                            ?.color),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis)),
-                                          ],
-                                        ]),
-                                      ]),
-                                ),
-                                const SizedBox(width: 8),
-                                // Type badge
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: typeColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(typeLabel,
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: typeColor)),
-                                ),
-                              ]),
+                                                        ?.color),
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis)),
+                                      ],
+                                    ]),
+                                  ]),
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                }),
-              ] else if (!_searching &&
-                  _symbolCtrl.text.trim().length >= 2 &&
-                  _livePrice == null) ...[
-                const SizedBox(height: 8),
-                // Fetch price button (shown when user has typed a ticker and no results)
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: OutlinedButton.icon(
-                    onPressed: _fetching ? null : _fetchPrice,
-                    icon: _fetching
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const AppIcon(AppIcons.refresh, size: 18),
-                    label: Text(_fetching
-                        ? 'Fetching...'
-                        : 'Fetch Live Price for "${_symbolCtrl.text.trim().toUpperCase()}"'),
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      foregroundColor: const Color(0xFF7C3AED),
-                      side: const BorderSide(color: Color(0xFF7C3AED)),
-                    ),
+                            const SizedBox(width: 8),
+                            // Type badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: typeColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(typeLabel,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: typeColor)),
+                            ),
+                          ]),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ],
-
-              // Live price result
-              if (_livePrice != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.success.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: AppTheme.success.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      AppIcon(AppIcons.checkCircle,
-                          color: AppTheme.adaptiveIcon(context), size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_companyName != null)
-                              Text(_companyName!,
-                                  style: TextStyle(
-                                      color: AppTheme.success,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600)),
-                            Text(
-                              'Live price: \$${_livePrice!.toStringAsFixed(2)}',
+              );
+            }),
+          ] else if (!_searching &&
+              _symbolCtrl.text.trim().length >= 2 &&
+              _livePrice == null) ...[
+            const SizedBox(height: 8),
+            // Fetch price button (shown when user has typed a ticker and no results)
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: _fetching ? null : _fetchPrice,
+                icon: _fetching
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const AppIcon(AppIcons.refresh, size: 18),
+                label: Text(_fetching
+                    ? s.tr('fetching')
+                    : s.tr('fetchLivePriceFor', {
+                        'symbol': _symbolCtrl.text.trim().toUpperCase(),
+                      })),
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  foregroundColor: const Color(0xFF7C3AED),
+                  side: const BorderSide(color: Color(0xFF7C3AED)),
+                ),
+              ),
+            ),
+          ],
+          if (_livePrice != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.success.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  AppIcon(AppIcons.checkCircle,
+                      color: AppTheme.adaptiveIcon(context), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_companyName != null)
+                          Text(_companyName!,
                               style: TextStyle(
                                   color: AppTheme.success,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        Text(
+                          s.tr('livePriceAmount', {
+                            'amount': '\$${_livePrice!.toStringAsFixed(2)}',
+                          }),
+                          style: TextStyle(
+                              color: AppTheme.success,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              if (_fetchError != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.error.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(IOSIcons.error_outline,
-                          color: AppTheme.adaptiveIcon(context), size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_fetchError!,
-                            style:
-                                TextStyle(color: AppTheme.error, fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-
-              // Title (optional custom name)
-              TextField(
-                controller: _titleCtrl,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: 'Title (optional)',
-                  hintText: 'e.g., Apple Stock, Bitcoin Investment',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: Icon(IOSIcons.title,
-                      color: AppTheme.adaptiveIcon(context)),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Shares
-              TextField(
-                controller: _sharesCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Quantity (shares / units)',
-                  hintText: '0',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: Icon(IOSIcons.numbers,
-                      color: AppTheme.adaptiveIcon(context)),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Avg cost
-              TextField(
-                controller: _costCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Avg Buy Price per Unit',
-                  hintText: '0.00',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: Icon(IOSIcons.attach_money,
-                      color: AppTheme.adaptiveIcon(context)),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Purchase date
-              GestureDetector(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _purchaseDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) setState(() => _purchaseDate = picked);
-                },
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Purchase Date',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: Icon(IOSIcons.calendar_today_rounded,
-                        color: AppTheme.adaptiveIcon(context)),
-                  ),
-                  child: Text(
-                    DateFormat('MMM d, yyyy').format(_purchaseDate),
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              if (!isEditing) ...[
-                AppPickerField<String>(
-                  label: s.sourceAccount,
-                  value: _sourceAccountId,
-                  prefixIcon: AppIcons.bank,
-                  helperText:
-                      'Optional. Pick the account that funded this buy. Older purchases are imported without changing balances.',
-                  items: _fundingAccounts(provider)
-                      .map(
-                        (account) => AppPickerItem(
-                          value: account.id,
-                          label: account.name,
-                          subtitle:
-                              '$currencySymbol${account.balance.toStringAsFixed(2)} available · tracked from ${DateFormat('MMM d, yyyy').format(_accountTrackingStart(account))}',
-                          leadingIcon: AppIcons.bank,
-                          iconColor: AppTheme.adaptiveIcon(context),
-                          imagePath: account.imagePath,
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _sourceAccountId = value),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: selectedFundingAccount == null
-                        ? Theme.of(context).cardColor
-                        : (trackedPurchase
-                                ? AppTheme.success
-                                : AppTheme.warning)
-                            .withOpacity(0.10),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: selectedFundingAccount == null
-                          ? Theme.of(context).dividerColor.withOpacity(0.4)
-                          : (trackedPurchase
-                                  ? AppTheme.success
-                                  : AppTheme.warning)
-                              .withOpacity(0.28),
+                      ],
                     ),
                   ),
-                  child: Text(
-                    selectedFundingAccount == null
-                        ? 'No source account selected. This holding will be added without changing any tracked account balance.'
-                        : trackedPurchase
-                            ? 'This purchase will deduct ${estimatedSourceAmount == null ? 'the entered buy amount' : '$currencySymbol${estimatedSourceAmount.toStringAsFixed(2)}'} from ${selectedFundingAccount.name} because the purchase date is on or after $formattedTrackingStart.'
-                            : 'This purchase happened before ${selectedFundingAccount.name} started being tracked on $formattedTrackingStart, so the holding will be imported without changing that balance.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          height: 1.4,
-                          color: selectedFundingAccount == null
-                              ? Theme.of(context).textTheme.bodySmall?.color
-                              : (trackedPurchase
-                                  ? AppTheme.success
-                                  : AppTheme.warning),
-                        ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ] else ...[
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor.withOpacity(0.4),
-                    ),
-                  ),
-                  child: Text(
-                    widget.holding?.affectsSourceBalance == true
-                        ? 'This holding already adjusted its source account when it was first added. Editing it here will not move money again.'
-                        : 'This holding was imported without changing a source account balance.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(height: 1.4),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Notes
-              TextField(
-                controller: _notesCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Notes (optional)',
-                  hintText: 'e.g., Long-term hold, Roth IRA',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: Icon(IOSIcons.note,
-                      color: AppTheme.adaptiveIcon(context)),
-                ),
+                ],
               ),
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.goldPrimary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(
-                    widget.holding == null ? s.addHolding : s.saveChanges,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
+            ),
+          ],
+          if (_fetchError != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.error.withOpacity(0.3)),
               ),
-            ],
+              child: Row(
+                children: [
+                  Icon(IOSIcons.error_outline,
+                      color: AppTheme.adaptiveIcon(context), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_fetchError!,
+                        style: TextStyle(color: AppTheme.error, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          TextField(
+            controller: _titleCtrl,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              labelText: s.tr('titleOptional'),
+              hintText: s.tr('holdingTitleHint'),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon:
+                  Icon(IOSIcons.title, color: AppTheme.adaptiveIcon(context)),
+            ),
           ),
-        ),
-      ),
-    );
+          const SizedBox(height: 16),
+          TextField(
+            controller: _sharesCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: s.tr('holdingQuantityLabel'),
+              hintText: '0',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon:
+                  Icon(IOSIcons.numbers, color: AppTheme.adaptiveIcon(context)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _costCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: s.tr('averageBuyPricePerUnit'),
+              hintText: '0.00',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon: Icon(IOSIcons.attach_money,
+                  color: AppTheme.adaptiveIcon(context)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _purchaseDate,
+                firstDate: DateTime(2000),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) setState(() => _purchaseDate = picked);
+            },
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: s.tr('purchaseDate'),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: Icon(IOSIcons.calendar_today_rounded,
+                    color: AppTheme.adaptiveIcon(context)),
+              ),
+              child: Text(
+                materialLocalizations.formatMediumDate(_purchaseDate),
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (!isEditing) ...[
+            AppPickerField<String>(
+              label: s.sourceAccount,
+              value: _sourceAccountId,
+              prefixIcon: AppIcons.bank,
+              helperText: s.tr('sourceAccountHelper'),
+              items: _fundingAccounts(provider)
+                  .map(
+                    (account) => AppPickerItem(
+                      value: account.id,
+                      label: account.name,
+                      subtitle: s.tr('availableTrackedFrom', {
+                        'amount':
+                            '$currencySymbol${account.balance.toStringAsFixed(2)}',
+                        'date': materialLocalizations
+                            .formatMediumDate(_accountTrackingStart(account)),
+                      }),
+                      leadingIcon: AppIcons.bank,
+                      iconColor: AppTheme.adaptiveIcon(context),
+                      imagePath: account.imagePath,
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _sourceAccountId = value),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: selectedFundingAccount == null
+                    ? Theme.of(context).cardColor
+                    : (trackedPurchase ? AppTheme.success : AppTheme.warning)
+                        .withOpacity(0.10),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selectedFundingAccount == null
+                      ? Theme.of(context).dividerColor.withOpacity(0.4)
+                      : (trackedPurchase ? AppTheme.success : AppTheme.warning)
+                          .withOpacity(0.28),
+                ),
+              ),
+              child: Text(
+                selectedFundingAccount == null
+                    ? s.tr('noSourceAccountHoldingInfo')
+                    : trackedPurchase
+                        ? s.tr('purchaseDeductionInfo', {
+                            'amount': estimatedSourceAmount == null
+                                ? s.tr('enteredBuyAmount')
+                                : '$currencySymbol${estimatedSourceAmount.toStringAsFixed(2)}',
+                            'account': selectedFundingAccount.name,
+                            'date': formattedTrackingStart!,
+                          })
+                        : s.tr('historicalPurchaseImportInfo', {
+                            'account': selectedFundingAccount.name,
+                            'date': formattedTrackingStart!,
+                          }),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      height: 1.4,
+                      color: selectedFundingAccount == null
+                          ? Theme.of(context).textTheme.bodySmall?.color
+                          : (trackedPurchase
+                              ? AppTheme.success
+                              : AppTheme.warning),
+                    ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.4),
+                ),
+              ),
+              child: Text(
+                widget.holding?.affectsSourceBalance == true
+                    ? s.tr('holdingSourceAlreadyAdjusted')
+                    : s.tr('holdingImportedWithoutBalanceChange'),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          TextField(
+            controller: _notesCtrl,
+            maxLines: 2,
+            decoration: InputDecoration(
+              labelText: s.tr('notesOptional'),
+              hintText: s.tr('holdingNotesHint'),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon:
+                  Icon(IOSIcons.note, color: AppTheme.adaptiveIcon(context)),
+            ),
+          )
+        ]),
+        actions: SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _save,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.goldPrimary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              widget.holding == null ? s.addHolding : s.saveChanges,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ));
   }
 }
 
@@ -3263,8 +3276,9 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
   String get _sym => widget.currencySymbol;
 
   String _destLabel() {
+    final s = S.of(context);
     if (_selectedAccountId == AppProvider.cashOnHandId) {
-      return 'Cash on Hand · ${_sym}${widget.cashBalance.toStringAsFixed(0)}';
+      return '${s.cashOnHand} · ${_sym}${widget.cashBalance.toStringAsFixed(0)}';
     }
     final a = widget.accounts.firstWhere((a) => a.id == _selectedAccountId,
         orElse: () => widget.accounts.first);
@@ -3272,19 +3286,21 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
   }
 
   void _confirm() {
+    final s = S.of(context);
     if (_sharesToSell <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter the number of shares to sell')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(s.enterSharesToSell)));
       return;
     }
     if (_sharesToSell > widget.holding.shares) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('You only hold ${widget.holding.shares} shares')));
+          content: Text(s.tr(
+              'youOnlyHold', {'shares': widget.holding.shares.toString()}))));
       return;
     }
     if (_sellPrice <= 0) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Enter a sell price')));
+          .showSnackBar(SnackBar(content: Text(s.enterSellPrice)));
       return;
     }
     widget.onSell(
@@ -3298,6 +3314,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
     final isProfit = _profitLoss >= 0;
     final profitColor = isProfit ? AppTheme.success : AppTheme.error;
 
@@ -3311,7 +3328,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
           const SizedBox(width: 10),
           Expanded(
               child: Text(
-            'Cash on Hand  ·  ${_sym}${widget.cashBalance.toStringAsFixed(0)}',
+            '${s.cashOnHand}  ·  ${_sym}${widget.cashBalance.toStringAsFixed(0)}',
             overflow: TextOverflow.ellipsis,
           )),
         ]),
@@ -3334,240 +3351,227 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
     ];
 
     return AppFormSheet(
-      builder: (context, scrollController) => SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AppFormSheetHandle(),
-              const SizedBox(height: 16),
-              AppFormSheetHeader(
-                title: 'Sell ${widget.holding.symbol}',
-                icon: IOSIcons.wealthInvestments,
-                accent: AppTheme.adaptiveIcon(context),
-              ),
-              const SizedBox(height: 6),
-              Center(
-                child: Text(
-                  '${widget.holding.shares} shares available  ·  ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)} live',
-                  style: Theme.of(context).textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ── Shares ───────────────────────────────────────────────
-              Text('How many shares?',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(
-                  child: TextField(
-                    controller: _sharesCtrl,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    autofocus: true,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: '0',
-                      suffixText: '/ ${widget.holding.shares}',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: Icon(IOSIcons.candlestick_chart_rounded,
-                          color: AppTheme.adaptiveIcon(context)),
-                      filled: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // Quick-fill buttons
-                Column(children: [
-                  _QuickFillButton(
-                      label: '½',
-                      onTap: () {
-                        _sharesCtrl.text = (widget.holding.shares / 2)
-                            .toStringAsFixed(widget.holding.shares ==
-                                    widget.holding.shares.roundToDouble()
-                                ? 0
-                                : 2);
-                        setState(() {});
-                      }),
-                  const SizedBox(height: 6),
-                  _QuickFillButton(
-                      label: 'All',
-                      onTap: () {
-                        _sharesCtrl.text = widget.holding.shares.toString();
-                        setState(() {});
-                      },
-                      color: AppTheme.error),
-                ]),
-              ]),
-              const SizedBox(height: 16),
-
-              // ── Sell price ───────────────────────────────────────────
-              Text('Sell price per share',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _priceCtrl,
+        header: AppFormSheetHeader(
+          title: s.tr('sellSymbol', {'symbol': widget.holding.symbol}),
+          icon: IOSIcons.wealthInvestments,
+          accent: AppTheme.adaptiveIcon(context),
+        ),
+        body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(
+            child: Text(
+              s.tr('sharesAvailableLivePrice', {
+                'shares': widget.holding.shares.toString(),
+                'amount':
+                    '$_sym${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)}',
+              }),
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(s.howManyShares,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: TextField(
+                controller: _sharesCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                autofocus: false,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  hintText: '0.00',
-                  prefixText: '$_sym ',
+                  hintText: '0',
+                  suffixText: '/ ${widget.holding.shares}',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14)),
-                  prefixIcon: Icon(IOSIcons.sell_rounded,
+                  prefixIcon: Icon(IOSIcons.candlestick_chart_rounded,
                       color: AppTheme.adaptiveIcon(context)),
                   filled: true,
-                  helperText: widget.holding.currentPrice > 0
-                      ? 'Live price: ${_sym}${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)}  ·  tap to use'
-                      : null,
-                  helperStyle: const TextStyle(
-                      color: AppTheme.goldPrimary, fontSize: 11),
-                  suffixIcon: widget.holding.currentPrice > 0
-                      ? IconButton(
-                          icon: Icon(IOSIcons.flash_on_rounded,
-                              size: 18, color: AppTheme.adaptiveIcon(context)),
-                          tooltip: 'Use live price',
-                          onPressed: () {
-                            _priceCtrl.text =
-                                (widget.holding.currentPrice * widget.fxRate)
-                                    .toStringAsFixed(2);
-                            setState(() {});
-                          },
-                        )
-                      : null,
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // ── Destination ──────────────────────────────────────────
-              AppPickerField<String>(
-                label: 'Proceeds go to',
-                value: _selectedAccountId,
-                prefixIcon: AppIcons.wallet,
-                items: [
-                  AppPickerItem(
-                    value: AppProvider.cashOnHandId,
-                    label: 'Cash on Hand',
-                    subtitle:
-                        '${_sym}${widget.cashBalance.toStringAsFixed(2)} available',
-                    leadingIcon: AppIcons.money,
-                    iconColor: AppTheme.cashOnHandIcon,
-                  ),
-                  ...widget.accounts.where((a) => a.type != 'investment').map(
-                        (a) => AppPickerItem(
-                          value: a.id,
-                          label: a.name,
-                          subtitle:
-                              '${_sym}${a.balance.toStringAsFixed(2)} available',
-                          leadingIcon: AppIcons.bank,
-                          iconColor: AppTheme.adaptiveIcon(context),
-                          imagePath: a.imagePath,
-                        ),
-                      ),
-                ],
-                onChanged: (v) => setState(
-                    () => _selectedAccountId = v ?? AppProvider.cashOnHandId),
-              ),
-              const SizedBox(height: 20),
-
-              // ── Summary box ──────────────────────────────────────────
-              if (_sharesToSell > 0 && _sellPrice > 0) ...[
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppTheme.darkSurfaceElevated
-                        : const Color(0xFFF8F9FB),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: Theme.of(context).dividerColor.withOpacity(0.3)),
-                  ),
-                  child: Column(children: [
-                    _SummaryRow(
-                      label: 'Shares × Price',
-                      value:
-                          '${_sharesToSell} × ${_sym}${_sellPrice.toStringAsFixed(2)}',
-                    ),
-                    const SizedBox(height: 10),
-                    _SummaryRow(
-                      label: 'Total proceeds',
-                      value: '${_sym}${_proceeds.toStringAsFixed(2)}',
-                      valueStyle: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 17),
-                    ),
-                    const SizedBox(height: 10),
-                    _SummaryRow(
-                      label: 'Cost basis',
-                      value:
-                          '${_sym}${(_sharesToSell * widget.holding.costBasis * widget.fxRate).toStringAsFixed(2)}',
-                      valueStyle: TextStyle(
-                          color: Theme.of(context).textTheme.bodySmall?.color),
-                    ),
-                    Divider(
-                        height: 20,
-                        color: Theme.of(context).dividerColor.withOpacity(0.4)),
-                    _SummaryRow(
-                      label: isProfit ? '📈 Profit' : '📉 Loss',
-                      value:
-                          '${isProfit ? '+' : ''}${_sym}${_profitLoss.toStringAsFixed(2)}',
-                      valueStyle: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: profitColor,
-                          fontSize: 15),
-                    ),
-                    const SizedBox(height: 8),
-                    _SummaryRow(
-                      label: 'Destination',
-                      value: _destLabel(),
-                      valueStyle: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // ── Confirm ──────────────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _confirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.error,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    _sharesToSell > 0 && _sellPrice > 0
-                        ? 'Sell for ${_sym}${_proceeds.toStringAsFixed(2)}'
-                        : 'Confirm Sale',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-            ],
+            ),
+            const SizedBox(width: 10),
+            // Quick-fill buttons
+            Column(children: [
+              _QuickFillButton(
+                  label: '½',
+                  onTap: () {
+                    _sharesCtrl.text = (widget.holding.shares / 2)
+                        .toStringAsFixed(widget.holding.shares ==
+                                widget.holding.shares.roundToDouble()
+                            ? 0
+                            : 2);
+                    setState(() {});
+                  }),
+              const SizedBox(height: 6),
+              _QuickFillButton(
+                  label: s.all,
+                  onTap: () {
+                    _sharesCtrl.text = widget.holding.shares.toString();
+                    setState(() {});
+                  },
+                  color: AppTheme.error),
+            ]),
+          ]),
+          const SizedBox(height: 16),
+          Text(s.sellPricePerShare,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _priceCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: '0.00',
+              prefixText: '$_sym ',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              prefixIcon: Icon(IOSIcons.sell_rounded,
+                  color: AppTheme.adaptiveIcon(context)),
+              filled: true,
+              helperText: widget.holding.currentPrice > 0
+                  ? s.tr('livePriceTapToUse', {
+                      'amount':
+                          '$_sym${(widget.holding.currentPrice * widget.fxRate).toStringAsFixed(2)}',
+                    })
+                  : null,
+              helperStyle:
+                  const TextStyle(color: AppTheme.goldPrimary, fontSize: 11),
+              suffixIcon: widget.holding.currentPrice > 0
+                  ? IconButton(
+                      icon: Icon(IOSIcons.flash_on_rounded,
+                          size: 18, color: AppTheme.adaptiveIcon(context)),
+                      tooltip: s.tr('useLivePrice'),
+                      onPressed: () {
+                        _priceCtrl.text =
+                            (widget.holding.currentPrice * widget.fxRate)
+                                .toStringAsFixed(2);
+                        setState(() {});
+                      },
+                    )
+                  : null,
+            ),
           ),
-        ),
-      ),
-    );
+          const SizedBox(height: 16),
+          AppPickerField<String>(
+            label: s.tr('proceedsGoTo'),
+            value: _selectedAccountId,
+            prefixIcon: AppIcons.wallet,
+            items: [
+              AppPickerItem(
+                value: AppProvider.cashOnHandId,
+                label: s.cashOnHand,
+                subtitle: s.tr('amountAvailable', {
+                  'amount': '$_sym${widget.cashBalance.toStringAsFixed(2)}',
+                }),
+                leadingIcon: AppIcons.money,
+                iconColor: AppTheme.cashOnHandIcon,
+              ),
+              ...widget.accounts.where((a) => a.type != 'investment').map(
+                    (a) => AppPickerItem(
+                      value: a.id,
+                      label: a.name,
+                      subtitle: s.tr('amountAvailable', {
+                        'amount': '$_sym${a.balance.toStringAsFixed(2)}',
+                      }),
+                      leadingIcon: AppIcons.bank,
+                      iconColor: AppTheme.adaptiveIcon(context),
+                      imagePath: a.imagePath,
+                    ),
+                  ),
+            ],
+            onChanged: (v) => setState(
+                () => _selectedAccountId = v ?? AppProvider.cashOnHandId),
+          ),
+          const SizedBox(height: 20),
+          if (_sharesToSell > 0 && _sellPrice > 0) ...[
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppTheme.darkSurfaceElevated
+                    : const Color(0xFFF8F9FB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.3)),
+              ),
+              child: Column(children: [
+                _SummaryRow(
+                  label: s.tr('sharesTimesPrice'),
+                  value:
+                      '${_sharesToSell} × ${_sym}${_sellPrice.toStringAsFixed(2)}',
+                ),
+                const SizedBox(height: 10),
+                _SummaryRow(
+                  label: s.tr('totalProceeds'),
+                  value: '${_sym}${_proceeds.toStringAsFixed(2)}',
+                  valueStyle: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _SummaryRow(
+                  label: s.tr('costBasis'),
+                  value:
+                      '${_sym}${(_sharesToSell * widget.holding.costBasis * widget.fxRate).toStringAsFixed(2)}',
+                  valueStyle: TextStyle(
+                      color: Theme.of(context).textTheme.bodySmall?.color),
+                ),
+                Divider(
+                    height: 20,
+                    color: Theme.of(context).dividerColor.withOpacity(0.4)),
+                _SummaryRow(
+                  label: isProfit ? '📈 ${s.profit}' : '📉 ${s.loss}',
+                  value:
+                      '${isProfit ? '+' : ''}${_sym}${_profitLoss.toStringAsFixed(2)}',
+                  valueStyle: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: profitColor,
+                      fontSize: 15),
+                ),
+                const SizedBox(height: 8),
+                _SummaryRow(
+                  label: s.destinationAccount,
+                  value: _destLabel(),
+                  valueStyle: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 20),
+          ]
+        ]),
+        actions: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _confirm,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
+            ),
+            child: Text(
+              _sharesToSell > 0 && _sellPrice > 0
+                  ? s.tr('sellForAmount', {
+                      'amount': '$_sym${_proceeds.toStringAsFixed(2)}',
+                    })
+                  : s.confirmSell,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ));
   }
 }
 

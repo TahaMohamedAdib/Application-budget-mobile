@@ -23,6 +23,7 @@ class MoneyFormat {
     required this.hidden,
     required this.decimalPlaces,
     required this.compact,
+    required this.locale,
   });
 
   factory MoneyFormat.of(Settings settings) => MoneyFormat._(
@@ -30,6 +31,7 @@ class MoneyFormat {
         hidden: settings.hideAmounts,
         decimalPlaces: settings.decimalPlaces,
         compact: settings.compactNumbers,
+        locale: settings.locale,
       );
 
   /// Always shows the figure, whatever the hide setting says. For the one
@@ -40,9 +42,11 @@ class MoneyFormat {
         hidden: false,
         decimalPlaces: settings.decimalPlaces,
         compact: settings.compactNumbers,
+        locale: settings.locale,
       );
 
   final String currency;
+  final String locale;
   final bool hidden;
   final int decimalPlaces;
   final bool compact;
@@ -63,17 +67,25 @@ class MoneyFormat {
   int get _decimals =>
       _noDecimalCurrencies.contains(currency) ? 0 : decimalPlaces;
 
-  String format(num value) {
+  String format(num value) => hidden ? mask : '${number(value)} $symbol';
+
+  /// Numeric part for layouts that give the currency its own visual hierarchy.
+  String number(num value, {bool? compactOverride}) {
     if (hidden) return mask;
-
     final amount = value.toDouble();
-    if (compact) return '${_compact(amount)} $symbol';
-
-    final pattern = _decimals > 0 ? '#,##0.${'0' * _decimals}' : '#,##0';
-    // The symbol is quoted so a currency written with letters (MAD, CHF) is
-    // not read as number-format placeholders.
-    final escaped = symbol.replaceAll("'", "''");
-    return NumberFormat("$pattern '$escaped'", 'en_US').format(amount);
+    if (!amount.isFinite) return '—';
+    if (compactOverride ?? compact) {
+      return locale == 'en'
+          ? _compact(amount)
+          : NumberFormat.compact(locale: locale).format(amount);
+    }
+    // Past six figures the cents are noise: nobody reads the .00 on a
+    // 2,498,865 balance, and those three glyphs are exactly what force a
+    // hero figure to shrink. Small amounts keep them, where they matter.
+    const centsCeiling = 100000;
+    final decimals = amount.abs() >= centsCeiling ? 0 : _decimals;
+    final pattern = decimals > 0 ? '#,##0.${'0' * decimals}' : '#,##0';
+    return NumberFormat(pattern, locale).format(amount);
   }
 
   /// [value] with an explicit leading + or -, or the bare mask when hiding.
@@ -96,26 +108,50 @@ class MoneyFormat {
     return value < 0 ? '-${format(value.abs())}' : format(value);
   }
 
+  /// Largest compact unit. A value that rounds past this stays in trillions
+  /// rather than gaining a unit no reader would recognise.
+  static const _compactCeiling = 1000000000000;
+
   /// 12,400 → 12.4K. Keeps one decimal only when it adds information, so
-  /// 12,000 reads as 12K rather than 12.0K.
+  /// 12,000 reads as 12K rather than 12.0K. Runs to trillions, because a
+  /// balance held in a low-denomination currency reaches 10^12 without being
+  /// an unusual amount of money.
   String _compact(double value) {
     final sign = value < 0 ? '-' : '';
     final abs = value.abs();
 
     const units = [
+      (_compactCeiling, 'T'),
       (1000000000, 'B'),
       (1000000, 'M'),
       (1000, 'K'),
     ];
 
     for (final (threshold, suffix) in units) {
-      if (abs >= threshold) {
-        final scaled = abs / threshold;
-        final text = scaled >= 100 || scaled == scaled.roundToDouble()
-            ? scaled.round().toString()
-            : scaled.toStringAsFixed(1);
-        return '$sign$text$suffix';
+      if (abs < threshold) continue;
+
+      // Rounding can carry a value into the unit above: 999,950 would read
+      // "1000K" where "1M" is meant. Promote before choosing the suffix, so
+      // the carry happens once and the top unit simply keeps its digits.
+      var unit = threshold;
+      var label = suffix;
+      if (abs / unit >= 999.95 && unit != _compactCeiling) {
+        final promoted = units.lastWhere((u) => u.$1 > unit);
+        unit = promoted.$1;
+        label = promoted.$2;
       }
+
+      // Round to the precision actually shown before deciding whether the
+      // decimal earns its place. Testing the raw quotient instead lets float
+      // error through: 999,950 promotes to 0.99995T, which is not a whole
+      // number, so it printed "1.0T" where the rounded value is plainly "1T".
+      final scaled = (abs / unit * 10).round() / 10;
+      // One decimal only when it adds information: 12,000 reads "12K", not
+      // "12.0K". Past 100 of a unit the decimal is noise on a hero figure.
+      final text = scaled >= 100 || scaled.roundToDouble() == scaled
+          ? scaled.round().toString()
+          : scaled.toStringAsFixed(1);
+      return '$sign$text$label';
     }
     return sign + NumberFormat('#,##0', 'en_US').format(abs);
   }

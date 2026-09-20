@@ -1,3 +1,4 @@
+import '../utils/system_note.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -13,18 +14,28 @@ import '../models/recurring_rule.dart';
 import '../models/holding.dart';
 import '../models/goal.dart';
 import '../models/daret.dart';
+import '../data/legacy_migration.dart';
+import '../data/local_database.dart';
+import '../data/local_repository.dart';
+import '../data/sync_engine.dart';
 import '../services/supabase_sync_service.dart';
+import '../services/image_service.dart';
+import '../utils/recurring_dates.dart';
 
 /// Top-level function for compute() — parses all cached JSON off the main thread.
 Map<String, dynamic> _parseLocalData(Map<String, String?> rawJson) {
   final result = <String, dynamic>{};
   try {
     final a = rawJson['accounts'];
-    if (a != null) result['accounts'] = (jsonDecode(a) as List).map((j) => Account.fromJson(j)).toList();
+    if (a != null)
+      result['accounts'] =
+          (jsonDecode(a) as List).map((j) => Account.fromJson(j)).toList();
   } catch (_) {}
   try {
     final t = rawJson['transactions'];
-    if (t != null) result['transactions'] = (jsonDecode(t) as List).map((j) => Transaction.fromJson(j)).toList();
+    if (t != null)
+      result['transactions'] =
+          (jsonDecode(t) as List).map((j) => Transaction.fromJson(j)).toList();
   } catch (_) {}
   try {
     final s = rawJson['settings'];
@@ -32,23 +43,34 @@ Map<String, dynamic> _parseLocalData(Map<String, String?> rawJson) {
   } catch (_) {}
   try {
     final r = rawJson['recurringRules'];
-    if (r != null) result['recurringRules'] = (jsonDecode(r) as List).map((j) => RecurringRule.fromJson(j)).toList();
+    if (r != null)
+      result['recurringRules'] = (jsonDecode(r) as List)
+          .map((j) => RecurringRule.fromJson(j))
+          .toList();
   } catch (_) {}
   try {
     final h = rawJson['holdings'];
-    if (h != null) result['holdings'] = (jsonDecode(h) as List).map((j) => Holding.fromJson(j)).toList();
+    if (h != null)
+      result['holdings'] =
+          (jsonDecode(h) as List).map((j) => Holding.fromJson(j)).toList();
   } catch (_) {}
   try {
     final g = rawJson['goals'];
-    if (g != null) result['goals'] = (jsonDecode(g) as List).map((j) => Goal.fromJson(j)).toList();
+    if (g != null)
+      result['goals'] =
+          (jsonDecode(g) as List).map((j) => Goal.fromJson(j)).toList();
   } catch (_) {}
   try {
     final d = rawJson['darets'];
-    if (d != null) result['darets'] = (jsonDecode(d) as List).map((j) => Daret.fromJson(j)).toList();
+    if (d != null)
+      result['darets'] =
+          (jsonDecode(d) as List).map((j) => Daret.fromJson(j)).toList();
   } catch (_) {}
   try {
     final c = rawJson['categories'];
-    if (c != null) result['categories'] = (jsonDecode(c) as List).map((j) => Category.fromJson(j)).toList();
+    if (c != null)
+      result['categories'] =
+          (jsonDecode(c) as List).map((j) => Category.fromJson(j)).toList();
   } catch (_) {}
   return result;
 }
@@ -69,6 +91,7 @@ class AppProvider with ChangeNotifier {
 
   bool _setupComplete = false;
   bool _hasSeenAppTour = false;
+  Set<String> _seenFeatureGuides = {};
   String? _selectedAccountId; // null = all accounts (shared across screens)
 
   // ── Debounced save ──────────────────────────────────────────────────────
@@ -105,6 +128,9 @@ class AppProvider with ChangeNotifier {
   bool get supabaseDataLoaded => _supabaseDataLoaded;
   String? get selectedAccountId => _selectedAccountId;
 
+  bool hasSeenFeatureGuide(String feature) =>
+      _seenFeatureGuides.contains(feature);
+
   void setSelectedAccount(String? accountId) {
     if (_selectedAccountId == accountId) return;
     _selectedAccountId = accountId;
@@ -121,6 +147,153 @@ class AppProvider with ChangeNotifier {
 
   String? get _userId => SupabaseSyncService.currentUserId;
 
+  // ── Local-first store ─────────────────────────────────────────────
+  //
+  // Reads come from SQLite and writes go to SQLite plus a durable queue, so a
+  // change made with no network is complete the moment it is saved.
+  //
+  // The SharedPreferences blobs are still written alongside, for one release.
+  // They are the rollback path: if the SQLite layer misbehaves on a device we
+  // cannot reproduce, the old loader still finds intact data. A later release
+  // removes the dual write.
+  final LocalRepository _repository = LocalRepository();
+  late final SyncEngine _syncEngine = SyncEngine(repository: _repository);
+  late final LegacyMigration _legacyMigration =
+      LegacyMigration(repository: _repository);
+
+  /// Sync state for the UI, so a screen can show pending or failed work
+  /// without reaching into the engine.
+  ValueListenable<SyncStatusSnapshot> get syncStatus => _syncEngine.status;
+
+  /// True once this session has a local database to read from.
+  bool _repositoryReady = false;
+
+  /// Whether the user has changes the server has not acknowledged. Used to
+  /// warn before a sign-out that would strand them.
+  Future<bool> hasUnsyncedChanges() async {
+    final uid = _userId;
+    if (uid == null) return false;
+    return _repository.hasUnsyncedChanges(uid);
+  }
+
+  /// Prepares the local store for [userId] and starts background sync.
+  ///
+  /// Runs the one-time import from the old blobs first: until that has
+  /// happened, SQLite is empty and reading from it would show a returning
+  /// user an empty app.
+  /// Lets tests put the UI into a given sync state without a live engine.
+  ///
+  /// The alternative is casting [syncStatus] back to its notifier at the call
+  /// site, which couples every such test to the engine's internals.
+  @visibleForTesting
+  void debugSetSyncStatus(SyncStatusSnapshot status) {
+    _syncEngine.status.value = status;
+  }
+
+  /// Pushes queued work now, for a user who just pulled to refresh or tapped
+  /// retry. Safe to call when offline: the engine reports the offline phase
+  /// and leaves the queue intact.
+  Future<void> syncNow() async {
+    if (!_repositoryReady) return;
+    await _syncEngine.sync();
+  }
+
+  /// Requeues work that failed permanently. See [SyncEngine.retryFailed].
+  Future<void> retryFailedSync() async {
+    if (!_repositoryReady) return;
+    await _syncEngine.retryFailed();
+  }
+
+  Future<void> initializeLocalStore(String userId) async {
+    try {
+      final result = await _legacyMigration.migrateIfNeeded(userId);
+      if (kDebugMode && result.migrated) {
+        debugPrint('[AppProvider] migrated ${result.totalRecords} records '
+            'into the local database');
+      }
+      _repositoryReady = true;
+      await _syncEngine.start(userId);
+    } catch (e) {
+      // A failure here costs background sync, not the app: the provider keeps
+      // using the SharedPreferences path it has always used.
+      _repositoryReady = false;
+      if (kDebugMode) {
+        debugPrint('[AppProvider] local store unavailable, '
+            'continuing on the legacy cache: $e');
+      }
+    }
+  }
+
+  /// Mirrors the in-memory state into SQLite.
+  ///
+  /// Called from [_performSave] so every existing mutation site keeps working
+  /// unchanged — there are around forty-five of them, and rewriting each by
+  /// hand is where a balance bug would get in.
+  ///
+  /// `markDirty: false` because the mutation sites already hand their change
+  /// to [SupabaseSyncService], which owns the push. Marking these dirty would
+  /// queue a second copy of every write.
+  Future<void> _mirrorToRepository() async {
+    final uid = _userId;
+    if (uid == null || !_repositoryReady) return;
+    try {
+      await _repository.replaceAll(
+        userId: uid,
+        accounts: _accounts,
+        transactions: _transactions,
+        goals: _goals,
+        holdings: _holdings,
+        categories: _categories,
+        recurringRules: _recurringRules,
+        darets: _darets,
+        settings: _settings.toJson(),
+        markDirty: false,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AppProvider] local mirror failed: $e');
+    }
+  }
+
+  /// Loads this user's data from SQLite.
+  ///
+  /// Returns false when there is nothing stored yet, so the caller can fall
+  /// back rather than show an empty app.
+  Future<bool> _loadFromRepository(String userId) async {
+    if (!_repositoryReady) return false;
+    try {
+      final results = await Future.wait([
+        _repository.accounts(userId),
+        _repository.transactions(userId),
+        _repository.goals(userId),
+        _repository.holdings(userId),
+        _repository.categories(userId),
+        _repository.recurringRules(userId),
+        _repository.darets(userId),
+      ]);
+
+      final accounts = results[0] as List<Account>;
+      final transactions = results[1] as List<Transaction>;
+      if (accounts.isEmpty && transactions.isEmpty) return false;
+
+      _accounts = accounts;
+      _transactions = transactions;
+      _goals = results[2] as List<Goal>;
+      _holdings = results[3] as List<Holding>;
+      _categories = results[4] as List<Category>;
+      _recurringRules = results[5] as List<RecurringRule>;
+      _darets = results[6] as List<Daret>;
+
+      final storedSettings = await _repository.settings(userId);
+      if (storedSettings != null) {
+        _settings = Settings.fromJson(storedSettings);
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AppProvider] local read failed: $e');
+      return false;
+    }
+  }
+
   /// Load ALL data from Supabase for the authenticated user.
   /// Falls back to SharedPreferences if not authenticated or on error.
   Future<void> loadFromSupabase(String userId) async {
@@ -130,22 +303,32 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final hasPendingOfflineChanges =
-          await SupabaseSyncService.hasPendingOperationsForUser(userId);
-      if (hasPendingOfflineChanges) {
+      // Bring up the local store before anything else: it is what the app
+      // reads from, and the one-time import from the old blobs happens here.
+      await initializeLocalStore(userId);
+
+      // Serve local data immediately. A returning user sees their accounts at
+      // once rather than a spinner, and an offline launch shows the real app
+      // instead of an empty one. The server pull below refines this.
+      if (await _loadFromRepository(userId)) {
         _isLoading = false;
-        _supabaseDataLoaded = true;
-        _supabaseLoadInProgress = false;
+        _localDataLoaded = true;
         notifyListeners();
         processSalaries();
         processSubscriptions();
-        SupabaseSyncService.flushRetryQueue();
-        return;
       }
+
+      // Pending offline work no longer skips the pull. It used to, because a
+      // pull could overwrite unsynced changes wholesale; the repository now
+      // protects dirty rows one at a time, so skipping would only cost the
+      // user edits they made on another device.
+      unawaited(_syncEngine.sync());
 
       final data = await SupabaseSyncService.loadAllUserData(userId);
 
-      if (data['settings'] != null) _settings = data['settings'] as Settings;
+      if (data['settings'] != null) {
+        _settings = _settings.withRemoteProfile(data['settings'] as Settings);
+      }
       _accounts = data['accounts'] as List<Account>;
       _transactions = data['transactions'] as List<Transaction>;
       _goals = data['goals'] as List<Goal>;
@@ -174,8 +357,11 @@ class AppProvider with ChangeNotifier {
       // Flush any queued sync operations that failed while offline
       SupabaseSyncService.flushRetryQueue();
     } catch (e) {
-      if (kDebugMode) debugPrint('[AppProvider] Error loading from Supabase, falling back to local: $e');
-      _supabaseDataLoaded = true; // mark as done even on error to avoid retry loops
+      if (kDebugMode)
+        debugPrint(
+            '[AppProvider] Error loading from Supabase, falling back to local: $e');
+      _supabaseDataLoaded =
+          true; // mark as done even on error to avoid retry loops
       _supabaseLoadInProgress = false;
       await loadData();
     }
@@ -184,6 +370,9 @@ class AppProvider with ChangeNotifier {
   /// Clear all data (used on sign out). Resets flags so the next user
   /// can load their own data from Supabase cleanly.
   void clearData() {
+    // Captured before the fields are reset: the Supabase session may already
+    // be gone by the time the wipe runs, and a null id would wipe nothing.
+    final signingOutUserId = _userId;
     _accounts = [];
     _transactions = [];
     _categories = [];
@@ -205,6 +394,23 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
     unawaited(SupabaseSyncService.clearPendingRetryQueue());
     _clearLocalCache();
+    _clearRepository(signingOutUserId);
+  }
+
+  /// Stops sync and removes this user's local rows at sign-out.
+  ///
+  /// Both halves matter. Leaving the engine running would have it sync a user
+  /// who is no longer signed in, and leaving the rows would let the next
+  /// account on this device read the previous one's finances.
+  void _clearRepository(String? userId) {
+    unawaited(_syncEngine.stop());
+    _repositoryReady = false;
+    if (userId == null) return;
+    unawaited(
+      LocalDatabase.instance.wipeUser(userId).catchError((Object e) {
+        if (kDebugMode) debugPrint('[AppProvider] local wipe failed: $e');
+      }),
+    );
   }
 
   Future<void> _clearLocalCache() async {
@@ -243,19 +449,32 @@ class AppProvider with ChangeNotifier {
       // Parse JSON off the main thread via isolate
       final parsed = await compute(_parseLocalData, rawJson);
 
-      if (parsed.containsKey('accounts')) _accounts = parsed['accounts'] as List<Account>;
-      if (parsed.containsKey('transactions')) _transactions = parsed['transactions'] as List<Transaction>;
-      if (parsed.containsKey('settings')) _settings = parsed['settings'] as Settings;
-      if (parsed.containsKey('recurringRules')) _recurringRules = parsed['recurringRules'] as List<RecurringRule>;
-      if (parsed.containsKey('holdings')) _holdings = parsed['holdings'] as List<Holding>;
+      if (parsed.containsKey('accounts'))
+        _accounts = parsed['accounts'] as List<Account>;
+      if (parsed.containsKey('transactions'))
+        _transactions = parsed['transactions'] as List<Transaction>;
+      if (parsed.containsKey('settings'))
+        _settings = parsed['settings'] as Settings;
+      if (parsed.containsKey('recurringRules'))
+        _recurringRules = parsed['recurringRules'] as List<RecurringRule>;
+      if (parsed.containsKey('holdings'))
+        _holdings = parsed['holdings'] as List<Holding>;
       if (parsed.containsKey('goals')) _goals = parsed['goals'] as List<Goal>;
-      if (parsed.containsKey('darets')) _darets = parsed['darets'] as List<Daret>;
-      if (parsed.containsKey('categories')) _categories = parsed['categories'] as List<Category>;
+      if (parsed.containsKey('darets'))
+        _darets = parsed['darets'] as List<Daret>;
+      if (parsed.containsKey('categories'))
+        _categories = parsed['categories'] as List<Category>;
 
       _setupComplete = prefs.getBool('setup_complete') ?? false;
-      _hasSeenAppTour = prefs.getBool('has_seen_app_tour') ?? false;
+      // Versioned so users who only saw the old generic slide deck receive
+      // the redesigned, task-focused tour once.
+      _hasSeenAppTour = prefs.getBool('has_seen_app_tour_v2') ?? false;
+      _seenFeatureGuides =
+          (prefs.getStringList('seen_feature_guides_v2') ?? const <String>[])
+              .toSet();
     } catch (e) {
-      if (kDebugMode) debugPrint('[AppProvider] Critical error in loadData: $e');
+      if (kDebugMode)
+        debugPrint('[AppProvider] Critical error in loadData: $e');
     } finally {
       _isLoading = false;
       _localDataLoaded = true;
@@ -278,8 +497,18 @@ class AppProvider with ChangeNotifier {
     if (_hasSeenAppTour) return;
     _hasSeenAppTour = true;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('has_seen_app_tour', true);
+    await prefs.setBool('has_seen_app_tour_v2', true);
     notifyListeners();
+  }
+
+  /// Contextual help is progressive: each major feature introduces itself on
+  /// first visit, then stays out of the user's way. The full tour remains
+  /// replayable from Settings.
+  Future<void> markFeatureGuideSeen(String feature) async {
+    if (!_seenFeatureGuides.add(feature)) return;
+    final prefs = await SharedPreferences.getInstance();
+    final sorted = _seenFeatureGuides.toList()..sort();
+    await prefs.setStringList('seen_feature_guides_v2', sorted);
   }
 
   /// Debounced save — coalesces rapid mutations into a single write.
@@ -293,15 +522,27 @@ class AppProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await Future.wait([
-        prefs.setString('accounts', jsonEncode(_accounts.map((a) => a.toJson()).toList())),
-        prefs.setString('transactions', jsonEncode(_transactions.map((t) => t.toJson()).toList())),
+        prefs.setString(
+            'accounts', jsonEncode(_accounts.map((a) => a.toJson()).toList())),
+        prefs.setString('transactions',
+            jsonEncode(_transactions.map((t) => t.toJson()).toList())),
         prefs.setString('settings', jsonEncode(_settings.toJson())),
-        prefs.setString('recurringRules', jsonEncode(_recurringRules.map((r) => r.toJson()).toList())),
-        prefs.setString('holdings', jsonEncode(_holdings.map((h) => h.toJson()).toList())),
-        prefs.setString('goals', jsonEncode(_goals.map((g) => g.toJson()).toList())),
-        prefs.setString('darets', jsonEncode(_darets.map((d) => d.toJson()).toList())),
-        prefs.setString('categories', jsonEncode(_categories.map((c) => c.toJson()).toList())),
+        prefs.setString('recurringRules',
+            jsonEncode(_recurringRules.map((r) => r.toJson()).toList())),
+        prefs.setString(
+            'holdings', jsonEncode(_holdings.map((h) => h.toJson()).toList())),
+        prefs.setString(
+            'goals', jsonEncode(_goals.map((g) => g.toJson()).toList())),
+        prefs.setString(
+            'darets', jsonEncode(_darets.map((d) => d.toJson()).toList())),
+        prefs.setString('categories',
+            jsonEncode(_categories.map((c) => c.toJson()).toList())),
       ]);
+
+      // Mirror into SQLite, which is the store the app will read from. Awaited
+      // after the blobs rather than alongside them: if this throws, the legacy
+      // cache is already durable and the user has lost nothing.
+      await _mirrorToRepository();
     } catch (e) {
       if (kDebugMode) debugPrint('[AppProvider] Error saving to local: $e');
     }
@@ -317,6 +558,7 @@ class AppProvider with ChangeNotifier {
   void dispose() {
     _saveDebounce?.cancel();
     _performSave(); // flush pending writes
+    _syncEngine.dispose();
     super.dispose();
   }
 
@@ -325,8 +567,9 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   void addAccount(Account account) {
-    final normalized =
-        account.addedAt == null ? account.copyWith(addedAt: DateTime.now().toIso8601String()) : account;
+    final normalized = account.addedAt == null
+        ? account.copyWith(addedAt: DateTime.now().toIso8601String())
+        : account;
     _accounts.add(normalized);
     _syncDebtPaymentRule(normalized);
     _saveToLocal();
@@ -339,7 +582,9 @@ class AppProvider with ChangeNotifier {
     final index = _accounts.indexWhere((a) => a.id == account.id);
     if (index != -1) {
       final normalized = account.copyWith(
-        addedAt: account.addedAt ?? _accounts[index].addedAt ?? DateTime.now().toIso8601String(),
+        addedAt: account.addedAt ??
+            _accounts[index].addedAt ??
+            DateTime.now().toIso8601String(),
       );
       _accounts[index] = normalized;
       _syncDebtPaymentRule(normalized);
@@ -351,15 +596,28 @@ class AppProvider with ChangeNotifier {
   }
 
   void deleteAccount(String id) {
-    // Remove any debt-payment recurring rule linked to this account
-    final ruleId = 'debt_$id';
-    final ruleIdx = _recurringRules.indexWhere((r) => r.id == ruleId);
-    if (ruleIdx != -1) {
-      _recurringRules.removeAt(ruleIdx);
-      final uid = _userId;
-      if (uid != null) SupabaseSyncService.deleteRecurringRule(uid, ruleId);
+    if (!_accounts.any((a) => a.id == id)) return;
+    // Remove associated history with its normal reversal logic so surviving
+    // transfer accounts, cash, and linked goal progress remain consistent.
+    final transactions = _transactions
+        .where((t) => t.accountId == id || t.toAccountId == id)
+        .map((t) => t.id)
+        .toList();
+    for (final transactionId in transactions) {
+      deleteTransaction(transactionId);
+    }
+    final rules = _recurringRules
+        .where((r) =>
+            r.id == 'debt_$id' ||
+            r.templateTransaction.accountId == id ||
+            r.templateTransaction.toAccountId == id)
+        .map((r) => r.id)
+        .toList();
+    for (final ruleId in rules) {
+      deleteRecurringRule(ruleId);
     }
     _accounts.removeWhere((a) => a.id == id);
+    if (_selectedAccountId == id) _selectedAccountId = null;
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
@@ -405,7 +663,7 @@ class AppProvider with ChangeNotifier {
         amount: account.debtPaymentAmount!,
         date: nextDate.toIso8601String(),
         accountId: sourceId,
-        note: '${account.name} payment',
+        note: systemNote('debtPayment', account.name),
         categoryId: 'debt_payment',
         isRecurring: true,
         expenseSubType: 'subscription',
@@ -421,7 +679,9 @@ class AppProvider with ChangeNotifier {
     }
 
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveRecurringRule(uid, _recurringRules.firstWhere((r) => r.id == ruleId));
+    if (uid != null)
+      SupabaseSyncService.saveRecurringRule(
+          uid, _recurringRules.firstWhere((r) => r.id == ruleId));
   }
 
   /// Auto-credits every pay packet that has fallen due since the account was
@@ -456,7 +716,7 @@ class AppProvider with ChangeNotifier {
           type: 'income',
           amount: account.salaryAmount!,
           date: payDate.toIso8601String().substring(0, 10),
-          note: 'Salary',
+          note: systemNote('systemSalary'),
           accountId: account.id,
         );
         _transactions.add(tx);
@@ -520,21 +780,38 @@ class AppProvider with ChangeNotifier {
       // Support both date-only "2026-03-22" and full datetime "2026-03-22T15:30:00"
       DateTime nextDate = DateTime.parse(rule.nextDate);
       int safetyCounter = 0;
+      bool stopRule = false;
 
       // Process each overdue period (max 24 to avoid infinite loop on very old rules)
       while (!nextDate.isAfter(now) && safetyCounter < 24) {
         safetyCounter++;
 
         final isIncome = rule.templateTransaction.type == 'income';
+        final amount = _recurringAmountDue(rule);
+        if (amount <= 0) {
+          stopRule = true;
+          changed = true;
+          break;
+        }
 
         // Create transaction for this due date/time
         final tx = Transaction(
           id: const Uuid().v4(),
-          type: isIncome ? 'income' : 'expense',
-          amount: rule.templateTransaction.amount,
+          type: rule.id.startsWith('debt_') || rule.id.startsWith('debtgoal_')
+              ? 'debt_payment'
+              : rule.templateTransaction.type,
+          amount: amount,
           date: nextDate.toIso8601String(),
           note: rule.templateTransaction.note,
-          categoryId: rule.templateTransaction.categoryId,
+          categoryId: rule.id.startsWith('debtgoal_')
+              ? rule.id.substring(9)
+              : rule.id.startsWith('savingsgoal_')
+                  ? rule.id.substring(12)
+                  : rule.templateTransaction.categoryId,
+          toAccountId: rule.id.startsWith('debt_')
+              ? rule.id.substring(5)
+              : rule.templateTransaction.toAccountId,
+          fees: rule.templateTransaction.fees,
           accountId: rule.templateTransaction.accountId,
           isRecurring: true,
           expenseSubType: isIncome ? null : 'subscription',
@@ -543,35 +820,29 @@ class AppProvider with ChangeNotifier {
 
         // Add/deduct from account balance
         if (rule.templateTransaction.accountId != cashOnHandId) {
-          final idx = _accounts.indexWhere((a) => a.id == rule.templateTransaction.accountId);
+          final idx = _accounts
+              .indexWhere((a) => a.id == rule.templateTransaction.accountId);
           if (idx != -1) {
             _accounts[idx] = _accounts[idx].copyWith(
-              balance: _accounts[idx].balance + (isIncome ? rule.templateTransaction.amount : -rule.templateTransaction.amount),
+              balance: _accounts[idx].balance +
+                  (isIncome ? amount : -tx.totalWithFees),
             );
           }
         }
 
         // Advance nextDate by one period, preserving time of day
-        switch (rule.frequency) {
-          case 'daily':
-            nextDate = nextDate.add(const Duration(days: 1));
-            break;
-          case 'weekly':
-            nextDate = nextDate.add(const Duration(days: 7));
-            break;
-          case 'yearly':
-            nextDate = DateTime(nextDate.year + 1, nextDate.month, nextDate.day, nextDate.hour, nextDate.minute);
-            break;
-          default: // monthly
-            nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day, nextDate.hour, nextDate.minute);
-        }
+        nextDate = advanceRecurringDate(
+          nextDate,
+          rule.frequency,
+          scheduledDay: _scheduledDay(rule, nextDate.day),
+        );
 
         // If this is a debt payment (Account-based), reduce the debt account balance
         if (rule.id.startsWith('debt_') && !rule.id.startsWith('debtgoal_')) {
           final debtAccountId = rule.id.substring(5); // strip 'debt_' prefix
           final debtIdx = _accounts.indexWhere((a) => a.id == debtAccountId);
           if (debtIdx != -1) {
-            final newBalance = _accounts[debtIdx].balance - rule.templateTransaction.amount;
+            final newBalance = _accounts[debtIdx].balance - amount;
             _accounts[debtIdx] = _accounts[debtIdx].copyWith(
               balance: newBalance < 0 ? 0 : newBalance,
             );
@@ -583,7 +854,7 @@ class AppProvider with ChangeNotifier {
           final goalId = rule.id.substring(9); // strip 'debtgoal_' prefix
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
           if (goalIdx != -1) {
-            final newPaid = (_goals[goalIdx].currentAmount + rule.templateTransaction.amount)
+            final newPaid = (_goals[goalIdx].currentAmount + amount)
                 .clamp(0, _goals[goalIdx].targetAmount)
                 .toDouble();
             _goals[goalIdx] = _goals[goalIdx].copyWith(currentAmount: newPaid);
@@ -597,7 +868,7 @@ class AppProvider with ChangeNotifier {
           final goalId = rule.id.substring(12); // strip 'savingsgoal_' prefix
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
           if (goalIdx != -1) {
-            final newSaved = (_goals[goalIdx].currentAmount + rule.templateTransaction.amount)
+            final newSaved = (_goals[goalIdx].currentAmount + amount)
                 .clamp(0, _goals[goalIdx].targetAmount)
                 .toDouble();
             _goals[goalIdx] = _goals[goalIdx].copyWith(currentAmount: newSaved);
@@ -611,14 +882,16 @@ class AppProvider with ChangeNotifier {
         if (uid != null) {
           SupabaseSyncService.saveTransaction(uid, tx);
           if (rule.templateTransaction.accountId != cashOnHandId) {
-            final idx = _accounts.indexWhere((a) => a.id == rule.templateTransaction.accountId);
+            final idx = _accounts
+                .indexWhere((a) => a.id == rule.templateTransaction.accountId);
             if (idx != -1) SupabaseSyncService.saveAccount(uid, _accounts[idx]);
           }
           // Sync updated debt account balance
           if (rule.id.startsWith('debt_')) {
             final debtAccountId = rule.id.substring(5);
             final debtIdx = _accounts.indexWhere((a) => a.id == debtAccountId);
-            if (debtIdx != -1) SupabaseSyncService.saveAccount(uid, _accounts[debtIdx]);
+            if (debtIdx != -1)
+              SupabaseSyncService.saveAccount(uid, _accounts[debtIdx]);
           }
         }
         changed = true;
@@ -626,7 +899,11 @@ class AppProvider with ChangeNotifier {
 
       if (safetyCounter > 0) {
         // Update the rule with the new nextDate (full ISO string with time)
-        _recurringRules[i] = rule.copyWith(nextDate: nextDate.toIso8601String());
+        _recurringRules[i] =
+            rule.copyWith(nextDate: nextDate.toIso8601String());
+        if (stopRule) {
+          _recurringRules[i] = _recurringRules[i].copyWith(isActive: false);
+        }
 
         // Auto-deactivate debt payment rules when the debt is fully paid
         if (rule.id.startsWith('debt_') && !rule.id.startsWith('debtgoal_')) {
@@ -634,7 +911,9 @@ class AppProvider with ChangeNotifier {
           final debtIdx = _accounts.indexWhere((a) => a.id == debtAccountId);
           if (debtIdx != -1 && _accounts[debtIdx].balance <= 0) {
             _recurringRules[i] = _recurringRules[i].copyWith(isActive: false);
-            if (kDebugMode) debugPrint('[AppProvider] Debt ${_accounts[debtIdx].name} fully paid — subscription deactivated');
+            if (kDebugMode)
+              debugPrint(
+                  '[AppProvider] Debt ${_accounts[debtIdx].name} fully paid — subscription deactivated');
           }
         }
 
@@ -642,9 +921,12 @@ class AppProvider with ChangeNotifier {
         if (rule.id.startsWith('debtgoal_')) {
           final goalId = rule.id.substring(9);
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-          if (goalIdx != -1 && _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
+          if (goalIdx != -1 &&
+              _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
             _recurringRules[i] = _recurringRules[i].copyWith(isActive: false);
-            if (kDebugMode) debugPrint('[AppProvider] Debt goal ${_goals[goalIdx].name} fully paid — subscription deactivated');
+            if (kDebugMode)
+              debugPrint(
+                  '[AppProvider] Debt goal ${_goals[goalIdx].name} fully paid — subscription deactivated');
           }
         }
 
@@ -652,14 +934,18 @@ class AppProvider with ChangeNotifier {
         if (rule.id.startsWith('savingsgoal_')) {
           final goalId = rule.id.substring(12);
           final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-          if (goalIdx != -1 && _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
+          if (goalIdx != -1 &&
+              _goals[goalIdx].currentAmount >= _goals[goalIdx].targetAmount) {
             _recurringRules[i] = _recurringRules[i].copyWith(isActive: false);
-            if (kDebugMode) debugPrint('[AppProvider] Savings goal ${_goals[goalIdx].name} reached — auto-save deactivated');
+            if (kDebugMode)
+              debugPrint(
+                  '[AppProvider] Savings goal ${_goals[goalIdx].name} reached — auto-save deactivated');
           }
         }
 
         final uid = _userId;
-        if (uid != null) SupabaseSyncService.saveRecurringRule(uid, _recurringRules[i]);
+        if (uid != null)
+          SupabaseSyncService.saveRecurringRule(uid, _recurringRules[i]);
       }
     }
 
@@ -667,6 +953,55 @@ class AppProvider with ChangeNotifier {
       _saveToLocal();
       notifyListeners();
     }
+  }
+
+  double _recurringAmountDue(RecurringRule rule) {
+    final scheduled = rule.templateTransaction.amount;
+    if (rule.id.startsWith('debt_') && !rule.id.startsWith('debtgoal_')) {
+      final debtId = rule.id.substring(5);
+      final debt = _accounts.where((a) => a.id == debtId).firstOrNull;
+      final remaining = debt == null ? 0.0 : debt.balance;
+      return remaining <= 0 ? 0 : scheduled.clamp(0, remaining).toDouble();
+    }
+    if (rule.id.startsWith('debtgoal_')) {
+      final goalId = rule.id.substring(9);
+      final goal = _goals.where((g) => g.id == goalId).firstOrNull;
+      final remaining =
+          goal == null ? 0.0 : goal.targetAmount - goal.currentAmount;
+      return remaining <= 0 ? 0 : scheduled.clamp(0, remaining).toDouble();
+    }
+    if (rule.id.startsWith('savingsgoal_')) {
+      final goalId = rule.id.substring(12);
+      final goal = _goals.where((g) => g.id == goalId).firstOrNull;
+      final remaining =
+          goal == null ? 0.0 : goal.targetAmount - goal.currentAmount;
+      return remaining <= 0 ? 0 : scheduled.clamp(0, remaining).toDouble();
+    }
+    return scheduled;
+  }
+
+  int _scheduledDay(RecurringRule rule, int fallback) {
+    if (rule.id.startsWith('debt_') && !rule.id.startsWith('debtgoal_')) {
+      final debtId = rule.id.substring(5);
+      final debt = _accounts.where((a) => a.id == debtId).firstOrNull;
+      if (debt?.debtPaymentDay != null) return debt!.debtPaymentDay!;
+    }
+    if (rule.id.startsWith('debtgoal_')) {
+      final goalId = rule.id.substring(9);
+      final goal = _goals.where((g) => g.id == goalId).firstOrNull;
+      if (goal?.paymentDay != null) return goal!.paymentDay!;
+    }
+    if (rule.id.startsWith('savingsgoal_')) {
+      final goalId = rule.id.substring(12);
+      final goal = _goals.where((g) => g.id == goalId).firstOrNull;
+      if (goal?.paymentDay != null) return goal!.paymentDay!;
+    }
+    if (rule.id.startsWith('daret_contrib_')) {
+      final daretId = rule.id.substring(15);
+      final daret = _darets.where((d) => d.id == daretId).firstOrNull;
+      if (daret != null) return daret.paymentDay;
+    }
+    return DateTime.tryParse(rule.templateTransaction.date)?.day ?? fallback;
   }
 
   // ============================================
@@ -689,13 +1024,19 @@ class AppProvider with ChangeNotifier {
         final account = _accounts[idx];
         double newBalance = account.balance;
         // Deduct: expense, withdrawal, transfer, goal_contribution, debt_payment
-        if (transaction.type == 'expense' || transaction.type == 'withdrawal' ||
-            transaction.type == 'transfer' || transaction.type == 'goal_contribution' ||
-            transaction.type == 'debt_payment') {
+        if (transaction.type == 'expense' ||
+            transaction.type == 'withdrawal' ||
+            transaction.type == 'transfer' ||
+            transaction.type == 'goal_contribution' ||
+            transaction.type == 'debt_payment' ||
+            transaction.type == 'personal_debt_return' ||
+            transaction.type == 'daret_contribution') {
           newBalance -= transaction.totalWithFees; // amount + bank fees
         }
         // Add: income, lending_collection
-        else if (transaction.type == 'income' || transaction.type == 'lending_collection') {
+        else if (transaction.type == 'income' ||
+            transaction.type == 'lending_collection' ||
+            transaction.type == 'daret_payout') {
           newBalance += transaction.amount;
         }
         _accounts[idx] = account.copyWith(balance: newBalance);
@@ -704,11 +1045,14 @@ class AppProvider with ChangeNotifier {
     }
 
     // Update destination account for transfers (skip if sending to a person / cash)
-    if (transaction.type == 'transfer' && transaction.toAccountId != null && !isCashDest) {
+    if (transaction.type == 'transfer' &&
+        transaction.toAccountId != null &&
+        !isCashDest) {
       final idx = _accounts.indexWhere((a) => a.id == transaction.toAccountId);
       if (idx != -1) {
         final toAccount = _accounts[idx];
-        _accounts[idx] = toAccount.copyWith(balance: toAccount.balance + transaction.amount);
+        _accounts[idx] =
+            toAccount.copyWith(balance: toAccount.balance + transaction.amount);
         changedAccounts.add(_accounts[idx]);
       }
     }
@@ -726,6 +1070,42 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  // Payment records and goal progress must reverse together on edits/deletions.
+  bool _tracksGoal(Transaction t) =>
+      const {
+        'goal_contribution',
+        'debt_payment',
+        'personal_debt_return',
+        'lending_collection',
+        'income',
+      }.contains(t.type) &&
+      _goals.any((g) => g.id == t.categoryId);
+
+  void _adjustLinkedProgress(Transaction t, double direction) {
+    if (_tracksGoal(t)) {
+      final index = _goals.indexWhere((g) => g.id == t.categoryId);
+      final goal = _goals[index];
+      _goals[index] = goal.copyWith(
+        currentAmount: (goal.currentAmount + direction * t.amount)
+            .clamp(0, double.infinity)
+            .toDouble(),
+      );
+      final uid = _userId;
+      if (uid != null) SupabaseSyncService.saveGoal(uid, _goals[index]);
+    }
+    if (t.type == 'debt_payment' && t.toAccountId != null) {
+      final index = _accounts
+          .indexWhere((a) => a.id == t.toAccountId && a.type == 'debt');
+      if (index != -1) {
+        _accounts[index] = _accounts[index].copyWith(
+          balance: _accounts[index].balance - direction * t.amount,
+        );
+        final uid = _userId;
+        if (uid != null) SupabaseSyncService.saveAccount(uid, _accounts[index]);
+      }
+    }
+  }
+
   void deleteTransaction(String id) {
     final idx = _transactions.indexWhere((t) => t.id == id);
     if (idx == -1) return;
@@ -737,10 +1117,17 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == old.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (old.type == 'expense' || old.type == 'withdrawal' || old.type == 'transfer' ||
-            old.type == 'goal_contribution' || old.type == 'debt_payment') {
+        if (old.type == 'expense' ||
+            old.type == 'withdrawal' ||
+            old.type == 'transfer' ||
+            old.type == 'goal_contribution' ||
+            old.type == 'debt_payment' ||
+            old.type == 'personal_debt_return' ||
+            old.type == 'daret_contribution') {
           bal += old.totalWithFees;
-        } else if (old.type == 'income' || old.type == 'lending_collection') {
+        } else if (old.type == 'income' ||
+            old.type == 'lending_collection' ||
+            old.type == 'daret_payout') {
           bal -= old.amount;
         }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
@@ -748,14 +1135,18 @@ class AppProvider with ChangeNotifier {
       }
     }
     // Reverse the balance effect on transfer destination
-    if (old.type == 'transfer' && old.toAccountId != null && old.toAccountId != cashOnHandId) {
+    if (old.type == 'transfer' &&
+        old.toAccountId != null &&
+        old.toAccountId != cashOnHandId) {
       final ai = _accounts.indexWhere((a) => a.id == old.toAccountId);
       if (ai != -1) {
-        _accounts[ai] = _accounts[ai].copyWith(balance: _accounts[ai].balance - old.amount);
+        _accounts[ai] =
+            _accounts[ai].copyWith(balance: _accounts[ai].balance - old.amount);
         changedAccounts.add(_accounts[ai]);
       }
     }
 
+    _adjustLinkedProgress(old, -1);
     _transactions.removeAt(idx);
     _saveToLocal();
     notifyListeners();
@@ -772,6 +1163,20 @@ class AppProvider with ChangeNotifier {
     final idx = _transactions.indexWhere((t) => t.id == updated.id);
     if (idx == -1) return;
     final old = _transactions[idx];
+    if (!updated.amount.isFinite ||
+        updated.amount <= 0 ||
+        !updated.fees.isFinite ||
+        updated.fees < 0) return;
+    if (_tracksGoal(updated)) {
+      final goal = _goals.firstWhere((g) => g.id == updated.categoryId);
+      final previous = _tracksGoal(old) && old.categoryId == updated.categoryId
+          ? old.amount
+          : 0.0;
+      if (updated.amount > goal.targetAmount - goal.currentAmount + previous)
+        return;
+    }
+    _adjustLinkedProgress(old, -1);
+    _adjustLinkedProgress(updated, 1);
     _transactions[idx] = updated;
 
     // Reverse old effect on account balance
@@ -779,13 +1184,30 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == old.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (old.type == 'expense' || old.type == 'withdrawal' || old.type == 'transfer' ||
-            old.type == 'goal_contribution' || old.type == 'debt_payment') {
+        if (old.type == 'expense' ||
+            old.type == 'withdrawal' ||
+            old.type == 'transfer' ||
+            old.type == 'goal_contribution' ||
+            old.type == 'debt_payment' ||
+            old.type == 'personal_debt_return' ||
+            old.type == 'daret_contribution') {
           bal += old.totalWithFees;
-        } else if (old.type == 'income' || old.type == 'lending_collection') {
+        } else if (old.type == 'income' ||
+            old.type == 'lending_collection' ||
+            old.type == 'daret_payout') {
           bal -= old.amount;
         }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
+      }
+    }
+    // Reverse the old receiving side of a transfer.
+    if (old.type == 'transfer' &&
+        old.toAccountId != null &&
+        old.toAccountId != cashOnHandId) {
+      final ai = _accounts.indexWhere((a) => a.id == old.toAccountId);
+      if (ai != -1) {
+        _accounts[ai] =
+            _accounts[ai].copyWith(balance: _accounts[ai].balance - old.amount);
       }
     }
     // Apply new effect on account balance
@@ -793,13 +1215,30 @@ class AppProvider with ChangeNotifier {
       final ai = _accounts.indexWhere((a) => a.id == updated.accountId);
       if (ai != -1) {
         double bal = _accounts[ai].balance;
-        if (updated.type == 'expense' || updated.type == 'withdrawal' || updated.type == 'transfer' ||
-            updated.type == 'goal_contribution' || updated.type == 'debt_payment') {
+        if (updated.type == 'expense' ||
+            updated.type == 'withdrawal' ||
+            updated.type == 'transfer' ||
+            updated.type == 'goal_contribution' ||
+            updated.type == 'debt_payment' ||
+            updated.type == 'personal_debt_return' ||
+            updated.type == 'daret_contribution') {
           bal -= updated.totalWithFees;
-        } else if (updated.type == 'income' || updated.type == 'lending_collection') {
+        } else if (updated.type == 'income' ||
+            updated.type == 'lending_collection' ||
+            updated.type == 'daret_payout') {
           bal += updated.amount;
         }
         _accounts[ai] = _accounts[ai].copyWith(balance: bal);
+      }
+    }
+    // Apply the new receiving side of a transfer.
+    if (updated.type == 'transfer' &&
+        updated.toAccountId != null &&
+        updated.toAccountId != cashOnHandId) {
+      final ai = _accounts.indexWhere((a) => a.id == updated.toAccountId);
+      if (ai != -1) {
+        _accounts[ai] = _accounts[ai]
+            .copyWith(balance: _accounts[ai].balance + updated.amount);
       }
     }
 
@@ -811,8 +1250,16 @@ class AppProvider with ChangeNotifier {
       // Sync all affected account balances
       final changedAccountIds = <String>{};
       if (old.accountId != cashOnHandId) changedAccountIds.add(old.accountId);
-      if (updated.accountId != cashOnHandId) changedAccountIds.add(updated.accountId);
-      final changedAccounts = _accounts.where((a) => changedAccountIds.contains(a.id)).toList();
+      if (old.toAccountId != null && old.toAccountId != cashOnHandId) {
+        changedAccountIds.add(old.toAccountId!);
+      }
+      if (updated.accountId != cashOnHandId)
+        changedAccountIds.add(updated.accountId);
+      if (updated.toAccountId != null && updated.toAccountId != cashOnHandId) {
+        changedAccountIds.add(updated.toAccountId!);
+      }
+      final changedAccounts =
+          _accounts.where((a) => changedAccountIds.contains(a.id)).toList();
       if (changedAccounts.isNotEmpty) {
         SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts);
       }
@@ -940,7 +1387,7 @@ class AppProvider with ChangeNotifier {
       amount: proceeds,
       date: DateTime.now().toIso8601String(),
       accountId: accountId,
-      note: 'Sold $sharesToSell × ${holding.symbol} @ \$${sellPrice.toStringAsFixed(2)}',
+      note: systemNote('sell', '$sharesToSell ${holding.symbol}'),
     );
     _transactions.add(tx);
 
@@ -1002,13 +1449,8 @@ class AppProvider with ChangeNotifier {
   }
 
   void deleteGoal(String id) {
-    // Also remove any debt payment recurring rule
-    final ruleId = 'debtgoal_$id';
-    final ruleIdx = _recurringRules.indexWhere((r) => r.id == ruleId);
-    if (ruleIdx != -1) {
-      _recurringRules.removeAt(ruleIdx);
-      final uid = _userId;
-      if (uid != null) SupabaseSyncService.deleteRecurringRule(uid, ruleId);
+    for (final ruleId in ['debtgoal_$id', 'savingsgoal_$id']) {
+      deleteRecurringRule(ruleId);
     }
     _goals.removeWhere((g) => g.id == id);
     _saveToLocal();
@@ -1056,7 +1498,7 @@ class AppProvider with ChangeNotifier {
         amount: goal.monthlyPayment!,
         date: nextDate.toIso8601String(),
         accountId: sourceId,
-        note: '${goal.name} payment',
+        note: systemNote('debtPayment', goal.name),
         categoryId: 'debt_payment',
         isRecurring: true,
         expenseSubType: 'subscription',
@@ -1073,7 +1515,9 @@ class AppProvider with ChangeNotifier {
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveRecurringRule(uid, _recurringRules.firstWhere((r) => r.id == ruleId));
+    if (uid != null)
+      SupabaseSyncService.saveRecurringRule(
+          uid, _recurringRules.firstWhere((r) => r.id == ruleId));
   }
 
   void contributeToGoal(String id, double amount) {
@@ -1091,15 +1535,25 @@ class AppProvider with ChangeNotifier {
 
   /// Contribute to a goal AND deduct from the source (account or cash on hand).
   /// Always creates a transaction so it appears in Recent Transactions.
-  void contributeToGoalFromSource(String goalId, double amount, String sourceAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+  void contributeToGoalFromSource(
+      String goalId, double amount, String sourceAccountId) {
+    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
+    if (goalIdx == -1 || !amount.isFinite || amount <= 0) return;
+    if (sourceAccountId != cashOnHandId &&
+        !_accounts.any((a) => a.id == sourceAccountId)) return;
+    final goal = _goals[goalIdx];
+    if (goal.currentAmount >= goal.targetAmount) return;
+    final appliedAmount =
+        amount.clamp(0, goal.targetAmount - goal.currentAmount).toDouble();
+    if (appliedAmount <= 0) return;
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'goal_contribution',
-      amount: amount,
+      amount: appliedAmount,
       date: DateTime.now().toIso8601String(),
-      note: 'Savings: ${goal.name}',
+      note: systemNote('savingsGoal', goal.name),
       accountId: sourceAccountId,
+      categoryId: goal.id,
     );
     _transactions.add(txn);
 
@@ -1108,18 +1562,16 @@ class AppProvider with ChangeNotifier {
     if (sourceAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == sourceAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
+        _accounts[idx] = _accounts[idx]
+            .copyWith(balance: _accounts[idx].balance - appliedAmount);
         changedAccount = _accounts[idx];
       }
     }
 
     // Update goal
-    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-    if (goalIdx != -1) {
-      _goals[goalIdx] = _goals[goalIdx].copyWith(
-        currentAmount: _goals[goalIdx].currentAmount + amount,
-      );
-    }
+    _goals[goalIdx] = _goals[goalIdx].copyWith(
+      currentAmount: _goals[goalIdx].currentAmount + appliedAmount,
+    );
 
     _saveToLocal();
     notifyListeners();
@@ -1128,7 +1580,8 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
@@ -1136,16 +1589,26 @@ class AppProvider with ChangeNotifier {
   /// Pay toward a debt goal and deduct from the source.
   /// Always creates a transaction so it appears in Recent Transactions.
   /// Records money returned to someone for a personal debt (money goes OUT of sourceAccount).
-  void recordPersonalDebtReturn(String goalId, double amount, String sourceAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+  void recordPersonalDebtReturn(
+      String goalId, double amount, String sourceAccountId) {
+    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
+    if (goalIdx == -1 || !amount.isFinite || amount <= 0) return;
+    if (sourceAccountId != cashOnHandId &&
+        !_accounts.any((a) => a.id == sourceAccountId)) return;
+    final goal = _goals[goalIdx];
+    if (goal.currentAmount >= goal.targetAmount) return;
+    final appliedAmount =
+        amount.clamp(0, goal.targetAmount - goal.currentAmount).toDouble();
+    if (appliedAmount <= 0) return;
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'personal_debt_return',
-      amount: amount,
+      amount: appliedAmount,
       date: DateTime.now().toIso8601String(),
-      note: 'Returned to ${goal.name}',
+      note: systemNote('debtPayment', goal.name),
       description: goal.categoryId,
       accountId: sourceAccountId,
+      categoryId: goal.id,
     );
     _transactions.add(txn);
 
@@ -1154,18 +1617,16 @@ class AppProvider with ChangeNotifier {
     if (sourceAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == sourceAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
+        _accounts[idx] = _accounts[idx]
+            .copyWith(balance: _accounts[idx].balance - appliedAmount);
         changedAccount = _accounts[idx];
       }
     }
 
     // Update goal currentAmount
-    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-    if (goalIdx != -1) {
-      _goals[goalIdx] = _goals[goalIdx].copyWith(
-        currentAmount: (_goals[goalIdx].currentAmount + amount).clamp(0, _goals[goalIdx].targetAmount),
-      );
-    }
+    _goals[goalIdx] = _goals[goalIdx].copyWith(
+      currentAmount: _goals[goalIdx].currentAmount + appliedAmount,
+    );
 
     _saveToLocal();
     notifyListeners();
@@ -1173,23 +1634,33 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
 
   /// Records money received from a personal debt (someone returning money to you).
   /// Adds amount to the target account and marks the debt as partially/fully returned.
-  void receiveDebtPayment(String goalId, double amount, String targetAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+  void receiveDebtPayment(
+      String goalId, double amount, String targetAccountId) {
+    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
+    if (goalIdx == -1 || !amount.isFinite || amount <= 0) return;
+    if (targetAccountId != cashOnHandId &&
+        !_accounts.any((a) => a.id == targetAccountId)) return;
+    final goal = _goals[goalIdx];
+    if (goal.currentAmount >= goal.targetAmount) return;
+    final appliedAmount =
+        amount.clamp(0, goal.targetAmount - goal.currentAmount).toDouble();
+    if (appliedAmount <= 0) return;
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'income',
-      amount: amount,
+      amount: appliedAmount,
       date: DateTime.now().toIso8601String(),
-      note: 'Received: ${goal.name}',
+      note: systemNote('received', goal.name),
       accountId: targetAccountId,
-      categoryId: 'debt_payment',
+      categoryId: goal.id,
     );
     _transactions.add(txn);
 
@@ -1198,19 +1669,17 @@ class AppProvider with ChangeNotifier {
     if (targetAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == targetAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance + amount);
+        _accounts[idx] = _accounts[idx]
+            .copyWith(balance: _accounts[idx].balance + appliedAmount);
         changedAccount = _accounts[idx];
       }
     }
     // If cash: totalCash getter automatically includes income transactions
 
     // Update goal currentAmount (tracks how much has been returned)
-    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-    if (goalIdx != -1) {
-      _goals[goalIdx] = _goals[goalIdx].copyWith(
-        currentAmount: (_goals[goalIdx].currentAmount + amount).clamp(0, _goals[goalIdx].targetAmount),
-      );
-    }
+    _goals[goalIdx] = _goals[goalIdx].copyWith(
+      currentAmount: _goals[goalIdx].currentAmount + appliedAmount,
+    );
 
     _saveToLocal();
     notifyListeners();
@@ -1218,20 +1687,30 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
 
   void payDebt(String goalId, double amount, String sourceAccountId) {
-    final goal = _goals.firstWhere((g) => g.id == goalId, orElse: () => _goals.first);
+    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
+    if (goalIdx == -1 || !amount.isFinite || amount <= 0) return;
+    if (sourceAccountId != cashOnHandId &&
+        !_accounts.any((a) => a.id == sourceAccountId)) return;
+    final goal = _goals[goalIdx];
+    if (goal.currentAmount >= goal.targetAmount) return;
+    final appliedAmount =
+        amount.clamp(0, goal.targetAmount - goal.currentAmount).toDouble();
+    if (appliedAmount <= 0) return;
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'debt_payment',
-      amount: amount,
+      amount: appliedAmount,
       date: DateTime.now().toIso8601String(),
-      note: 'Debt payment: ${goal.name}',
+      note: systemNote('debtPayment', goal.name),
       accountId: sourceAccountId,
+      categoryId: goal.id,
     );
     _transactions.add(txn);
 
@@ -1240,18 +1719,16 @@ class AppProvider with ChangeNotifier {
     if (sourceAccountId != cashOnHandId) {
       final idx = _accounts.indexWhere((a) => a.id == sourceAccountId);
       if (idx != -1) {
-        _accounts[idx] = _accounts[idx].copyWith(balance: _accounts[idx].balance - amount);
+        _accounts[idx] = _accounts[idx]
+            .copyWith(balance: _accounts[idx].balance - appliedAmount);
         changedAccount = _accounts[idx];
       }
     }
 
     // Update goal
-    final goalIdx = _goals.indexWhere((g) => g.id == goalId);
-    if (goalIdx != -1) {
-      _goals[goalIdx] = _goals[goalIdx].copyWith(
-        currentAmount: _goals[goalIdx].currentAmount + amount,
-      );
-    }
+    _goals[goalIdx] = _goals[goalIdx].copyWith(
+      currentAmount: _goals[goalIdx].currentAmount + appliedAmount,
+    );
 
     _saveToLocal();
     notifyListeners();
@@ -1260,7 +1737,8 @@ class AppProvider with ChangeNotifier {
     final uid = _userId;
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
-      if (changedAccount != null) SupabaseSyncService.saveAccount(uid, changedAccount);
+      if (changedAccount != null)
+        SupabaseSyncService.saveAccount(uid, changedAccount);
       if (goalIdx != -1) SupabaseSyncService.saveGoal(uid, _goals[goalIdx]);
     }
   }
@@ -1300,7 +1778,11 @@ class AppProvider with ChangeNotifier {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     return _transactions
-        .where((t) => t.type == 'expense' && t.categoryId == categoryId && DateTime.parse(t.date).isAfter(startOfMonth.subtract(const Duration(days: 1))))
+        .where((t) =>
+            t.type == 'expense' &&
+            t.categoryId == categoryId &&
+            DateTime.parse(t.date)
+                .isAfter(startOfMonth.subtract(const Duration(days: 1))))
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
@@ -1361,6 +1843,64 @@ class AppProvider with ChangeNotifier {
     if (uid != null) SupabaseSyncService.saveProfile(uid, settings);
   }
 
+  /// Stores [localPath] as the user's profile picture and uploads it.
+  ///
+  /// The app-owned local copy is applied immediately. If Storage is offline or
+  /// not configured yet, its upload is persisted in the retry queue instead
+  /// of rejecting the user's picture.
+  Future<bool> setProfilePicture(String localPath) async {
+    final uid = _userId;
+    // Local mode has no account to attach a picture to, and nothing would
+    // survive a reinstall, so this is refused rather than silently kept.
+    if (uid == null) return false;
+
+    final previous = _settings.avatarPath;
+    final durablePath = await ImageService.persistProfilePicture(localPath);
+    if (durablePath == null) return false;
+
+    _settings = _settings.copyWith(avatarPath: durablePath);
+    _saveToLocal();
+    notifyListeners();
+
+    final objectPath = await SupabaseSyncService.uploadAvatar(uid, durablePath);
+    if (objectPath != null) {
+      _settings = _settings.copyWith(avatarPath: objectPath);
+      _saveToLocal();
+      notifyListeners();
+      await ImageService.deleteLocalImage(durablePath);
+    }
+
+    // The upload uses a stable per-user name, so a replacement overwrites in
+    // place and there is nothing to clean up unless the path actually moved.
+    await ImageService.deleteLocalImage(previous);
+    // Current uploads always use the same remote object name, so Storage
+    // replaced the old remote bytes in place. Deleting `previous` here is
+    // unsafe for legacy signed URLs that resolve to that same new object.
+    return true;
+  }
+
+  /// Clears the profile picture and deletes the stored file.
+  Future<void> removeProfilePicture() async {
+    final previous = _settings.avatarPath;
+    _settings = _settings.copyWith(avatarPath: null);
+    _saveToLocal();
+    notifyListeners();
+
+    final uid = _userId;
+    if (uid != null) {
+      await SupabaseSyncService.cancelPendingAvatarUpload(uid);
+      await SupabaseSyncService.saveAvatarReference(uid, null);
+    }
+
+    // Remove the object after the reference is gone, so a failure here leaves
+    // an orphaned file rather than a profile pointing at a deleted image.
+    if (previous != null && previous.isNotEmpty) {
+      await ImageService.deleteLocalImage(previous);
+      await SupabaseSyncService.deleteStoredObject(
+          SupabaseSyncService.avatarsBucket, previous);
+    }
+  }
+
   void toggleTheme() {
     _settings = _settings.copyWith(isDarkMode: !_settings.isDarkMode);
     _saveToLocal();
@@ -1398,9 +1938,16 @@ class AppProvider with ChangeNotifier {
       if (t.type == 'withdrawal') {
         cash += t.amount; // Cash received (fees already deducted from bank)
       } else if (t.accountId == cashOnHandId) {
-        if (t.type == 'expense' || t.type == 'transfer' || t.type == 'goal_contribution' || t.type == 'debt_payment') {
+        if (t.type == 'expense' ||
+            t.type == 'transfer' ||
+            t.type == 'goal_contribution' ||
+            t.type == 'debt_payment' ||
+            t.type == 'personal_debt_return' ||
+            t.type == 'daret_contribution') {
           cash -= t.totalWithFees;
-        } else if (t.type == 'income' || t.type == 'lending_collection') {
+        } else if (t.type == 'income' ||
+            t.type == 'lending_collection' ||
+            t.type == 'daret_payout') {
           cash += t.amount;
         }
       }
@@ -1416,18 +1963,28 @@ class AppProvider with ChangeNotifier {
     final now = DateTime.now();
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     final daysRemaining = daysInMonth - now.day + 1;
-    
-    final totalBalance = _accounts.fold(0.0, (sum, a) => sum + a.balance);
-    final monthlyExpenses = 0.0;
-    
-    final safeToSpendMonth = _settings.monthlyIncome - monthlyExpenses;
+
+    final safeToSpendMonth = getSafeToSpendMonth();
     return daysRemaining > 0 ? safeToSpendMonth / daysRemaining : 0;
   }
 
   double getSafeToSpendMonth() {
-    final totalBalance = _accounts.fold(0.0, (sum, a) => sum + a.balance);
-    final monthlyExpenses = 0.0;
-    return _settings.monthlyIncome - monthlyExpenses;
+    final now = DateTime.now();
+    const outflowTypes = {
+      'expense',
+      'goal_contribution',
+      'debt_payment',
+      'personal_debt_return',
+      'daret_contribution',
+    };
+    final spent = _transactions.where((t) {
+      final date = DateTime.tryParse(t.date);
+      return date != null &&
+          date.year == now.year &&
+          date.month == now.month &&
+          outflowTypes.contains(t.type);
+    }).fold<double>(0, (sum, t) => sum + t.totalWithFees);
+    return _settings.monthlyIncome - spent;
   }
 
   double getNetWorth() {
@@ -1435,17 +1992,28 @@ class AppProvider with ChangeNotifier {
     // Non-investment accounts with includeInNetWorth
     final bankAssets = _accounts
         .where((a) => a.includeInNetWorth && a.type != 'investment')
-        .fold(0.0, (sum, a) => sum + a.balance);
+        .fold(
+            0.0,
+            (sum, a) =>
+                sum + (a.type == 'debt' ? -a.balance.abs() : a.balance));
     final cash = totalCash;
     // Investment account balances + portfolio positions
-    final investments = totalInvestmentValue;
+    final investments = _accounts
+            .where((a) => a.type == 'investment' && a.includeInNetWorth)
+            .fold(0.0, (sum, a) => sum + a.balance) +
+        getTotalPortfolioValue();
     final debtRemaining = _goals
         .where((g) => g.type == 'debt')
         .fold(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
     final personalDebtRemaining = _goals
         .where((g) => g.type == 'personal_debt')
         .fold(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
-    _cachedNetWorth = bankAssets + cash + investments - debtRemaining + personalDebtRemaining;
+    _cachedNetWorth = bankAssets +
+        cash +
+        investments +
+        totalSavingsGoals -
+        debtRemaining +
+        personalDebtRemaining;
     return _cachedNetWorth!;
   }
 
@@ -1490,7 +2058,7 @@ class AppProvider with ChangeNotifier {
   double get totalSavingsGoals {
     if (_cachedTotalSavingsGoals != null) return _cachedTotalSavingsGoals!;
     _cachedTotalSavingsGoals = _goals
-        .where((g) => g.type == 'savings' || g.type == 'custom' || g.type == null)
+        .where((g) => g.type == 'savings' || g.type == 'custom')
         .fold<double>(0.0, (sum, g) => sum + g.currentAmount);
     return _cachedTotalSavingsGoals!;
   }
@@ -1499,12 +2067,14 @@ class AppProvider with ChangeNotifier {
     if (_cachedTotalDebtRemaining != null) return _cachedTotalDebtRemaining!;
     _cachedTotalDebtRemaining = _goals
         .where((g) => g.type == 'debt')
-        .fold<double>(0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
+        .fold<double>(
+            0.0, (sum, g) => sum + (g.targetAmount - g.currentAmount));
     return _cachedTotalDebtRemaining!;
   }
 
   double get totalInvestmentValue {
-    if (_cachedTotalInvestmentValue != null) return _cachedTotalInvestmentValue!;
+    if (_cachedTotalInvestmentValue != null)
+      return _cachedTotalInvestmentValue!;
     // Investment account balances + portfolio (holdings) value
     final investmentAccounts = _accounts
         .where((a) => a.type == 'investment')
@@ -1573,7 +2143,7 @@ class AppProvider with ChangeNotifier {
         amount: daret.monthlyPayment,
         date: nextDate.toIso8601String(),
         accountId: daret.paymentSourceId,
-        note: 'Daret: ${daret.name}',
+        note: systemNote('savingsCircle', daret.name),
         categoryId: daret.id,
         isRecurring: true,
       ),
@@ -1594,11 +2164,11 @@ class AppProvider with ChangeNotifier {
     final daret = _darets[idx];
 
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'daret_contribution',
       amount: daret.monthlyPayment,
       date: DateTime.now().toIso8601String(),
-      note: 'Daret: ${daret.name}',
+      note: systemNote('savingsCircle', daret.name),
       accountId: daret.paymentSourceId,
       categoryId: daret.id,
     );
@@ -1635,12 +2205,20 @@ class AppProvider with ChangeNotifier {
 
     if (!daret.payoutMonths.contains(daret.currentMonth)) return;
 
+    final now = DateTime.now();
+    final alreadyPaid = _transactions.any((t) {
+      if (t.type != 'daret_payout' || t.categoryId != daret.id) return false;
+      final date = DateTime.tryParse(t.date);
+      return date != null && date.year == now.year && date.month == now.month;
+    });
+    if (alreadyPaid) return;
+
     final txn = Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       type: 'daret_payout',
       amount: daret.singlePayoutAmount,
-      date: DateTime.now().toIso8601String(),
-      note: 'Daret payout: ${daret.name} (Month ${daret.currentMonth})',
+      date: now.toIso8601String(),
+      note: systemNote('received', daret.name),
       accountId: daret.destinationAccountId,
       categoryId: daret.id,
     );
@@ -1648,7 +2226,8 @@ class AppProvider with ChangeNotifier {
 
     // Credit destination account
     if (daret.destinationAccountId != cashOnHandId) {
-      final ai = _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
+      final ai =
+          _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
       if (ai != -1) {
         _accounts[ai] = _accounts[ai].copyWith(
           balance: _accounts[ai].balance + daret.singlePayoutAmount,
@@ -1663,7 +2242,8 @@ class AppProvider with ChangeNotifier {
     if (uid != null) {
       SupabaseSyncService.saveTransaction(uid, txn);
       if (daret.destinationAccountId != cashOnHandId) {
-        final ai = _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
+        final ai =
+            _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
         if (ai != -1) SupabaseSyncService.saveAccount(uid, _accounts[ai]);
       }
     }

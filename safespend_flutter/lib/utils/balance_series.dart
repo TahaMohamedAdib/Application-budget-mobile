@@ -37,8 +37,7 @@ class BalanceTimeframe {
     '1y': BalanceTimeframe(BalanceBucket.month, 12),
   };
 
-  static BalanceTimeframe fromKey(String key) =>
-      _byKey[key] ?? _byKey['1m']!;
+  static BalanceTimeframe fromKey(String key) => _byKey[key] ?? _byKey['1m']!;
 }
 
 /// Reconstructs the balance history for a scope of accounts.
@@ -80,8 +79,7 @@ List<BalancePoint> buildBalanceSeries({
   final points = <BalancePoint>[];
   var index = 0;
   for (final boundary in boundaries) {
-    while (index < relevant.length &&
-        !relevant[index].time.isAfter(boundary)) {
+    while (index < relevant.length && !relevant[index].time.isAfter(boundary)) {
       running += _delta(relevant[index].tx, scopeAccountId);
       index++;
     }
@@ -122,12 +120,15 @@ double _delta(Transaction t, String? scope) {
       case 'transfer':
       case 'goal_contribution':
       case 'debt_payment':
+      case 'personal_debt_return':
+      case 'daret_contribution':
         // Bank fees leave the account alongside the amount, so a chart built
         // on `amount` drifts a little further from the truth with every fee.
         delta -= t.totalWithFees;
         break;
       case 'income':
       case 'lending_collection':
+      case 'daret_payout':
         delta += t.amount;
         break;
     }
@@ -150,14 +151,14 @@ List<DateTime> _boundaries(DateTime end, BalanceTimeframe frame) {
   final list = <DateTime>[];
   for (var i = frame.count; i > 0; i--) {
     list.add(switch (frame.bucket) {
-      BalanceBucket.hour => DateTime(end.year, end.month, end.day, end.hour - i),
+      BalanceBucket.hour =>
+        DateTime(end.year, end.month, end.day, end.hour - i),
       // End of day, so a point covers the whole calendar day it names.
       BalanceBucket.day =>
         DateTime(end.year, end.month, end.day - i, 23, 59, 59),
       BalanceBucket.week =>
         DateTime(end.year, end.month, end.day - i * 7, 23, 59, 59),
-      BalanceBucket.month =>
-        DateTime(end.year, end.month - i + 1, 1).subtract(
+      BalanceBucket.month => DateTime(end.year, end.month - i + 1, 1).subtract(
           const Duration(seconds: 1),
         ),
     });
@@ -186,7 +187,8 @@ DateTime? _parseDate(String raw) {
 double niceStep(double rawRange, int targetTicks) {
   if (rawRange <= 0 || targetTicks <= 0) return 1;
   final rough = rawRange / targetTicks;
-  final magnitude = math.pow(10, (math.log(rough) / math.ln10).floor()).toDouble();
+  final magnitude =
+      math.pow(10, (math.log(rough) / math.ln10).floor()).toDouble();
   final normalized = rough / magnitude;
 
   final double factor;

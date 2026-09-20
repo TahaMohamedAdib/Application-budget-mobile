@@ -1,98 +1,29 @@
-# SafeSpend Flutter App
+﻿# SafeSpend Flutter App
 
-This is a Flutter version of the SafeSpend budget tracking application.
+SafeSpend is a personal finance app built with Flutter and Provider, with local persistence and Supabase synchronization. Its main tabs are Home, AI Coach, Budgets, and Wealth.
 
-## Features Implemented
+## App documentation
 
-### ✅ Core Functionality
-- **Theme System**: Light mode (Marble blue) and Dark mode (Oxford blue) with gold accents
-- **State Management**: Provider for app-wide state
-- **Data Persistence**: SharedPreferences for local storage
-- **Models**: Account, Transaction, Category, Settings
+Start with the [living app map](docs/APP_MAP.md) for features, navigation, financial rules, data models, integrations, shared UI, test locations, and completed task history. It distinguishes implemented code from scaffolding and unverified services.
 
-### ✅ Screens
-- **Today Screen**: Main dashboard with Safe to Spend card, Net Worth, Cash on Hand, Recent Transactions
-- **Plan Screen**: Placeholder for bills management
-- **Wealth Screen**: Placeholder for net worth tracking
+[AGENTS.md](AGENTS.md) instructs coding agents to keep the map current before closing tasks that change or add knowledge about the app.
 
-### 🎨 Design
-- Premium gold color scheme (#B8860B)
-- Light theme: Marble background (#F2F8FC), White surfaces (#FFFFFF)
-- Dark theme: Oxford Blue background (#212A37), Dark Slate Gray surfaces (#191919)
-- Material Design 3 with custom theming
+## Local development
 
-## How to Run
+With a compatible Flutter SDK installed, run from this directory:
 
-### Prerequisites
-1. Flutter SDK installed (bundled with Android Studio)
-2. Android Studio with Flutter plugin
-3. Android emulator or physical device
-
-### Steps to Run
-
-1. **Open in Android Studio**:
-   - Open Android Studio
-   - File → Open → Select `safespend_flutter` folder
-
-2. **Get Dependencies**:
-   ```bash
-   flutter pub get
-   ```
-
-3. **Run the App**:
-   - Select your device/emulator from the device dropdown
-   - Click the green "Run" button (▶️)
-   - Or use terminal: `flutter run`
-
-### Alternative: Command Line
-
-```bash
-cd d:\Work\Freelance\BudgetApp\safespend_flutter
+```sh
 flutter pub get
 flutter run
 ```
 
-## Project Structure
+Runtime configuration is defined in [env_config.dart](lib/services/env_config.dart) and [ai_config.dart](lib/services/ai/ai_config.dart). Authentication, sync, and AI depend on their respective configuration and services.
 
-```
-lib/
-├── main.dart                 # App entry point
-├── models/                   # Data models
-│   ├── account.dart
-│   ├── transaction.dart
-│   ├── category.dart
-│   └── settings.dart
-├── providers/                # State management
-│   └── app_provider.dart
-├── screens/                  # UI screens
-│   ├── today_screen.dart
-│   ├── plan_screen.dart
-│   └── wealth_screen.dart
-└── theme/                    # Theme configuration
-    └── app_theme.dart
+## Checks
+
+```sh
+flutter analyze
+flutter test
 ```
 
-## Next Steps to Complete
-
-The following screens need full implementation:
-- [ ] Plan Screen (bills and recurring expenses)
-- [ ] Wealth Screen (net worth breakdown, portfolio)
-- [ ] Settings Screen
-- [ ] Accounts Screen
-- [ ] Coach Screen (AI assistant)
-- [ ] Portfolio Screen
-- [ ] Transactions Screen
-- [ ] Onboarding flow (5 screens)
-- [ ] Add transaction modal
-- [ ] All animations and transitions
-
-## Notes
-
-This is a **foundational implementation** with:
-- Complete project structure
-- Theme system matching the React app
-- Core data models and state management
-- Today Screen with main features
-- Ready for expansion
-
-The app currently shows the Today screen with Safe to Spend card, Net Worth, Cash on Hand, and Recent Transactions. Other screens are placeholders.
+See the app map for focused tests associated with each feature. Dependencies and package metadata are in [pubspec.yaml](pubspec.yaml).

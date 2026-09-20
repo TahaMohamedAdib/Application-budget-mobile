@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'translations.dart';
+import '../utils/system_note.dart';
 
 class S {
   final String _locale;
@@ -16,7 +17,7 @@ class S {
   static String normalizeLocaleCode(String? locale) {
     if (locale == null || locale.trim().isEmpty) return fallbackLocale;
     final normalized =
-        locale.replaceAll('-', '_').split('_').first.toLowerCase();
+        locale.trim().replaceAll('-', '_').split('_').first.toLowerCase();
     return languageNames.containsKey(normalized) ? normalized : fallbackLocale;
   }
 
@@ -29,6 +30,35 @@ class S {
 
   String _t(String key) =>
       translations[_locale]?[key] ?? translations[fallbackLocale]?[key] ?? key;
+
+  /// Looks up [key] and expands named placeholders such as `{name}`.
+  ///
+  /// Most call sites use the typed getters below. This method is intentionally
+  /// public for feature-specific copy so a newly translated UI string does not
+  /// require adding a one-line getter to this already large facade.
+  String tr(String key, [Map<String, Object?> values = const {}]) {
+    var result = _t(key);
+    values.forEach((name, value) {
+      result = result.replaceAll('{$name}', '$value');
+    });
+    return result;
+  }
+
+  /// Localizes the built-in budget categories while leaving user-created
+  /// category names exactly as they were entered.
+  String categoryDisplayName(String id, String fallback) {
+    final key = 'defaultCategory_$id';
+    final translated = _t(key);
+    return translated == key ? fallback : translated;
+  }
+
+  String? systemNote(String? note) => renderSystemNote(note, _t);
+
+  String currencyName(String code) {
+    final key = 'currency_$code';
+    final name = _t(key);
+    return name == key ? code : name;
+  }
 
   static const supportedLocales = [
     Locale('en'),
@@ -743,6 +773,15 @@ class S {
   String get dataAndStorageSubtitle => _t('dataAndStorageSubtitle');
   String get sync => _t('sync');
   String get syncStatus => _t('syncStatus');
+  String get syncing => _t('syncing');
+  String get syncPending => _t('syncPending');
+  String get syncOffline => _t('syncOffline');
+  String get syncOfflineDetail => _t('syncOfflineDetail');
+  String get syncFailed => _t('syncFailed');
+  String get syncRetry => _t('syncRetry');
+  String get syncNow => _t('syncNow');
+  String get unsyncedWarningTitle => _t('unsyncedWarningTitle');
+  String get unsyncedWarningContinue => _t('unsyncedWarningContinue');
   String get syncedToCloud => _t('syncedToCloud');
   String get syncFooter => _t('syncFooter');
   String get syncLocalModeFooter => _t('syncLocalModeFooter');

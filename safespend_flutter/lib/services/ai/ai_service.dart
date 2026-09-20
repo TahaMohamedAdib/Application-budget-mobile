@@ -6,11 +6,11 @@ import 'financial_context_service.dart';
 
 /// The single seam between SafeSpend and whatever model serves it.
 ///
-/// Nothing above this interface knows about Gemini, Qwen, prompt formats, or
+/// Nothing above this interface knows about model vendors, prompt formats, or
 /// tool-calling dialects. Swapping providers is a matter of binding a different
 /// implementation in `AIServiceFactory` — the Coach UI does not change.
 abstract class AIService {
-  /// Stable identifier for logs and diagnostics, e.g. `gemini`, `safespend`.
+  /// Stable identifier for logs and diagnostics, e.g. `safespend`.
   String get providerId;
 
   /// Whether the implementation has everything it needs to run.

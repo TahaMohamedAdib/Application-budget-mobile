@@ -149,6 +149,7 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    fontFamily: AppTextStyles.fontFamily,
     primaryColor: goldPrimary,
     scaffoldBackgroundColor: lightBackground,
     colorScheme: const ColorScheme.light(
@@ -166,11 +167,12 @@ class AppTheme {
     dividerColor: lightDivider,
     dividerTheme:
         const DividerThemeData(color: lightDivider, thickness: 1, space: 0),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: lightBackground,
       foregroundColor: lightTextPrimary,
       elevation: 0,
       scrolledUnderElevation: 0,
+      titleTextStyle: AppTextStyles.sectionTitle(lightTextPrimary),
     ),
     textTheme: AppTextStyles.buildTextTheme(
       lightTextPrimary,
@@ -228,6 +230,17 @@ class AppTheme {
       backgroundColor: lightSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 0,
+      titleTextStyle: AppTextStyles.sectionTitle(lightTextPrimary),
+      contentTextStyle: AppTextStyles.description(lightTextSecondary),
+    ),
+    listTileTheme: ListTileThemeData(
+      titleTextStyle: AppTextStyles.itemTitle(lightTextPrimary),
+      subtitleTextStyle: AppTextStyles.description(lightTextSecondary),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        textStyle: AppTextStyles.itemTitle(lightTextPrimary),
+      ),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Colors.transparent,
@@ -267,6 +280,7 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    fontFamily: AppTextStyles.fontFamily,
     primaryColor: goldPrimary,
     scaffoldBackgroundColor: darkBackground,
     colorScheme: const ColorScheme.dark(
@@ -284,11 +298,12 @@ class AppTheme {
     dividerColor: darkDivider,
     dividerTheme:
         const DividerThemeData(color: darkDivider, thickness: 1, space: 0),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: darkBackground,
       foregroundColor: darkTextPrimary,
       elevation: 0,
       scrolledUnderElevation: 0,
+      titleTextStyle: AppTextStyles.sectionTitle(darkTextPrimary),
     ),
     textTheme: AppTextStyles.buildTextTheme(
       darkTextPrimary,
@@ -346,6 +361,17 @@ class AppTheme {
       backgroundColor: darkSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 0,
+      titleTextStyle: AppTextStyles.sectionTitle(darkTextPrimary),
+      contentTextStyle: AppTextStyles.description(darkTextSecondary),
+    ),
+    listTileTheme: ListTileThemeData(
+      titleTextStyle: AppTextStyles.itemTitle(darkTextPrimary),
+      subtitleTextStyle: AppTextStyles.description(darkTextSecondary),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        textStyle: AppTextStyles.itemTitle(darkTextPrimary),
+      ),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Colors.transparent,

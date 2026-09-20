@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 class ModernChart extends StatelessWidget {
   final String title;
@@ -127,7 +128,7 @@ class ModernChart extends StatelessWidget {
           SizedBox(
             height: 200,
             child: spots.isEmpty
-                ? Center(child: Text('No data available', style: Theme.of(context).textTheme.bodySmall))
+                ? Center(child: Text(S.of(context).tr('noDataAvailable'), style: Theme.of(context).textTheme.bodySmall))
                 : LineChart(
                     LineChartData(
                       gridData: const FlGridData(show: false),
@@ -151,7 +152,7 @@ class ModernChart extends StatelessWidget {
                               final pointDate = chartStart.add(totalDur * (idx / (spots.length - 1).clamp(1, double.infinity)));
                               final label = formatXAxis != null
                                   ? formatXAxis!(pointDate)
-                                  : _formatDate(pointDate, selectedPeriod);
+                                  : _formatDate(context, pointDate, selectedPeriod);
                               return Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text(label, style: TextStyle(fontSize: 10, color: labelColor)),
@@ -216,12 +217,12 @@ class ModernChart extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date, String period) {
+  String _formatDate(BuildContext context, DateTime date, String period) {
     switch (period) {
-      case '1D': return DateFormat('HH:mm').format(date);
+      case '1D': return DateFormat('HH:mm', Localizations.localeOf(context).toLanguageTag()).format(date);
       case '1W':
-      case '1M': return DateFormat('d MMM').format(date);
-      default:   return DateFormat('MMM').format(date);
+      case '1M': return DateFormat('d MMM', Localizations.localeOf(context).toLanguageTag()).format(date);
+      default:   return DateFormat('MMM', Localizations.localeOf(context).toLanguageTag()).format(date);
     }
   }
 }

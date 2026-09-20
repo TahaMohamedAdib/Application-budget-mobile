@@ -1,25 +1,30 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
-Color _sheetAlpha(Color color, double value) => color.withValues(alpha: value);
+import '../l10n/app_localizations.dart';
+import '../theme/ios_icons.dart';
 
-typedef AppFormSheetBuilder = Widget Function(
-  BuildContext context,
-  ScrollController scrollController,
-);
-
+/// Shared add/edit presentation. The route handles swipe-to-dismiss;
+/// scrolling fields never resize the sheet or move its close control away.
 class AppFormSheet extends StatelessWidget {
-  final AppFormSheetBuilder builder;
-  final double initialChildSize;
-  final double minChildSize;
-
   const AppFormSheet({
     super.key,
-    required this.builder,
-    this.initialChildSize = 0.92,
-    this.minChildSize = 0.42,
+    required this.header,
+    required this.body,
+    this.actions,
+    this.headerIncludesCloseButton = false,
+    this.surfaceKey = const ValueKey('app-form-sheet-surface'),
+    this.fieldsKey = const ValueKey('app-form-sheet-fields'),
   });
+
+  final Widget header;
+  final Widget body;
+  final Widget? actions;
+  final bool headerIncludesCloseButton;
+  final Key surfaceKey;
+  final Key fieldsKey;
 
   @override
   Widget build(BuildContext context) {
@@ -52,52 +57,196 @@ class AppFormSheet extends StatelessWidget {
       ),
     );
 
-    return DraggableScrollableSheet(
-      initialChildSize: initialChildSize,
-      minChildSize: minChildSize,
-      maxChildSize: initialChildSize,
-      expand: false,
-      snap: true,
-      snapSizes: [minChildSize, initialChildSize],
-      snapAnimationDuration: const Duration(milliseconds: 260),
-      builder: (context, scrollController) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-          child: Container(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? _sheetAlpha(const Color(0xFF111214), 0.92)
-                  : _sheetAlpha(const Color(0xFFF7F7F9), 0.90),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(34)),
-              border: Border(
-                top: BorderSide(
-                  color: isDark
-                      ? _sheetAlpha(Colors.white, 0.14)
-                      : _sheetAlpha(Colors.white, 0.92),
+    final media = MediaQuery.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final bottom = media.viewInsets.bottom > 0
+        ? media.viewInsets.bottom + 8
+        : math.max(12.0, media.padding.bottom);
+
+    return AnimatedPadding(
+      duration: media.disableAnimations
+          ? Duration.zero
+          : const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.fromLTRB(10, 12, 10, bottom),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final height = math.min(
+            constraints.maxHeight,
+            math.min(680.0, media.size.height * 0.74),
+          );
+          // In landscape or at large text sizes, let actions scroll with the
+          // fields so a keyboard cannot squeeze the form to an unusable strip.
+          final inlineActions = height < 400 || media.textScaler.scale(1) > 1.4;
+          final radius = BorderRadius.circular(32);
+
+          return Align(
+            alignment: Alignment.bottomCenter,
+            heightFactor: 1,
+            child: Container(
+              key: surfaceKey,
+              height: height,
+              constraints: const BoxConstraints(maxWidth: 560),
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: dark ? 0.4 : 0.16),
+                    blurRadius: 32,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: radius,
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: (dark
+                              ? const Color(0xFF111214)
+                              : const Color(0xFFF7F7F9))
+                          .withValues(alpha: 0.94),
+                      borderRadius: radius,
+                      border: Border.all(
+                        color:
+                            Colors.white.withValues(alpha: dark ? 0.14 : 0.9),
+                      ),
+                    ),
+                    child: Theme(
+                      data: theme.copyWith(
+                        inputDecorationTheme: inputTheme,
+                        elevatedButtonTheme: ElevatedButtonThemeData(
+                          style: (theme.elevatedButtonTheme.style ??
+                                  const ButtonStyle())
+                              .copyWith(
+                            textStyle: WidgetStatePropertyAll(
+                                theme.textTheme.labelLarge),
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 10, 14, 8),
+                            child: Column(
+                              children: [
+                                const AppFormSheetHandle(),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(child: header),
+                                    if (!headerIncludesCloseButton) ...[
+                                      const SizedBox(width: 8),
+                                      const AppFormSheetCloseButton(),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Divider(
+                              height: 1, color: Theme.of(context).dividerColor),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              key: fieldsKey,
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  body,
+                                  if (inlineActions && actions != null) ...[
+                                    const SizedBox(height: 16),
+                                    actions!
+                                  ]
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (!inlineActions && actions != null) ...[
+                            Divider(
+                                height: 1,
+                                color: Theme.of(context).dividerColor),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 12, 20, 14),
+                              child: actions,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: _sheetAlpha(Colors.black, isDark ? 0.56 : 0.18),
-                  blurRadius: 38,
-                  offset: const Offset(0, -12),
-                ),
-              ],
             ),
-            child: Theme(
-              data: theme.copyWith(inputDecorationTheme: inputTheme),
-              child: builder(context, scrollController),
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
+}
+
+/// One modal route for every add/edit form, including transaction entry.
+Future<T?> showAppFormSheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    useSafeArea: true,
+    isScrollControlled: true,
+    showDragHandle: false,
+    requestFocus: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.38),
+    constraints: const BoxConstraints(maxWidth: 580),
+    sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
+        ? AnimationStyle.noAnimation
+        : const AnimationStyle(
+            duration: Duration(milliseconds: 340),
+            reverseDuration: Duration(milliseconds: 240),
+          ),
+    builder: (context) => AppFormSheetScope(
+      child: Builder(builder: builder),
+    ),
+  );
+}
+
+/// Lets full-page settings widgets use the same chrome when opened as editors.
+class AppFormSheetScope extends InheritedWidget {
+  const AppFormSheetScope({super.key, required super.child});
+
+  static bool isActive(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppFormSheetScope>() != null;
+
+  @override
+  bool updateShouldNotify(AppFormSheetScope oldWidget) => false;
+}
+
+Color _sheetAlpha(Color color, double value) => color.withValues(alpha: value);
+
+class AppFormSheetCloseButton extends StatelessWidget {
+  const AppFormSheetCloseButton({super.key});
+
+  @override
+  Widget build(BuildContext context) => IconButton.filledTonal(
+        key: const ValueKey('app-form-sheet-close'),
+        onPressed: () => Navigator.of(context).maybePop(),
+        tooltip: S.of(context).close,
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(44),
+          maximumSize: const Size.square(44),
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.05),
+          foregroundColor: Theme.of(context).textTheme.titleMedium?.color,
+        ),
+        icon: const Icon(IOSIcons.close_rounded, size: 20),
+      );
 }
 
 class AppFormSheetHandle extends StatelessWidget {
@@ -155,7 +304,7 @@ class AppFormSheetHeader extends StatelessWidget {
           child: Text(
             title,
             textAlign: TextAlign.center,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: accent,
@@ -163,7 +312,6 @@ class AppFormSheetHeader extends StatelessWidget {
                 ),
           ),
         ),
-        const SizedBox(width: 50),
       ],
     );
   }

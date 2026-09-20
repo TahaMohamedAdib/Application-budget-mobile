@@ -25,8 +25,8 @@ void main() {
   Future<AppProvider> loadedProvider() async {
     final provider = AppProvider();
     // The constructor kicks off loadData(); give it a turn to finish.
-    for (var i = 0; i < 20 && !provider.localDataLoaded; i++) {
-      await Future<void>.delayed(Duration.zero);
+    for (var i = 0; i < 500 && !provider.localDataLoaded; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
     }
     expect(provider.localDataLoaded, isTrue,
         reason: 'setup precondition: local data should load');

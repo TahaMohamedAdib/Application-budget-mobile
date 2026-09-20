@@ -1,8 +1,8 @@
+import '../widgets/app_form_sheet.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -10,6 +10,10 @@ import '../utils/currency_helper.dart';
 import '../models/recurring_rule.dart';
 import '../models/transaction.dart';
 import '../utils/money_format.dart';
+import '../l10n/app_localizations.dart';
+import '../widgets/feature_help_button.dart';
+import '../widgets/stored_image.dart';
+import '../services/supabase_sync_service.dart';
 
 class AllSubscriptionsScreen extends StatelessWidget {
   const AllSubscriptionsScreen({super.key});
@@ -18,6 +22,7 @@ class AllSubscriptionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        final s = S.of(context);
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final cf = MoneyFormat.of(provider.settings);
         final now = DateTime.now();
@@ -58,18 +63,25 @@ class AllSubscriptionsScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Upcoming Subscriptions',
+                              s.upcomingSubscriptions,
                               style: Theme.of(context)
                                   .textTheme
                                   .headlineSmall
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             Text(
-                              '${allRules.length} active · swipe left to delete',
+                              s.tr('activeSubscriptionsSwipe', {
+                                'count': allRules.length,
+                              }),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
+                      ),
+                      FeatureHelpButton(
+                        title: s.upcomingSubscriptions,
+                        description: s.helpA2,
+                        icon: IOSIcons.autorenew_rounded,
                       ),
                     ],
                   ),
@@ -87,13 +99,13 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                   color: AppTheme.adaptiveIcon(context,
                                       alpha: 0.4)),
                               const SizedBox(height: 16),
-                              Text('No upcoming subscriptions',
+                              Text(s.tr('noUpcomingSubscriptions'),
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium
                                       ?.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
-                              Text('Add recurring expenses from the + button',
+                              Text(s.tr('addRecurringExpensesFromPlus'),
                                   style: Theme.of(context).textTheme.bodySmall,
                                   textAlign: TextAlign.center),
                             ],
@@ -123,24 +135,33 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                                   borderRadius:
                                                       BorderRadius.circular(
                                                           20)),
-                                              title: const Text(
-                                                  'Delete Subscription?'),
-                                              content: Text(
-                                                  'Delete "${rule.templateTransaction.note ?? 'Subscription'}"? This cannot be undone.'),
+                                              title: Text(
+                                                  s.tr('deleteSubscription')),
+                                              content: Text(s.deleteConfirm.replaceAll(
+                                                  '{name}',
+                                                  S
+                                                          .forLocale(context
+                                                              .read<
+                                                                  AppProvider>()
+                                                              .settings
+                                                              .locale)
+                                                          .systemNote(rule
+                                                              .templateTransaction
+                                                              .note) ??
+                                                      s.subscription)),
                                               actions: [
                                                 TextButton(
                                                     onPressed: () =>
                                                         Navigator.pop(
                                                             dCtx, false),
-                                                    child:
-                                                        const Text('Cancel')),
+                                                    child: Text(s.cancel)),
                                                 TextButton(
                                                   onPressed: () =>
                                                       Navigator.pop(dCtx, true),
                                                   style: TextButton.styleFrom(
                                                       foregroundColor:
                                                           AppTheme.error),
-                                                  child: const Text('Delete'),
+                                                  child: Text(s.delete),
                                                 ),
                                               ],
                                             ),
@@ -233,8 +254,15 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              rule.templateTransaction.note ??
-                                                  'Subscription',
+                                              S
+                                                      .forLocale(context
+                                                          .read<AppProvider>()
+                                                          .settings
+                                                          .locale)
+                                                      .systemNote(rule
+                                                          .templateTransaction
+                                                          .note) ??
+                                                  s.subscription,
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .titleMedium
@@ -250,11 +278,23 @@ class AllSubscriptionsScreen extends StatelessWidget {
                                                   nd.year == now.year &&
                                                       nd.month == now.month &&
                                                       nd.day == now.day;
+                                              final localizations =
+                                                  MaterialLocalizations.of(ctx);
                                               final dateStr = isToday
-                                                  ? 'Today · ${DateFormat('h:mm a').format(nd)}'
-                                                  : 'Due ${DateFormat('MMM d').format(nd)}';
+                                                  ? '${s.today} · ${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(nd))}'
+                                                  : s.tr('dueOn', {
+                                                      'date': localizations
+                                                          .formatMediumDate(nd),
+                                                    });
+                                              final frequencyLabel =
+                                                  switch (rule.frequency) {
+                                                'weekly' => s.weekly,
+                                                'monthly' => s.monthly,
+                                                'yearly' => s.yearly,
+                                                _ => rule.frequency,
+                                              };
                                               return Text(
-                                                '$dateStr · ${rule.frequency[0].toUpperCase()}${rule.frequency.substring(1)}',
+                                                '$dateStr · $frequencyLabel',
                                                 style: Theme.of(context)
                                                     .textTheme
                                                     .bodySmall,
@@ -304,20 +344,17 @@ class AllSubscriptionsScreen extends StatelessWidget {
   }
 
   Widget _buildImageIcon(BuildContext context, String path) {
-    if (path.startsWith('http')) {
-      return Image.network(path,
-          fit: BoxFit.cover,
-          width: 44,
-          height: 44,
-          errorBuilder: (_, __, ___) => Icon(IOSIcons.autorenew_rounded,
-              color: AppTheme.adaptiveIcon(context), size: 20));
-    }
-    return Image.file(File(path),
-        fit: BoxFit.cover,
-        width: 44,
-        height: 44,
-        errorBuilder: (_, __, ___) => Icon(IOSIcons.autorenew_rounded,
-            color: AppTheme.adaptiveIcon(context), size: 20));
+    final fallback = Icon(IOSIcons.autorenew_rounded,
+        color: AppTheme.adaptiveIcon(context), size: 20);
+    // Handles all three stored forms: object path, local file, or legacy URL.
+    return StoredImage(
+      reference: path,
+      bucket: SupabaseSyncService.logosBucket,
+      width: 44,
+      height: 44,
+      placeholder: fallback,
+      errorWidget: fallback,
+    );
   }
 
   IconData _categoryIconData(String iconName) {
@@ -373,240 +410,191 @@ class AllSubscriptionsScreen extends StatelessWidget {
 
   void _showEditSubscriptionModal(BuildContext context, AppProvider provider,
       RecurringRule rule, MoneyFormat cf) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final noteCtrl =
-        TextEditingController(text: rule.templateTransaction.note ?? '');
+    final s = S.of(context);
+    final noteCtrl = TextEditingController(
+        text: S
+                .forLocale(context.read<AppProvider>().settings.locale)
+                .systemNote(rule.templateTransaction.note) ??
+            '');
     final amountCtrl =
         TextEditingController(text: rule.templateTransaction.amount.toString());
     String frequency = rule.frequency;
     DateTime nextDate = DateTime.parse(rule.nextDate.substring(0, 10));
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
+        builder: (ctx, setModalState) => AppFormSheet(
+            header: AppFormSheetHeader(
+                title: s.tr('editSubscription'),
+                icon: IOSIcons.autorenew_rounded,
+                accent: AppTheme.adaptiveIcon(ctx)),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TextField(
+                controller: noteCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: s.tr('subscriptionName'),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  filled: true,
+                  prefixIcon: Icon(IOSIcons.label_rounded,
+                      color: AppTheme.adaptiveIcon(ctx)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.amount,
+                  hintText: '0.00',
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(s.frequency,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Row(
+                children: ['weekly', 'monthly', 'yearly'].map((f) {
+                  final isActive = frequency == f;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setModalState(() => frequency = f),
                       child: Container(
-                          width: 48,
-                          height: 5,
-                          decoration: BoxDecoration(
-                              color: Theme.of(ctx).dividerColor,
-                              borderRadius: BorderRadius.circular(3)))),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
+                        margin: EdgeInsets.only(right: f == 'yearly' ? 0 : 8),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                            color: AppTheme.adaptiveIconSurface(ctx),
-                            borderRadius: BorderRadius.circular(14)),
-                        child: Icon(IOSIcons.autorenew_rounded,
-                            color: AppTheme.adaptiveIcon(ctx), size: 22),
+                          color: isActive
+                              ? AppTheme.info.withOpacity(0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: isActive
+                                  ? AppTheme.info
+                                  : Theme.of(ctx).dividerColor,
+                              width: 1.5),
+                        ),
+                        child: Center(
+                            child: Text(
+                                switch (f) {
+                                  'weekly' => s.weekly,
+                                  'monthly' => s.monthly,
+                                  'yearly' => s.yearly,
+                                  _ => f,
+                                },
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isActive
+                                        ? AppTheme.info
+                                        : Theme.of(ctx)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color))),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text('Edit Subscription',
-                            style: Theme.of(ctx)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                      ),
-                      IconButton(
-                          icon: const Icon(IOSIcons.close_rounded, size: 20),
-                          onPressed: () => Navigator.pop(ctx)),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: nextDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+                  );
+                  if (picked != null) setModalState(() => nextDate = picked);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Theme.of(ctx).dividerColor),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(IOSIcons.calendar_today_rounded,
+                          size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                      const SizedBox(width: 12),
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(s.nextDueDate,
+                                style: Theme.of(ctx).textTheme.bodySmall),
+                            Text(
+                                MaterialLocalizations.of(ctx)
+                                    .formatMediumDate(nextDate),
+                                style: Theme.of(ctx)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600)),
+                          ]),
+                      const Spacer(),
+                      Icon(IOSIcons.chevron_right_rounded,
+                          size: 20, color: AppTheme.adaptiveIcon(ctx)),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Name
-                  TextField(
-                    controller: noteCtrl,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      labelText: 'Subscription Name',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      filled: true,
-                      prefixIcon: Icon(IOSIcons.label_rounded,
-                          color: AppTheme.adaptiveIcon(ctx)),
+                ),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  final amount = double.tryParse(amountCtrl.text) ?? 0;
+                  if (amount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.pleaseEnterAmount)));
+                    return;
+                  }
+                  final updatedRule = rule.copyWith(
+                    frequency: frequency,
+                    nextDate: nextDate.toIso8601String().substring(0, 10),
+                    templateTransaction: Transaction(
+                      id: rule.templateTransaction.id,
+                      type: 'expense',
+                      amount: amount,
+                      date: nextDate.toIso8601String(),
+                      note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
+                      categoryId: rule.templateTransaction.categoryId,
+                      accountId: rule.templateTransaction.accountId,
+                      isRecurring: true,
+                      expenseSubType: 'subscription',
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Amount
-                  TextField(
-                    controller: amountCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Amount',
-                      hintText: '0.00',
-                      prefixText:
-                          '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      filled: true,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Frequency
-                  Text('Frequency',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: ['weekly', 'monthly', 'yearly'].map((f) {
-                      final isActive = frequency == f;
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () => setModalState(() => frequency = f),
-                          child: Container(
-                            margin:
-                                EdgeInsets.only(right: f == 'yearly' ? 0 : 8),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? AppTheme.info.withOpacity(0.12)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: isActive
-                                      ? AppTheme.info
-                                      : Theme.of(ctx).dividerColor,
-                                  width: 1.5),
-                            ),
-                            child: Center(
-                                child: Text(f[0].toUpperCase() + f.substring(1),
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: isActive
-                                            ? AppTheme.info
-                                            : Theme.of(ctx)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.color))),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Next Date
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
-                        initialDate: nextDate,
-                        firstDate: DateTime.now(),
-                        lastDate:
-                            DateTime.now().add(const Duration(days: 365 * 3)),
-                      );
-                      if (picked != null)
-                        setModalState(() => nextDate = picked);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Theme.of(ctx).dividerColor),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(IOSIcons.calendar_today_rounded,
-                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
-                          const SizedBox(width: 12),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Next Due Date',
-                                    style: Theme.of(ctx).textTheme.bodySmall),
-                                Text(DateFormat('MMM d, yyyy').format(nextDate),
-                                    style: Theme.of(ctx)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600)),
-                              ]),
-                          const Spacer(),
-                          Icon(IOSIcons.chevron_right_rounded,
-                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final amount = double.tryParse(amountCtrl.text) ?? 0;
-                        if (amount <= 0) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                              content: Text('Please enter a valid amount')));
-                          return;
-                        }
-                        final updatedRule = rule.copyWith(
-                          frequency: frequency,
-                          nextDate: nextDate.toIso8601String().substring(0, 10),
-                          templateTransaction: Transaction(
-                            id: rule.templateTransaction.id,
-                            type: 'expense',
-                            amount: amount,
-                            date: rule.templateTransaction.date,
-                            note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
-                            categoryId: rule.templateTransaction.categoryId,
-                            accountId: rule.templateTransaction.accountId,
-                            isRecurring: true,
-                            expenseSubType: 'subscription',
-                          ),
-                        );
-                        provider.updateRecurringRule(updatedRule);
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Subscription updated'),
-                              backgroundColor: AppTheme.goldPrimary),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.goldPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                      child: const Text('Save Changes',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
+                  );
+                  provider.updateRecurringRule(updatedRule);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(s.tr('subscriptionUpdated')),
+                        backgroundColor: AppTheme.goldPrimary),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.goldPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: Text(s.saveChanges,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
               ),
-            ),
-          ),
-        ),
+            )),
       ),
     );
   }

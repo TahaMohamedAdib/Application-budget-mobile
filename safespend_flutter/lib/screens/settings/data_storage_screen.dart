@@ -13,6 +13,8 @@ import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/ios_icons.dart';
 import '../../widgets/settings_ui.dart';
+import '../../widgets/sync_status_badge.dart';
+import '../../widgets/unsynced_work_guard.dart';
 
 class DataStorageScreen extends StatelessWidget {
   const DataStorageScreen({super.key});
@@ -28,17 +30,27 @@ class DataStorageScreen extends StatelessWidget {
       subtitle: s.dataAndStorageSubtitle,
       children: [
         _StorageOverview(provider: provider),
-
         SettingsGroup(
           header: s.sync,
           footer: auth.localMode ? s.syncLocalModeFooter : s.syncFooter,
           children: [
-            SettingsRow(
-              icon: IOSIcons.autorenew_rounded,
-              label: s.syncStatus,
-              value: auth.localMode ? s.localMode : s.syncedToCloud,
-              showChevron: false,
-            ),
+            // Local mode has no server to sync with, so the badge would have
+            // nothing truthful to say; the static label is correct there.
+            if (auth.localMode)
+              SettingsRow(
+                icon: IOSIcons.autorenew_rounded,
+                label: s.syncStatus,
+                value: s.localMode,
+                showChevron: false,
+              )
+            else
+              SettingsRow(
+                icon: IOSIcons.autorenew_rounded,
+                label: s.syncStatus,
+                trailing: const SyncStatusBadge(compact: true),
+                showChevron: false,
+                onTap: () => provider.syncNow(),
+              ),
             if (!auth.localMode)
               SettingsRow(
                 icon: IOSIcons.email_outlined,
@@ -48,7 +60,6 @@ class DataStorageScreen extends StatelessWidget {
               ),
           ],
         ),
-
         SettingsGroup(
           header: s.exportData,
           footer: s.exportFooter,
@@ -67,7 +78,6 @@ class DataStorageScreen extends StatelessWidget {
             ),
           ],
         ),
-
         SettingsGroup(
           header: s.dangerZone,
           footer: s.dangerZoneFooter,
@@ -144,6 +154,11 @@ class DataStorageScreen extends StatelessWidget {
       destructive: true,
     );
     if (!ok || !context.mounted) return;
+
+    // Clearing local data destroys the sync queue along with it.
+    if (!await UnsyncedWorkGuard.confirm(context, p)) return;
+    if (!context.mounted) return;
+
     p.clearData();
     if (!context.mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -176,12 +191,8 @@ class _StorageOverview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              s.storedOnThisDevice.toUpperCase(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                    letterSpacing: 0.6,
-                  ),
+              s.storedOnThisDevice,
+              style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: 14),
             Wrap(
@@ -204,10 +215,7 @@ class _StorageOverview extends StatelessWidget {
                           item.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(fontSize: 11.5),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
@@ -223,10 +231,7 @@ class _StorageOverview extends StatelessWidget {
                 Expanded(
                   child: Text(
                     s.storageOverviewNote,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(fontSize: 11.5, height: 1.35),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
               ],

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import '../models/holding.dart';
 
@@ -49,10 +50,41 @@ class StockPriceService {
     'Accept': 'application/json',
   };
 
+  /// Tickers are letters, digits and a small set of separators — never a
+  /// slash, question mark or hash. Those characters would otherwise be
+  /// interpolated straight into the request path and rewrite the URL: a
+  /// "symbol" of `A/../../v1/finance/search?q=x` retargeted the call to a
+  /// different Yahoo endpoint, and a leading `?` or `#` truncated it.
+  static final _symbolPattern = RegExp(r'^[A-Z0-9][A-Z0-9._=-]{0,19}$');
+
+  /// Yahoo range tokens, e.g. `5d`, `1mo`, `1y`.
+  static final _rangePattern = RegExp(r'^[0-9]{1,3}(d|wk|mo|y)$');
+
+  /// ISO 4217 alphabetic currency code.
+  static final _currencyPattern = RegExp(r'^[A-Z]{3}$');
+
+  /// The canonical ticker, or null when it is not a plausible symbol.
+  /// Callers must treat null as "do not issue a request".
+  static String? _safeSymbol(String raw) {
+    final sym = raw.trim().toUpperCase();
+    if (sym.isEmpty || !_symbolPattern.hasMatch(sym)) return null;
+    return sym;
+  }
+
+  /// Test-only view of [_safeSymbol], so the path-injection regression suite
+  /// can assert the filter without issuing network calls.
+  @visibleForTesting
+  static String? debugSafeSymbol(String raw) => _safeSymbol(raw);
+
+  /// Test-only view of the currency-code filter used by [fetchUsdRate].
+  @visibleForTesting
+  static bool debugSafeCurrency(String raw) =>
+      _currencyPattern.hasMatch(raw.trim().toUpperCase());
+
   /// Fetch live price for a single symbol. Returns null on failure.
   static Future<StockQuote?> fetchQuote(String symbol) async {
-    final sym = symbol.trim().toUpperCase();
-    if (sym.isEmpty) return null;
+    final sym = _safeSymbol(symbol);
+    if (sym == null) return null;
     try {
       final uri = Uri.parse('$_baseUrl/$sym?interval=1d&range=1d');
       final response =
@@ -96,6 +128,9 @@ class StockPriceService {
   static Future<double> fetchUsdRate(String targetCurrency) async {
     final cur = targetCurrency.toUpperCase().trim();
     if (cur == 'USD' || cur.isEmpty) return 1.0;
+    // An ISO 4217 code and nothing else: this is interpolated into the
+    // request path below, so anything else could rewrite the URL.
+    if (!_currencyPattern.hasMatch(cur)) return 1.0;
 
     // Use cached rate if < 30 minutes old
     if (_fxCacheTime != null &&
@@ -227,7 +262,11 @@ class StockPriceService {
   /// Returns a map of date-string (yyyy-MM-dd) → closing price.
   static Future<Map<String, double>> _fetchDailyCloses(
       String symbol, String range) async {
-    final sym = symbol.trim().toUpperCase();
+    final sym = _safeSymbol(symbol);
+    if (sym == null) return {};
+    // [range] is chosen from a fixed set by callers, never user-typed, but it
+    // is interpolated into the same URL so it is checked here too.
+    if (!_rangePattern.hasMatch(range)) return {};
     try {
       final uri =
           Uri.parse('$_baseUrl/$sym?interval=1d&range=$range');

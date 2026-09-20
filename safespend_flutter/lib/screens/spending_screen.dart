@@ -8,6 +8,7 @@ import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/money_format.dart';
+import '../widgets/feature_help_button.dart';
 
 class SpendingScreen extends StatefulWidget {
   const SpendingScreen({super.key});
@@ -27,7 +28,9 @@ class _SpendingScreenState extends State<SpendingScreen> {
     for (final t in provider.transactions) {
       if (t.type == 'expense') {
         final date = DateTime.parse(t.date);
-        final diff = date.difference(DateTime(monday.year, monday.month, monday.day)).inDays;
+        final diff = date
+            .difference(DateTime(monday.year, monday.month, monday.day))
+            .inDays;
         if (diff >= 0 && diff < 7) {
           spending[diff] += t.amount;
         }
@@ -75,7 +78,8 @@ class _SpendingScreenState extends State<SpendingScreen> {
         final expenseTransactions = provider.transactions
             .where((t) => t.type == 'expense')
             .toList()
-          ..sort((a, b) => DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
+          ..sort((a, b) =>
+              DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -90,20 +94,34 @@ class _SpendingScreenState extends State<SpendingScreen> {
                     child: Row(
                       children: [
                         Container(
-                          width: 40, height: 40,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                            color: isDark
+                                ? AppTheme.darkSurface
+                                : AppTheme.lightSurface,
                             shape: BoxShape.circle,
                             boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                           ),
                           child: IconButton(
-                            icon: const Icon(IOSIcons.arrow_back_rounded, size: 20),
+                            icon: const Icon(IOSIcons.arrow_back_rounded,
+                                size: 20),
                             onPressed: () => Navigator.pop(context),
                             padding: EdgeInsets.zero,
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text(s.spending, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(s.spending,
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const Spacer(),
+                        FeatureHelpButton(
+                          title: s.spending,
+                          description: s.tourBudgetsBody,
+                          icon: IOSIcons.pie_chart_outline_rounded,
+                        ),
                       ],
                     ),
                   ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut),
@@ -115,7 +133,9 @@ class _SpendingScreenState extends State<SpendingScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                        color: isDark
+                            ? AppTheme.darkSurface
+                            : AppTheme.lightSurface,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: isDark ? [] : AppTheme.cardShadowLight,
                       ),
@@ -128,15 +148,26 @@ class _SpendingScreenState extends State<SpendingScreen> {
                               onTap: () => setState(() => _range = r),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: active ? AppTheme.goldPrimary : Colors.transparent,
+                                  color: active
+                                      ? AppTheme.goldPrimary
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(11),
                                 ),
                                 child: Center(
                                   child: Text(
                                     r == 'week' ? s.thisWeek : s.thisMonth,
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: active ? Colors.white : Theme.of(context).textTheme.bodySmall?.color),
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: active
+                                            ? Colors.white
+                                            : Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.color),
                                   ),
                                 ),
                               ),
@@ -145,7 +176,8 @@ class _SpendingScreenState extends State<SpendingScreen> {
                         }).toList(),
                       ),
                     ),
-                  ).animate().fadeIn(duration: 260.ms, delay: 80.ms, curve: Curves.easeOut),
+                  ).animate().fadeIn(
+                      duration: 260.ms, delay: 80.ms, curve: Curves.easeOut),
                 ),
 
                 // Total + Chart
@@ -159,45 +191,74 @@ class _SpendingScreenState extends State<SpendingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(s.spending,
-                            style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.2)),
+                              style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.2)),
                           const SizedBox(height: 4),
                           Text(cf.format(totalSpending),
-                            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -1.0)),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -1.0)),
                           const SizedBox(height: 24),
                           SizedBox(
                             height: 180,
                             child: BarChart(
                               BarChartData(
                                 alignment: BarChartAlignment.spaceAround,
-                                maxY: data.reduce((a, b) => a > b ? a : b).clamp(10, double.infinity) * 1.35,
+                                maxY: data
+                                        .reduce((a, b) => a > b ? a : b)
+                                        .clamp(10, double.infinity) *
+                                    1.35,
                                 barTouchData: BarTouchData(
                                   enabled: true,
                                   touchTooltipData: BarTouchTooltipData(
-                                    getTooltipColor: (_) => const Color(0xFF1C1C1E),
+                                    getTooltipColor: (_) =>
+                                        const Color(0xFF1C1C1E),
                                     tooltipRoundedRadius: 10,
-                                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                      return BarTooltipItem(cf.format(rod.toY),
-                                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13));
+                                    tooltipPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                    getTooltipItem:
+                                        (group, groupIndex, rod, rodIndex) {
+                                      return BarTooltipItem(
+                                          cf.format(rod.toY),
+                                          const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13));
                                     },
                                   ),
                                 ),
                                 titlesData: FlTitlesData(
                                   show: true,
-                                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                  topTitles: const AxisTitles(
+                                      sideTitles:
+                                          SideTitles(showTitles: false)),
+                                  rightTitles: const AxisTitles(
+                                      sideTitles:
+                                          SideTitles(showTitles: false)),
+                                  leftTitles: const AxisTitles(
+                                      sideTitles:
+                                          SideTitles(showTitles: false)),
                                   bottomTitles: AxisTitles(
                                     sideTitles: SideTitles(
                                       showTitles: true,
                                       reservedSize: 28,
                                       getTitlesWidget: (value, meta) {
                                         final idx = value.toInt();
-                                        if (idx < 0 || idx >= labels.length) return const SizedBox();
+                                        if (idx < 0 || idx >= labels.length)
+                                          return const SizedBox();
                                         return Padding(
-                                          padding: const EdgeInsets.only(top: 8),
+                                          padding:
+                                              const EdgeInsets.only(top: 8),
                                           child: Text(labels[idx],
-                                            style: const TextStyle(fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w500)),
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.white60,
+                                                  fontWeight: FontWeight.w500)),
                                         );
                                       },
                                     ),
@@ -208,7 +269,10 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                 barGroups: data.asMap().entries.map((entry) {
                                   final isHighlight = isWeek
                                       ? entry.key == DateTime.now().weekday - 1
-                                      : entry.key == ((DateTime.now().day - 1) / 7).floor().clamp(0, 4);
+                                      : entry.key ==
+                                          ((DateTime.now().day - 1) / 7)
+                                              .floor()
+                                              .clamp(0, 4);
                                   return BarChartGroupData(
                                     x: entry.key,
                                     barRods: [
@@ -220,22 +284,32 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                                 end: Alignment.bottomCenter,
                                                 colors: [
                                                   AppTheme.success,
-                                                  AppTheme.success.withOpacity(0.6),
+                                                  AppTheme.success
+                                                      .withOpacity(0.6),
                                                 ],
                                               )
                                             : LinearGradient(
                                                 begin: Alignment.topCenter,
                                                 end: Alignment.bottomCenter,
                                                 colors: [
-                                                  Colors.white.withOpacity(0.22),
-                                                  Colors.white.withOpacity(0.06),
+                                                  Colors.white
+                                                      .withOpacity(0.22),
+                                                  Colors.white
+                                                      .withOpacity(0.06),
                                                 ],
                                               ),
                                         width: isWeek ? 26 : 36,
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-                                        backDrawRodData: BackgroundBarChartRodData(
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                                top: Radius.circular(10)),
+                                        backDrawRodData:
+                                            BackgroundBarChartRodData(
                                           show: true,
-                                          toY: data.reduce((a, b) => a > b ? a : b).clamp(10, double.infinity) * 1.35,
+                                          toY: data
+                                                  .reduce(
+                                                      (a, b) => a > b ? a : b)
+                                                  .clamp(10, double.infinity) *
+                                              1.35,
                                           color: Colors.white.withOpacity(0.04),
                                         ),
                                       ),
@@ -248,15 +322,18 @@ class _SpendingScreenState extends State<SpendingScreen> {
                         ],
                       ),
                     ),
-                  ).animate().fadeIn(duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
+                  ).animate().fadeIn(
+                      duration: 280.ms, delay: 120.ms, curve: Curves.easeOut),
                 ),
 
                 // Recent Expenses Header
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
-                    child: Text(s.expenses, style: Theme.of(context).textTheme.titleLarge),
-                  ).animate().fadeIn(duration: 280.ms, delay: 160.ms, curve: Curves.easeOut),
+                    child: Text(s.expenses,
+                        style: Theme.of(context).textTheme.titleLarge),
+                  ).animate().fadeIn(
+                      duration: 280.ms, delay: 160.ms, curve: Curves.easeOut),
                 ),
 
                 // Recent Expenses List
@@ -269,9 +346,20 @@ class _SpendingScreenState extends State<SpendingScreen> {
                             decoration: AppTheme.premiumCard(context),
                             child: Column(
                               children: [
-                                Icon(IOSIcons.receipt_long_rounded, size: 72, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
+                                Icon(IOSIcons.receipt_long_rounded,
+                                    size: 72,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color
+                                        ?.withOpacity(0.5)),
                                 const SizedBox(height: 16),
-                                Text('No expenses yet', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                Text(s.noExpensesYet,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -283,53 +371,125 @@ class _SpendingScreenState extends State<SpendingScreen> {
                           child: Container(
                             decoration: AppTheme.premiumCard(context),
                             child: Column(
-                              children: expenseTransactions.take(15).toList().asMap().entries.map((entry) {
+                              children: expenseTransactions
+                                  .take(15)
+                                  .toList()
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
                                 final t = entry.value;
-                                final isLast = entry.key == (expenseTransactions.length > 15 ? 14 : expenseTransactions.length - 1);
+                                final isLast = entry.key ==
+                                    (expenseTransactions.length > 15
+                                        ? 14
+                                        : expenseTransactions.length - 1);
                                 final cat = t.categoryId != null
-                                    ? provider.categories.where((c) => c.id == t.categoryId).firstOrNull
+                                    ? provider.categories
+                                        .where((c) => c.id == t.categoryId)
+                                        .firstOrNull
                                     : null;
                                 final tDate = DateTime.parse(t.date);
                                 return Column(
                                   children: [
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20, vertical: 14),
                                       child: Row(
                                         children: [
                                           Container(
-                                            width: 44, height: 44,
-                                            decoration: BoxDecoration(color: AppTheme.adaptiveIconSurface(context), borderRadius: BorderRadius.circular(14)),
-                                            child: Icon(IOSIcons.arrow_upward_rounded, color: AppTheme.adaptiveIcon(context), size: 20),
+                                            width: 44,
+                                            height: 44,
+                                            decoration: BoxDecoration(
+                                                color: AppTheme
+                                                    .adaptiveIconSurface(
+                                                        context),
+                                                borderRadius:
+                                                    BorderRadius.circular(14)),
+                                            child: Icon(
+                                                IOSIcons.arrow_upward_rounded,
+                                                color: AppTheme.adaptiveIcon(
+                                                    context),
+                                                size: 20),
                                           ),
                                           const SizedBox(width: 14),
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                Text(t.note ?? 'Expense', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                                                Text(
+                                                    S
+                                                            .forLocale(context
+                                                                .read<
+                                                                    AppProvider>()
+                                                                .settings
+                                                                .locale)
+                                                            .systemNote(
+                                                                t.note) ??
+                                                        s.expense,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium
+                                                        ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600)),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  t.description ?? DateFormat('MMM d, yyyy').format(tDate),
-                                                  style: Theme.of(context).textTheme.bodySmall,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  t.description ??
+                                                      DateFormat(
+                                                              'MMM d, yyyy',
+                                                              Localizations
+                                                                      .localeOf(
+                                                                          context)
+                                                                  .toLanguageTag())
+                                                          .format(tDate),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ],
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
                                             children: [
-                                              Text(cf.signed(t.amount, positive: false), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.error)),
+                                              Text(
+                                                  cf.signed(t.amount,
+                                                      positive: false),
+                                                  style: const TextStyle(
+                                                      fontSize: 15,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: AppTheme.error)),
                                               if (cat != null) ...[
                                                 const SizedBox(height: 3),
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: AppTheme.adaptiveIconSurface(context),
-                                                    borderRadius: BorderRadius.circular(6),
+                                                    color: AppTheme
+                                                        .adaptiveIconSurface(
+                                                            context),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6),
                                                   ),
-                                                  child: Text(cat.name, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppTheme.adaptiveIcon(context))),
+                                                  child: Text(
+                                                      s.categoryDisplayName(
+                                                          cat.id, cat.name),
+                                                      style: TextStyle(
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: AppTheme
+                                                              .adaptiveIcon(
+                                                                  context))),
                                                 ),
                                               ],
                                             ],
@@ -337,7 +497,12 @@ class _SpendingScreenState extends State<SpendingScreen> {
                                         ],
                                       ),
                                     ),
-                                    if (!isLast) Divider(height: 1, indent: 76, color: Theme.of(context).dividerColor),
+                                    if (!isLast)
+                                      Divider(
+                                          height: 1,
+                                          indent: 76,
+                                          color:
+                                              Theme.of(context).dividerColor),
                                   ],
                                 );
                               }).toList(),

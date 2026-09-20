@@ -1,3 +1,4 @@
+import '../../widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -244,63 +245,21 @@ class _IncomeScreenState extends State<IncomeScreen> {
         ? List.generate(31, (i) => i + 1)
         : List.generate(7, (i) => i + 1);
 
-    final chosen = await showModalBottomSheet<int>(
+    final chosen = await showAppFormSheet<int>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.6,
-          ),
-          child: GlassPanel(
-            radius: 26,
-            padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 38,
-                  height: 5,
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(3),
-                    color: AppTheme.adaptiveIcon(context, alpha: 0.25),
-                  ),
-                ),
-                Text(
-                  s.obPayDayLabel,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).textTheme.titleLarge?.color,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: options.length,
-                    itemBuilder: (_, i) {
-                      final value = options[i];
-                      return SettingsChoiceRow(
-                        label: monthly
-                            ? (value == 31
-                                ? s.obPayDayLastDay
-                                : s.obPayDayOfMonth(value))
-                            : _weekdayName(value),
-                        selected: _payDay == value,
-                        onTap: () => Navigator.pop(sheetContext, value),
-                      );
-                    },
-                  ),
-                ),
-              ],
+      builder: (sheetContext) => AppFormSheet(
+        header: Text(s.obPayDayLabel,
+            style: Theme.of(context).textTheme.titleLarge),
+        body: Column(children: [
+          for (final value in options)
+            SettingsChoiceRow(
+              label: monthly
+                  ? (value == 31 ? s.obPayDayLastDay : s.obPayDayOfMonth(value))
+                  : _weekdayName(value),
+              selected: _payDay == value,
+              onTap: () => Navigator.pop(sheetContext, value),
             ),
-          ),
-        ),
+        ]),
       ),
     );
 
@@ -330,20 +289,12 @@ class _MonthlyTotal extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).textTheme.bodySmall?.color,
-              ),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(
-                fontSize: 27,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.8,
-                color: Theme.of(context).textTheme.titleLarge?.color,
-              ),
+              style: Theme.of(context).textTheme.displaySmall,
             ),
           ],
         ),
@@ -374,11 +325,7 @@ class _AmountRow extends StatelessWidget {
         children: [
           Text(
             symbol,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).textTheme.bodySmall?.color,
-            ),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -397,11 +344,7 @@ class _AmountRow extends StatelessWidget {
                 FocusScope.of(context).unfocus();
                 onEditingComplete();
               },
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).textTheme.titleMedium?.color,
-              ),
+              style: Theme.of(context).textTheme.headlineSmall,
               decoration: const InputDecoration(
                 // The app theme fills and outlines every field; both would
                 // paint a box inside the settings row.

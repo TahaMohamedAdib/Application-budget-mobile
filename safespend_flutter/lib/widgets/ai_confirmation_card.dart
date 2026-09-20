@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 /// Approval gate for an AI-requested change to financial data.
 ///
@@ -14,7 +15,7 @@ class AIConfirmationCard extends StatelessWidget {
     required this.summary,
     required this.onConfirm,
     required this.onCancel,
-    this.title = 'Confirm this change',
+    this.title,
     this.isResolved = false,
     this.resolvedLabel,
   });
@@ -24,7 +25,7 @@ class AIConfirmationCard extends StatelessWidget {
 
   final VoidCallback onConfirm;
   final VoidCallback onCancel;
-  final String title;
+  final String? title;
 
   /// Once acted on, the buttons collapse into a static outcome line so the
   /// transcript stays readable and the action can't be repeated.
@@ -33,6 +34,7 @@ class AIConfirmationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -52,7 +54,7 @@ class AIConfirmationCard extends StatelessWidget {
                   size: 16, color: AppTheme.adaptiveIcon(context)),
               const SizedBox(width: 8),
               Text(
-                isResolved ? (resolvedLabel ?? 'Done') : title,
+                isResolved ? (resolvedLabel ?? s.done) : (title ?? s.confirm),
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
@@ -84,7 +86,7 @@ class AIConfirmationCard extends StatelessWidget {
                             color: AppTheme.adaptiveIcon(context, alpha: 0.24)),
                       ),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(s.cancel),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -98,7 +100,7 @@ class AIConfirmationCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Confirm'),
+                    child: Text(s.confirm),
                   ),
                 ),
               ],

@@ -15,7 +15,9 @@ import '../l10n/app_localizations.dart';
 import '../widgets/account_picker_field.dart';
 import '../widgets/app_form_sheet.dart';
 import '../widgets/settings_ui.dart';
+import '../widgets/feature_help_button.dart';
 import '../utils/money_format.dart';
+import '../widgets/stored_image.dart';
 
 class AccountsScreen extends StatelessWidget {
   const AccountsScreen({super.key});
@@ -79,6 +81,12 @@ class AccountsScreen extends StatelessWidget {
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                         const Spacer(),
+                        FeatureHelpButton(
+                          title: s.accounts,
+                          description: s.tourWealthBody,
+                          icon: IOSIcons.account_balance_wallet_rounded,
+                        ),
+                        const SizedBox(width: 8),
                         Container(
                           width: 40,
                           height: 40,
@@ -220,28 +228,28 @@ class AccountsScreen extends StatelessWidget {
                                                       width: 3)),
                                             ),
                                             child: account.imagePath != null
-                                                ? ClipRRect(
+                                                ? StoredImage(
+                                                    reference:
+                                                        account.imagePath,
+                                                    bucket: SupabaseSyncService
+                                                        .logosBucket,
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             13),
-                                                    child: account.imagePath!
-                                                            .startsWith('http')
-                                                        ? Image.network(
-                                                            account.imagePath!,
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder: (_,
-                                                                    __, ___) =>
-                                                                Icon(_getAccountIcon(account.type),
-                                                                    color: AppTheme.adaptiveIcon(
-                                                                        context),
-                                                                    size: 20))
-                                                        : Image.file(File(account.imagePath!),
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder:
-                                                                (_, __, ___) => Icon(
-                                                                    _getAccountIcon(account.type),
-                                                                    color: AppTheme.adaptiveIcon(context),
-                                                                    size: 20)),
+                                                    placeholder: Icon(
+                                                        _getAccountIcon(
+                                                            account.type),
+                                                        color: AppTheme
+                                                            .adaptiveIcon(
+                                                                context),
+                                                        size: 20),
+                                                    errorWidget: Icon(
+                                                        _getAccountIcon(
+                                                            account.type),
+                                                        color: AppTheme
+                                                            .adaptiveIcon(
+                                                                context),
+                                                        size: 20),
                                                   )
                                                 : Icon(
                                                     _getAccountIcon(
@@ -271,7 +279,10 @@ class AccountsScreen extends StatelessWidget {
                                                       .textTheme
                                                       .titleMedium,
                                                 ),
-                                                Row(
+                                                Wrap(
+                                                  runSpacing: 6,
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
                                                   children: [
                                                     Text(
                                                       _getAccountTypeLabel(
@@ -302,7 +313,13 @@ class AccountsScreen extends StatelessWidget {
                                                                   .circular(6),
                                                         ),
                                                         child: Text(
-                                                          'Salary day ${account.salaryDay}',
+                                                          s.tr(
+                                                            'salaryDayNumber',
+                                                            {
+                                                              'day':
+                                                                  '${account.salaryDay}',
+                                                            },
+                                                          ),
                                                           style: const TextStyle(
                                                               fontSize: 10,
                                                               color: AppTheme
@@ -399,10 +416,8 @@ class AccountsScreen extends StatelessWidget {
   }
 
   void _showAddAccountModal(BuildContext context, AppProvider provider, S s) {
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) => AddAccountModal(
         onSave: (account) {
           provider.addAccount(account);
@@ -417,10 +432,8 @@ class AccountsScreen extends StatelessWidget {
 
   void _showEditAccountModal(
       BuildContext context, AppProvider provider, Account account, S s) {
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) => AddAccountModal(
         account: account,
         onSave: (updatedAccount) {
@@ -509,169 +522,144 @@ class _AddAccountModalState extends State<AddAccountModal> {
         );
 
     return AppFormSheet(
-      builder: (context, scrollController) => SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+        header: AppFormSheetHeader(
+          title: isEditing ? s.edit : s.addAccount,
+          icon: IOSIcons.account_balance_rounded,
+          accent: AppTheme.adaptiveIcon(context),
+        ),
+        body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SettingsGroup(
+            header: s.account,
             children: [
-              const AppFormSheetHandle(),
-              const SizedBox(height: 16),
-              AppFormSheetHeader(
-                title: isEditing ? s.edit : s.addAccount,
-                icon: IOSIcons.account_balance_rounded,
-                accent: AppTheme.adaptiveIcon(context),
+              SettingsTextFieldRow(
+                icon: IOSIcons.account_balance_wallet,
+                label: s.accountName,
+                controller: _nameController,
+                hint: s.hintCheckingAccount,
+                textCapitalization: TextCapitalization.words,
               ),
-              const SizedBox(height: 24),
-
-              // Entry sits in the same grouped glass rows as the settings
-              // tree, rather than a stack of outlined Material boxes.
-              SettingsGroup(
-                header: s.account,
-                children: [
-                  SettingsTextFieldRow(
-                    icon: IOSIcons.account_balance_wallet,
-                    label: s.accountName,
-                    controller: _nameController,
-                    hint: s.hintCheckingAccount,
-                    textCapitalization: TextCapitalization.words,
+              SettingsTextFieldRow(
+                icon: IOSIcons.account_balance,
+                label: s.bankName,
+                controller: _bankNameController,
+                hint: s.hintChaseBank,
+                textCapitalization: TextCapitalization.words,
+              ),
+              SettingsTextFieldRow(
+                icon: IOSIcons.payments_rounded,
+                label: s.balance,
+                controller: _balanceController,
+                hint: '0.00',
+                keyboardType: TextInputType.number,
+                prefix: currencyPrefix(),
+              ),
+            ],
+          ),
+          SettingsGroup(
+            header: s.logo,
+            children: [_buildLogoRow(context, s)],
+          ),
+          SettingsGroup(
+            header: s.color,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    spacing: 14,
+                    runSpacing: 14,
+                    children: const [
+                      '#B8860B', // Gold
+                      '#EF4444', // Red
+                      '#0b715f', // Green
+                      '#3B82F6', // Blue
+                      '#8B5CF6', // Purple
+                      '#F59E0B', // Amber
+                      '#EC4899', // Pink
+                      '#64748B', // Slate
+                    ].map(_buildColorOption).toList(),
                   ),
-                  SettingsTextFieldRow(
-                    icon: IOSIcons.account_balance,
-                    label: s.bankName,
-                    controller: _bankNameController,
-                    hint: s.hintChaseBank,
-                    textCapitalization: TextCapitalization.words,
-                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_selectedType == 'debt')
+            SettingsGroup(
+              header: s.monthlyPayment,
+              footer: s.automaticallyPayDebtMonthly,
+              children: [
+                SettingsSwitchRow(
+                  icon: IOSIcons.calendar_today_rounded,
+                  label: s.monthlyPayment,
+                  value: _enableDebtPayment,
+                  onChanged: (v) => setState(() => _enableDebtPayment = v),
+                ),
+                if (_enableDebtPayment) ...[
                   SettingsTextFieldRow(
                     icon: IOSIcons.payments_rounded,
-                    label: s.balance,
-                    controller: _balanceController,
+                    label: s.paymentAmount,
+                    controller: _debtPaymentController,
                     hint: '0.00',
                     keyboardType: TextInputType.number,
                     prefix: currencyPrefix(),
                   ),
-                ],
-              ),
-
-              SettingsGroup(
-                header: s.logo,
-                children: [_buildLogoRow(context, s)],
-              ),
-
-              SettingsGroup(
-                header: s.color,
-                children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Wrap(
-                        spacing: 14,
-                        runSpacing: 14,
-                        children: const [
-                          '#B8860B', // Gold
-                          '#EF4444', // Red
-                          '#0b715f', // Green
-                          '#3B82F6', // Blue
-                          '#8B5CF6', // Purple
-                          '#F59E0B', // Amber
-                          '#EC4899', // Pink
-                          '#64748B', // Slate
-                        ].map(_buildColorOption).toList(),
+                    padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                    child: DropdownButtonFormField<int>(
+                      value: _debtPaymentDay,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: s.paymentDayOfMonth,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        contentPadding: EdgeInsets.zero,
                       ),
+                      items: List.generate(
+                          28,
+                          (i) => DropdownMenuItem(
+                              value: i + 1, child: Text('${s.day} ${i + 1}'))),
+                      onChanged: (v) =>
+                          setState(() => _debtPaymentDay = v ?? 1),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
+                    child: AccountPickerField(
+                      provider: provider,
+                      label: s.payFromAccount,
+                      value: _debtPaymentSourceId,
+                      accounts: provider.accounts
+                          .where(
+                              (a) => a.type != 'debt' && a.type != 'investment')
+                          .toList(),
+                      cashLabel: s.cashOnHand,
+                      onChanged: (value) =>
+                          setState(() => _debtPaymentSourceId = value),
                     ),
                   ),
                 ],
-              ),
-
-              // ── Debt Monthly Payment (only for debt accounts) ──
-              if (_selectedType == 'debt')
-                SettingsGroup(
-                  header: s.monthlyPayment,
-                  footer: s.automaticallyPayDebtMonthly,
-                  children: [
-                    SettingsSwitchRow(
-                      icon: IOSIcons.calendar_today_rounded,
-                      label: s.monthlyPayment,
-                      value: _enableDebtPayment,
-                      onChanged: (v) => setState(() => _enableDebtPayment = v),
-                    ),
-                    if (_enableDebtPayment) ...[
-                      SettingsTextFieldRow(
-                        icon: IOSIcons.payments_rounded,
-                        label: s.paymentAmount,
-                        controller: _debtPaymentController,
-                        hint: '0.00',
-                        keyboardType: TextInputType.number,
-                        prefix: currencyPrefix(),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
-                        child: DropdownButtonFormField<int>(
-                          value: _debtPaymentDay,
-                          isExpanded: true,
-                          decoration: InputDecoration(
-                            labelText: s.paymentDayOfMonth,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          items: List.generate(
-                              28,
-                              (i) => DropdownMenuItem(
-                                  value: i + 1,
-                                  child: Text('${s.day} ${i + 1}'))),
-                          onChanged: (v) =>
-                              setState(() => _debtPaymentDay = v ?? 1),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
-                        child: AccountPickerField(
-                          provider: provider,
-                          label: s.payFromAccount,
-                          value: _debtPaymentSourceId,
-                          accounts: provider.accounts
-                              .where((a) =>
-                                  a.type != 'debt' && a.type != 'investment')
-                              .toList(),
-                          cashLabel: s.cashOnHand,
-                          onChanged: (value) =>
-                              setState(() => _debtPaymentSourceId = value),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-
-              SettingsGroup(
-                footer: s.countThisAccountInNetWorth,
-                children: [
-                  SettingsSwitchRow(
-                    icon: IOSIcons.trending_up,
-                    label: s.includeInNetWorth,
-                    value: _includeInNetWorth,
-                    onChanged: (value) =>
-                        setState(() => _includeInNetWorth = value),
-                  ),
-                ],
-              ),
-
-              SettingsConfirmRow(
-                label: isEditing ? s.save : s.addAccount,
-                onConfirm: _saveAccount,
+              ],
+            ),
+          SettingsGroup(
+            footer: s.countThisAccountInNetWorth,
+            children: [
+              SettingsSwitchRow(
+                icon: IOSIcons.trending_up,
+                label: s.includeInNetWorth,
+                value: _includeInNetWorth,
+                onChanged: (value) =>
+                    setState(() => _includeInNetWorth = value),
               ),
             ],
-          ),
-        ),
-      ),
-    );
+          )
+        ]),
+        actions: SettingsConfirmRow(
+          label: isEditing ? s.save : s.addAccount,
+          onConfirm: _saveAccount,
+        ));
   }
 
   /// Current logo as the row's leading tile, so the choice is visible where
@@ -679,21 +667,13 @@ class _AddAccountModalState extends State<AddAccountModal> {
   Widget _buildLogoRow(BuildContext context, S s) {
     final preview = _imagePath == null
         ? null
-        : ClipRRect(
+        : StoredImage(
+            reference: _imagePath,
+            bucket: SupabaseSyncService.logosBucket,
+            width: 30,
+            height: 30,
             borderRadius: BorderRadius.circular(9),
-            child: _imagePath!.startsWith('http')
-                ? Image.network(_imagePath!,
-                    width: 30,
-                    height: 30,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(IOSIcons.broken_image_rounded, size: 16.5))
-                : Image.file(File(_imagePath!),
-                    width: 30,
-                    height: 30,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(IOSIcons.broken_image_rounded, size: 16.5)),
+            errorWidget: const Icon(IOSIcons.broken_image_rounded, size: 16.5),
           );
 
     return Padding(
@@ -825,8 +805,10 @@ class _AddAccountModalState extends State<AddAccountModal> {
       color: _selectedColor,
       includeInNetWorth: _includeInNetWorth,
       imagePath: _imagePath,
-      salaryAmount: null,
-      salaryDay: null,
+      salaryAmount: widget.account?.salaryAmount,
+      salaryFrequency: widget.account?.salaryFrequency,
+      salaryDay: widget.account?.salaryDay,
+      salaryAnchorDate: widget.account?.salaryAnchorDate,
       lastSalaryDate: widget.account?.lastSalaryDate,
       debtPaymentAmount: (_selectedType == 'debt' &&
               _enableDebtPayment &&

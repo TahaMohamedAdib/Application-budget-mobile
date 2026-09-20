@@ -1,9 +1,10 @@
+import '../utils/system_note.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import '../utils/currency_helper.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/app_provider.dart';
@@ -13,12 +14,72 @@ import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../models/transaction.dart';
 import 'account_picker_field.dart';
+import 'transaction_form_sheet.dart';
 import 'app_form_sheet.dart';
 import 'app_picker_field.dart';
 import '../models/recurring_rule.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/stored_image.dart';
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
+
+const _supportedTransactionTypes = {
+  'expense',
+  'income',
+  'transfer',
+  'withdrawal',
+};
+
+/// Parses monetary input using the active locale while still accepting a
+/// canonical dot decimal. Grouping spaces used by several locales are ignored.
+double? parseTransactionNumber(String raw, Locale locale) {
+  final normalized = raw
+      .trim()
+      .replaceAll(RegExp(r'[\s\u00A0\u202F]'), '')
+      .replaceAll("'", '')
+      .replaceAll('\u2019', '');
+  if (normalized.isEmpty) return null;
+
+  try {
+    final parsed = NumberFormat.decimalPattern(locale.toLanguageTag())
+        .parse(normalized)
+        .toDouble();
+    if (parsed.isFinite) return parsed;
+  } on FormatException {
+    // Fall through to accept a canonical decimal pasted in another locale.
+  }
+
+  var canonical = normalized;
+  final lastComma = canonical.lastIndexOf(',');
+  final lastDot = canonical.lastIndexOf('.');
+  if (lastComma >= 0 && lastDot >= 0) {
+    if (lastComma > lastDot) {
+      canonical = canonical.replaceAll('.', '').replaceAll(',', '.');
+    } else {
+      canonical = canonical.replaceAll(',', '');
+    }
+  } else if (lastComma >= 0) {
+    canonical = canonical.replaceAll(',', '.');
+  }
+
+  final parsed = double.tryParse(canonical);
+  return parsed != null && parsed.isFinite ? parsed : null;
+}
+
+/// Shared route for adding and editing transactions from any entry point.
+Future<void> showTransactionSheet(
+  BuildContext context, {
+  String? initialType,
+  Transaction? initialTransaction,
+}) {
+  return showAppFormSheet<void>(
+    context: context,
+    builder: (_) => AddTransactionModal(
+      initialType: initialType,
+      initialTransaction: initialTransaction,
+    ),
+  );
+}
 
 class AddTransactionModal extends StatefulWidget {
   final String? initialType;
@@ -32,23 +93,110 @@ class AddTransactionModal extends StatefulWidget {
 
 class _AddTransactionModalState extends State<AddTransactionModal> {
   late String _selectedType;
-  bool get _isLocked => widget.initialType != null;
+  bool get _isLocked =>
+      widget.initialTransaction == null &&
+      _supportedTransactionTypes.contains(widget.initialType);
+  bool _isSubmitting = false;
+  String? _validationMessage;
 
   @override
   void initState() {
     super.initState();
-    _selectedType =
-        widget.initialType ?? widget.initialTransaction?.type ?? 'expense';
+    final requestedType =
+        widget.initialTransaction?.type ?? widget.initialType ?? 'expense';
+    _selectedType = _supportedTransactionTypes.contains(requestedType)
+        ? requestedType
+        : 'expense';
     if (widget.initialTransaction != null) {
       final t = widget.initialTransaction!;
       _amountController.text = t.amount.toString();
       if (t.fees > 0) _feesController.text = t.fees.toString();
-      _noteController.text = t.note ?? '';
+      _noteController.text = S
+              .forLocale(context.read<AppProvider>().settings.locale)
+              .systemNote(t.note) ??
+          '';
       _descriptionController.text = t.description ?? '';
       _selectedCategoryId = t.categoryId;
       _selectedAccountId = t.accountId;
+      _selectedToAccountId = t.toAccountId;
       _selectedDate = DateTime.parse(t.date);
       _expenseSubType = t.expenseSubType;
+      _imagePath = t.imagePath;
+      _isRecurringIncome = t.type == 'income' && t.isRecurring;
+
+      if (t.type == 'transfer' && t.toAccountId == null) {
+        _sendToPerson = true;
+        _hydrateRecipientFromNote(S
+            .forLocale(context.read<AppProvider>().settings.locale)
+            .systemNote(t.note));
+      }
+    }
+  }
+
+  void _hydrateRecipientFromNote(String? storedNote) {
+    if (storedNote == null || !storedNote.startsWith('Sent to ')) return;
+    final content = storedNote.substring('Sent to '.length);
+    final separator = content.indexOf(' - ');
+    if (separator < 0) {
+      _recipientController.text = content;
+      _noteController.clear();
+      return;
+    }
+    _recipientController.text = content.substring(0, separator);
+    _noteController.text = content.substring(separator + 3);
+  }
+
+  void _clearValidation() {
+    if (_validationMessage != null && mounted) {
+      setState(() => _validationMessage = null);
+    }
+  }
+
+  void _selectType(String type) {
+    if (_selectedType == type || !_supportedTransactionTypes.contains(type)) {
+      return;
+    }
+    setState(() {
+      _selectedType = type;
+      _validationMessage = null;
+      _selectedToAccountId = null;
+      _sendToPerson = false;
+      _recipientController.clear();
+      if (type != 'expense') {
+        _selectedCategoryId = null;
+        _expenseSubType = null;
+      }
+      if (type != 'income') _isRecurringIncome = false;
+      if (type == 'withdrawal' &&
+          _selectedAccountId == AppProvider.cashOnHandId) {
+        _selectedAccountId = null;
+      }
+    });
+  }
+
+  void _normalizeAccountSelections(AppProvider provider) {
+    final accountIds = provider.accounts.map((account) => account.id).toSet();
+    final cashAllowed = _selectedType != 'withdrawal';
+    final sourceIsValid = accountIds.contains(_selectedAccountId) ||
+        (cashAllowed && _selectedAccountId == AppProvider.cashOnHandId);
+
+    if (!sourceIsValid) {
+      _selectedAccountId = provider.accounts.isNotEmpty
+          ? provider.accounts.first.id
+          : cashAllowed
+              ? AppProvider.cashOnHandId
+              : null;
+    }
+
+    if (_selectedType == 'transfer' && !_sendToPerson) {
+      final destinationIsValid = accountIds.contains(_selectedToAccountId) &&
+          _selectedToAccountId != _selectedAccountId;
+      if (!destinationIsValid) {
+        _selectedToAccountId = provider.accounts
+            .where((account) => account.id != _selectedAccountId)
+            .firstOrNull
+            ?.id;
+      }
     }
   }
 
@@ -139,510 +287,500 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        if (_selectedAccountId == null && provider.accounts.isNotEmpty) {
-          _selectedAccountId = provider.accounts.first.id;
-        }
+        final s = S.of(context);
+        _normalizeAccountSelections(provider);
 
-        return AppFormSheet(
-          builder: (context, scrollController) => SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const AppFormSheetHandle(),
-                  const SizedBox(height: 16),
-                  _buildCompactHeader(isDark),
-                  if (!_isLocked && widget.initialTransaction == null) ...[
-                    const SizedBox(height: 14),
-                    _buildTypeSelector(context),
-                  ],
-                  const SizedBox(height: 18),
-                  _buildAmountField(provider, isDark),
-                  const SizedBox(height: 18),
+        return TransactionFormSheet(
+          header: _buildCompactHeader(isDark),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!_isLocked && widget.initialTransaction == null) ...[
+                const SizedBox(height: 14),
+                _buildTypeSelector(context),
+              ],
+              const SizedBox(height: 18),
+              _buildAmountField(provider, isDark),
+              const SizedBox(height: 18),
 
-                  // Bank fees (for expense, withdrawal, transfer)
-                  if (_selectedType == 'expense' ||
-                      _selectedType == 'withdrawal' ||
-                      _selectedType == 'transfer') ...[
-                    TextField(
-                      controller: _feesController,
-                      keyboardType: TextInputType.number,
-                      decoration: _glassInputDecoration(
+              // Bank fees (for expense, withdrawal, transfer)
+              if (_selectedType == 'expense' ||
+                  _selectedType == 'withdrawal' ||
+                  _selectedType == 'transfer') ...[
+                TextField(
+                  controller: _feesController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: _glassInputDecoration(
+                    isDark: isDark,
+                    label: s.tr('bankFees'),
+                    hint: '0.00',
+                    prefixText:
+                        '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                    icon: IOSIcons.account_balance_rounded,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Category (for expenses only)
+              if (_selectedType == 'expense') ...[
+                AppPickerField<String>(
+                  label: s.category,
+                  value: _selectedCategoryId,
+                  prefixIcon: AppIcons.categoryIcon,
+                  items: provider.categories
+                      .map((cat) => AppPickerItem(
+                            value: cat.id,
+                            label: s.categoryDisplayName(cat.id, cat.name),
+                            leadingIcon: _categoryIconData(cat.icon),
+                            iconColor: AppTheme.adaptiveIcon(context),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCategoryId = v),
+                ),
+                const SizedBox(height: 12),
+                // Expense sub-type selector
+                if (widget.initialTransaction == null)
+                  _buildSegmentedControl(
+                    isDark: isDark,
+                    children: [
+                      _buildSegmentOption(
                         isDark: isDark,
-                        label: 'Bank Fees',
-                        hint: '0.00',
-                        prefixText:
-                            '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                        icon: IOSIcons.account_balance_rounded,
+                        isSelected: _expenseSubType == null,
+                        label: s.tr('oneTime'),
+                        icon: IOSIcons.receipt_rounded,
+                        onTap: () => setState(() => _expenseSubType = null),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Category (for expenses only)
-                  if (_selectedType == 'expense') ...[
-                    AppPickerField<String>(
-                      label: 'Category',
-                      value: _selectedCategoryId,
-                      prefixIcon: AppIcons.categoryIcon,
-                      items: provider.categories
-                          .map((cat) => AppPickerItem(
-                                value: cat.id,
-                                label: cat.name,
-                                leadingIcon: _categoryIconData(cat.icon),
-                                iconColor: AppTheme.adaptiveIcon(context),
-                              ))
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedCategoryId = v),
-                    ),
-                    const SizedBox(height: 12),
-                    // Expense sub-type selector
-                    _buildSegmentedControl(
-                      isDark: isDark,
-                      children: [
-                        _buildSegmentOption(
-                          isDark: isDark,
-                          isSelected: _expenseSubType == null,
-                          label: 'One-time',
-                          icon: IOSIcons.receipt_rounded,
-                          onTap: () => setState(() => _expenseSubType = null),
-                        ),
-                        _buildSegmentOption(
-                          isDark: isDark,
-                          isSelected: _expenseSubType == 'subscription',
-                          label: 'Subscription',
-                          icon: IOSIcons.repeat_rounded,
-                          onTap: () =>
-                              setState(() => _expenseSubType = 'subscription'),
-                        ),
-                      ],
-                    ),
-                    if (_expenseSubType == 'subscription') ...[
-                      const SizedBox(height: 10),
-                      _buildFrequencySelector(
+                      _buildSegmentOption(
                         isDark: isDark,
-                        selected: _subscriptionFrequency,
-                        onChanged: (frequency) =>
-                            setState(() => _subscriptionFrequency = frequency),
+                        isSelected: _expenseSubType == 'subscription',
+                        label: s.subscription,
+                        icon: IOSIcons.repeat_rounded,
+                        onTap: () =>
+                            setState(() => _expenseSubType = 'subscription'),
                       ),
                     ],
-                    const SizedBox(height: 16),
-                  ],
+                  ),
+                if (widget.initialTransaction == null &&
+                    _expenseSubType == 'subscription') ...[
+                  const SizedBox(height: 10),
+                  _buildFrequencySelector(
+                    isDark: isDark,
+                    selected: _subscriptionFrequency,
+                    onChanged: (frequency) =>
+                        setState(() => _subscriptionFrequency = frequency),
+                  ),
+                ],
+                const SizedBox(height: 16),
+              ],
 
-                  // From Account (includes Cash for expense/income/transfer, excludes for withdrawal since withdrawal always comes from a bank)
+              // From Account (includes Cash for expense/income/transfer, excludes for withdrawal since withdrawal always comes from a bank)
+              _buildAccountDropdown(
+                provider: provider,
+                value: _selectedAccountId,
+                label: _selectedType == 'transfer'
+                    ? s.fromAccount
+                    : (_selectedType == 'withdrawal'
+                        ? s.tr('withdrawFrom')
+                        : s.account),
+                showCashOnHand: _selectedType != 'withdrawal',
+                onChanged: (value) => setState(() {
+                  _selectedAccountId = value;
+                  _selectedToAccountId = null; // reset To when From changes
+                }),
+              ),
+              const SizedBox(height: 16),
+
+              // Transfer: toggle between "Own Account" and "Send to Person"
+              if (_selectedType == 'transfer') ...[
+                _buildSegmentedControl(
+                  isDark: isDark,
+                  children: [
+                    _buildSegmentOption(
+                      isDark: isDark,
+                      isSelected: !_sendToPerson,
+                      label: s.tr('ownAccount'),
+                      icon: IOSIcons.account_balance_rounded,
+                      onTap: () => setState(() {
+                        _sendToPerson = false;
+                        _selectedToAccountId = null;
+                      }),
+                    ),
+                    _buildSegmentOption(
+                      isDark: isDark,
+                      isSelected: _sendToPerson,
+                      label: s.tr('sendToPerson'),
+                      icon: IOSIcons.person_rounded,
+                      onTap: () => setState(() {
+                        _sendToPerson = true;
+                        _selectedToAccountId = null;
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (!_sendToPerson)
                   _buildAccountDropdown(
                     provider: provider,
-                    value: _selectedAccountId,
-                    label: _selectedType == 'transfer'
-                        ? 'From'
-                        : (_selectedType == 'withdrawal'
-                            ? 'Withdraw From'
-                            : 'Account'),
-                    showCashOnHand: _selectedType != 'withdrawal',
-                    onChanged: (value) => setState(() {
-                      _selectedAccountId = value;
-                      _selectedToAccountId = null; // reset To when From changes
+                    value: _selectedToAccountId,
+                    label: s.toAccount,
+                    showCashOnHand: false,
+                    excludeId: _selectedAccountId,
+                    onChanged: (value) =>
+                        setState(() => _selectedToAccountId = value),
+                  )
+                else
+                  TextField(
+                    controller: _recipientController,
+                    decoration: _glassInputDecoration(
+                      isDark: isDark,
+                      label: s.tr('recipientName'),
+                      hint: s.tr('recipientNameHint'),
+                      icon: IOSIcons.person_rounded,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+              ],
+
+              // Withdrawal info callout
+              if (_selectedType == 'withdrawal')
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: _controlDecoration(isDark,
+                      tint: AppTheme.withdrawalIcon, radius: 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: _alpha(AppTheme.withdrawalIcon, 0.14),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(IOSIcons.info_outline_rounded,
+                            size: 18, color: AppTheme.withdrawalIcon),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          s.tr('withdrawalCashInfo'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.35,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Date Picker
+              GestureDetector(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (date != null && context.mounted) {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(_selectedDate),
+                    );
+                    setState(() => _selectedDate = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time?.hour ?? _selectedDate.hour,
+                          time?.minute ?? _selectedDate.minute,
+                        ));
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: _controlDecoration(isDark, elevated: true),
+                  child: Row(
+                    children: [
+                      Icon(IOSIcons.calendar_today_rounded,
+                          size: 18, color: AppTheme.adaptiveIcon(context)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(s.date,
+                                style: Theme.of(context).textTheme.bodySmall),
+                            Text(
+                              '${MaterialLocalizations.of(context).formatMediumDate(_selectedDate)} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(_selectedDate))}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(IOSIcons.chevron_right_rounded,
+                          size: 20, color: AppTheme.adaptiveIcon(context)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Recurring income toggle (income type only)
+              if (_selectedType == 'income' &&
+                  widget.initialTransaction == null) ...[
+                _buildSegmentedControl(
+                  isDark: isDark,
+                  children: [
+                    _buildSegmentOption(
+                      isDark: isDark,
+                      isSelected: !_isRecurringIncome,
+                      label: s.tr('oneTime'),
+                      icon: IOSIcons.receipt_rounded,
+                      onTap: () => setState(() => _isRecurringIncome = false),
+                    ),
+                    _buildSegmentOption(
+                      isDark: isDark,
+                      isSelected: _isRecurringIncome,
+                      label: s.recurring,
+                      icon: IOSIcons.repeat_rounded,
+                      onTap: () => setState(() => _isRecurringIncome = true),
+                    ),
+                  ],
+                ),
+                if (_isRecurringIncome) ...[
+                  const SizedBox(height: 10),
+                  _buildFrequencySelector(
+                    isDark: isDark,
+                    selected: _incomeFrequency,
+                    onChanged: (frequency) => setState(() {
+                      _incomeFrequency = frequency;
+                      final now = DateTime.now();
+                      _incomeNextDate = frequency == 'weekly'
+                          ? now.add(const Duration(days: 7))
+                          : frequency == 'yearly'
+                              ? DateTime(now.year + 1, now.month, now.day)
+                              : DateTime(now.year, now.month + 1, now.day);
                     }),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Transfer: toggle between "Own Account" and "Send to Person"
-                  if (_selectedType == 'transfer') ...[
-                    _buildSegmentedControl(
-                      isDark: isDark,
-                      children: [
-                        _buildSegmentOption(
-                          isDark: isDark,
-                          isSelected: !_sendToPerson,
-                          label: 'Own Account',
-                          icon: IOSIcons.account_balance_rounded,
-                          onTap: () => setState(() {
-                            _sendToPerson = false;
-                            _selectedToAccountId = null;
-                          }),
-                        ),
-                        _buildSegmentOption(
-                          isDark: isDark,
-                          isSelected: _sendToPerson,
-                          label: 'Send to Person',
-                          icon: IOSIcons.person_rounded,
-                          onTap: () => setState(() {
-                            _sendToPerson = true;
-                            _selectedToAccountId = null;
-                          }),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (!_sendToPerson)
-                      _buildAccountDropdown(
-                        provider: provider,
-                        value: _selectedToAccountId,
-                        label: 'To',
-                        showCashOnHand: false,
-                        excludeId: _selectedAccountId,
-                        onChanged: (value) =>
-                            setState(() => _selectedToAccountId = value),
-                      )
-                    else
-                      TextField(
-                        controller: _recipientController,
-                        decoration: _glassInputDecoration(
-                          isDark: isDark,
-                          label: 'Recipient Name',
-                          hint: 'Who are you sending to?',
-                          icon: IOSIcons.person_rounded,
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Withdrawal info callout
-                  if (_selectedType == 'withdrawal')
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: _controlDecoration(isDark,
-                          tint: AppTheme.withdrawalIcon, radius: 20),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: _alpha(AppTheme.withdrawalIcon, 0.14),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(IOSIcons.info_outline_rounded,
-                                size: 18, color: AppTheme.withdrawalIcon),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'This amount will be deducted from your account and added to Cash.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.35,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Date Picker
+                  const SizedBox(height: 10),
                   GestureDetector(
                     onTap: () async {
-                      final date = await showDatePicker(
+                      final picked = await showDatePicker(
                         context: context,
-                        initialDate: _selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        initialDate: _incomeNextDate,
+                        firstDate: DateTime.now(),
+                        lastDate:
+                            DateTime.now().add(const Duration(days: 365 * 3)),
                       );
-                      if (date != null && context.mounted) {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.fromDateTime(_selectedDate),
-                        );
-                        setState(() => _selectedDate = DateTime(
-                              date.year,
-                              date.month,
-                              date.day,
-                              time?.hour ?? _selectedDate.hour,
-                              time?.minute ?? _selectedDate.minute,
-                            ));
+                      if (picked != null) {
+                        setState(() => _incomeNextDate = picked);
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: _controlDecoration(isDark, elevated: true),
+                      padding: const EdgeInsets.all(14),
+                      decoration: _controlDecoration(isDark),
                       child: Row(
                         children: [
                           Icon(IOSIcons.calendar_today_rounded,
-                              size: 18, color: AppTheme.adaptiveIcon(context)),
-                          const SizedBox(width: 12),
+                              size: 16, color: AppTheme.adaptiveIcon(context)),
+                          const SizedBox(width: 10),
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Date',
-                                  style: Theme.of(context).textTheme.bodySmall),
-                              Text(
-                                  DateFormat('MMM d, yyyy · h:mm a')
-                                      .format(_selectedDate),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w600)),
-                            ],
-                          ),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(s.tr('nextIncomeDate'),
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall),
+                                Text(
+                                    MaterialLocalizations.of(context)
+                                        .formatMediumDate(_incomeNextDate),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w600)),
+                              ]),
                           const Spacer(),
                           Icon(IOSIcons.chevron_right_rounded,
-                              size: 20, color: AppTheme.adaptiveIcon(context)),
+                              size: 18, color: AppTheme.adaptiveIcon(context)),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ],
+                const SizedBox(height: 16),
+              ],
 
-                  // Recurring income toggle (income type only)
-                  if (_selectedType == 'income') ...[
-                    _buildSegmentedControl(
-                      isDark: isDark,
-                      children: [
-                        _buildSegmentOption(
-                          isDark: isDark,
-                          isSelected: !_isRecurringIncome,
-                          label: 'One-time',
-                          icon: IOSIcons.receipt_rounded,
-                          onTap: () =>
-                              setState(() => _isRecurringIncome = false),
-                        ),
-                        _buildSegmentOption(
-                          isDark: isDark,
-                          isSelected: _isRecurringIncome,
-                          label: 'Recurring',
-                          icon: IOSIcons.repeat_rounded,
-                          onTap: () =>
-                              setState(() => _isRecurringIncome = true),
-                        ),
-                      ],
-                    ),
-                    if (_isRecurringIncome) ...[
-                      const SizedBox(height: 10),
-                      _buildFrequencySelector(
-                        isDark: isDark,
-                        selected: _incomeFrequency,
-                        onChanged: (frequency) => setState(() {
-                          _incomeFrequency = frequency;
-                          final now = DateTime.now();
-                          _incomeNextDate = frequency == 'weekly'
-                              ? now.add(const Duration(days: 7))
-                              : frequency == 'yearly'
-                                  ? DateTime(now.year + 1, now.month, now.day)
-                                  : DateTime(now.year, now.month + 1, now.day);
-                        }),
-                      ),
-                      const SizedBox(height: 10),
-                      GestureDetector(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _incomeNextDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now()
-                                .add(const Duration(days: 365 * 3)),
-                          );
-                          if (picked != null)
-                            setState(() => _incomeNextDate = picked);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: _controlDecoration(isDark),
-                          child: Row(
+              // Title / Note
+              TextField(
+                controller: _noteController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: _glassInputDecoration(
+                  isDark: isDark,
+                  label: s.tr('titleOptional'),
+                  hint: s.tr('transactionTitleHint'),
+                  icon: IOSIcons.title_rounded,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Description
+              TextField(
+                controller: _descriptionController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: _glassInputDecoration(
+                  isDark: isDark,
+                  label: s.tr('descriptionOptional'),
+                  hint: s.tr('transactionDescriptionHint'),
+                  icon: IOSIcons.notes_rounded,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Receipt / Photo (optional)
+              if (_selectedType == 'expense' || _selectedType == 'income') ...[
+                GestureDetector(
+                  onTap: () async {
+                    if (_imagePath != null) {
+                      setState(() => _imagePath = null);
+                    } else {
+                      final image = await ImagePicker().pickImage(
+                          source: ImageSource.gallery, imageQuality: 80);
+                      if (image != null) {
+                        setState(() =>
+                            _imagePath = image.path); // show locally first
+                        // Upload in the background and keep the returned
+                        // object PATH, not a URL: these buckets are private,
+                        // so a URL expires within the hour and would leave
+                        // the receipt broken — permanently, after a
+                        // reinstall. The path is re-signed on demand.
+                        final uid = SupabaseConfig.client?.auth.currentUser?.id;
+                        if (uid != null) {
+                          final objectPath =
+                              await SupabaseSyncService.uploadReceipt(
+                                  uid, image.path);
+                          // On failure the local path stays, so the image is
+                          // still visible on this device even though it did
+                          // not reach the server.
+                          if (objectPath != null && mounted) {
+                            setState(() => _imagePath = objectPath);
+                          }
+                        }
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: _controlDecoration(isDark, elevated: true),
+                    child: _imagePath != null
+                        ? Row(
                             children: [
-                              Icon(IOSIcons.calendar_today_rounded,
-                                  size: 16,
-                                  color: AppTheme.adaptiveIcon(context)),
-                              const SizedBox(width: 10),
-                              Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Next Income Date',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall),
-                                    Text(
-                                        DateFormat('MMM d, yyyy')
-                                            .format(_incomeNextDate),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.w600)),
-                                  ]),
-                              const Spacer(),
-                              Icon(IOSIcons.chevron_right_rounded,
+                              StoredImage(
+                                reference: _imagePath,
+                                width: 56,
+                                height: 56,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                  child: Text(s.tr('receiptAttached'),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w600))),
+                              Icon(IOSIcons.close_rounded,
                                   size: 18,
                                   color: AppTheme.adaptiveIcon(context)),
                             ],
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Title / Note
-                  TextField(
-                    controller: _noteController,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: _glassInputDecoration(
-                      isDark: isDark,
-                      label: 'Title (Optional)',
-                      hint: 'e.g., Netflix, Groceries...',
-                      icon: IOSIcons.title_rounded,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Description
-                  TextField(
-                    controller: _descriptionController,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: _glassInputDecoration(
-                      isDark: isDark,
-                      label: 'Description (Optional)',
-                      hint: 'e.g., Monthly plan, Morning coffee...',
-                      icon: IOSIcons.notes_rounded,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Receipt / Photo (optional)
-                  if (_selectedType == 'expense' ||
-                      _selectedType == 'income') ...[
-                    GestureDetector(
-                      onTap: () async {
-                        if (_imagePath != null) {
-                          setState(() => _imagePath = null);
-                        } else {
-                          final image = await ImagePicker().pickImage(
-                              source: ImageSource.gallery, imageQuality: 80);
-                          if (image != null) {
-                            setState(() =>
-                                _imagePath = image.path); // show locally first
-                            // Try uploading to Supabase Storage in background
-                            final uid =
-                                SupabaseConfig.client?.auth.currentUser?.id;
-                            if (uid != null) {
-                              final url =
-                                  await SupabaseSyncService.uploadReceipt(
-                                      uid, image.path);
-                              if (url != null && mounted)
-                                setState(() => _imagePath = url);
-                            }
-                          }
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: _controlDecoration(isDark, elevated: true),
-                        child: _imagePath != null
-                            ? Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: _imagePath!.startsWith('http')
-                                        ? Image.network(_imagePath!,
-                                            width: 56,
-                                            height: 56,
-                                            fit: BoxFit.cover)
-                                        : Image.file(File(_imagePath!),
-                                            width: 56,
-                                            height: 56,
-                                            fit: BoxFit.cover),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                      child: Text('Receipt attached',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                  fontWeight:
-                                                      FontWeight.w600))),
-                                  Icon(IOSIcons.close_rounded,
-                                      size: 18,
-                                      color: AppTheme.adaptiveIcon(context)),
-                                ],
-                              )
-                            : Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          AppTheme.adaptiveIconSurface(context),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Icon(IOSIcons.receipt_long_rounded,
-                                        size: 20,
-                                        color: AppTheme.adaptiveIcon(context)),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Text('Attach receipt / photo',
-                                      style: TextStyle(
-                                          fontSize: 14,
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.color)),
-                                  const Spacer(),
-                                  Icon(IOSIcons.chevron_right_rounded,
-                                      size: 20,
-                                      color: AppTheme.adaptiveIcon(context)),
-                                ],
+                          )
+                        : Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.adaptiveIconSurface(context),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(IOSIcons.receipt_long_rounded,
+                                    size: 20,
+                                    color: AppTheme.adaptiveIcon(context)),
                               ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Submit Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color.lerp(_typeColor, Colors.white, 0.08)!,
-                            Color.lerp(_typeColor, Colors.black, 0.08)!,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _alpha(Colors.white, 0.20)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _alpha(_typeColor, isDark ? 0.28 : 0.20),
-                            blurRadius: 24,
-                            spreadRadius: -8,
-                            offset: const Offset(0, 10),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  s.tr('attachReceiptPhoto'),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.color),
+                                ),
+                              ),
+                              Icon(IOSIcons.chevron_right_rounded,
+                                  size: 20,
+                                  color: AppTheme.adaptiveIcon(context)),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () => _addTransaction(provider),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: _selectedType == 'withdrawal'
-                              ? const Color(0xFF171719)
-                              : Colors.white,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20)),
-                        ),
-                        child: Text(
-                          widget.initialTransaction != null
-                              ? S.of(context).saveChanges
-                              : (_isLocked
-                                  ? _title(context)
-                                  : '${S.of(context).add} ${_getTypeLabel(context)}'),
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ],
+          ),
+          actions: _buildActions(provider, isDark),
+        );
+      },
+    );
+  }
+
+  Widget _buildActions(AppProvider provider, bool isDark) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Submit Button
+        if (_validationMessage != null) ...[
+          Semantics(
+            liveRegion: true,
+            child: Container(
+              key: const Key('transaction-validation-message'),
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: _controlDecoration(
+                isDark,
+                tint: Theme.of(context).colorScheme.error,
+                radius: 16,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    IOSIcons.info_outline_rounded,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _validationMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -650,8 +788,61 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
               ),
             ),
           ),
-        );
-      },
+        ],
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(_typeColor, Colors.white, 0.08)!,
+                  Color.lerp(_typeColor, Colors.black, 0.08)!,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _alpha(Colors.white, 0.20)),
+              boxShadow: [
+                BoxShadow(
+                  color: _alpha(_typeColor, isDark ? 0.28 : 0.20),
+                  blurRadius: 24,
+                  spreadRadius: -8,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: _isSubmitting ? null : () => _addTransaction(provider),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                foregroundColor: _selectedType == 'withdrawal'
+                    ? const Color(0xFF171719)
+                    : Colors.white,
+                elevation: 0,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+              ),
+              child: Text(
+                widget.initialTransaction != null
+                    ? S.of(context).saveChanges
+                    : (_isLocked
+                        ? _title(context)
+                        : '${S.of(context).add} ${_getTypeLabel(context)}'),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _selectedType == 'withdrawal'
+                          ? const Color(0xFF171719)
+                          : Colors.white,
+                    ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -671,17 +862,33 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
         const SizedBox(width: 12),
         Expanded(
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             child: Text(
               _sheetTitle(context),
               key: ValueKey(_selectedType),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: _typeColor,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
           ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(
+          key: const ValueKey('transaction-sheet-close'),
+          onPressed: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            Navigator.of(context).pop();
+          },
+          tooltip: S.of(context).close,
+          style: IconButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            backgroundColor: _alpha(isDark ? Colors.white : Colors.black, 0.07),
+            foregroundColor: AppTheme.adaptiveIcon(context),
+          ),
+          icon: const Icon(IOSIcons.close_rounded, size: 20),
         ),
       ],
     );
@@ -823,17 +1030,24 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       ),
       child: TextField(
         controller: _amountController,
+        onChanged: (_) => _clearValidation(),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         cursorColor: _typeColor,
-        style: TextStyle(
-          fontSize: 36,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0,
-          color: isDark ? Colors.white : const Color(0xFF111113),
-        ),
+        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+              color: isDark ? Colors.white : const Color(0xFF111113),
+            ),
         decoration: InputDecoration(
-          labelText: 'Amount',
+          labelText: S.of(context).amount,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           hintText: '0.00',
+          hintStyle: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontSize: 36,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).hintColor,
+              ),
           prefixText:
               '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
           prefixStyle: TextStyle(
@@ -852,7 +1066,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
           focusedErrorBorder: InputBorder.none,
           filled: false,
         ),
-        autofocus: true,
+        autofocus: false,
       ),
     );
   }
@@ -878,59 +1092,66 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     final foreground = isDark ? Colors.white : const Color(0xFF1C1C1E);
     final secondary = AppTheme.adaptiveIcon(context, alpha: 0.78);
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          padding: EdgeInsets.symmetric(vertical: icon == null ? 11 : 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? isDark
-                    ? _alpha(Colors.white, 0.14)
-                    : _alpha(Colors.white, 0.96)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: label,
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: EdgeInsets.symmetric(vertical: icon == null ? 11 : 8),
+            decoration: BoxDecoration(
               color: isSelected
                   ? isDark
-                      ? _alpha(Colors.white, 0.12)
-                      : _alpha(Colors.black, 0.04)
+                      ? _alpha(Colors.white, 0.14)
+                      : _alpha(Colors.white, 0.96)
                   : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? isDark
+                        ? _alpha(Colors.white, 0.12)
+                        : _alpha(Colors.black, 0.04)
+                    : Colors.transparent,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: _alpha(Colors.black, isDark ? 0.20 : 0.10),
+                        blurRadius: 14,
+                        spreadRadius: -7,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: _alpha(Colors.black, isDark ? 0.20 : 0.10),
-                      blurRadius: 14,
-                      spreadRadius: -7,
-                      offset: const Offset(0, 6),
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon,
+                      size: 17, color: isSelected ? foreground : secondary),
+                  const SizedBox(width: 7),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: isSelected ? foreground : secondary,
                     ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(icon,
-                    size: 17, color: isSelected ? foreground : secondary),
-                const SizedBox(width: 7),
-              ],
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected ? foreground : secondary,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -948,7 +1169,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
           .map((frequency) => _buildSegmentOption(
                 isDark: isDark,
                 isSelected: selected == frequency,
-                label: frequency[0].toUpperCase() + frequency.substring(1),
+                label: switch (frequency) {
+                  'weekly' => S.of(context).weekly,
+                  'yearly' => S.of(context).yearly,
+                  _ => S.of(context).monthly,
+                },
                 onTap: () => onChanged(frequency),
               ))
           .toList(),
@@ -958,55 +1183,61 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   Widget _buildTypeChip(String type, String label, IconData icon, Color color) {
     final isSelected = _selectedType == type;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedType = type),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? _alpha(color, isDark ? 0.20 : 0.12)
-              : isDark
-                  ? _alpha(Colors.white, 0.045)
-                  : _alpha(Colors.black, 0.025),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: label,
+      child: GestureDetector(
+        onTap: () => _selectType(type),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
+          decoration: BoxDecoration(
             color: isSelected
-                ? _alpha(color, 0.72)
+                ? _alpha(color, isDark ? 0.20 : 0.12)
                 : isDark
-                    ? _alpha(Colors.white, 0.08)
-                    : _alpha(Colors.black, 0.06),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
+                    ? _alpha(Colors.white, 0.045)
+                    : _alpha(Colors.black, 0.025),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
               color: isSelected
-                  ? color
+                  ? _alpha(color, 0.72)
                   : isDark
-                      ? _alpha(Colors.white, 0.62)
-                      : _alpha(Colors.black, 0.48),
-              size: 20,
+                      ? _alpha(Colors.white, 0.08)
+                      : _alpha(Colors.black, 0.06),
+              width: 1,
             ),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+          ),
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Column(
+            children: [
+              Icon(
+                icon,
                 color: isSelected
                     ? color
                     : isDark
                         ? _alpha(Colors.white, 0.62)
-                        : _alpha(Colors.black, 0.52),
+                        : _alpha(Colors.black, 0.48),
+                size: 20,
               ),
-            ),
-          ],
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected
+                      ? color
+                      : isDark
+                          ? _alpha(Colors.white, 0.62)
+                          : _alpha(Colors.black, 0.52),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1020,19 +1251,6 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     required ValueChanged<String?> onChanged,
     String? excludeId,
   }) {
-    if (value == null && showCashOnHand) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => onChanged(AppProvider.cashOnHandId));
-    } else if (value == null && provider.accounts.isNotEmpty) {
-      final eligibleAccounts = provider.accounts
-          .where((account) => excludeId == null || account.id != excludeId)
-          .toList();
-      if (eligibleAccounts.isNotEmpty) {
-        WidgetsBinding.instance
-            .addPostFrameCallback((_) => onChanged(eligibleAccounts.first.id));
-      }
-    }
-
     return AccountPickerField(
       provider: provider,
       label: label,
@@ -1094,107 +1312,131 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     }
   }
 
+  void _showValidation(String message) {
+    if (_validationMessage == message) return;
+    setState(() => _validationMessage = message);
+  }
+
   void _addTransaction(AppProvider provider) {
-    if (_amountController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter an amount')));
+    if (_isSubmitting) return;
+
+    final s = S.of(context);
+    final locale = Localizations.localeOf(context);
+    final amountText = _amountController.text.trim();
+    final feesText = _feesController.text.trim();
+    if (amountText.isEmpty) {
+      _showValidation(s.pleaseEnterAmount);
       return;
     }
 
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    final fees = double.tryParse(_feesController.text) ?? 0;
-    if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a valid amount')));
+    final amount = parseTransactionNumber(amountText, locale);
+    final fees =
+        feesText.isEmpty ? 0.0 : parseTransactionNumber(feesText, locale);
+    if (amount == null || amount <= 0) {
+      _showValidation(s.enterValidAmount);
       return;
     }
     if (amount > 999999999) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Amount exceeds maximum limit')));
+      _showValidation(s.tr('amountExceedsMaximum'));
       return;
     }
-    if (fees < 0 || fees > 999999) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter valid fees')));
-      return;
-    }
-
-    if (_selectedAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select an account')));
+    if (fees == null || fees < 0 || fees > 999999) {
+      _showValidation(s.tr('enterValidFees'));
       return;
     }
 
-    if (_selectedType == 'expense' && _selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a budget category')));
+    final accountIds = provider.accounts.map((account) => account.id).toSet();
+    final sourceIsCash = _selectedAccountId == AppProvider.cashOnHandId;
+    final sourceIsValid = accountIds.contains(_selectedAccountId) ||
+        (_selectedType != 'withdrawal' && sourceIsCash);
+    if (_selectedAccountId == null || !sourceIsValid) {
+      _showValidation(s.tr('pleaseSelectAccount'));
       return;
     }
 
-    // For transfers: require either a destination account or a recipient name
-    if (_selectedType == 'transfer') {
-      if (!_sendToPerson && _selectedToAccountId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Please select a destination account')));
-        return;
-      }
-      if (_sendToPerson && _recipientController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please enter recipient name')));
-        return;
-      }
-    }
-
-    // Build note for send-to-person transfers
-    String? note = _noteController.text.isEmpty ? null : _noteController.text;
-    if (_sendToPerson && _recipientController.text.isNotEmpty) {
-      note =
-          'Sent to ${_recipientController.text}${note != null ? ' - $note' : ''}';
-    }
-    if (_selectedType == 'withdrawal' && (note == null || note.isEmpty)) {
-      note = 'Cash withdrawal';
-    }
-    // Default expense name to category name if title is empty
     if (_selectedType == 'expense' &&
-        (note == null || note.isEmpty) &&
-        _selectedCategoryId != null) {
-      final cat = provider.categories
+        !provider.categories.any((c) => c.id == _selectedCategoryId)) {
+      _showValidation(s.tr('pleaseSelectBudgetCategory'));
+      return;
+    }
+
+    final recipient = _recipientController.text.trim();
+    if (_selectedType == 'transfer') {
+      if (!_sendToPerson &&
+          (!accountIds.contains(_selectedToAccountId) ||
+              _selectedToAccountId == _selectedAccountId)) {
+        _showValidation(s.tr('pleaseSelectDestinationAccount'));
+        return;
+      }
+      if (_sendToPerson && recipient.isEmpty) {
+        _showValidation(s.tr('pleaseEnterRecipientName'));
+        return;
+      }
+    }
+
+    var noteText = _noteController.text.trim();
+    String? note = noteText.isEmpty ? null : noteText;
+    if (_selectedType == 'transfer' && _sendToPerson) {
+      note = '${s.tr('sentToRecipient', {'name': recipient})}'
+          '${note != null ? ' - $note' : ''}';
+    }
+    if (_selectedType == 'withdrawal' && note == null) {
+      note = systemNote('cashWithdrawal');
+    }
+    if (_selectedType == 'expense' && note == null) {
+      final category = provider.categories
           .where((c) => c.id == _selectedCategoryId)
           .firstOrNull;
-      if (cat != null) note = cat.name;
+      if (category != null) {
+        final key = 'defaultCategory_${category.id}';
+        note = s.tr(key) == key ? category.name : systemNote(key);
+      }
+    }
+    final originalNote = widget.initialTransaction?.note;
+    if (originalNote != null && noteText == s.systemNote(originalNote)) {
+      note = originalNote;
     }
 
-    final description = _descriptionController.text.isEmpty
-        ? null
-        : _descriptionController.text;
+    final descriptionText = _descriptionController.text.trim();
+    final description = descriptionText.isEmpty ? null : descriptionText;
+    final categoryId = _selectedType == 'expense' ? _selectedCategoryId : null;
+    final toAccountId = _selectedType == 'transfer' && !_sendToPerson
+        ? _selectedToAccountId
+        : null;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _isSubmitting = true;
+      _validationMessage = null;
+    });
 
-    // If editing an existing transaction
     if (widget.initialTransaction != null) {
+      final original = widget.initialTransaction!;
       final transaction = Transaction(
-        id: widget.initialTransaction!.id,
+        id: original.id,
         type: _selectedType,
         amount: amount,
         fees: fees,
         date: _selectedDate.toIso8601String(),
         note: note,
         description: description,
-        categoryId: _selectedCategoryId,
+        categoryId: categoryId,
         accountId: _selectedAccountId!,
-        toAccountId: _sendToPerson ? null : _selectedToAccountId,
+        toAccountId: toAccountId,
         imagePath: _imagePath,
         expenseSubType: _selectedType == 'expense' ? _expenseSubType : null,
+        isRecurring: original.isRecurring,
       );
       provider.updateTransaction(transaction);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-            content: const Text('Transaction updated'),
-            backgroundColor: AppTheme.goldPrimary),
+          content: Text(s.tr('transactionUpdated')),
+          backgroundColor: AppTheme.goldPrimary,
+        ),
       );
       return;
     }
 
-    // Create recurring income rule
     if (_selectedType == 'income' && _isRecurringIncome) {
       final rule = RecurringRule(
         id: const Uuid().v4(),
@@ -1207,63 +1449,66 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
           amount: amount,
           date: DateTime.now().toIso8601String(),
           note: note,
+          description: description,
           accountId: _selectedAccountId!,
           isRecurring: true,
         ),
       );
-      // Also record current income transaction
-      final currentTx = Transaction(
+      final currentTransaction = Transaction(
         id: const Uuid().v4(),
         type: 'income',
         amount: amount,
         date: _selectedDate.toIso8601String(),
         note: note,
+        description: description,
         accountId: _selectedAccountId!,
         imagePath: _imagePath,
         isRecurring: true,
       );
-      provider.addTransaction(currentTx);
+      provider.addTransaction(currentTransaction);
       provider.addRecurringRule(rule);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-            content: const Text('Recurring income added'),
-            backgroundColor: AppTheme.success),
+          content: Text(s.tr('recurringIncomeAdded')),
+          backgroundColor: AppTheme.success,
+        ),
       );
       return;
     }
 
-    // Create subscription as recurring rule
     if (_selectedType == 'expense' && _expenseSubType == 'subscription') {
-      // Use the user-selected date/time as the first due date (may be today-future or future)
-      final nextDate = _selectedDate;
       final rule = RecurringRule(
         id: const Uuid().v4(),
         frequency: _subscriptionFrequency,
-        nextDate: nextDate.toIso8601String(),
+        nextDate: _selectedDate.toIso8601String(),
         isActive: true,
         templateTransaction: Transaction(
           id: '${const Uuid().v4()}_template',
           type: 'expense',
           amount: amount,
+          fees: fees,
           date: DateTime.now().toIso8601String(),
           note: note,
-          categoryId: _selectedCategoryId,
+          description: description,
+          categoryId: categoryId,
           accountId: _selectedAccountId!,
           isRecurring: true,
+          expenseSubType: 'subscription',
         ),
       );
       provider.addRecurringRule(rule);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-            content: const Text('Subscription added'),
-            backgroundColor: AppTheme.info),
+          content: Text(s.tr('subscriptionAdded')),
+          backgroundColor: AppTheme.info,
+        ),
       );
       return;
     }
 
-    final transaction = Transaction(
+    provider.addTransaction(Transaction(
       id: const Uuid().v4(),
       type: _selectedType,
       amount: amount,
@@ -1271,20 +1516,21 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       date: _selectedDate.toIso8601String(),
       note: note,
       description: description,
-      categoryId: _selectedCategoryId,
+      categoryId: categoryId,
       accountId: _selectedAccountId!,
-      toAccountId: _sendToPerson ? null : _selectedToAccountId,
+      toAccountId: toAccountId,
       imagePath: _imagePath,
       expenseSubType: _selectedType == 'expense' ? _expenseSubType : null,
-    );
-
-    provider.addTransaction(transaction);
+    ));
+    final successMessage = s.tr('itemAddedSuccessfully', {
+      'item': _getTypeLabel(context),
+    });
     Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
-          content: Text('${_getTypeLabel(context)} added successfully'),
-          backgroundColor: AppTheme.goldPrimary),
+        content: Text(successMessage),
+        backgroundColor: AppTheme.goldPrimary,
+      ),
     );
   }
 

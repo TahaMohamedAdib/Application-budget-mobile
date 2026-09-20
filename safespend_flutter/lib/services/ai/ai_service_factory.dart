@@ -4,14 +4,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'ai_backend_service.dart';
 import 'ai_config.dart';
 import 'ai_service.dart';
-import 'gemini_ai_service.dart';
 
 /// Resolves the active [AIService] from configuration.
 ///
-/// This is the only place that names a concrete provider. Moving to the
-/// self-hosted stack means building with `AI_PROVIDER=safespend`; once that is
-/// the default, `GeminiAIService` and this switch's other arm can be deleted
-/// without touching the Coach.
+/// One provider remains: the SafeSpend backend, which holds the model
+/// credential server-side and authenticates callers with their existing
+/// Supabase session. The direct-to-Gemini implementation was removed because
+/// it required an API key compiled into the app binary, where anyone who
+/// downloads the app can extract it.
 class AIServiceFactory {
   const AIServiceFactory._();
 
@@ -23,8 +23,6 @@ class AIServiceFactory {
     switch (provider ?? AIConfig.provider) {
       case AIProvider.safespend:
         return SafeSpendAIService(tokenProvider: _supabaseToken);
-      case AIProvider.gemini:
-        return GeminiAIService();
     }
   }
 

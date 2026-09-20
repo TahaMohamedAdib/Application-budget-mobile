@@ -17,6 +17,13 @@ dependencies:
   
   # Local Storage
   shared_preferences: ^2.2.2
+  # Local-first store. Relational business data (accounts, transactions,
+  # goals...) lives here; shared_preferences keeps only scalar settings.
+  sqflite: ^2.3.3
+  # Declared because the DB layer joins paths directly; both already
+  # arrive transitively via supabase_flutter.
+  path: ^1.9.0
+  path_provider: ^2.1.4
   connectivity_plus: ^6.0.5
   
   # Supabase
@@ -37,7 +44,6 @@ dependencies:
   http: ^1.2.0
 
   # Premium UI
-  google_fonts: ^6.1.0
   fl_chart: ^0.68.0
   flutter_animate: ^4.5.0
   flutter_staggered_animations: ^1.1.1
@@ -56,8 +62,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  # Runs SQLite in the Dart test VM; sqflite itself is Android/iOS only.
+  sqflite_common_ffi: ^2.3.3
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
   assets:
     - assets/icons/

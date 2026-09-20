@@ -53,7 +53,7 @@ class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
   bool _matches(String code) {
     if (_query.isEmpty) return true;
     return code.toLowerCase().contains(_query) ||
-        CurrencyHelper.getName(code).toLowerCase().contains(_query) ||
+        S.of(context).currencyName(code).toLowerCase().contains(_query) ||
         CurrencyHelper.getSymbol(code).toLowerCase().contains(_query);
   }
 
@@ -101,10 +101,14 @@ class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
       if (codes.isEmpty) continue;
 
       groups.add(SettingsGroup(
-        header: entry.key,
+        header: entry.key == 'Popular'
+            ? s.currency
+            : entry.key == 'Asia & Pacific'
+                ? '${s.tr('currencyRegion_Asia')} / ${s.tr('currencyRegion_Pacific')}'
+                : s.tr('currencyRegion_${entry.key.replaceAll(' ', '')}'),
         children: codes.map((code) {
           return SettingsChoiceRow(
-            label: CurrencyHelper.getName(code),
+            label: S.of(context).currencyName(code),
             detail: code,
             selected: code == current,
             leading: _SymbolTile(
@@ -167,13 +171,12 @@ class _SymbolTile extends StatelessWidget {
         symbol,
         maxLines: 1,
         overflow: TextOverflow.clip,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: selected
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).textTheme.bodyMedium?.color,
-        ),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).textTheme.bodyMedium?.color,
+            ),
       ),
     );
   }

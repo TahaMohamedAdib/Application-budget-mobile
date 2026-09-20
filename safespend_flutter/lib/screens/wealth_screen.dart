@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -18,6 +17,10 @@ import 'goals_screen.dart';
 import 'daret_screen.dart';
 import 'settings_screen.dart';
 import '../utils/money_format.dart';
+import '../widgets/money_amount.dart';
+import '../widgets/feature_help_button.dart';
+import '../widgets/stored_image.dart';
+import '../services/supabase_sync_service.dart';
 
 class WealthScreen extends StatefulWidget {
   const WealthScreen({super.key});
@@ -50,25 +53,16 @@ class _WealthScreenState extends State<WealthScreen> {
           provider.accounts.where((a) => a.id == provider.selectedAccountId);
       if (match.isNotEmpty && match.first.imagePath != null) {
         final path = match.first.imagePath!;
-        return SizedBox(
+        final fallback = Icon(_getAccountIcon(provider),
+            size: 16, color: AppTheme.adaptiveIcon(context));
+        return StoredImage(
+          reference: path,
+          bucket: SupabaseSyncService.logosBucket,
           width: 18,
           height: 18,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: path.startsWith('http')
-                ? Image.network(path,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                        _getAccountIcon(provider),
-                        size: 16,
-                        color: AppTheme.adaptiveIcon(context)))
-                : Image.file(File(path),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                        _getAccountIcon(provider),
-                        size: 16,
-                        color: AppTheme.adaptiveIcon(context))),
-          ),
+          borderRadius: BorderRadius.circular(5),
+          placeholder: fallback,
+          errorWidget: fallback,
         );
       }
     }
@@ -171,17 +165,28 @@ class _WealthScreenState extends State<WealthScreen> {
                                     .textTheme
                                     .headlineSmall
                                     ?.copyWith(fontWeight: FontWeight.w700)),
-                            GestureDetector(
-                              onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const SettingsScreen())),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: AppIcon(AppIcons.settings,
-                                    size: 22,
-                                    color: AppTheme.adaptiveIcon(context)),
-                              ),
+                            Row(
+                              children: [
+                                FeatureHelpButton(
+                                  title: s.tourWealthTitle,
+                                  description: s.tourWealthBody,
+                                  icon: IOSIcons.trending_up_rounded,
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const SettingsScreen())),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: AppIcon(AppIcons.settings,
+                                        size: 22,
+                                        color: AppTheme.adaptiveIcon(context)),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -267,14 +272,16 @@ class _WealthScreenState extends State<WealthScreen> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500)),
                           const SizedBox(height: 6),
-                          Text(cf.format(netWorth),
-                              style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF1C1C1E),
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -1.5)),
+                          MoneyAmount(
+                            key: const Key('wealth-net-worth'),
+                            value: netWorth,
+                            formatter: cf,
+                            fontSize: 38,
+                            minFontSize: 26,
+                            currencyInline: true,
+                            color:
+                                isDark ? Colors.white : const Color(0xFF1C1C1E),
+                          ),
                           const SizedBox(height: 20),
                           Container(
                             height: 1,
@@ -301,25 +308,31 @@ class _WealthScreenState extends State<WealthScreen> {
                                       FontWeight.w500)), // TODO: localize
                           const SizedBox(height: 10),
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _goldStatCol(s.income, '+${cf.format(income)}',
-                                  AppTheme.success, isDark),
-                              _goldStatCol(
+                              _goldStatRow(context, s.income, income, cf,
+                                  AppTheme.success,
+                                  signed: true),
+                              const SizedBox(width: 12),
+                              _goldStatRow(
+                                  context,
                                   s.debt,
-                                  '-${cf.format(totalDebt)}',
+                                  -totalDebt.abs(),
+                                  cf,
                                   isDark
                                       ? const Color(0xFFFF8A80)
-                                      : AppTheme.error,
-                                  isDark),
-                              _goldStatCol(
+                                      : AppTheme.error),
+                              const SizedBox(width: 12),
+                              _goldStatRow(
+                                  context,
                                   s.netWorth,
-                                  cf.format(netWorth),
+                                  netWorth,
+                                  cf,
                                   netWorth >= 0
                                       ? AppTheme.success
-                                      : (isDark
+                                      : isDark
                                           ? const Color(0xFFFF8A80)
                                           : AppTheme.error),
-                                  isDark),
                             ],
                           ),
                         ],
@@ -354,7 +367,8 @@ class _WealthScreenState extends State<WealthScreen> {
                             label: s.accounts,
                             // Name the account so a single balance isn't shown
                             // under a generic "checking / current" caption.
-                            sublabel: selectedAccount?.name ?? s.checkingCurrent,
+                            sublabel:
+                                selectedAccount?.name ?? s.checkingCurrent,
                             amount: totalBank,
                             isFirst: true,
                             onTap: () => Navigator.push(
@@ -465,6 +479,7 @@ class _WealthScreenState extends State<WealthScreen> {
     required String sublabel,
     required double amount,
     required VoidCallback onTap,
+
     /// Colour for the amount only — icons stay neutral across the app.
     /// Null leaves the amount in the default text colour.
     Color? amountColor,
@@ -511,18 +526,24 @@ class _WealthScreenState extends State<WealthScreen> {
                               .titleMedium
                               ?.copyWith(fontWeight: FontWeight.w600)),
                       Text(sublabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
                 ),
-                Text(
-                  cf.negativeSigned(amount),
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                      // Rows without a fixed accent (only Cash on Hand has one)
-                      // take their colour from the sign of the balance.
-                      color: amountColor ?? AppTheme.balanceColor(amount)),
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: MoneyAmount(
+                    value: amount,
+                    formatter: cf,
+                    fontSize: 15,
+                    minFontSize: 11,
+                    alignEnd: true,
+                    currencyInline: true,
+                    color: amountColor ?? AppTheme.balanceColor(amount),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 AppIcon(AppIcons.caretRight,
@@ -535,25 +556,30 @@ class _WealthScreenState extends State<WealthScreen> {
     );
   }
 
-  Widget _goldStatCol(
-      String label, String value, Color valueColor, bool isDark) {
+  Widget _goldStatRow(BuildContext context, String label, num value,
+      MoneyFormat formatter, Color color,
+      {bool signed = false}) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: TextStyle(
-                  color: isDark
-                      ? Colors.white.withOpacity(0.5)
-                      : const Color(0xFF74777C),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(
-                  color: valueColor,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14)),
+          // A third of the card is too narrow for seven figures, so these
+          // abbreviate by design. The hero directly above carries the exact
+          // net worth, and a long press here reveals the full value.
+          MoneyAmount(
+            value: value,
+            formatter: formatter,
+            fontSize: 14,
+            minFontSize: 11,
+            signed: signed,
+            currencyInline: true,
+            color: color,
+          ),
         ],
       ),
     );

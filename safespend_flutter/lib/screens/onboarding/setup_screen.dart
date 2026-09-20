@@ -1,3 +1,4 @@
+import '../../widgets/app_form_sheet.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -352,7 +353,7 @@ class _SetupScreenState extends State<SetupScreen> {
         : all
             .where((e) =>
                 e.key.toLowerCase().contains(query) ||
-                (e.value['name'] ?? '').toLowerCase().contains(query))
+                S.of(context).currencyName(e.key).toLowerCase().contains(query))
             .toList();
 
     return Column(
@@ -393,7 +394,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   Widget _currencyRow(String code) {
     return OnboardingChoice(
-      title: CurrencyHelper.getName(code),
+      title: S.of(context).currencyName(code),
       subtitle: code,
       selected: _currency == code,
       onTap: () => setState(() => _currency = code),
@@ -688,68 +689,24 @@ class _SetupScreenState extends State<SetupScreen> {
         ? List.generate(31, (i) => i + 1)
         : List.generate(7, (i) => i + 1);
 
-    showModalBottomSheet<void>(
+    showAppFormSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setSheetState) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.62,
+      builder: (sheetContext) => AppFormSheet(
+        header: Text(s.obPayDayLabel,
+            style: Theme.of(context).textTheme.titleLarge),
+        body: Column(children: [
+          for (final value in options)
+            OnboardingChoice(
+              title: monthly
+                  ? (value == 31 ? s.obPayDayLastDay : s.obPayDayOfMonth(value))
+                  : _weekdayName(value),
+              selected: _payDay == value,
+              onTap: () {
+                setState(() => _payDay = value);
+                Navigator.pop(sheetContext);
+              },
             ),
-            child: OnboardingGlass(
-              radius: 28,
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 5,
-                    margin: const EdgeInsets.only(bottom: 14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(3),
-                      color: AppTheme.adaptiveIcon(context, alpha: 0.25),
-                    ),
-                  ),
-                  Text(
-                    s.obPayDayLabel,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).textTheme.titleLarge?.color,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: options.length,
-                      itemBuilder: (_, i) {
-                        final value = options[i];
-                        return OnboardingChoice(
-                          title: monthly
-                              ? (value == 31
-                                  ? s.obPayDayLastDay
-                                  : s.obPayDayOfMonth(value))
-                              : _weekdayName(value),
-                          selected: _payDay == value,
-                          onTap: () {
-                            setState(() => _payDay = value);
-                            Navigator.pop(sheetContext);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+        ]),
       ),
     );
   }
@@ -799,7 +756,7 @@ class _SetupScreenState extends State<SetupScreen> {
                         .format(preview.monthlySalaryEquivalent),
                   ),
                   style: TextStyle(
-                    fontSize: 14.5,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: Theme.of(context).textTheme.titleMedium?.color,
                   ),
@@ -871,7 +828,7 @@ class _SetupScreenState extends State<SetupScreen> {
             child: Text(
               s.obIncomeSkipNote,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 13,
                 height: 1.4,
                 color: Theme.of(context).textTheme.bodySmall?.color,
               ),
@@ -918,7 +875,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
                   ),
@@ -928,7 +885,7 @@ class _SetupScreenState extends State<SetupScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 15.5,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Theme.of(context).textTheme.titleMedium?.color,
                     ),
@@ -939,7 +896,7 @@ class _SetupScreenState extends State<SetupScreen> {
             Text(
               s.obSummaryEdit,
               style: const TextStyle(
-                fontSize: 13.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.goldPrimary,
               ),

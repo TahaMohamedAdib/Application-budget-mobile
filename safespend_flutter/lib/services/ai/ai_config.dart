@@ -1,6 +1,12 @@
 import '../env_config.dart';
 
-enum AIProvider { gemini, safespend }
+/// The backends the app can talk to.
+///
+/// Only one remains. A `gemini` arm existed that called Google directly with
+/// an API key compiled into the binary; it was removed because such a key is
+/// extractable by anyone who downloads the app, and no client-side measure
+/// can prevent that.
+enum AIProvider { safespend }
 
 /// Which backend the app talks to, and how to reach it.
 ///
@@ -17,21 +23,31 @@ enum AIProvider { gemini, safespend }
 class AIConfig {
   const AIConfig._();
 
-  static const String _providerRaw = String.fromEnvironment(
-    'AI_PROVIDER',
-    defaultValue: 'gemini',
-  );
+  /// The active backend.
+  ///
+  /// Only one provider exists, so this is a constant rather than a build flag.
+  /// `AI_PROVIDER` is still read and ignored so an existing build script that
+  /// passes it does not fail; there is nothing left for it to select.
+  static AIProvider get provider => AIProvider.safespend;
 
-  static AIProvider get provider => switch (_providerRaw.toLowerCase().trim()) {
-        'safespend' => AIProvider.safespend,
-        _ => AIProvider.gemini,
-      };
-
-  /// Base URL of the SafeSpend AI backend. Ignored for the Gemini provider.
-  static const String baseUrl = String.fromEnvironment(
+  static const String _baseUrlRaw = String.fromEnvironment(
     'AI_BASE_URL',
     defaultValue: '',
   );
+
+  /// Base URL of the SafeSpend AI backend.
+  ///
+  /// Falls back to the Edge Functions host of the configured Supabase project,
+  /// where the `chat` function already lives. That keeps the default build
+  /// working without compiling in a provider key: the function holds the
+  /// credential server-side and authenticates callers with their existing
+  /// Supabase session. Set `AI_BASE_URL` to point at a different backend.
+  static String get baseUrl {
+    if (_baseUrlRaw.isNotEmpty) return _baseUrlRaw;
+    final supabase = EnvConfig.supabaseUrl.trim();
+    if (supabase.isEmpty) return '';
+    return '${supabase.replaceAll(RegExp(r'/+$'), '')}/functions';
+  }
 
   /// WebSocket endpoint for realtime voice. Derived from [baseUrl] when unset.
   static const String _voiceUrlRaw = String.fromEnvironment(
@@ -51,11 +67,10 @@ class AIConfig {
   static String get chatEndpoint =>
       '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/v1/chat';
 
-  /// Whether the selected provider has what it needs to run.
-  static bool get isConfigured => switch (provider) {
-        AIProvider.gemini => EnvConfig.geminiApiKey.isNotEmpty,
-        AIProvider.safespend => baseUrl.isNotEmpty,
-      };
+  /// Whether the backend has what it needs to run. No API key is involved:
+  /// the credential lives server-side, and callers authenticate with their
+  /// own Supabase session token.
+  static bool get isConfigured => baseUrl.isNotEmpty;
 
   /// Request timeout for a single completion.
   static const Duration requestTimeout = Duration(seconds: 90);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/account.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_icons.dart';
@@ -19,9 +20,9 @@ class AccountPickerField extends StatelessWidget {
   final bool includeCashOnHand;
   final bool includeAllAccounts;
   final bool includeNoAccount;
-  final String allAccountsLabel;
-  final String noAccountLabel;
-  final String cashLabel;
+  final String? allAccountsLabel;
+  final String? noAccountLabel;
+  final String? cashLabel;
   final String? excludeAccountId;
   final String? prefixIcon;
   final String? helperText;
@@ -37,9 +38,9 @@ class AccountPickerField extends StatelessWidget {
     this.includeCashOnHand = true,
     this.includeAllAccounts = false,
     this.includeNoAccount = false,
-    this.allAccountsLabel = 'All Accounts',
-    this.noAccountLabel = 'No account',
-    this.cashLabel = 'Cash on Hand',
+    this.allAccountsLabel,
+    this.noAccountLabel,
+    this.cashLabel,
     this.excludeAccountId,
     this.prefixIcon = AppIcons.wallet,
     this.helperText,
@@ -70,6 +71,7 @@ class AccountPickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final formatter = MoneyFormat.of(provider.settings);
     final eligibleAccounts = (accounts ?? provider.accounts)
         .where((account) => account.id != excludeAccountId)
@@ -87,23 +89,23 @@ class AccountPickerField extends StatelessWidget {
         if (includeAllAccounts)
           AppPickerItem(
             value: _allAccountsValue,
-            label: allAccountsLabel,
-            subtitle: '${formatter.format(total)} combined',
+            label: allAccountsLabel ?? s.allAccounts,
+            subtitle: '${formatter.format(total)} ${s.accountsCombined}',
             leadingIcon: AppIcons.wallet,
             iconColor: AppTheme.adaptiveIcon(context),
           ),
         if (includeNoAccount)
           AppPickerItem(
             value: _noAccountValue,
-            label: noAccountLabel,
-            subtitle: 'Do not change an account balance',
+            label: noAccountLabel ?? s.external,
+            subtitle: s.noAccountDeduction,
             leadingIcon: AppIcons.close,
             iconColor: AppTheme.adaptiveIcon(context, alpha: 0.58),
           ),
         if (includeCashOnHand)
           AppPickerItem(
             value: AppProvider.cashOnHandId,
-            label: cashLabel,
+            label: cashLabel ?? s.cashOnHand,
             subtitle: formatter.format(provider.totalCash),
             leadingIcon: AppIcons.money,
             iconColor: AppTheme.cashOnHandIcon,
@@ -113,7 +115,7 @@ class AccountPickerField extends StatelessWidget {
             value: account.id,
             label: account.name,
             subtitle:
-                '${formatter.format(account.balance)} · ${account.bankName ?? _accountTypeLabel(account.type)}',
+                '${formatter.format(account.balance)} · ${account.bankName ?? _accountTypeLabel(account.type, s)}',
             leadingIcon: _iconForType(account.type),
             iconColor: AppTheme.adaptiveIcon(context),
             imagePath: account.imagePath,
@@ -130,8 +132,13 @@ class AccountPickerField extends StatelessWidget {
     );
   }
 
-  String _accountTypeLabel(String type) {
-    if (type.isEmpty) return 'Account';
-    return '${type[0].toUpperCase()}${type.substring(1)}';
+  String _accountTypeLabel(String type, S s) {
+    return switch (type) {
+      'bank' => s.bankAccount,
+      'savings' => s.savingsAccount,
+      'investment' => s.investmentAccount,
+      'debt' => s.debtAccount,
+      _ => s.account,
+    };
   }
 }

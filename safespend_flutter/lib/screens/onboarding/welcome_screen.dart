@@ -38,7 +38,7 @@ class WelcomeScreen extends StatelessWidget {
           Text(
             s.obWelcomeFootnote,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
               color: Theme.of(context).textTheme.bodySmall?.color,
             ),
@@ -63,7 +63,7 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 s.obWelcomeTo,
                 style: TextStyle(
-                  fontSize: 17,
+                  fontSize: 18,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.2,
                   color: Theme.of(context).textTheme.bodySmall?.color,

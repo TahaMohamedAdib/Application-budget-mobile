@@ -20,6 +20,8 @@ import 'package:safespend_flutter/screens/settings/security_screen.dart';
 import 'package:safespend_flutter/screens/settings_screen.dart';
 import 'package:safespend_flutter/services/auth_service.dart';
 import 'package:safespend_flutter/theme/app_theme.dart';
+import 'package:safespend_flutter/theme/ios_icons.dart';
+import 'package:safespend_flutter/widgets/settings_ui.dart';
 
 /// Every settings destination, so a screen that throws on build fails here
 /// rather than in someone's hands.
@@ -38,7 +40,7 @@ final _screens = <String, Widget>{
   'pin': const PinEntryScreen(mode: PinMode.create),
 };
 
-Widget _host(Widget screen, Brightness brightness) {
+Widget _host(Widget screen, Brightness brightness, {String locale = 'en'}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => AppProvider()),
@@ -48,7 +50,7 @@ Widget _host(Widget screen, Brightness brightness) {
       theme: brightness == Brightness.dark
           ? AppTheme.darkTheme
           : AppTheme.lightTheme,
-      locale: const Locale('en'),
+      locale: Locale(locale),
       supportedLocales: S.supportedLocales,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -63,18 +65,27 @@ Widget _host(Widget screen, Brightness brightness) {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  for (final brightness in Brightness.values) {
-    for (final entry in _screens.entries) {
-      testWidgets('${entry.key} builds in ${brightness.name} mode',
-          (tester) async {
-        await tester.binding.setSurfaceSize(const Size(390, 844));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+  for (final locale in S.supportedLocales) {
+    for (final brightness in Brightness.values) {
+      for (final entry in _screens.entries) {
+        testWidgets(
+            '${entry.key} builds in ${locale.languageCode} ${brightness.name} mode',
+            (tester) async {
+          await tester.binding.setSurfaceSize(const Size(390, 844));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          final originalErrorHandler = FlutterError.onError;
+          FlutterError.onError = (details) {
+            debugPrint(details.toString());
+            originalErrorHandler?.call(details);
+          };
 
-        await tester.pumpWidget(_host(entry.value, brightness));
-        await tester.pump(const Duration(milliseconds: 400));
+          await tester.pumpWidget(
+              _host(entry.value, brightness, locale: locale.languageCode));
+          await tester.pump(const Duration(milliseconds: 400));
 
-        expect(tester.takeException(), isNull);
-      });
+          expect(tester.takeException(), isNull);
+        });
+      }
     }
   }
 
@@ -100,6 +111,44 @@ void main() {
     }
   });
 
+  testWidgets('settings destination arrows stay aligned at the trailing edge',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      _host(
+        const Scaffold(
+          body: Column(
+            children: [
+              SettingsRow(
+                icon: IOSIcons.light_mode_rounded,
+                label: 'Appearance',
+                value: 'Dark',
+                onTap: _noop,
+              ),
+              SettingsRow(
+                icon: IOSIcons.payments_rounded,
+                label: 'Income',
+                value: 'No salary configured yet',
+                onTap: _noop,
+              ),
+            ],
+          ),
+        ),
+        Brightness.dark,
+      ),
+    );
+
+    final arrows = find.byIcon(IOSIcons.chevron_right_rounded);
+    expect(arrows, findsNWidgets(2));
+    final firstX = tester.getCenter(arrows.at(0)).dx;
+    final secondX = tester.getCenter(arrows.at(1)).dx;
+    expect(firstX, secondX);
+    expect(firstX, greaterThan(360));
+    expect(tester.getCenter(find.text('Dark')).dx, lessThan(firstX));
+  });
+
   testWidgets('no settings string falls through to its raw key',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 1400));
@@ -123,3 +172,5 @@ void main() {
     }
   });
 }
+
+void _noop() {}

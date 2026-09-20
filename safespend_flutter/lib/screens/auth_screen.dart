@@ -66,7 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(result.error!), backgroundColor: AppTheme.error),
+              content: Text(S.of(context).tr('actionCouldNotBeCompleted')), backgroundColor: AppTheme.error),
         );
       }
     }
@@ -84,8 +84,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 color: AppTheme.adaptiveIcon(ctx)),
             const SizedBox(width: 10),
             Text(s.confirmEmail,
-                style:
-                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                style: Theme.of(ctx).textTheme.titleLarge),
           ],
         ),
         content: Text(
@@ -106,7 +105,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(result.success
                     ? s.confirmationEmailResent
-                    : (result.error ?? s.failedToResend)),
+                    : s.failedToResend),
                 backgroundColor:
                     result.success ? AppTheme.success : AppTheme.error,
               ));
@@ -131,7 +130,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
     if (!result.success && result.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.error!), backgroundColor: AppTheme.error),
+        SnackBar(content: Text(S.of(context).tr('actionCouldNotBeCompleted')), backgroundColor: AppTheme.error),
       );
     }
   }
@@ -142,7 +141,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
     if (!result.success && result.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.error!), backgroundColor: AppTheme.error),
+        SnackBar(content: Text(S.of(context).tr('actionCouldNotBeCompleted')), backgroundColor: AppTheme.error),
       );
     }
   }
@@ -200,7 +199,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
                 const SizedBox(height: 6),
                 Text(
-                  _isLogin ? 'Welcome back' : s.createAccount,
+                  _isLogin ? s.welcomeBack : s.createAccount,
                   style: TextStyle(
                     fontSize: 16,
                     color: isDark
@@ -231,12 +230,12 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                         validator: (v) {
                           if (v == null || v.trim().isEmpty)
-                            return 'Email is required';
+                            return s.tr('emailRequired');
                           final email = v.trim();
                           final emailRegex = RegExp(
                               r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
                           if (!emailRegex.hasMatch(email))
-                            return 'Enter a valid email';
+                            return s.tr('enterValidEmail');
                           return null;
                         },
                       ),
@@ -263,14 +262,14 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                         validator: (v) {
                           if (v == null || v.isEmpty)
-                            return 'Password is required';
-                          if (v.length < 8) return 'At least 8 characters';
+                            return s.tr('passwordRequired');
+                          if (v.length < 8) return s.tr('atLeastEightCharacters');
                           if (!RegExp(r'[A-Z]').hasMatch(v))
-                            return 'Include an uppercase letter';
+                            return s.tr('includeUppercaseLetter');
                           if (!RegExp(r'[0-9]').hasMatch(v))
-                            return 'Include a number';
+                            return s.tr('includeNumber');
                           if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(v))
-                            return 'Include a special character';
+                            return s.tr('includeSpecialCharacter');
                           return null;
                         },
                       ),
@@ -282,7 +281,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           controller: _confirmPasswordController,
                           obscureText: _obscureConfirmPassword,
                           decoration: InputDecoration(
-                            labelText: 'Confirm Password',
+                            labelText: s.tr('confirmPassword'),
                             hintText: '••••••••',
                             prefixIcon: Icon(IOSIcons.lock_outline_rounded,
                                 color: AppTheme.adaptiveIcon(context)),
@@ -299,7 +298,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           validator: (v) {
                             if (v != _passwordController.text)
-                              return 'Passwords do not match';
+                              return s.passwordsDoNotMatch;
                             return null;
                           },
                         ),
@@ -351,8 +350,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 28),
 
                 // Toggle login/signup
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       _isLogin ? s.dontHaveAccount : s.alreadyHaveAccount,

@@ -1,3 +1,4 @@
+import '../../widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -136,72 +137,162 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
   Widget build(BuildContext context) {
     final s = S.of(context);
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: widget.dismissible
-                  ? IconButton(
-                      icon: Icon(IOSIcons.close_rounded,
-                          color: AppTheme.adaptiveIcon(context)),
-                      onPressed: () => _finish(false),
-                    )
-                  : const SizedBox(height: 48),
-            ),
-            const Spacer(),
-            Icon(IOSIcons.lock_rounded,
-                size: 30, color: AppTheme.adaptiveIcon(context)),
-            const SizedBox(height: 16),
-            Text(
-              _title(s),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 20,
-              child: Text(
-                _error ?? s.pinHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _error == null ? null : AppTheme.error,
-                    ),
+    if (widget.dismissible && AppFormSheetScope.isActive(context)) {
+      return AppFormSheet(
+        header: Text(_title(s), style: Theme.of(context).textTheme.titleLarge),
+        body: Column(children: [
+          Container(
+            width: 64,
+            height: 64,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.goldPrimary.withValues(alpha: 0.22),
+                  AppTheme.goldPrimary.withValues(alpha: 0.08),
+                ],
+              ),
+              border: Border.all(
+                color: AppTheme.goldPrimary.withValues(alpha: 0.25),
               ),
             ),
-            const SizedBox(height: 26),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_length, (i) {
-                final filled = i < _entry.length;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 140),
-                  margin: const EdgeInsets.symmetric(horizontal: 9),
-                  width: filled ? 15 : 13,
-                  height: filled ? 15 : 13,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+            child: const Icon(IOSIcons.lock_rounded,
+                size: 28, color: AppTheme.goldPrimary),
+          ),
+          const SizedBox(height: 16),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 20,
+            child: Text(
+              _error ?? s.pinHint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _error == null ? null : AppTheme.error,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 26),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_length, (i) {
+              final filled = i < _entry.length;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                margin: const EdgeInsets.symmetric(horizontal: 9),
+                width: filled ? 15 : 13,
+                height: filled ? 15 : 13,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: filled
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  border: Border.all(
                     color: filled
                         ? Theme.of(context).colorScheme.primary
-                        : Colors.transparent,
+                        : AppTheme.adaptiveIcon(context, alpha: 0.5),
+                    width: 1.5,
+                  ),
+                ),
+              );
+            }),
+          ),
+          _Keypad(onDigit: _onDigit, onDelete: _onDelete),
+          const SizedBox(height: 22)
+        ]),
+      );
+    }
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: SettingsBackdrop()),
+          SafeArea(
+            child: Column(
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: widget.dismissible
+                      ? IconButton(
+                          icon: Icon(IOSIcons.close_rounded,
+                              color: AppTheme.adaptiveIcon(context)),
+                          onPressed: () => _finish(false),
+                        )
+                      : const SizedBox(height: 48),
+                ),
+                const Spacer(),
+                Container(
+                  width: 64,
+                  height: 64,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.goldPrimary.withValues(alpha: 0.22),
+                        AppTheme.goldPrimary.withValues(alpha: 0.08),
+                      ],
+                    ),
                     border: Border.all(
-                      color: filled
-                          ? Theme.of(context).colorScheme.primary
-                          : AppTheme.adaptiveIcon(context, alpha: 0.5),
-                      width: 1.5,
+                      color: AppTheme.goldPrimary.withValues(alpha: 0.25),
                     ),
                   ),
-                );
-              }),
+                  child: const Icon(IOSIcons.lock_rounded,
+                      size: 28, color: AppTheme.goldPrimary),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _title(s),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 20,
+                  child: Text(
+                    _error ?? s.pinHint,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _error == null ? null : AppTheme.error,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 26),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_length, (i) {
+                    final filled = i < _entry.length;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      margin: const EdgeInsets.symmetric(horizontal: 9),
+                      width: filled ? 15 : 13,
+                      height: filled ? 15 : 13,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: filled
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: filled
+                              ? Theme.of(context).colorScheme.primary
+                              : AppTheme.adaptiveIcon(context, alpha: 0.5),
+                          width: 1.5,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                const Spacer(),
+                _Keypad(onDigit: _onDigit, onDelete: _onDelete),
+                const SizedBox(height: 22),
+              ],
             ),
-            const Spacer(),
-            _Keypad(onDigit: _onDigit, onDelete: _onDelete),
-            const SizedBox(height: 22),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -216,7 +307,8 @@ class _Keypad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 42),
+      padding: EdgeInsets.symmetric(
+          horizontal: AppFormSheetScope.isActive(context) ? 8 : 42),
       child: Column(
         children: [
           for (final row in const [

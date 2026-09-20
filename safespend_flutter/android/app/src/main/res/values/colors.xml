@@ -3,4 +3,5 @@
     <!-- Mirrors AppColors.lightBackground so the window behind Flutter and the
          launch screen are the same colour the app paints once it starts. -->
     <color name="launchBackground">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#FFFFFFFF</color>
 </resources>

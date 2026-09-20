@@ -1,3 +1,4 @@
+import '../../widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -53,7 +54,6 @@ class SecurityScreen extends StatelessWidget {
                 ],
               ],
             ),
-
             SettingsGroup(
               header: s.privacy,
               footer: s.maskOnAppSwitchFooter,
@@ -68,7 +68,6 @@ class SecurityScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             SettingsGroup(
               header: s.account,
               children: [
@@ -83,7 +82,6 @@ class SecurityScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             SettingsGroup(
               header: s.diagnostics,
               footer: s.diagnosticsFooter,
@@ -106,7 +104,6 @@ class SecurityScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             SettingsGroup(
               children: [
                 SettingsRow(
@@ -129,26 +126,18 @@ class SecurityScreen extends StatelessWidget {
     ValueChanged<Settings> update,
   ) async {
     if (enable) {
-      final created = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const PinEntryScreen(mode: PinMode.create),
-          fullscreenDialog: true,
-        ),
-      );
+      final created = await showAppFormSheet<bool>(
+          context: context,
+          builder: (_) => const PinEntryScreen(mode: PinMode.create));
       if (created == true) update(settings.copyWith(appLockEnabled: true));
       return;
     }
 
     // Turning the lock off must still cost the PIN — otherwise anyone holding
     // the unlocked phone can simply switch it off.
-    final verified = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PinEntryScreen(mode: PinMode.verify),
-        fullscreenDialog: true,
-      ),
-    );
+    final verified = await showAppFormSheet<bool>(
+        context: context,
+        builder: (_) => const PinEntryScreen(mode: PinMode.verify));
     if (verified == true) {
       await AppLockService.instance.clearPin();
       update(settings.copyWith(appLockEnabled: false));
@@ -156,22 +145,14 @@ class SecurityScreen extends StatelessWidget {
   }
 
   static Future<void> _changePin(BuildContext context) async {
-    final verified = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PinEntryScreen(mode: PinMode.verify),
-        fullscreenDialog: true,
-      ),
-    );
+    final verified = await showAppFormSheet<bool>(
+        context: context,
+        builder: (_) => const PinEntryScreen(mode: PinMode.verify));
     if (verified != true || !context.mounted) return;
 
-    final changed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PinEntryScreen(mode: PinMode.create),
-        fullscreenDialog: true,
-      ),
-    );
+    final changed = await showAppFormSheet<bool>(
+        context: context,
+        builder: (_) => const PinEntryScreen(mode: PinMode.create));
     if (changed == true && context.mounted) {
       showSettingsToast(context, S.of(context).pinUpdated);
     }
@@ -189,30 +170,21 @@ class SecurityScreen extends StatelessWidget {
     ValueChanged<Settings> update,
   ) async {
     final s = S.of(context);
-    await showModalBottomSheet<void>(
+    await showAppFormSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: GlassPanel(
-            elevated: true,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final m in const [0, 1, 5, 15, 60])
-                  SettingsChoiceRow(
-                    label: _autoLockLabel(s, m),
-                    selected: settings.autoLockMinutes == m,
-                    onTap: () {
-                      update(settings.copyWith(autoLockMinutes: m));
-                      Navigator.pop(ctx);
-                    },
-                  ),
-              ],
+      builder: (ctx) => AppFormSheet(
+        header: Text(s.autoLock, style: Theme.of(ctx).textTheme.titleLarge),
+        body: Column(children: [
+          for (final m in const [0, 1, 5, 15, 60])
+            SettingsChoiceRow(
+              label: _autoLockLabel(s, m),
+              selected: settings.autoLockMinutes == m,
+              onTap: () {
+                update(settings.copyWith(autoLockMinutes: m));
+                Navigator.pop(ctx);
+              },
             ),
-          ),
-        ),
+        ]),
       ),
     );
   }
@@ -223,11 +195,9 @@ class SecurityScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: Text(s.privacyPolicy,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+        title: Text(s.privacyPolicy),
         content: SingleChildScrollView(
-          child: Text(s.privacyDesc,
-              style: const TextStyle(height: 1.5, fontSize: 13)),
+          child: Text(s.privacyDesc),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(s.gotIt)),

@@ -1,3 +1,4 @@
+import '../../l10n/app_localizations.dart';
 import '../../providers/app_provider.dart';
 
 /// A compact snapshot of the user's finances, sent with every AI request.
@@ -105,7 +106,7 @@ class FinancialContextService {
         .fold<double>(0, (s, t) => s + t.amount);
 
     final bankTotal = p.accounts
-        .where((a) => a.type != 'debt')
+        .where((a) => a.type != 'debt' && a.type != 'investment')
         .fold<double>(0, (s, a) => s + a.balance);
 
     // Spending per category this month, ranked — enough for "why am I
@@ -114,10 +115,7 @@ class FinancialContextService {
     for (final t in monthTxns.where((t) => t.type == 'expense')) {
       final name = t.categoryId == null
           ? 'Uncategorised'
-          : p.categories
-                  .where((c) => c.id == t.categoryId)
-                  .firstOrNull
-                  ?.name ??
+          : p.categories.where((c) => c.id == t.categoryId).firstOrNull?.name ??
               'Uncategorised';
       spendByCategory[name] = (spendByCategory[name] ?? 0) + t.amount;
     }
@@ -127,19 +125,16 @@ class FinancialContextService {
         .map((e) => {'name': e.key, 'amount': FinancialContext._r(e.value)})
         .toList();
 
-    final budgets = p.categories
-        .where((c) => c.budgetLimit > 0)
-        .map((c) {
-          final spent = p.getCategorySpending(c.id);
-          return {
-            'category_id': c.id,
-            'name': c.name,
-            'limit': FinancialContext._r(c.budgetLimit),
-            'spent': FinancialContext._r(spent),
-            'remaining': FinancialContext._r(c.budgetLimit - spent),
-          };
-        })
-        .toList();
+    final budgets = p.categories.where((c) => c.budgetLimit > 0).map((c) {
+      final spent = p.getCategorySpending(c.id);
+      return {
+        'category_id': c.id,
+        'name': c.name,
+        'limit': FinancialContext._r(c.budgetLimit),
+        'spent': FinancialContext._r(spent),
+        'remaining': FinancialContext._r(c.budgetLimit - spent),
+      };
+    }).toList();
 
     final goals = p.goals.where((g) => g.type != 'debt').map((g) {
       return {
@@ -159,7 +154,10 @@ class FinancialContextService {
         .where((r) => r.isActive)
         .map((r) => {
               'id': r.id,
-              'name': r.templateTransaction.note ?? 'Subscription',
+              'name': S
+                      .forLocale(p.settings.locale)
+                      .systemNote(r.templateTransaction.note) ??
+                  'Subscription',
               'amount': FinancialContext._r(r.templateTransaction.amount),
               'frequency': r.frequency,
               'next_date': r.nextDate,
@@ -175,7 +173,10 @@ class FinancialContextService {
           return d != null && !d.isAfter(horizon);
         })
         .map((r) => {
-              'name': r.templateTransaction.note ?? 'Bill',
+              'name': S
+                      .forLocale(p.settings.locale)
+                      .systemNote(r.templateTransaction.note) ??
+                  'Bill',
               'amount': FinancialContext._r(r.templateTransaction.amount),
               'due_date': r.nextDate,
             })
@@ -194,8 +195,12 @@ class FinancialContextService {
 
     return FinancialContext(
       currency: p.settings.currency,
+      extras: {'locale': p.settings.locale},
       cashOnHand: p.totalCash,
-      totalAssets: bankTotal + p.totalCash + p.totalInvestmentValue,
+      totalAssets: bankTotal +
+          p.totalCash +
+          p.totalInvestmentValue +
+          p.totalSavingsGoals,
       totalDebt: p.totalDebtRemaining,
       netWorth: p.getNetWorth(),
       safeToSpend: p.getSafeToSpendMonth(),

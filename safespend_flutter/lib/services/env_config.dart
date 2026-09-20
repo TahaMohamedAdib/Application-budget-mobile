@@ -1,18 +1,16 @@
+import 'ai/ai_config.dart';
+
 /// Runtime environment configuration.
 ///
 /// Supabase public keys have safe defaults (anon key is designed to be public;
 /// Row Level Security on the server protects data).
 ///
-/// Sensitive keys like GEMINI_API_KEY have NO default — they must be injected
-/// at build time via `--dart-define-from-file=.env.local`.
+/// **No model-provider API key belongs here.** Anything compiled into the app
+/// ships inside the binary, where anyone who downloads it can read it. The AI
+/// backend holds its credential server-side and authenticates callers with
+/// their existing Supabase session instead.
 class EnvConfig {
   const EnvConfig._();
-
-  // ── Gemini (no default — requires build flag) ──
-  static const String geminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-    defaultValue: '',
-  );
 
   // ── Supabase (public keys — safe defaults for dev) ──
   static const String supabaseUrl = String.fromEnvironment(
@@ -33,18 +31,17 @@ class EnvConfig {
   // ── AI provider selection ──
   // Concrete provider settings live in services/ai/ai_config.dart; these are
   // re-exposed here so `isConfigured` can reason about the active backend.
-  static const String aiProvider = String.fromEnvironment(
-    'AI_PROVIDER',
-    defaultValue: 'gemini',
-  );
+  //
+  // Defaults must match AIConfig exactly. They used to be declared twice with
+  // different values, so this file believed the app was on Gemini while the
+  // factory had already built the backend service — the kind of split that
+  // makes a security default look applied when it is not.
+  static String get aiProvider => AIConfig.provider.name;
 
   /// Base URL of the self-hosted SafeSpend AI backend. No hosting credential
   /// is ever compiled into the app — the backend authenticates callers with
   /// their existing Supabase session token.
-  static const String aiBaseUrl = String.fromEnvironment(
-    'AI_BASE_URL',
-    defaultValue: '',
-  );
+  static String get aiBaseUrl => AIConfig.baseUrl;
 
   // ── AI access control ──
   static const String _allowedEmailsRaw = String.fromEnvironment(
@@ -60,9 +57,10 @@ class EnvConfig {
     defaultValue: false,
   );
 
-  /// True when all required secrets are present for the active AI provider.
+  /// True when the app has everything it needs to reach its backends.
+  /// No API key is part of this: the AI credential lives server-side.
   static bool get isConfigured =>
-      (aiProvider == 'safespend' ? aiBaseUrl.isNotEmpty : geminiApiKey.isNotEmpty) &&
+      AIConfig.isConfigured &&
       supabaseUrl.isNotEmpty &&
       supabaseAnonKey.isNotEmpty;
 }

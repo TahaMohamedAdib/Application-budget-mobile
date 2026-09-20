@@ -45,7 +45,6 @@ class AboutScreen extends StatelessWidget {
             ],
           ),
         ),
-
         SettingsGroup(
           children: [
             SettingsRow(
@@ -65,7 +64,6 @@ class AboutScreen extends StatelessWidget {
             ),
           ],
         ),
-
         SettingsGroup(
           header: s.legal,
           children: [
@@ -81,7 +79,6 @@ class AboutScreen extends StatelessWidget {
             ),
           ],
         ),
-
         SettingsGroup(
           children: [
             SettingsRow(
@@ -93,8 +90,7 @@ class AboutScreen extends StatelessWidget {
                 final diagnostics = <String, Object>{
                   'app': 'SafeSpend $appVersion ($buildNumber)',
                   'locale': Localizations.localeOf(context).toString(),
-                  'brightness':
-                      Theme.of(context).brightness.name,
+                  'brightness': Theme.of(context).brightness.name,
                   'devicePixelRatio': view.devicePixelRatio,
                   'size':
                       '${view.physicalSize.width.round()}x${view.physicalSize.height.round()}',
@@ -111,7 +107,6 @@ class AboutScreen extends StatelessWidget {
             ),
           ],
         ),
-
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Center(
@@ -130,10 +125,9 @@ class AboutScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+        title: Text(title),
         content: SingleChildScrollView(
-          child: Text(body, style: const TextStyle(height: 1.5, fontSize: 13)),
+          child: Text(body),
         ),
         actions: [
           TextButton(

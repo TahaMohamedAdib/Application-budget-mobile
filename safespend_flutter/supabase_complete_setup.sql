@@ -23,12 +23,15 @@ CREATE TABLE IF NOT EXISTS profiles (
   subscription_tier TEXT DEFAULT 'FREE',
   net_worth_scope TEXT DEFAULT 'all',
   selected_account_id UUID,
+  avatar_url TEXT,
   widgets JSONB DEFAULT '{"safeToSpend":true,"netWorth":true,"nextBill":true,"weeklySpending":false}',
   goals TEXT[] DEFAULT '{}',
   total_cash DECIMAL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
@@ -298,15 +301,23 @@ END $$;
 -- ============================================================
 -- 9. AUTO-CREATE PROFILE ON SIGNUP
 -- ============================================================
+-- SECURITY DEFINER runs with the owner's privileges, so search_path is pinned:
+-- without it a caller who can create objects in an earlier schema could shadow
+-- `profiles` and have this trigger write to their table instead of ours.
+-- Schema-qualifying the target is a second layer of the same protection.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   INSERT INTO public.profiles (id, email)
   VALUES (NEW.id, NEW.email)
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -314,23 +325,45 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================================
--- 10. STORAGE BUCKETS (logos + receipts)
+-- 10. STORAGE BUCKETS (logos + receipts + avatars)
 -- ============================================================
 
--- Create 'receipts' bucket (transaction photos)
+-- Receipts are private. A receipt photo shows what someone bought, where and
+-- when; in a public bucket every object is readable by anyone who has or
+-- guesses the URL, with no session required. Clients must read these through
+-- a short-lived signed URL (createSignedUrl) instead of getPublicUrl.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('receipts', 'receipts', true, 10485760, ARRAY['image/jpeg','image/png','image/webp','image/gif','image/heic'])
-ON CONFLICT (id) DO NOTHING;
+VALUES ('receipts', 'receipts', false, 10485760, ARRAY['image/jpeg','image/png','image/webp','image/gif','image/heic'])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Create 'logos' bucket (account logos)
+-- Account logos are also per-user uploads and get the same treatment.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('logos', 'logos', true, 5242880, ARRAY['image/jpeg','image/png','image/webp','image/gif'])
-ON CONFLICT (id) DO NOTHING;
+VALUES ('logos', 'logos', false, 5242880, ARRAY['image/jpeg','image/png','image/webp','image/gif'])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Profile pictures are private and owner-scoped for the same reason: they
+-- identify a person and must not be exposed through guessable public URLs.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('avatars', 'avatars', false, 5242880, ARRAY['image/jpeg','image/png','image/webp','image/heic'])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- RLS policies for 'receipts'
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Receipts public read') THEN
-    CREATE POLICY "Receipts public read" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
+  -- Drop the previous unconditional read: it let any caller SELECT every
+  -- receipt in the bucket, regardless of who uploaded it.
+  DROP POLICY IF EXISTS "Receipts public read" ON storage.objects;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Receipts owner read') THEN
+    CREATE POLICY "Receipts owner read" ON storage.objects FOR SELECT
+      USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Receipts user upload') THEN
     CREATE POLICY "Receipts user upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
@@ -343,10 +376,33 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- RLS policies for 'avatars'
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Avatars public read" ON storage.objects;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Avatars owner read') THEN
+    CREATE POLICY "Avatars owner read" ON storage.objects FOR SELECT
+      USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Avatars owner upload') THEN
+    CREATE POLICY "Avatars owner upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Avatars owner update') THEN
+    CREATE POLICY "Avatars owner update" ON storage.objects FOR UPDATE
+      USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1])
+      WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Avatars owner delete') THEN
+    CREATE POLICY "Avatars owner delete" ON storage.objects FOR DELETE
+      USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+  END IF;
+END $$;
+
 -- RLS policies for 'logos'
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Logos public read') THEN
-    CREATE POLICY "Logos public read" ON storage.objects FOR SELECT USING (bucket_id = 'logos');
+  DROP POLICY IF EXISTS "Logos public read" ON storage.objects;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Logos owner read') THEN
+    CREATE POLICY "Logos owner read" ON storage.objects FOR SELECT
+      USING (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='objects' AND schemaname='storage' AND policyname='Logos user upload') THEN
     CREATE POLICY "Logos user upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'logos' AND auth.uid()::text = (storage.foldername(name))[1]);

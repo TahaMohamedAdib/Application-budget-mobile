@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+const Object _notProvided = Object();
+
 class Goal {
   final String id;
   final String type; // 'savings', 'debt', 'investment', 'custom'
@@ -15,8 +17,8 @@ class Goal {
   final String color;
 
   // Debt monthly payment (only relevant when type == 'debt')
-  final double? monthlyPayment;         // fixed monthly instalment
-  final int? paymentDay;                // day of month (1–28)
+  final double? monthlyPayment; // fixed monthly instalment
+  final int? paymentDay; // day of month (1–28)
   final String? paymentSourceAccountId; // account ID to debit from
 
   Goal({
@@ -41,35 +43,49 @@ class Goal {
     String? id,
     String? type,
     String? name,
-    String? description,
+    Object? description = _notProvided,
     double? targetAmount,
-    String? targetDate,
+    Object? targetDate = _notProvided,
     double? currentAmount,
     int? priority,
-    String? categoryId,
+    Object? categoryId = _notProvided,
     String? icon,
-    String? imagePath,
+    Object? imagePath = _notProvided,
     String? color,
-    double? monthlyPayment,
-    int? paymentDay,
-    String? paymentSourceAccountId,
+    Object? monthlyPayment = _notProvided,
+    Object? paymentDay = _notProvided,
+    Object? paymentSourceAccountId = _notProvided,
   }) {
     return Goal(
       id: id ?? this.id,
       type: type ?? this.type,
       name: name ?? this.name,
-      description: description ?? this.description,
+      description: identical(description, _notProvided)
+          ? this.description
+          : description as String?,
       targetAmount: targetAmount ?? this.targetAmount,
-      targetDate: targetDate ?? this.targetDate,
+      targetDate: identical(targetDate, _notProvided)
+          ? this.targetDate
+          : targetDate as String?,
       currentAmount: currentAmount ?? this.currentAmount,
       priority: priority ?? this.priority,
-      categoryId: categoryId ?? this.categoryId,
+      categoryId: identical(categoryId, _notProvided)
+          ? this.categoryId
+          : categoryId as String?,
       icon: icon ?? this.icon,
-      imagePath: imagePath ?? this.imagePath,
+      imagePath: identical(imagePath, _notProvided)
+          ? this.imagePath
+          : imagePath as String?,
       color: color ?? this.color,
-      monthlyPayment: monthlyPayment ?? this.monthlyPayment,
-      paymentDay: paymentDay ?? this.paymentDay,
-      paymentSourceAccountId: paymentSourceAccountId ?? this.paymentSourceAccountId,
+      monthlyPayment: identical(monthlyPayment, _notProvided)
+          ? this.monthlyPayment
+          : monthlyPayment as double?,
+      paymentDay: identical(paymentDay, _notProvided)
+          ? this.paymentDay
+          : paymentDay as int?,
+      paymentSourceAccountId: identical(paymentSourceAccountId, _notProvided)
+          ? this.paymentSourceAccountId
+          : paymentSourceAccountId as String?,
     );
   }
 
@@ -114,6 +130,6 @@ class Goal {
   }
 
   String toJsonString() => jsonEncode(toJson());
-  
+
   factory Goal.fromJsonString(String str) => Goal.fromJson(jsonDecode(str));
 }

@@ -5,21 +5,15 @@ import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/ios_icons.dart';
+import '../l10n/app_localizations.dart';
+import 'feature_help_button.dart';
+import 'app_form_sheet.dart';
 
-/// Building blocks for the settings surfaces, in the same translucent
-/// "liquid glass" language as the floating nav pill and [GlassActionButton]:
-/// blurred surfaces, a specular sheen along the top edge, hairline neutral
-/// rims and soft drop shadows.
+/// Building blocks for SafeSpend's iOS-inspired settings surfaces.
 ///
-/// Two deliberate departures from stock iOS Settings:
-///
-/// * **Icon tiles stay neutral.** iOS tints each row's tile with a per-feature
-///   colour; this app removed decorative colour from rows on purpose, so tiles
-///   are glass and the icon takes the adaptive neutral. Colour is reserved for
-///   financial meaning and destructive actions.
-/// * **Groups are inset cards, not full-bleed.** They match the radius and
-///   shadow of the app's existing cards so settings doesn't read as a
-///   different app.
+/// The layout follows the familiar inset-grouped Settings pattern while the
+/// teal accent, Inter typography, dark charcoal and warm light surfaces keep
+/// it recognisably part of SafeSpend.
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
 
@@ -44,24 +38,26 @@ class _GlassSkin {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: isDark
-            ? [_alpha(Colors.white, 0.10), _alpha(Colors.white, 0.045)]
-            : [_alpha(Colors.white, 0.94), _alpha(Colors.white, 0.72)],
+            ? const [Color(0xFF252829), Color(0xFF222526)]
+            : const [Color(0xFFFFFFFF), Color(0xFFF8F9F8)],
       ),
-      border: isDark ? _alpha(Colors.white, 0.13) : const Color(0xFFDDE0E4),
+      border:
+          isDark ? _alpha(Colors.white, 0.075) : _alpha(Colors.black, 0.055),
       shadows: [
         BoxShadow(
-          color: _alpha(Colors.black, isDark ? 0.40 : 0.07),
-          blurRadius: elevated ? 26 : 18,
-          spreadRadius: -8,
-          offset: Offset(0, elevated ? 12 : 8),
+          color: _alpha(Colors.black, isDark ? 0.24 : 0.055),
+          blurRadius: elevated ? 22 : 12,
+          spreadRadius: -7,
+          offset: Offset(0, elevated ? 9 : 5),
         ),
       ],
-      sheen: _alpha(Colors.white, isDark ? 0.08 : 0.55),
+      sheen: Colors.transparent,
     );
   }
 }
 
-/// A blurred, sheened glass panel. Everything grouped in settings sits on one.
+/// An inset grouped surface. The legacy name is retained because settings
+/// controls outside groups also share this component.
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
@@ -145,37 +141,145 @@ class SettingsScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppFormSheetScope.isActive(context)) {
+      return AppFormSheet(
+        header: Row(
+          children: [
+            Expanded(
+              child: Text(title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
+            FeatureHelpButton(
+              title: title,
+              description: subtitle ?? S.of(context).helpAndSupportSubtitle,
+              size: 36,
+            ),
+            if (trailing != null) trailing!,
+          ],
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (subtitle != null) ...[
+              Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 16),
+            ],
+            ...children,
+          ],
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       // The header blurs whatever scrolls beneath it, so the body must extend
       // behind it rather than start below it.
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        slivers: [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _SettingsHeaderDelegate(
-              title: title,
-              subtitle: subtitle,
-              trailing: trailing,
-              topPadding: MediaQuery.paddingOf(context).top,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: SettingsBackdrop()),
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
             ),
-          ),
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              18,
-              8,
-              18,
-              32 + MediaQuery.paddingOf(context).bottom,
-            ),
-            sliver: SliverList(delegate: SliverChildListDelegate(children)),
+            slivers: [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SettingsHeaderDelegate(
+                  title: title,
+                  subtitle: subtitle,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FeatureHelpButton(
+                        title: title,
+                        description:
+                            subtitle ?? S.of(context).helpAndSupportSubtitle,
+                        size: 36,
+                      ),
+                      if (trailing != null) ...[
+                        const SizedBox(width: 6),
+                        trailing!,
+                      ],
+                    ],
+                  ),
+                  topPadding: MediaQuery.paddingOf(context).top,
+                ),
+              ),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  36 + MediaQuery.paddingOf(context).bottom,
+                ),
+                sliver: SliverList(delegate: SliverChildListDelegate(children)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+class SettingsBackdrop extends StatelessWidget {
+  const SettingsBackdrop({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? const [Color(0xFF111415), Color(0xFF0D1010)]
+                : const [Color(0xFFF4F6F5), Color(0xFFEEF2F0)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            PositionedDirectional(
+              top: -110,
+              end: -95,
+              child: _AmbientOrb(
+                size: 280,
+                color: _alpha(AppTheme.goldPrimary, isDark ? 0.075 : 0.09),
+              ),
+            ),
+            PositionedDirectional(
+              top: 330,
+              start: -130,
+              child: _AmbientOrb(
+                size: 250,
+                color: _alpha(AppTheme.success, isDark ? 0.035 : 0.05),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AmbientOrb extends StatelessWidget {
+  const _AmbientOrb({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+      );
 }
 
 class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -192,7 +296,7 @@ class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double topPadding;
 
   static const _barHeight = 50.0;
-  double get _largeBlock => subtitle == null ? 52.0 : 72.0;
+  double get _largeBlock => subtitle == null ? 70.0 : 88.0;
 
   @override
   double get minExtent => topPadding + _barHeight;
@@ -235,10 +339,10 @@ class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
               children: [
                 // Compact centred title — fades in over the back half of the
                 // collapse so it doesn't fight the large title.
-                Positioned(
+                PositionedDirectional(
                   top: 0,
-                  left: 56,
-                  right: 56,
+                  start: 56,
+                  end: 56,
                   height: _barHeight,
                   child: Opacity(
                     opacity: ((t - 0.45) / 0.55).clamp(0.0, 1.0),
@@ -258,10 +362,10 @@ class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
                 ),
 
                 // Large title, sliding up and fading as it collapses.
-                Positioned(
-                  top: _barHeight - 4,
-                  left: 20,
-                  right: 20,
+                PositionedDirectional(
+                  top: _barHeight + 4,
+                  start: 20,
+                  end: 20,
                   child: Opacity(
                     opacity: (1 - t * 1.6).clamp(0.0, 1.0),
                     child: Transform.translate(
@@ -276,11 +380,11 @@ class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context)
                                 .textTheme
-                                .headlineMedium
+                                .displayMedium
                                 ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.8,
                                   color: textColor,
+                                  fontSize: 32,
+                                  letterSpacing: -0.8,
                                 ),
                           ),
                           if (subtitle != null) ...[
@@ -299,9 +403,9 @@ class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
                 ),
 
                 // Back affordance sits above both titles at all times.
-                Positioned(
+                PositionedDirectional(
                   top: 0,
-                  left: 6,
+                  start: 6,
                   height: _barHeight,
                   child: _HeaderIconButton(
                     icon: IOSIcons.arrow_back_ios_new_rounded,
@@ -309,9 +413,9 @@ class _SettingsHeaderDelegate extends SliverPersistentHeaderDelegate {
                   ),
                 ),
                 if (trailing != null)
-                  Positioned(
+                  PositionedDirectional(
                     top: 0,
-                    right: 10,
+                    end: 10,
                     height: _barHeight,
                     child: Center(child: trailing!),
                   ),
@@ -346,16 +450,32 @@ class _HeaderIconButton extends StatelessWidget {
         onTap();
       },
       child: SizedBox(
-        width: 44,
+        width: 46,
         child: Center(
-          child: Icon(icon, size: 20, color: AppTheme.adaptiveIcon(context)),
+          child: Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? _alpha(Colors.white, 0.07)
+                  : _alpha(Colors.white, 0.78),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? _alpha(Colors.white, 0.10)
+                    : _alpha(Colors.black, 0.06),
+              ),
+            ),
+            child: Icon(icon, size: 17, color: AppTheme.adaptiveIcon(context)),
+          ),
         ),
       ),
     );
   }
 }
 
-/// A titled group of rows on one glass panel, with an optional explanatory
+/// A titled group of rows on one inset panel, with an optional explanatory
 /// footer underneath — the iOS inset-grouped pattern.
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({
@@ -379,7 +499,7 @@ class SettingsGroup extends StatelessWidget {
         final fullBleed = children[i] is SettingsConfirmRow ||
             children[i - 1] is SettingsConfirmRow;
         rows.add(Padding(
-          padding: EdgeInsetsDirectional.only(start: fullBleed ? 0 : 58),
+          padding: EdgeInsetsDirectional.only(start: fullBleed ? 0 : 60),
           child: Divider(height: 1, color: Theme.of(context).dividerColor),
         ));
       }
@@ -387,19 +507,18 @@ class SettingsGroup extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
+      padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (header != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 12, 8),
               child: Text(
-                header!.toUpperCase(),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11.5,
-                      letterSpacing: 0.6,
+                header!,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                      fontWeight: FontWeight.w500,
                     ),
               ),
             ),
@@ -409,10 +528,7 @@ class SettingsGroup extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 9, 16, 0),
               child: Text(
                 footer!,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(height: 1.42, fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
         ],
@@ -434,28 +550,20 @@ class SettingsIconTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = tint ?? AppTheme.adaptiveIcon(context);
+    final color = tint ?? AppTheme.goldPrimary;
 
     return Container(
-      width: 30,
-      height: 30,
+      width: 34,
+      height: 34,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: tint == null
-            ? (isDark
-                ? _alpha(Colors.white, 0.09)
-                : _alpha(Colors.black, 0.045))
-            : _alpha(tint!, isDark ? 0.20 : 0.12),
-        borderRadius: BorderRadius.circular(9),
+        color: color,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: tint == null
-              ? (isDark
-                  ? _alpha(Colors.white, 0.10)
-                  : _alpha(Colors.black, 0.05))
-              : _alpha(tint!, 0.26),
+          color: _alpha(Colors.white, isDark ? 0.10 : 0.22),
         ),
       ),
-      child: Icon(icon, size: 16.5, color: color),
+      child: Icon(icon, size: 18, color: Colors.white),
     );
   }
 }
@@ -511,17 +619,19 @@ class _SettingsRowState extends State<SettingsRow> {
               widget.onTap!();
             },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 110),
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
         color: _pressed
             ? (isDark
                 ? _alpha(Colors.white, 0.05)
                 : _alpha(Colors.black, 0.035))
             : Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        constraints: const BoxConstraints(minHeight: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         child: Row(
           children: [
             SettingsIconTile(icon: widget.icon, tint: widget.tint),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -529,48 +639,58 @@ class _SettingsRowState extends State<SettingsRow> {
                 children: [
                   Text(
                     widget.label,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
-                          color: widget.tint,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: widget.tint ??
+                              Theme.of(context).textTheme.titleMedium?.color,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
                         ),
                   ),
                   if (widget.detail != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       widget.detail!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontSize: 12, height: 1.3),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ],
               ),
             ),
             if (widget.value != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(
-                  widget.value!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontSize: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 132),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 8),
+                  child: Text(
+                    widget.value!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          fontSize: 15,
+                        ),
+                  ),
                 ),
               ),
             if (widget.trailing != null)
               Padding(
-                padding: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsetsDirectional.only(start: 8),
                 child: widget.trailing!,
               ),
             if (widget.showChevron && widget.onTap != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Icon(
-                  IOSIcons.chevron_right_rounded,
-                  size: 18,
-                  color: AppTheme.adaptiveIcon(context, alpha: 0.7),
+              SizedBox(
+                width: 20,
+                height: 28,
+                child: Center(
+                  child: Transform.flip(
+                    flipX: Directionality.of(context) == TextDirection.rtl,
+                    child: Icon(
+                      IOSIcons.chevron_right_rounded,
+                      size: 18,
+                      color: AppTheme.adaptiveIcon(context, alpha: 0.62),
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -613,6 +733,7 @@ class SettingsSwitchRow extends StatelessWidget {
           child: Switch.adaptive(
             value: value,
             onChanged: enabled ? onChanged : null,
+            activeTrackColor: AppTheme.goldPrimary,
           ),
         ),
       ),
@@ -645,8 +766,14 @@ class SettingsChoiceRow extends StatelessWidget {
         HapticFeedback.selectionClick();
         onTap();
       },
-      child: Padding(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        color: selected
+            ? _alpha(AppTheme.goldPrimary,
+                Theme.of(context).brightness == Brightness.dark ? 0.09 : 0.07)
+            : Colors.transparent,
         child: Row(
           children: [
             if (leading != null) ...[leading!, const SizedBox(width: 14)],
@@ -657,28 +784,40 @@ class SettingsChoiceRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight:
-                              selected ? FontWeight.w600 : FontWeight.w500,
-                          fontSize: 15,
+                              selected ? FontWeight.w700 : FontWeight.w600,
                         ),
                   ),
                   if (detail != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       detail!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontSize: 12),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ],
               ),
             ),
-            if (selected)
-              Icon(IOSIcons.check_rounded,
-                  size: 19, color: Theme.of(context).colorScheme.primary),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? AppTheme.goldPrimary : Colors.transparent,
+                border: Border.all(
+                  color: selected
+                      ? AppTheme.goldPrimary
+                      : AppTheme.adaptiveIcon(context, alpha: 0.28),
+                ),
+              ),
+              child: selected
+                  ? const Icon(IOSIcons.check_rounded,
+                      size: 16, color: Colors.white)
+                  : null,
+            ),
           ],
         ),
       ),
@@ -723,14 +862,29 @@ class SettingsSegmented<T> extends StatelessWidget {
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 260),
                   curve: Curves.easeOutCubic,
-                  left: segWidth * index,
+                  left: segWidth *
+                      (Directionality.of(context) == TextDirection.rtl
+                          ? keys.length - 1 - index
+                          : index),
                   width: segWidth,
                   top: 0,
                   bottom: 0,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(13),
-                      color: isDark ? _alpha(Colors.white, 0.13) : Colors.white,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: isDark
+                            ? [
+                                _alpha(AppTheme.goldPrimary, 0.34),
+                                _alpha(AppTheme.gold700, 0.24),
+                              ]
+                            : [
+                                _alpha(AppTheme.goldPrimary, 0.22),
+                                _alpha(AppTheme.gold50, 0.92),
+                              ],
+                      ),
                       border: Border.all(
                         color: isDark
                             ? _alpha(Colors.white, 0.16)
@@ -766,30 +920,34 @@ class SettingsSegmented<T> extends StatelessWidget {
                                 seg.icon,
                                 size: 19,
                                 color: active
-                                    ? Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.color
+                                    ? (isDark
+                                        ? AppTheme.gold300
+                                        : AppTheme.gold700)
                                     : AppTheme.adaptiveIcon(context),
                               ),
                               const SizedBox(height: 5),
                             ],
                             Text(
                               seg.label,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight:
-                                    active ? FontWeight.w600 : FontWeight.w500,
-                                color: active
-                                    ? Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.color
-                                    : Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.color,
-                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    fontWeight: active
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: active
+                                        ? (isDark
+                                            ? AppTheme.gold300
+                                            : AppTheme.gold700)
+                                        : Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color,
+                                  ),
                             ),
                           ],
                         ),
@@ -839,25 +997,33 @@ class SettingsSliderRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w500, fontSize: 15),
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               if (valueLabel != null)
-                Text(
-                  valueLabel!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontSize: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _alpha(AppTheme.goldPrimary, 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    valueLabel!,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppTheme.gold300
+                              : AppTheme.gold700,
+                        ),
+                  ),
                 ),
             ],
           ),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              trackHeight: 4,
+              trackHeight: 5,
+              activeTrackColor: AppTheme.goldPrimary,
+              thumbColor: AppTheme.goldPrimary,
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
             ),
             child: Slider(
@@ -921,8 +1087,7 @@ class SettingsTextFieldRow extends StatelessWidget {
               // neighbours in the same panel.
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w500, fontSize: 15),
+              style: theme.textTheme.titleMedium,
             ),
           ),
           Expanded(
@@ -937,11 +1102,10 @@ class SettingsTextFieldRow extends StatelessWidget {
                     keyboardType: keyboardType,
                     textCapitalization: textCapitalization,
                     textAlign: TextAlign.right,
-                    style: theme.textTheme.titleSmall?.copyWith(fontSize: 15),
+                    style: theme.textTheme.titleMedium,
                     decoration: InputDecoration(
                       hintText: hint,
-                      hintStyle: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 15,
+                      hintStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: _alpha(
                               theme.textTheme.bodySmall?.color ?? Colors.grey,
                               0.55)),
@@ -1019,13 +1183,11 @@ class _SettingsConfirmRowState extends State<SettingsConfirmRow> {
           ),
           child: Text(
             widget.label,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: enabled
-                  ? Colors.white
-                  : _alpha(isDark ? Colors.white : Colors.black, 0.32),
-            ),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: enabled
+                      ? Colors.white
+                      : _alpha(isDark ? Colors.white : Colors.black, 0.32),
+                ),
           ),
         ),
       ),
@@ -1160,28 +1322,13 @@ class _IOSAlert extends StatelessWidget {
                             Text(
                               title,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.3,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.color,
-                              ),
+                              style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: 7),
                             Text(
                               message,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                height: 1.4,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -1264,11 +1411,11 @@ class _AlertButtonState extends State<_AlertButton> {
             widget.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 16.5,
-              fontWeight: widget.emphasised ? FontWeight.w600 : FontWeight.w400,
-              color: widget.color ?? AppTheme.goldPrimary,
-            ),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight:
+                      widget.emphasised ? FontWeight.w600 : FontWeight.w400,
+                  color: widget.color ?? AppTheme.goldPrimary,
+                ),
           ),
         ),
       ),

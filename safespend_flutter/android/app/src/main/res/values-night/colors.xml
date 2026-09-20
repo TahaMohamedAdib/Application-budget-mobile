@@ -2,4 +2,5 @@
 <resources>
     <!-- Mirrors AppColors.darkBackground. -->
     <color name="launchBackground">#FF181A1B</color>
+    <color name="ic_launcher_background">#FF000000</color>
 </resources>

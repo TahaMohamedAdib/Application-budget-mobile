@@ -1,3 +1,4 @@
+import '../widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,7 @@ import '../models/goal.dart';
 import '../l10n/app_localizations.dart';
 import 'settings_screen.dart';
 import '../utils/money_format.dart';
+import '../widgets/feature_help_button.dart';
 
 class PlanScreen extends StatefulWidget {
   final int? initialTab; // 0=fixed, 1=variable, 2=sinking
@@ -54,12 +56,13 @@ class _PlanScreenState extends State<PlanScreen> {
             : provider.goals.fold(0.0, (sum, g) => sum + (g.targetAmount / 12));
 
         final cf = MoneyFormat.of(provider.settings);
+        final localeName = Localizations.localeOf(context).toLanguageTag();
 
         final defaultSinkingFunds = [
-          {'name': 'Car/Repairs', 'icon': '🚗'},
-          {'name': 'Gifts', 'icon': '🎁'},
-          {'name': 'Emergency Fund', 'icon': '🛡️'},
-          {'name': 'Vacation', 'icon': '✈️'},
+          {'name': s.tr('sinkingFundCarRepairs'), 'icon': '🚗'},
+          {'name': s.tr('sinkingFundGifts'), 'icon': '🎁'},
+          {'name': s.tr('sinkingFundEmergencyFund'), 'icon': '🛡️'},
+          {'name': s.tr('sinkingFundVacation'), 'icon': '✈️'},
         ];
 
         return Scaffold(
@@ -108,6 +111,12 @@ class _PlanScreenState extends State<PlanScreen> {
                           ],
                         ),
                       ),
+                      FeatureHelpButton(
+                        title: s.monthlyPlan,
+                        description: s.tourBudgetsBody,
+                        icon: IOSIcons.calendar_month,
+                      ),
+                      const SizedBox(width: 6),
                       GestureDetector(
                         onTap: () => Navigator.push(
                             context,
@@ -166,8 +175,11 @@ class _PlanScreenState extends State<PlanScreen> {
                       children: [
                         // ── Fixed Expenses ──
                         if (_activeTab == 'fixed') ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 12,
+                            runSpacing: 8,
                             children: [
                               Text(
                                   '$fixedBillsCount ${s.bills} · ${cf.format(fixedBillsTotal)}/${s.month}',
@@ -254,20 +266,13 @@ class _PlanScreenState extends State<PlanScreen> {
                               final rule = entry.value;
                               final dueDate = DateTime.parse(rule.nextDate);
                               final day = dueDate.day;
-                              final ordinal = day == 1 || day == 21 || day == 31
-                                  ? '${day}st'
-                                  : day == 2 || day == 22
-                                      ? '${day}nd'
-                                      : day == 3 || day == 23
-                                          ? '${day}rd'
-                                          : '${day}th';
                               final freqLabel = rule.frequency == 'monthly'
                                   ? s.monthly
                                   : rule.frequency == 'weekly'
                                       ? s.weekly
                                       : rule.frequency == 'yearly'
                                           ? s.yearly
-                                          : rule.frequency;
+                                          : s.daily;
                               final acct = provider.accounts.where((a) =>
                                   a.id == rule.templateTransaction.accountId);
                               final acctName =
@@ -296,10 +301,8 @@ class _PlanScreenState extends State<PlanScreen> {
                                   onDismissed: (_) =>
                                       provider.deleteRecurringRule(rule.id),
                                   child: GestureDetector(
-                                    onTap: () => showModalBottomSheet(
+                                    onTap: () => showAppFormSheet(
                                       context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
                                       builder: (ctx) => AddBillModal(
                                           bill: rule,
                                           onSave: (updated) {
@@ -335,8 +338,15 @@ class _PlanScreenState extends State<PlanScreen> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                    rule.templateTransaction
-                                                            .note ??
+                                                    S
+                                                            .forLocale(context
+                                                                .read<
+                                                                    AppProvider>()
+                                                                .settings
+                                                                .locale)
+                                                            .systemNote(rule
+                                                                .templateTransaction
+                                                                .note) ??
                                                         s.bill,
                                                     style: Theme.of(context)
                                                         .textTheme
@@ -346,7 +356,10 @@ class _PlanScreenState extends State<PlanScreen> {
                                                                 FontWeight
                                                                     .w600)),
                                                 const SizedBox(height: 4),
-                                                Row(
+                                                Wrap(
+                                                  runSpacing: 6,
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
                                                   children: [
                                                     Icon(
                                                         Icons
@@ -358,7 +371,8 @@ class _PlanScreenState extends State<PlanScreen> {
                                                             ?.color),
                                                     const SizedBox(width: 4),
                                                     Text(
-                                                        '${s.paymentDay} $ordinal',
+                                                        s.tr('paymentDayNumber',
+                                                            {'day': day}),
                                                         style: Theme.of(context)
                                                             .textTheme
                                                             .bodySmall),
@@ -395,15 +409,13 @@ class _PlanScreenState extends State<PlanScreen> {
                                                               shape: BoxShape
                                                                   .circle)),
                                                       const SizedBox(width: 10),
-                                                      Flexible(
-                                                          child: Text(acctName,
-                                                              style: Theme.of(
-                                                                      context)
+                                                      Text(acctName,
+                                                          style:
+                                                              Theme.of(context)
                                                                   .textTheme
                                                                   .bodySmall,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis)),
+                                                          overflow: TextOverflow
+                                                              .ellipsis),
                                                     ],
                                                   ],
                                                 ),
@@ -510,7 +522,9 @@ class _PlanScreenState extends State<PlanScreen> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                Text(cat.name,
+                                                Text(
+                                                    s.categoryDisplayName(
+                                                        cat.id, cat.name),
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .titleMedium
@@ -521,8 +535,15 @@ class _PlanScreenState extends State<PlanScreen> {
                                                 const SizedBox(height: 2),
                                                 Text(
                                                   budget > 0
-                                                      ? '${cf.format(spent)} of ${cf.format(budget)}'
-                                                      : 'No limit set · Tap to set',
+                                                      ? s.tr(
+                                                          'spentOfThisMonth', {
+                                                          'spent':
+                                                              cf.format(spent),
+                                                          'budget':
+                                                              cf.format(budget),
+                                                        })
+                                                      : s.tr(
+                                                          'noLimitSetTapToSet'),
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
@@ -602,7 +623,9 @@ class _PlanScreenState extends State<PlanScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                  'Monthly contribution: ${cf.format(monthlyContribution)}',
+                                  s.tr('monthlyContributionAmount', {
+                                    'amount': cf.format(monthlyContribution),
+                                  }),
                                   style: Theme.of(context).textTheme.bodySmall),
                               GestureDetector(
                                 onTap: () =>
@@ -622,7 +645,7 @@ class _PlanScreenState extends State<PlanScreen> {
                                           color:
                                               AppTheme.adaptiveIcon(context)),
                                       const SizedBox(width: 4),
-                                      Text('Add',
+                                      Text(s.add,
                                           style: TextStyle(
                                               color: Theme.of(context)
                                                   .textTheme
@@ -681,7 +704,11 @@ class _PlanScreenState extends State<PlanScreen> {
                                                                 FontWeight
                                                                     .w600)),
                                                 Text(
-                                                    '${cf.format(goal.targetAmount / 12)}/mo',
+                                                    s.tr('amountPerMonth', {
+                                                      'amount': cf.format(
+                                                          goal.targetAmount /
+                                                              12),
+                                                    }),
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .bodySmall),
@@ -696,7 +723,10 @@ class _PlanScreenState extends State<PlanScreen> {
                                                     .withOpacity(0.1),
                                                 borderRadius:
                                                     BorderRadius.circular(12)),
-                                            child: Text('${progress.round()}%',
+                                            child: Text(
+                                                NumberFormat.percentPattern(
+                                                        localeName)
+                                                    .format(progress / 100),
                                                 style: const TextStyle(
                                                     color: AppTheme.goldPrimary,
                                                     fontWeight: FontWeight.w700,
@@ -724,12 +754,18 @@ class _PlanScreenState extends State<PlanScreen> {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                              '${cf.format(goal.currentAmount)} saved',
+                                              s.tr('savedAmount', {
+                                                'amount': cf
+                                                    .format(goal.currentAmount),
+                                              }),
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall),
                                           Text(
-                                              '${cf.format(goal.targetAmount)} goal',
+                                              s.tr('goalTargetAmount', {
+                                                'amount': cf
+                                                    .format(goal.targetAmount),
+                                              }),
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall),
@@ -748,8 +784,8 @@ class _PlanScreenState extends State<PlanScreen> {
                                                   context)),
                                           label: Text(
                                               goal.type == 'debt'
-                                                  ? 'Make Payment'
-                                                  : 'Contribute',
+                                                  ? s.tr('makePayment')
+                                                  : s.contribute,
                                               style: const TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w600)),
@@ -812,14 +848,20 @@ class _PlanScreenState extends State<PlanScreen> {
                                                             fontWeight:
                                                                 FontWeight
                                                                     .w600)),
-                                                Text('\$0/mo',
+                                                Text(
+                                                    s.tr('amountPerMonth', {
+                                                      'amount': cf.format(0),
+                                                    }),
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .bodySmall),
                                               ],
                                             ),
                                           ),
-                                          Text('0%',
+                                          Text(
+                                              NumberFormat.percentPattern(
+                                                      localeName)
+                                                  .format(0),
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall),
@@ -886,10 +928,8 @@ class _PlanScreenState extends State<PlanScreen> {
   }
 
   void _showAddBillModal(BuildContext context, AppProvider provider) {
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) => AddBillModal(onSave: (bill) {
         provider.addRecurringRule(bill);
         Navigator.pop(context);
@@ -942,484 +982,373 @@ class _PlanScreenState extends State<PlanScreen> {
 
   void _showSetBudgetModal(BuildContext context, AppProvider provider,
       Category cat, MoneyFormat cf) {
+    final s = S.of(context);
     final controller = TextEditingController(
         text: cat.budgetLimit > 0 ? cat.budgetLimit.toStringAsFixed(0) : '');
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final spent = provider.getCategorySpending(cat.id);
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                    child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: Theme.of(ctx).dividerColor,
-                            borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Icon(_categoryIcon(cat.icon),
-                        color: AppTheme.adaptiveIcon(ctx), size: 24),
-                    const SizedBox(width: 12),
-                    Text('Set Budget for ${cat.name}',
-                        style: Theme.of(ctx)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text('Spent this month: ${cf.format(spent)}',
-                    style: Theme.of(ctx).textTheme.bodySmall),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: controller,
-                  keyboardType: TextInputType.number,
-                  autofocus: true,
-                  style: const TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.bold),
-                  decoration: InputDecoration(
-                    labelText: 'Monthly limit',
-                    hintText: '0.00',
-                    prefixText:
-                        '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    filled: true,
+      builder: (ctx) => AppFormSheet(
+          header: AppFormSheetHeader(
+              title: s.tr('setBudgetForCategory', {
+                'category': s.categoryDisplayName(cat.id, cat.name),
+              }),
+              icon: IOSIcons.category_rounded,
+              accent: AppTheme.adaptiveIcon(ctx)),
+          body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(s.tr('spentThisMonthOnly', {'spent': cf.format(spent)}),
+                style: Theme.of(ctx).textTheme.bodySmall),
+            const SizedBox(height: 20),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: false,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                labelText: s.monthlyBudget,
+                hintText: '0.00',
+                prefixText:
+                    '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                filled: true,
+              ),
+            )
+          ]),
+          actions: Row(
+            children: [
+              if (cat.budgetLimit > 0)
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      provider.updateCategory(cat.copyWith(budgetLimit: 0));
+                      Navigator.pop(ctx);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      side: BorderSide(color: AppTheme.error),
+                    ),
+                    child: Text(s.removeLimit,
+                        style: const TextStyle(
+                            color: AppTheme.error,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    if (cat.budgetLimit > 0)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            provider
-                                .updateCategory(cat.copyWith(budgetLimit: 0));
-                            Navigator.pop(ctx);
-                          },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            side: BorderSide(color: AppTheme.error),
-                          ),
-                          child: const Text('Remove Limit',
-                              style: TextStyle(
-                                  color: AppTheme.error,
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                    if (cat.budgetLimit > 0) const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final amount = double.tryParse(controller.text) ?? 0;
-                          if (amount > 0) {
-                            provider.updateCategory(
-                                cat.copyWith(budgetLimit: amount));
-                          }
-                          Navigator.pop(ctx);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
-                        ),
-                        child: const Text('Save',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 15)),
-                      ),
-                    ),
-                  ],
+              if (cat.budgetLimit > 0) const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final amount = double.tryParse(controller.text) ?? 0;
+                    if (amount > 0) {
+                      provider
+                          .updateCategory(cat.copyWith(budgetLimit: amount));
+                    }
+                    Navigator.pop(ctx);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.goldPrimary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: Text(s.save,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 15)),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
+              ),
+            ],
+          )),
     );
   }
 
   void _showAddGoalModal(BuildContext context, AppProvider provider, S s) {
     final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     String selectedType = 'savings';
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (ctx, setModalState) => AppFormSheet(
+            header: AppFormSheetHeader(
+                title: s.addSinkingFund,
+                icon: IOSIcons.wealthSavingsGoals,
+                accent: AppTheme.adaptiveIcon(ctx)),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(
                 children: [
-                  Center(
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () =>
+                          setModalState(() => selectedType = 'savings'),
                       child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                              color: Theme.of(ctx).dividerColor,
-                              borderRadius: BorderRadius.circular(2)))),
-                  const SizedBox(height: 20),
-                  Text(s.addSinkingFund,
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 20),
-                  // Type selector: Savings Goal vs Debt Payoff
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () =>
-                              setModalState(() => selectedType = 'savings'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: selectedType == 'savings'
+                              ? AppTheme.success.withOpacity(0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
                               color: selectedType == 'savings'
-                                  ? AppTheme.success.withOpacity(0.12)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: selectedType == 'savings'
-                                      ? AppTheme.success
-                                      : Theme.of(ctx).dividerColor),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(IOSIcons.savings_rounded,
-                                    size: 24,
-                                    color: AppTheme.adaptiveIcon(ctx)),
-                                const SizedBox(height: 6),
-                                Text(s.savingsGoal,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: selectedType == 'savings'
-                                            ? AppTheme.success
-                                            : Theme.of(ctx)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.color)),
-                              ],
-                            ),
-                          ),
+                                  ? AppTheme.success
+                                  : Theme.of(ctx).dividerColor),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(IOSIcons.savings_rounded,
+                                size: 24, color: AppTheme.adaptiveIcon(ctx)),
+                            const SizedBox(height: 6),
+                            Text(s.savingsGoal,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: selectedType == 'savings'
+                                        ? AppTheme.success
+                                        : Theme.of(ctx)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color)),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () =>
-                              setModalState(() => selectedType = 'debt'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: selectedType == 'debt'
-                                  ? AppTheme.error.withOpacity(0.12)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: selectedType == 'debt'
-                                      ? AppTheme.error
-                                      : Theme.of(ctx).dividerColor),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(IOSIcons.credit_card_rounded,
-                                    size: 24,
-                                    color: AppTheme.adaptiveIcon(ctx)),
-                                const SizedBox(height: 6),
-                                Text(s.debtPayoff,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: selectedType == 'debt'
-                                            ? AppTheme.error
-                                            : Theme.of(ctx)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.color)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                          labelText: selectedType == 'debt'
-                              ? 'Debt Name'
-                              : 'Goal Name',
-                          hintText: selectedType == 'debt'
-                              ? 'e.g., Car Loan, Credit Card'
-                              : 'e.g., Vacation, Emergency Fund',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: Icon(
-                              selectedType == 'debt'
-                                  ? IOSIcons.credit_card_rounded
-                                  : IOSIcons.flag_rounded,
-                              color: AppTheme.adaptiveIcon(ctx)))),
-                  const SizedBox(height: 16),
-                  TextField(
-                      controller: amountCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                          labelText: selectedType == 'debt'
-                              ? 'Total Debt Amount'
-                              : 'Target Amount',
-                          hintText: '0.00',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: Icon(IOSIcons.attach_money_rounded,
-                              color: AppTheme.adaptiveIcon(ctx)))),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (nameCtrl.text.isEmpty) return;
-                        provider.addGoal(Goal(
-                          id: const Uuid().v4(),
-                          type: selectedType,
-                          name: nameCtrl.text,
-                          targetAmount: double.tryParse(amountCtrl.text) ?? 1,
-                          icon: selectedType == 'debt' ? '💳' : '🎯',
-                          color: selectedType == 'debt' ? '#EF4444' : '#B8860B',
-                        ));
-                        Navigator.pop(ctx);
-                      },
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          elevation: 0),
-                      child: Text(
-                          selectedType == 'debt' ? s.addDebt : s.addGoal,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setModalState(() => selectedType = 'debt'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: selectedType == 'debt'
+                              ? AppTheme.error.withOpacity(0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: selectedType == 'debt'
+                                  ? AppTheme.error
+                                  : Theme.of(ctx).dividerColor),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(IOSIcons.credit_card_rounded,
+                                size: 24, color: AppTheme.adaptiveIcon(ctx)),
+                            const SizedBox(height: 6),
+                            Text(s.debtPayoff,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: selectedType == 'debt'
+                                        ? AppTheme.error
+                                        : Theme.of(ctx)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
+              const SizedBox(height: 20),
+              TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                      labelText: selectedType == 'debt'
+                          ? s.debtName
+                          : s.tr('goalName'),
+                      hintText: selectedType == 'debt'
+                          ? s.tr('debtNameHint')
+                          : s.tr('goalNameHint'),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      prefixIcon: Icon(
+                          selectedType == 'debt'
+                              ? IOSIcons.credit_card_rounded
+                              : IOSIcons.flag_rounded,
+                          color: AppTheme.adaptiveIcon(ctx)))),
+              const SizedBox(height: 16),
+              TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                      labelText: selectedType == 'debt'
+                          ? s.totalAmount
+                          : s.targetAmount,
+                      hintText: '0.00',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      prefixIcon: Icon(IOSIcons.attach_money_rounded,
+                          color: AppTheme.adaptiveIcon(ctx))))
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (nameCtrl.text.isEmpty) return;
+                  provider.addGoal(Goal(
+                    id: const Uuid().v4(),
+                    type: selectedType,
+                    name: nameCtrl.text,
+                    targetAmount: double.tryParse(amountCtrl.text) ?? 1,
+                    icon: selectedType == 'debt' ? '💳' : '🎯',
+                    color: selectedType == 'debt' ? '#EF4444' : '#B8860B',
+                  ));
+                  Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.goldPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 0),
+                child: Text(selectedType == 'debt' ? s.addDebt : s.addGoal,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }
 
   void _showContributeModal(
       BuildContext context, AppProvider provider, Goal goal) {
+    final s = S.of(context);
     final amountCtrl = TextEditingController();
     String? selectedSourceId = provider.accounts.isNotEmpty
         ? provider.accounts.first.id
         : AppProvider.cashOnHandId;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final cf = MoneyFormat.of(provider.settings);
     final isDebt = goal.type == 'debt';
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                      child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                              color: Theme.of(ctx).dividerColor,
-                              borderRadius: BorderRadius.circular(2)))),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                            color: AppTheme.gold50,
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Center(
-                            child: Text(goal.icon,
-                                style: const TextStyle(fontSize: 20))),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(isDebt ? 'Pay Debt' : 'Contribute to Goal',
-                                style: Theme.of(ctx)
-                                    .textTheme
-                                    .headlineSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700)),
-                            Text(goal.name,
-                                style: Theme.of(ctx).textTheme.bodySmall),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Progress info
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    margin: const EdgeInsets.only(top: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.goldPrimary.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(isDebt ? 'Remaining' : 'Saved so far',
-                            style: Theme.of(ctx).textTheme.bodySmall),
-                        Text(
-                            '${cf.format(goal.currentAmount)} / ${cf.format(goal.targetAmount)}',
-                            style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.goldPrimary)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: amountCtrl,
-                    keyboardType: TextInputType.number,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'Amount',
-                      hintText: '0.00',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: Icon(IOSIcons.attach_money_rounded,
-                          color: AppTheme.adaptiveIcon(ctx)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Source account picker
-                  AppPickerField<String>(
-                    label: 'Pay From',
-                    value: selectedSourceId ?? AppProvider.cashOnHandId,
-                    prefixIcon: AppIcons.wallet,
-                    items: [
-                      AppPickerItem(
-                        value: AppProvider.cashOnHandId,
-                        label: 'Cash on Hand',
-                        subtitle: cf.format(provider.totalCash),
-                        leadingIcon: AppIcons.payment,
-                        iconColor: AppTheme.cashOnHandIcon,
-                      ),
-                      ...provider.accounts
-                          .where((a) => a.type != 'debt')
-                          .map((a) => AppPickerItem(
-                                value: a.id,
-                                label: a.name,
-                                subtitle: cf.format(a.balance),
-                                leadingIcon: AppIcons.bank,
-                                iconColor: AppTheme.adaptiveIcon(ctx),
-                                imagePath: a.imagePath,
-                              )),
-                    ],
-                    onChanged: (v) => setModalState(() => selectedSourceId = v),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final amount = double.tryParse(amountCtrl.text) ?? 0;
-                        if (amount <= 0) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                              content: Text('Enter a valid amount')));
-                          return;
-                        }
-                        if (isDebt) {
-                          provider.payDebt(goal.id, amount,
-                              selectedSourceId ?? AppProvider.cashOnHandId);
-                        } else {
-                          provider.contributeToGoalFromSource(goal.id, amount,
-                              selectedSourceId ?? AppProvider.cashOnHandId);
-                        }
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  '${cf.format(amount)} ${isDebt ? "paid" : "contributed"} to ${goal.name}'),
-                              backgroundColor: AppTheme.goldPrimary),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          elevation: 0),
-                      child: Text(isDebt ? 'Make Payment' : 'Contribute',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
+        builder: (ctx, setModalState) => AppFormSheet(
+            header: AppFormSheetHeader(
+                title: goal.icon,
+                icon: IOSIcons.wealthSavingsGoals,
+                accent: AppTheme.adaptiveIcon(ctx)),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(isDebt ? s.tr('payDebt') : s.tr('contributeToGoal'),
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(goal.name, style: Theme.of(ctx).textTheme.bodySmall),
+              Container(
+                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.goldPrimary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(isDebt ? s.remaining : s.tr('savedSoFar'),
+                        style: Theme.of(ctx).textTheme.bodySmall),
+                    Text(
+                        '${cf.format(goal.currentAmount)} / ${cf.format(goal.targetAmount)}',
+                        style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.goldPrimary)),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: TextInputType.number,
+                autofocus: false,
+                decoration: InputDecoration(
+                  labelText: s.amount,
+                  hintText: '0.00',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  prefixIcon: Icon(IOSIcons.attach_money_rounded,
+                      color: AppTheme.adaptiveIcon(ctx)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              AppPickerField<String>(
+                label: s.payFrom,
+                value: selectedSourceId ?? AppProvider.cashOnHandId,
+                prefixIcon: AppIcons.wallet,
+                items: [
+                  AppPickerItem(
+                    value: AppProvider.cashOnHandId,
+                    label: s.cashOnHand,
+                    subtitle: cf.format(provider.totalCash),
+                    leadingIcon: AppIcons.payment,
+                    iconColor: AppTheme.cashOnHandIcon,
+                  ),
+                  ...provider.accounts
+                      .where((a) => a.type != 'debt')
+                      .map((a) => AppPickerItem(
+                            value: a.id,
+                            label: a.name,
+                            subtitle: cf.format(a.balance),
+                            leadingIcon: AppIcons.bank,
+                            iconColor: AppTheme.adaptiveIcon(ctx),
+                            imagePath: a.imagePath,
+                          )),
+                ],
+                onChanged: (v) => setModalState(() => selectedSourceId = v),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  final amount = double.tryParse(amountCtrl.text) ?? 0;
+                  if (amount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.enterValidAmount)));
+                    return;
+                  }
+                  if (isDebt) {
+                    provider.payDebt(goal.id, amount,
+                        selectedSourceId ?? AppProvider.cashOnHandId);
+                  } else {
+                    provider.contributeToGoalFromSource(goal.id, amount,
+                        selectedSourceId ?? AppProvider.cashOnHandId);
+                  }
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(s.tr(
+                            isDebt
+                                ? 'paidAmountToGoal'
+                                : 'contributedAmountToGoal',
+                            {
+                              'amount': cf.format(amount),
+                              'name': goal.name,
+                            })),
+                        backgroundColor: AppTheme.goldPrimary),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.goldPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 0),
+                child: Text(isDebt ? s.tr('makePayment') : s.contribute,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }
@@ -1444,7 +1373,10 @@ class _AddBillModalState extends State<AddBillModal> {
   void initState() {
     super.initState();
     if (widget.bill != null) {
-      _nameController.text = widget.bill!.templateTransaction.note ?? '';
+      _nameController.text = S
+              .forLocale(context.read<AppProvider>().settings.locale)
+              .systemNote(widget.bill!.templateTransaction.note) ??
+          '';
       _amountController.text =
           widget.bill!.templateTransaction.amount.toString();
       _selectedFrequency = widget.bill!.frequency;
@@ -1462,7 +1394,6 @@ class _AddBillModalState extends State<AddBillModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         // Default to first available account or cash
@@ -1475,193 +1406,161 @@ class _AddBillModalState extends State<AddBillModal> {
         final cf = MoneyFormat.of(provider.settings);
         final s = S.of(context);
 
-        return Container(
-          decoration: BoxDecoration(
-              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24))),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                      child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                              color: Theme.of(context).dividerColor,
-                              borderRadius: BorderRadius.circular(2)))),
-                  const SizedBox(height: 20),
-                  Text(widget.bill == null ? s.addBill : s.editBill,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 24),
-                  TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                          labelText: 'Bill Name',
-                          hintText: 'e.g., Rent, Netflix',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: Icon(IOSIcons.receipt_long_rounded,
-                              color: AppTheme.adaptiveIcon(context)))),
-                  const SizedBox(height: 16),
-                  TextField(
-                      controller: _amountController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                          labelText: 'Amount',
-                          hintText: '0.00',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          prefixIcon: Icon(IOSIcons.attach_money_rounded,
-                              color: AppTheme.adaptiveIcon(context)))),
-                  const SizedBox(height: 16),
-                  // Account picker with Cash on Hand
-                  AppPickerField<String>(
-                    label: 'Pay From',
-                    value: _selectedAccountId ?? AppProvider.cashOnHandId,
-                    prefixIcon: AppIcons.wallet,
-                    items: [
-                      AppPickerItem(
-                        value: AppProvider.cashOnHandId,
-                        label: 'Cash on Hand',
-                        subtitle: cf.format(provider.totalCash),
-                        leadingIcon: AppIcons.payment,
-                        iconColor: AppTheme.cashOnHandIcon,
-                      ),
-                      ...provider.accounts.map((a) => AppPickerItem(
-                            value: a.id,
-                            label: a.name,
-                            subtitle: cf.format(a.balance),
-                            leadingIcon: AppIcons.bank,
-                            iconColor: AppTheme.adaptiveIcon(context),
-                            imagePath: a.imagePath,
-                          )),
-                    ],
-                    onChanged: (v) => setState(() => _selectedAccountId = v),
+        return AppFormSheet(
+            header: AppFormSheetHeader(
+                title: widget.bill == null ? s.addBill : s.editBill,
+                icon: IOSIcons.autorenew_rounded,
+                accent: AppTheme.adaptiveIcon(context)),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TextField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                      labelText: s.billName,
+                      hintText: s.tr('billNameHint'),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      prefixIcon: Icon(IOSIcons.receipt_long_rounded,
+                          color: AppTheme.adaptiveIcon(context)))),
+              const SizedBox(height: 16),
+              TextField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                      labelText: s.billAmount,
+                      hintText: '0.00',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      prefixIcon: Icon(IOSIcons.attach_money_rounded,
+                          color: AppTheme.adaptiveIcon(context)))),
+              const SizedBox(height: 16),
+              AppPickerField<String>(
+                label: s.payFrom,
+                value: _selectedAccountId ?? AppProvider.cashOnHandId,
+                prefixIcon: AppIcons.wallet,
+                items: [
+                  AppPickerItem(
+                    value: AppProvider.cashOnHandId,
+                    label: s.cashOnHand,
+                    subtitle: cf.format(provider.totalCash),
+                    leadingIcon: AppIcons.payment,
+                    iconColor: AppTheme.cashOnHandIcon,
                   ),
-                  const SizedBox(height: 24),
-                  Text(s.frequency,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: ['daily', 'weekly', 'monthly', 'yearly'].map((f) {
-                      final isSelected = _selectedFrequency == f;
-                      final freqLabel = f == 'daily'
-                          ? s.daily
-                          : f == 'weekly'
-                              ? s.weekly
-                              : f == 'monthly'
-                                  ? s.monthly
-                                  : s.yearly;
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _selectedFrequency = f),
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
+                  ...provider.accounts.map((a) => AppPickerItem(
+                        value: a.id,
+                        label: a.name,
+                        subtitle: cf.format(a.balance),
+                        leadingIcon: AppIcons.bank,
+                        iconColor: AppTheme.adaptiveIcon(context),
+                        imagePath: a.imagePath,
+                      )),
+                ],
+                onChanged: (v) => setState(() => _selectedAccountId = v),
+              ),
+              const SizedBox(height: 24),
+              Text(s.frequency,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Row(
+                children: ['daily', 'weekly', 'monthly', 'yearly'].map((f) {
+                  final isSelected = _selectedFrequency == f;
+                  final freqLabel = f == 'daily'
+                      ? s.daily
+                      : f == 'weekly'
+                          ? s.weekly
+                          : f == 'monthly'
+                              ? s.monthly
+                              : s.yearly;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedFrequency = f),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.goldPrimary
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
                               color: isSelected
                                   ? AppTheme.goldPrimary
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: isSelected
-                                      ? AppTheme.goldPrimary
-                                      : Theme.of(context).dividerColor),
-                            ),
-                            child: Center(
-                                child: Text(
-                                    freqLabel[0].toUpperCase() +
-                                        freqLabel.substring(1),
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.color))),
-                          ),
+                                  : Theme.of(context).dividerColor),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 20),
-                  GestureDetector(
-                    onTap: () async {
-                      final date = await showDatePicker(
-                          context: context,
-                          initialDate: _nextDate,
-                          firstDate: DateTime.now(),
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)));
-                      if (date != null) setState(() => _nextDate = date);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: AppTheme.borderedCard(context),
-                      child: Row(
-                        children: [
-                          Icon(IOSIcons.calendar_today_rounded,
-                              size: 18, color: AppTheme.adaptiveIcon(context)),
-                          const SizedBox(width: 12),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(s.nextDueDate,
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall),
-                                Text(
-                                    DateFormat('MMM d, yyyy').format(_nextDate),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600)),
-                              ]),
-                          const Spacer(),
-                          Icon(IOSIcons.chevron_right_rounded,
-                              size: 20, color: AppTheme.adaptiveIcon(context)),
-                        ],
+                        child: Center(
+                            child: Text(freqLabel,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color))),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _saveBill,
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          elevation: 0),
-                      child: Text(
-                          widget.bill == null ? s.addBill : s.saveChanges,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
-            ),
-          ),
-        );
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: () async {
+                  final date = await showDatePicker(
+                      context: context,
+                      initialDate: _nextDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)));
+                  if (date != null) setState(() => _nextDate = date);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: AppTheme.borderedCard(context),
+                  child: Row(
+                    children: [
+                      Icon(IOSIcons.calendar_today_rounded,
+                          size: 18, color: AppTheme.adaptiveIcon(context)),
+                      const SizedBox(width: 12),
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(s.nextDueDate,
+                                style: Theme.of(context).textTheme.bodySmall),
+                            Text(
+                                MaterialLocalizations.of(context)
+                                    .formatMediumDate(_nextDate),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600)),
+                          ]),
+                      const Spacer(),
+                      Icon(IOSIcons.chevron_right_rounded,
+                          size: 20, color: AppTheme.adaptiveIcon(context)),
+                    ],
+                  ),
+                ),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _saveBill,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.goldPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 0),
+                child: Text(widget.bill == null ? s.addBill : s.saveChanges,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            ));
       },
     );
   }
@@ -1683,14 +1582,16 @@ class _AddBillModalState extends State<AddBillModal> {
 
   void _saveBill() {
     if (_nameController.text.isEmpty) {
+      final s = S.of(context);
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Please enter a name')));
+          .showSnackBar(SnackBar(content: Text(s.pleaseEnterName)));
       return;
     }
     final amount = double.tryParse(_amountController.text) ?? 0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a valid amount')));
+      final s = S.of(context);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(s.pleaseEnterAmount)));
       return;
     }
     final accountId = _selectedAccountId ?? AppProvider.cashOnHandId;

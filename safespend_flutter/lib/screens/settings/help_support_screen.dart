@@ -88,10 +88,7 @@ class _FaqState extends State<_Faq> with SingleTickerProviderStateMixin {
                   Expanded(
                     child: Text(
                       widget.q,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14.5,
-                          ),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -107,10 +104,7 @@ class _FaqState extends State<_Faq> with SingleTickerProviderStateMixin {
                 const SizedBox(height: 8),
                 Text(
                   widget.a,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(height: 1.5, fontSize: 13),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ],

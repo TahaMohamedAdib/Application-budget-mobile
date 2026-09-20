@@ -2,8 +2,9 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_fonts.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class ChatInputBar extends StatelessWidget {
   final TextEditingController controller;
@@ -38,6 +39,7 @@ class ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     final foreground =
         isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
     final canSend = _hasContent && !isTyping;
@@ -79,7 +81,7 @@ class ChatInputBar extends StatelessWidget {
                   children: [
                     Semantics(
                       button: true,
-                      label: 'Attach',
+                      label: s.attach,
                       child: IconButton(
                         onPressed: isTyping ? null : onAttach,
                         constraints: const BoxConstraints.tightFor(
@@ -108,7 +110,7 @@ class ChatInputBar extends StatelessWidget {
                           color: foreground,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Ask SafeSpend AI',
+                          hintText: s.tr('askSafeSpendAi'),
                           hintStyle: GoogleFonts.inter(
                             fontSize: 15,
                             color: isDark
@@ -139,7 +141,9 @@ class ChatInputBar extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          tooltip: isTyping ? 'Thinking' : 'Send',
+                          tooltip: isTyping
+                              ? s.tr('thinking')
+                              : s.tr('send'),
                           padding: EdgeInsets.zero,
                           onPressed: canSend ? onSend : null,
                           icon: isTyping

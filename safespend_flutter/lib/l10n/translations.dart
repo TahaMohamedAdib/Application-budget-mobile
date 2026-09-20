@@ -1,5 +1,8 @@
 import 'translations_core.dart';
+import 'translations_audit.dart';
+import 'translations_currencies.dart';
 import 'translations_extra.dart';
+import 'translations_features.dart';
 import 'translations_settings.dart';
 import 'translations_settings_extra.dart';
 import 'translations_onboarding.dart';
@@ -11,7 +14,10 @@ import 'translations_onboarding.dart';
 /// the settings-only one, dropping every pre-existing string in it.
 final translations = _merge([
   translationsCore,
+  translationsAudit,
+  translationsCurrencies,
   translationsExtra,
+  translationsFeatures,
   translationsSettings,
   translationsSettingsExtra,
   translationsOnboarding,

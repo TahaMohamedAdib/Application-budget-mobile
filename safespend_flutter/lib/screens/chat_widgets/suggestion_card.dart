@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_fonts.dart';
 import '../../theme/app_theme.dart';
 
 class SuggestionCard extends StatelessWidget {
@@ -70,7 +70,7 @@ class SuggestionCard extends StatelessWidget {
                         Text(
                           text,
                           style: GoogleFonts.inter(
-                            fontSize: 12.5,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: foreground,
                             height: 1.25,

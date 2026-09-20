@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_theme.dart';
+import '../widgets/stored_image.dart';
+import '../services/supabase_sync_service.dart';
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
 
@@ -98,40 +100,25 @@ class AppPickerField<T> extends StatelessWidget {
                       SizedBox(width: isCompact ? 8 : 12),
                     ],
                     if (selected?.imagePath != null) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(5),
-                        child: selected!.imagePath!.startsWith('http')
-                            ? Image.network(
-                                selected.imagePath!,
-                                width: 18,
-                                height: 18,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    selected.leadingIcon != null
-                                        ? AppIcon(
-                                            selected.leadingIcon!,
-                                            size: 18,
-                                            color: selected.iconColor ??
-                                                AppTheme.adaptiveIcon(context),
-                                          )
-                                        : const SizedBox(width: 18, height: 18),
+                      Builder(builder: (context) {
+                        final fallback = selected!.leadingIcon != null
+                            ? AppIcon(
+                                selected.leadingIcon!,
+                                size: 18,
+                                color: selected.iconColor ??
+                                    AppTheme.adaptiveIcon(context),
                               )
-                            : Image.file(
-                                File(selected.imagePath!),
-                                width: 18,
-                                height: 18,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    selected.leadingIcon != null
-                                        ? AppIcon(
-                                            selected.leadingIcon!,
-                                            size: 18,
-                                            color: selected.iconColor ??
-                                                AppTheme.adaptiveIcon(context),
-                                          )
-                                        : const SizedBox(width: 18, height: 18),
-                              ),
-                      ),
+                            : const SizedBox(width: 18, height: 18);
+                        return StoredImage(
+                          reference: selected.imagePath,
+                          bucket: SupabaseSyncService.logosBucket,
+                          width: 18,
+                          height: 18,
+                          borderRadius: BorderRadius.circular(5),
+                          placeholder: fallback,
+                          errorWidget: fallback,
+                        );
+                      }),
                       SizedBox(width: isCompact ? 8 : 10),
                     ] else if (selected?.leadingIcon != null) ...[
                       AppIcon(
@@ -294,7 +281,7 @@ class AppPickerField<T> extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 17,
+                                      fontSize: 18,
                                       fontWeight: FontWeight.w600,
                                       color: isDark
                                           ? _alpha(Colors.white, 0.94)
@@ -412,25 +399,14 @@ class _PickerOption<T> extends StatelessWidget {
         child: Row(
           children: [
             if (item.imagePath != null) ...[
-              ClipRRect(
+              StoredImage(
+                reference: item.imagePath,
+                bucket: SupabaseSyncService.logosBucket,
+                width: 32,
+                height: 32,
                 borderRadius: BorderRadius.circular(9),
-                child: item.imagePath!.startsWith('http')
-                    ? Image.network(
-                        item.imagePath!,
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _fallbackIcon(context, accent),
-                      )
-                    : Image.file(
-                        File(item.imagePath!),
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _fallbackIcon(context, accent),
-                      ),
+                placeholder: _fallbackIcon(context, accent),
+                errorWidget: _fallbackIcon(context, accent),
               ),
               const SizedBox(width: 12),
             ] else if (item.leadingIcon != null) ...[

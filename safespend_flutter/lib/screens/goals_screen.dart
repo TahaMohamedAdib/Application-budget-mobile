@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
@@ -17,6 +16,9 @@ import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/wealth_ui.dart';
 import '../utils/money_format.dart';
+import '../l10n/app_localizations.dart';
+import '../widgets/stored_image.dart';
+import '../services/supabase_sync_service.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -32,6 +34,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        final s = S.of(context);
         final cf = MoneyFormat.of(provider.settings);
         final savingsGoals =
             provider.goals.where((g) => g.type == 'savings').toList();
@@ -51,11 +54,11 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                     child: WealthPageHeader(
-                      title: 'Savings Goals',
-                      subtitle: 'Build toward what matters',
+                      title: s.savingsGoals,
+                      subtitle: s.tr('buildTowardWhatMatters'),
                       onBack: () => Navigator.pop(context),
                       onAdd: () => _showAddGoalModal(context, provider),
-                      addTooltip: 'Add savings goal',
+                      addTooltip: s.tr('addSavingsGoal'),
                     ),
                   ).animate().fadeIn(duration: 260.ms),
                 ),
@@ -66,16 +69,20 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                     child: WealthOverviewCard(
                       icon: IOSIcons.wealthSavingsGoals,
-                      label: 'Total Saved',
-                      amount: cf.format(totalSaved),
-                      firstLabel: 'Target',
+                      label: s.tr('totalSaved'),
+                      amountValue: totalSaved,
+                      formatter: cf,
+                      firstLabel: s.tr('target'),
                       firstValue: cf.format(totalTarget),
-                      secondLabel: 'Goals',
+                      secondLabel: s.goals,
                       secondValue: '${savingsGoals.length}',
                       progress: totalTarget > 0 ? totalSaved / totalTarget : 0,
                       progressLabel: totalTarget > 0
-                          ? '${((totalSaved / totalTarget) * 100).toStringAsFixed(1)}% of total targets'
-                          : 'Create a goal to begin saving',
+                          ? s.tr('percentOfTotalTargets', {
+                              'percent': ((totalSaved / totalTarget) * 100)
+                                  .toStringAsFixed(1),
+                            })
+                          : s.tr('createGoalToBeginSaving'),
                     )
                         .animate()
                         .fadeIn(duration: 280.ms)
@@ -88,7 +95,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
                     child: WealthSectionHeader(
-                      title: 'Your Goals',
+                      title: s.tr('yourGoals'),
                       count: '${savingsGoals.length}',
                     ),
                   ),
@@ -104,10 +111,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           Icon(IOSIcons.flag_outlined,
                               size: 64, color: AppTheme.adaptiveIcon(context)),
                           const SizedBox(height: 16),
-                          Text('No savings goals yet',
+                          Text(s.tr('noSavingsGoals'),
                               style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: 8),
-                          Text('Tap + to create your first goal',
+                          Text(s.tr('tapPlusToCreateFirstGoal'),
                               style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
@@ -139,6 +146,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   Widget _buildGoalCard(BuildContext context, Goal goal, AppProvider provider,
       MoneyFormat cf, bool isDark, int index) {
+    final s = S.of(context);
     final progress = goal.targetAmount > 0
         ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
         : 0.0;
@@ -199,7 +207,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                           fontWeight: FontWeight.w700,
                                           color:
                                               AppTheme.adaptiveIcon(context))),
-                              Text('of ${cf.format(goal.targetAmount)}',
+                              Text('${s.of_} ${cf.format(goal.targetAmount)}',
                                   style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
@@ -241,7 +249,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                       size: 12,
                                       color: AppTheme.adaptiveIcon(context)),
                                   const SizedBox(width: 4),
-                                  Text('${cf.format(goal.monthlyPayment!)}/mo',
+                                  Text(
+                                      '${cf.format(goal.monthlyPayment!)}${s.perMonth}',
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: AppTheme.adaptiveIcon(context),
@@ -251,7 +260,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             ),
                           if (dueDate != null) ...[
                             const SizedBox(width: 8),
-                            Text(DateFormat('MMM d, yyyy').format(dueDate),
+                            Text(
+                                MaterialLocalizations.of(context)
+                                    .formatMediumDate(dueDate),
                                 style: Theme.of(context).textTheme.bodySmall),
                           ],
                         ],
@@ -272,7 +283,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           flex: 2,
                           child: _buildGoalActionButton(
                             icon: IOSIcons.add_rounded,
-                            label: 'Add Savings',
+                            label: s.tr('addSavings'),
                             backgroundColor:
                                 AppTheme.adaptiveIconSurface(context),
                             foregroundColor:
@@ -286,7 +297,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         Expanded(
                           child: _buildGoalActionButton(
                             icon: IOSIcons.edit_rounded,
-                            label: 'Edit',
+                            label: s.edit,
                             backgroundColor:
                                 AppTheme.adaptiveIconSurface(context),
                             foregroundColor:
@@ -301,7 +312,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         Expanded(
                           child: _buildGoalActionButton(
                             icon: IOSIcons.delete_outline_rounded,
-                            label: 'Delete',
+                            label: s.delete,
                             backgroundColor:
                                 AppTheme.adaptiveIconSurface(context),
                             foregroundColor: AppTheme.error,
@@ -327,19 +338,17 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   Widget _buildGoalIcon(Goal goal, double size) {
     if (goal.imagePath != null && goal.imagePath!.isNotEmpty) {
-      return ClipRRect(
+      // StoredImage resolves whichever form the row holds: a storage object
+      // path (current), a local file path (not yet uploaded), or a full URL
+      // (older rows). Private-bucket links are signed on demand.
+      return StoredImage(
+        reference: goal.imagePath,
+        bucket: SupabaseSyncService.logosBucket,
+        width: size,
+        height: size,
         borderRadius: BorderRadius.circular(size / 3),
-        child: goal.imagePath!.startsWith('http')
-            ? Image.network(goal.imagePath!,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildEmojiIcon(goal.icon, size))
-            : Image.file(File(goal.imagePath!),
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildEmojiIcon(goal.icon, size)),
+        placeholder: _buildEmojiIcon(goal.icon, size),
+        errorWidget: _buildEmojiIcon(goal.icon, size),
       );
     }
     return _buildEmojiIcon(goal.icon, size);
@@ -399,6 +408,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   void _showGoalDetails(
       BuildContext context, Goal goal, AppProvider provider, MoneyFormat cf) {
+    final s = S.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
@@ -449,36 +459,36 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    _buildDetailRow(
-                        ctx, 'Saved', cf.format(goal.currentAmount), null),
-                    _buildDetailRow(
-                        ctx, 'Target', cf.format(goal.targetAmount), null),
+                    _buildDetailRow(ctx, s.tr('saved'),
+                        cf.format(goal.currentAmount), null),
+                    _buildDetailRow(ctx, s.tr('target'),
+                        cf.format(goal.targetAmount), null),
                     _buildDetailRow(
                         ctx,
-                        'Remaining',
+                        s.remaining,
                         cf.format(goal.targetAmount - goal.currentAmount),
                         null),
                     if (goal.targetDate != null)
                       _buildDetailRow(
                           ctx,
-                          'Due Date',
-                          DateFormat('MMMM d, yyyy')
-                              .format(DateTime.parse(goal.targetDate!)),
+                          s.dueDate,
+                          MaterialLocalizations.of(ctx).formatMediumDate(
+                              DateTime.parse(goal.targetDate!)),
                           null),
                     if (goal.monthlyPayment != null &&
                         goal.monthlyPayment! > 0) ...[
                       const Divider(height: 24),
-                      Text('Auto-Save',
+                      Text(s.tr('autoSave'),
                           style: Theme.of(ctx)
                               .textTheme
                               .titleMedium
                               ?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
-                      _buildDetailRow(ctx, 'Monthly Amount',
+                      _buildDetailRow(ctx, s.monthlyAmount,
                           cf.format(goal.monthlyPayment!), null),
                       if (goal.paymentDay != null)
-                        _buildDetailRow(ctx, 'Day of Month',
-                            'Day ${goal.paymentDay}', null),
+                        _buildDetailRow(ctx, s.paymentDayOfMonth,
+                            '${s.day} ${goal.paymentDay}', null),
                       if (goal.paymentSourceAccountId != null) ...[
                         Builder(builder: (_) {
                           final acc = provider.accounts
@@ -486,10 +496,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                               .firstOrNull;
                           final name = goal.paymentSourceAccountId ==
                                   AppProvider.cashOnHandId
-                              ? 'Cash on Hand'
-                              : (acc?.name ?? 'Unknown');
+                              ? s.cashOnHand
+                              : (acc?.name ?? s.tr('unknown'));
                           return _buildDetailRow(
-                              ctx, 'From Account', name, null);
+                              ctx, s.fromAccount, name, null);
                         }),
                       ],
                     ],
@@ -522,28 +532,29 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   void _confirmDelete(BuildContext ctx, Goal goal, AppProvider provider) {
+    final s = S.of(ctx);
     showDialog(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Delete Goal?'),
-        content: Text(
-            'Are you sure you want to delete "${goal.name}"? This action cannot be undone.'),
+        title: Text('${s.deleteGoal}?'),
+        content: Text(s.deleteConfirm.replaceAll('{name}', goal.name)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(dialogCtx), child: Text(s.cancel)),
           TextButton(
             onPressed: () {
               provider.deleteGoal(goal.id);
               Navigator.pop(dialogCtx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                    content: Text('"${goal.name}" deleted'),
+                    content: Text(s.tr('namedItemDeleted', {
+                      'name': goal.name,
+                    })),
                     backgroundColor: AppTheme.error),
               );
             },
             child:
-                const Text('Delete', style: TextStyle(color: AppTheme.error)),
+                Text(s.delete, style: const TextStyle(color: AppTheme.error)),
           ),
         ],
       ),
@@ -552,137 +563,94 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   void _showContributeModal(
       BuildContext context, Goal goal, AppProvider provider, MoneyFormat cf) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = S.of(context);
     final amountCtrl = TextEditingController();
     String? selectedAccountId = AppProvider.cashOnHandId;
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                        child: Container(
-                            width: 48,
-                            height: 5,
-                            decoration: BoxDecoration(
-                                color: Theme.of(ctx).dividerColor,
-                                borderRadius: BorderRadius.circular(3)))),
-                    const SizedBox(height: 20),
-                    Row(children: [
-                      _buildGoalIcon(goal, 40),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Add to Savings',
-                                style: Theme.of(ctx)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w700)),
-                            Text(goal.name,
-                                style: Theme.of(ctx).textTheme.bodySmall),
-                          ],
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: amountCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: 'Amount',
-                        prefixText:
-                            '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        filled: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    AppPickerField<String>(
-                      label: 'From Account',
-                      value: selectedAccountId,
-                      prefixIcon: AppIcons.wallet,
-                      items: [
-                        const AppPickerItem(
-                          value: AppProvider.cashOnHandId,
-                          label: 'Cash on Hand',
-                          subtitle: 'Cash',
-                          leadingIcon: AppIcons.money,
-                          iconColor: AppTheme.cashOnHandIcon,
-                        ),
-                        ...provider.accounts.map((a) => AppPickerItem(
-                              value: a.id,
-                              label: a.name,
-                              subtitle: cf.format(a.balance),
-                              leadingIcon: AppIcons.bank,
-                              iconColor: AppTheme.adaptiveIcon(ctx),
-                              imagePath: a.imagePath,
-                            )),
-                      ],
-                      onChanged: (v) =>
-                          setModalState(() => selectedAccountId = v),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final amount = double.tryParse(amountCtrl.text) ?? 0;
-                          if (amount <= 0) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Enter a valid amount')));
-                            return;
-                          }
-                          provider.contributeToGoalFromSource(goal.id, amount,
-                              selectedAccountId ?? AppProvider.cashOnHandId);
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    'Added ${cf.format(amount)} to ${goal.name}'),
-                                backgroundColor: AppTheme.success),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                        child: const Text('Add Savings',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ],
+        builder: (ctx, setModalState) => AppFormSheet(
+            header: AppFormSheetHeader(
+                title: s.tr('addToSavings'),
+                icon: IOSIcons.wealthSavingsGoals,
+                accent: AppTheme.adaptiveIcon(ctx)),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(goal.name, style: Theme.of(ctx).textTheme.bodySmall),
+              TextField(
+                controller: amountCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                autofocus: false,
+                decoration: InputDecoration(
+                  labelText: s.amount,
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
                 ),
               ),
-            ),
-          ),
-        ),
+              const SizedBox(height: 16),
+              AppPickerField<String>(
+                label: s.fromAccount,
+                value: selectedAccountId,
+                prefixIcon: AppIcons.wallet,
+                items: [
+                  AppPickerItem(
+                    value: AppProvider.cashOnHandId,
+                    label: s.cashOnHand,
+                    subtitle: s.tr('cash'),
+                    leadingIcon: AppIcons.money,
+                    iconColor: AppTheme.cashOnHandIcon,
+                  ),
+                  ...provider.accounts.map((a) => AppPickerItem(
+                        value: a.id,
+                        label: a.name,
+                        subtitle: cf.format(a.balance),
+                        leadingIcon: AppIcons.bank,
+                        iconColor: AppTheme.adaptiveIcon(ctx),
+                        imagePath: a.imagePath,
+                      )),
+                ],
+                onChanged: (v) => setModalState(() => selectedAccountId = v),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  final amount = double.tryParse(amountCtrl.text) ?? 0;
+                  if (amount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.enterValidAmount)));
+                    return;
+                  }
+                  provider.contributeToGoalFromSource(goal.id, amount,
+                      selectedAccountId ?? AppProvider.cashOnHandId);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(s.tr('addedAmountToGoal', {
+                          'amount': cf.format(amount),
+                          'name': goal.name,
+                        })),
+                        backgroundColor: AppTheme.success),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.goldPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: Text(s.tr('addSavings'),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }
@@ -698,6 +666,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   void _showGoalForm(
       BuildContext context, AppProvider provider, Goal? existingGoal) {
+    final s = S.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cf = MoneyFormat.of(provider.settings);
     final isEditing = existingGoal != null;
@@ -739,484 +708,405 @@ class _GoalsScreenState extends State<GoalsScreen> {
       '🏆'
     ];
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AppFormSheet(
-          builder: (ctx, scrollController) => SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                const AppFormSheetHandle(),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  child: AppFormSheetHeader(
-                    title: isEditing ? 'Edit Goal' : 'New Savings Goal',
-                    icon: IOSIcons.wealthSavingsGoals,
-                    accent: AppTheme.adaptiveIcon(ctx),
+            header: AppFormSheetHeader(
+              title: isEditing ? s.editGoal : s.tr('newSavingsGoal'),
+              icon: IOSIcons.wealthSavingsGoals,
+              accent: AppTheme.adaptiveIcon(ctx),
+            ),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(s.icon,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () async {
+                      final picker = ImagePicker();
+                      final picked = await picker.pickImage(
+                          source: ImageSource.gallery, maxWidth: 512);
+                      if (picked != null)
+                        setModalState(() => imagePath = picked.path);
+                    },
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppTheme.darkSurfaceElevated
+                            : const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(14),
+                        border: imagePath != null
+                            ? Border.all(
+                                color: AppTheme.adaptiveIcon(ctx), width: 2)
+                            : null,
+                      ),
+                      child: imagePath != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(File(imagePath!),
+                                  fit: BoxFit.cover))
+                          : const Icon(IOSIcons.add_photo_alternate_outlined,
+                              size: 24),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 56,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: emojiOptions.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) {
+                          final emoji = emojiOptions[i];
+                          final isSelected =
+                              imagePath == null && selectedEmoji == emoji;
+                          return GestureDetector(
+                            onTap: () => setModalState(() {
+                              selectedEmoji = emoji;
+                              imagePath = null;
+                            }),
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.adaptiveIconSurface(ctx)
+                                    : (isDark
+                                        ? AppTheme.darkSurfaceElevated
+                                        : const Color(0xFFF5F5F5)),
+                                borderRadius: BorderRadius.circular(14),
+                                border: isSelected
+                                    ? Border.all(
+                                        color: AppTheme.adaptiveIcon(ctx),
+                                        width: 2)
+                                    : null,
+                              ),
+                              child: Center(
+                                  child: Text(emoji,
+                                      style: const TextStyle(fontSize: 28))),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: s.tr('goalName'),
+                  hintText: s.tr('goalNameHint'),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: s.tr('descriptionOptional'),
+                  hintText: s.tr('savingForHint'),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: targetCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: s.targetAmount,
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: dueDate ??
+                        DateTime.now().add(const Duration(days: 365)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 3650)),
+                  );
+                  if (picked != null) setModalState(() => dueDate = picked);
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppTheme.darkSurfaceElevated
+                        : const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Theme.of(ctx).dividerColor),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(IOSIcons.calendar_today_rounded,
+                          size: 20, color: AppTheme.adaptiveIcon(ctx)),
+                      const SizedBox(width: 12),
+                      Text(
+                          dueDate != null
+                              ? MaterialLocalizations.of(ctx)
+                                  .formatMediumDate(dueDate!)
+                              : s.tr('setDueDateOptional'),
+                          style: TextStyle(
+                              color: dueDate != null
+                                  ? null
+                                  : Theme.of(ctx).textTheme.bodySmall?.color)),
+                      const Spacer(),
+                      if (dueDate != null)
+                        GestureDetector(
+                          onTap: () => setModalState(() => dueDate = null),
+                          child: Icon(IOSIcons.close_rounded,
+                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (!isEditing) ...[
+                TextField(
+                  controller: savedCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: s.tr('alreadySaved'),
+                    prefixText:
+                        '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    filled: true,
                   ),
                 ),
                 const SizedBox(height: 12),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                AppPickerField<String>(
+                  label: s.tr('savedFrom'),
+                  value: initialSavedFromAccountId,
+                  prefixIcon: AppIcons.wallet,
+                  items: [
+                    AppPickerItem(
+                      value: AppProvider.cashOnHandId,
+                      label: s.cashOnHand,
+                      leadingIcon: AppIcons.money,
+                      iconColor: AppTheme.cashOnHandIcon,
+                    ),
+                    ...provider.accounts.map((a) => AppPickerItem(
+                          value: a.id,
+                          label: a.name,
+                          subtitle: cf.format(a.balance),
+                          leadingIcon: AppIcons.bank,
+                          iconColor: AppTheme.adaptiveIcon(ctx),
+                          imagePath: a.imagePath,
+                        )),
+                  ],
+                  onChanged: (v) =>
+                      setModalState(() => initialSavedFromAccountId = v),
+                ),
+                const SizedBox(height: 16),
+              ],
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: hasMonthly
+                          ? AppTheme.info.withOpacity(0.4)
+                          : Theme.of(ctx).dividerColor),
+                  color: hasMonthly ? AppTheme.info.withOpacity(0.04) : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        // Icon Selection
-                        Text('Icon',
-                            style: Theme.of(ctx)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () async {
-                                final picker = ImagePicker();
-                                final picked = await picker.pickImage(
-                                    source: ImageSource.gallery, maxWidth: 512);
-                                if (picked != null)
-                                  setModalState(() => imagePath = picked.path);
-                              },
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? AppTheme.darkSurfaceElevated
-                                      : const Color(0xFFF5F5F5),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: imagePath != null
-                                      ? Border.all(
-                                          color: AppTheme.adaptiveIcon(ctx),
-                                          width: 2)
-                                      : null,
-                                ),
-                                child: imagePath != null
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.file(File(imagePath!),
-                                            fit: BoxFit.cover))
-                                    : const Icon(
-                                        IOSIcons.add_photo_alternate_outlined,
-                                        size: 24),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: SizedBox(
-                                height: 56,
-                                child: ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: emojiOptions.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(width: 8),
-                                  itemBuilder: (_, i) {
-                                    final emoji = emojiOptions[i];
-                                    final isSelected = imagePath == null &&
-                                        selectedEmoji == emoji;
-                                    return GestureDetector(
-                                      onTap: () => setModalState(() {
-                                        selectedEmoji = emoji;
-                                        imagePath = null;
-                                      }),
-                                      child: Container(
-                                        width: 56,
-                                        height: 56,
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? AppTheme.adaptiveIconSurface(
-                                                  ctx)
-                                              : (isDark
-                                                  ? AppTheme.darkSurfaceElevated
-                                                  : const Color(0xFFF5F5F5)),
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                          border: isSelected
-                                              ? Border.all(
-                                                  color: AppTheme.adaptiveIcon(
-                                                      ctx),
-                                                  width: 2)
-                                              : null,
-                                        ),
-                                        child: Center(
-                                            child: Text(emoji,
-                                                style: const TextStyle(
-                                                    fontSize: 28))),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Name
-                        TextField(
-                          controller: nameCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'Goal Name',
-                            hintText: 'e.g., New Car, Vacation',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Description
-                        TextField(
-                          controller: descCtrl,
-                          maxLines: 2,
-                          decoration: InputDecoration(
-                            labelText: 'Description (optional)',
-                            hintText: 'What are you saving for?',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Target Amount
-                        TextField(
-                          controller: targetCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          decoration: InputDecoration(
-                            labelText: 'Target Amount',
-                            prefixText:
-                                '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Due Date
-                        GestureDetector(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: ctx,
-                              initialDate: dueDate ??
-                                  DateTime.now().add(const Duration(days: 365)),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now()
-                                  .add(const Duration(days: 3650)),
-                            );
-                            if (picked != null)
-                              setModalState(() => dueDate = picked);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 16),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppTheme.darkSurfaceElevated
-                                  : const Color(0xFFF5F5F5),
-                              borderRadius: BorderRadius.circular(14),
-                              border:
-                                  Border.all(color: Theme.of(ctx).dividerColor),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(IOSIcons.calendar_today_rounded,
-                                    size: 20,
-                                    color: AppTheme.adaptiveIcon(ctx)),
-                                const SizedBox(width: 12),
-                                Text(
-                                    dueDate != null
-                                        ? DateFormat('MMMM d, yyyy')
-                                            .format(dueDate!)
-                                        : 'Set Due Date (optional)',
-                                    style: TextStyle(
-                                        color: dueDate != null
-                                            ? null
-                                            : Theme.of(ctx)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.color)),
-                                const Spacer(),
-                                if (dueDate != null)
-                                  GestureDetector(
-                                    onTap: () =>
-                                        setModalState(() => dueDate = null),
-                                    child: Icon(IOSIcons.close_rounded,
-                                        size: 18,
-                                        color: AppTheme.adaptiveIcon(ctx)),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Already Saved (only for new goals)
-                        if (!isEditing) ...[
-                          TextField(
-                            controller: savedCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'Already Saved',
-                              prefixText:
-                                  '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                              filled: true,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          AppPickerField<String>(
-                            label: 'Saved From',
-                            value: initialSavedFromAccountId,
-                            prefixIcon: AppIcons.wallet,
-                            items: [
-                              const AppPickerItem(
-                                value: AppProvider.cashOnHandId,
-                                label: 'Cash on Hand',
-                                leadingIcon: AppIcons.money,
-                                iconColor: AppTheme.cashOnHandIcon,
-                              ),
-                              ...provider.accounts.map((a) => AppPickerItem(
-                                    value: a.id,
-                                    label: a.name,
-                                    subtitle: cf.format(a.balance),
-                                    leadingIcon: AppIcons.bank,
-                                    iconColor: AppTheme.adaptiveIcon(ctx),
-                                    imagePath: a.imagePath,
-                                  )),
-                            ],
-                            onChanged: (v) => setModalState(
-                                () => initialSavedFromAccountId = v),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Monthly Auto-Save
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                                color: hasMonthly
-                                    ? AppTheme.info.withOpacity(0.4)
-                                    : Theme.of(ctx).dividerColor),
-                            color: hasMonthly
-                                ? AppTheme.info.withOpacity(0.04)
-                                : null,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(IOSIcons.autorenew_rounded,
-                                      size: 18,
-                                      color: AppTheme.adaptiveIcon(ctx)),
-                                  const SizedBox(width: 8),
-                                  Text('Monthly Auto-Save',
-                                      style: Theme.of(ctx)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.w600)),
-                                  const Spacer(),
-                                  Switch(
-                                    value: hasMonthly,
-                                    onChanged: (v) =>
-                                        setModalState(() => hasMonthly = v),
-                                    activeColor: AppTheme.info,
-                                    activeTrackColor:
-                                        AppTheme.info.withOpacity(0.3),
-                                  ),
-                                ],
-                              ),
-                              if (hasMonthly) ...[
-                                const SizedBox(height: 12),
-                                TextField(
-                                  controller: monthlyCtrl,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: 'Monthly Amount',
-                                    prefixText:
-                                        '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                                    border: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                    filled: true,
-                                    isDense: true,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                AppPickerField<int>(
-                                  label: 'Day of Month',
-                                  value: paymentDay,
-                                  prefixIcon: AppIcons.calendar,
-                                  items: List.generate(
-                                      28,
-                                      (i) => AppPickerItem(
-                                          value: i + 1, label: 'Day ${i + 1}')),
-                                  onChanged: (v) =>
-                                      setModalState(() => paymentDay = v ?? 1),
-                                ),
-                                const SizedBox(height: 12),
-                                AppPickerField<String>(
-                                  label: 'From Account',
-                                  value: paymentSourceAccountId,
-                                  prefixIcon: AppIcons.wallet,
-                                  items: [
-                                    const AppPickerItem(
-                                      value: AppProvider.cashOnHandId,
-                                      label: 'Cash on Hand',
-                                      leadingIcon: AppIcons.money,
-                                      iconColor: AppTheme.cashOnHandIcon,
-                                    ),
-                                    ...provider.accounts
-                                        .map((a) => AppPickerItem(
-                                              value: a.id,
-                                              label: a.name,
-                                              subtitle: cf.format(a.balance),
-                                              leadingIcon: AppIcons.bank,
-                                              iconColor:
-                                                  AppTheme.adaptiveIcon(ctx),
-                                              imagePath: a.imagePath,
-                                            )),
-                                  ],
-                                  onChanged: (v) => setModalState(
-                                      () => paymentSourceAccountId = v),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Save Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (nameCtrl.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                        content:
-                                            Text('Please enter a goal name')));
-                                return;
-                              }
-                              final target =
-                                  double.tryParse(targetCtrl.text) ?? 0;
-                              if (target <= 0) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Please enter a valid target amount')));
-                                return;
-                              }
-                              final saved =
-                                  double.tryParse(savedCtrl.text) ?? 0;
-                              final monthly = hasMonthly
-                                  ? (double.tryParse(monthlyCtrl.text) ?? 0)
-                                  : null;
-
-                              if (isEditing) {
-                                final updated = existingGoal.copyWith(
-                                  name: nameCtrl.text.trim(),
-                                  description: descCtrl.text.trim().isEmpty
-                                      ? null
-                                      : descCtrl.text.trim(),
-                                  targetAmount: target,
-                                  targetDate: dueDate?.toIso8601String(),
-                                  icon: selectedEmoji,
-                                  imagePath: imagePath,
-                                  monthlyPayment: monthly != null && monthly > 0
-                                      ? monthly
-                                      : null,
-                                  paymentDay: hasMonthly ? paymentDay : null,
-                                  paymentSourceAccountId: hasMonthly
-                                      ? paymentSourceAccountId
-                                      : null,
-                                );
-                                provider.updateGoal(updated);
-                                _syncSavingsGoalRule(provider, updated);
-                              } else {
-                                final newGoal = Goal(
-                                  id: const Uuid().v4(),
-                                  type: 'savings',
-                                  name: nameCtrl.text.trim(),
-                                  description: descCtrl.text.trim().isEmpty
-                                      ? null
-                                      : descCtrl.text.trim(),
-                                  targetAmount: target,
-                                  currentAmount: 0,
-                                  targetDate: dueDate?.toIso8601String(),
-                                  icon: selectedEmoji,
-                                  imagePath: imagePath,
-                                  monthlyPayment: monthly != null && monthly > 0
-                                      ? monthly
-                                      : null,
-                                  paymentDay: hasMonthly ? paymentDay : null,
-                                  paymentSourceAccountId: hasMonthly
-                                      ? paymentSourceAccountId
-                                      : null,
-                                );
-                                provider.addGoal(newGoal);
-                                _syncSavingsGoalRule(provider, newGoal);
-
-                                // Add initial contribution if any
-                                if (saved > 0) {
-                                  provider.contributeToGoalFromSource(
-                                      newGoal.id,
-                                      saved,
-                                      initialSavedFromAccountId ??
-                                          AppProvider.cashOnHandId);
-                                }
-                              }
-
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isEditing
-                                      ? 'Goal updated'
-                                      : 'Goal created'),
-                                  backgroundColor: AppTheme.success,
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.goldPrimary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                            ),
-                            child: Text(
-                                isEditing ? 'Save Changes' : 'Create Goal',
-                                style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w700)),
-                          ),
+                        Icon(IOSIcons.autorenew_rounded,
+                            size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(s.tr('monthlyAutoSave'),
+                                style: Theme.of(ctx)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w600))),
+                        Switch(
+                          value: hasMonthly,
+                          onChanged: (v) => setModalState(() => hasMonthly = v),
+                          activeColor: AppTheme.info,
+                          activeTrackColor: AppTheme.info.withOpacity(0.3),
                         ),
                       ],
                     ),
-                  ),
+                    if (hasMonthly) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: monthlyCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: InputDecoration(
+                          labelText: s.monthlyAmount,
+                          prefixText:
+                              '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      AppPickerField<int>(
+                        label: s.paymentDayOfMonth,
+                        value: paymentDay,
+                        prefixIcon: AppIcons.calendar,
+                        items: List.generate(
+                            28,
+                            (i) => AppPickerItem(
+                                value: i + 1, label: '${s.day} ${i + 1}')),
+                        onChanged: (v) =>
+                            setModalState(() => paymentDay = v ?? 1),
+                      ),
+                      const SizedBox(height: 12),
+                      AppPickerField<String>(
+                        label: s.fromAccount,
+                        value: paymentSourceAccountId,
+                        prefixIcon: AppIcons.wallet,
+                        items: [
+                          AppPickerItem(
+                            value: AppProvider.cashOnHandId,
+                            label: s.cashOnHand,
+                            leadingIcon: AppIcons.money,
+                            iconColor: AppTheme.cashOnHandIcon,
+                          ),
+                          ...provider.accounts.map((a) => AppPickerItem(
+                                value: a.id,
+                                label: a.name,
+                                subtitle: cf.format(a.balance),
+                                leadingIcon: AppIcons.bank,
+                                iconColor: AppTheme.adaptiveIcon(ctx),
+                                imagePath: a.imagePath,
+                              )),
+                        ],
+                        onChanged: (v) =>
+                            setModalState(() => paymentSourceAccountId = v),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (nameCtrl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.tr('pleaseEnterGoalName'))));
+                    return;
+                  }
+                  final target = double.tryParse(targetCtrl.text) ?? 0;
+                  if (target <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                        content: Text(s.tr('pleaseEnterValidTargetAmount'))));
+                    return;
+                  }
+                  final saved = double.tryParse(savedCtrl.text) ?? 0;
+                  final monthly = hasMonthly
+                      ? (double.tryParse(monthlyCtrl.text) ?? 0)
+                      : null;
+
+                  if (isEditing) {
+                    final updated = existingGoal.copyWith(
+                      name: nameCtrl.text.trim(),
+                      description: descCtrl.text.trim().isEmpty
+                          ? null
+                          : descCtrl.text.trim(),
+                      targetAmount: target,
+                      targetDate: dueDate?.toIso8601String(),
+                      icon: selectedEmoji,
+                      imagePath: imagePath,
+                      monthlyPayment:
+                          monthly != null && monthly > 0 ? monthly : null,
+                      paymentDay: hasMonthly ? paymentDay : null,
+                      paymentSourceAccountId:
+                          hasMonthly ? paymentSourceAccountId : null,
+                    );
+                    provider.updateGoal(updated);
+                    _syncSavingsGoalRule(provider, updated);
+                  } else {
+                    final newGoal = Goal(
+                      id: const Uuid().v4(),
+                      type: 'savings',
+                      name: nameCtrl.text.trim(),
+                      description: descCtrl.text.trim().isEmpty
+                          ? null
+                          : descCtrl.text.trim(),
+                      targetAmount: target,
+                      currentAmount: 0,
+                      targetDate: dueDate?.toIso8601String(),
+                      icon: selectedEmoji,
+                      imagePath: imagePath,
+                      monthlyPayment:
+                          monthly != null && monthly > 0 ? monthly : null,
+                      paymentDay: hasMonthly ? paymentDay : null,
+                      paymentSourceAccountId:
+                          hasMonthly ? paymentSourceAccountId : null,
+                    );
+                    provider.addGoal(newGoal);
+                    _syncSavingsGoalRule(provider, newGoal);
+
+                    // Add initial contribution if any
+                    if (saved > 0) {
+                      provider.contributeToGoalFromSource(
+                          newGoal.id,
+                          saved,
+                          initialSavedFromAccountId ??
+                              AppProvider.cashOnHandId);
+                    }
+                  }
+
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isEditing
+                          ? s.tr('goalUpdated')
+                          : s.tr('goalCreated')),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.goldPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: Text(isEditing ? s.saveChanges : s.tr('createGoal'),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }

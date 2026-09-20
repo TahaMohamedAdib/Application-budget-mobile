@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../utils/currency_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -52,7 +51,7 @@ class DebtScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                     child: WealthPageHeader(
                       title: s.debts,
-                      subtitle: 'Track balances and repayments',
+                      subtitle: s.tr('trackBalancesAndRepayments'),
                       onBack: () => Navigator.pop(context),
                       onAdd: () => _showAddDebtModal(context, provider),
                       addTooltip: s.addDebt,
@@ -66,7 +65,8 @@ class DebtScreen extends StatelessWidget {
                     child: WealthOverviewCard(
                       icon: IOSIcons.wealthDebt,
                       label: s.remaining,
-                      amount: cf.format(totalRemaining),
+                      amountValue: totalRemaining,
+                      formatter: cf,
                       amountColor:
                           totalRemaining > 0 ? AppTheme.expenseIcon : null,
                       firstLabel: s.totalDebt,
@@ -79,7 +79,10 @@ class DebtScreen extends StatelessWidget {
                           totalPaid > 0 ? AppTheme.expenseIcon : null,
                       progress: totalDebt > 0 ? totalPaid / totalDebt : 0,
                       progressLabel: totalDebt > 0
-                          ? '${((totalPaid / totalDebt) * 100).toStringAsFixed(1)}% repaid'
+                          ? s.tr('percentRepaid', {
+                              'percent': ((totalPaid / totalDebt) * 100)
+                                  .toStringAsFixed(1),
+                            })
                           : s.youHaveNoActiveDebts,
                     ),
                   ).animate().fadeIn(
@@ -191,7 +194,13 @@ class DebtScreen extends StatelessWidget {
                                                                       .w600)),
                                                   if (hasDeadline)
                                                     Text(
-                                                        'Due: ${DateFormat('MMM d, yyyy').format(DateTime.parse(goal.targetDate!))}',
+                                                        s.tr('dueOn', {
+                                                          'date': MaterialLocalizations
+                                                                  .of(context)
+                                                              .formatMediumDate(
+                                                                  DateTime.parse(
+                                                                      goal.targetDate!)),
+                                                        }),
                                                         style: Theme.of(context)
                                                             .textTheme
                                                             .bodySmall
@@ -240,9 +249,11 @@ class DebtScreen extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 10),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                                      Wrap(
+                                        runSpacing: 6,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        alignment: WrapAlignment.spaceBetween,
                                         children: [
                                           Text(
                                               '${cf.format(goal.currentAmount)} ${s.paid}',
@@ -277,10 +288,13 @@ class DebtScreen extends StatelessWidget {
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             10)),
-                                                child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
+                                                child: Wrap(
+                                                    runSpacing: 6,
+                                                    crossAxisAlignment:
+                                                        WrapCrossAlignment
                                                             .center,
+                                                    alignment:
+                                                        WrapAlignment.center,
                                                     children: [
                                                       Icon(
                                                           Icons
@@ -321,9 +335,12 @@ class DebtScreen extends StatelessWidget {
                                                     color: Theme.of(context)
                                                         .dividerColor),
                                               ),
-                                              child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
+                                              child: Wrap(
+                                                  runSpacing: 6,
+                                                  crossAxisAlignment:
+                                                      WrapCrossAlignment.center,
+                                                  alignment:
+                                                      WrapAlignment.center,
                                                   children: [
                                                     Icon(IOSIcons.edit_rounded,
                                                         color: AppTheme
@@ -451,9 +468,9 @@ class DebtScreen extends StatelessWidget {
                                     : debtTransactions.length - 1);
                             final date = DateTime.parse(t.date);
                             // Resolve source account name
-                            String sourceLabel = 'External';
+                            String sourceLabel = s.external;
                             if (t.accountId == AppProvider.cashOnHandId) {
-                              sourceLabel = 'Cash';
+                              sourceLabel = s.tr('cash');
                             } else if (t.accountId != 'none') {
                               final acc = provider.accounts
                                   .where((a) => a.id == t.accountId);
@@ -481,7 +498,14 @@ class DebtScreen extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                        Text(t.note ?? s.debtPayment,
+                                        Text(
+                                            S
+                                                    .forLocale(context
+                                                        .read<AppProvider>()
+                                                        .settings
+                                                        .locale)
+                                                    .systemNote(t.note) ??
+                                                s.debtPayment,
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .titleSmall
@@ -492,7 +516,7 @@ class DebtScreen extends StatelessWidget {
                                             overflow: TextOverflow.ellipsis),
                                         const SizedBox(height: 3),
                                         Text(
-                                            '$sourceLabel  •  ${DateFormat('MMM d, h:mm a').format(date)}',
+                                            '$sourceLabel  •  ${MaterialLocalizations.of(context).formatMediumDate(date)} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(date))}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall
@@ -503,7 +527,8 @@ class DebtScreen extends StatelessWidget {
                                   const SizedBox(width: 8),
                                   Flexible(
                                     flex: 0,
-                                    child: Text(cf.signed(t.amount, positive: false),
+                                    child: Text(
+                                        cf.signed(t.amount, positive: false),
                                         style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -540,140 +565,126 @@ class DebtScreen extends StatelessWidget {
     final amountCtrl = TextEditingController();
     String? selectedAccountId;
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AppFormSheet(
-          builder: (ctx, scrollController) => SingleChildScrollView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const AppFormSheetHandle(),
-                  const SizedBox(height: 16),
-                  AppFormSheetHeader(
-                    title: s.recordPayment,
-                    icon: IOSIcons.credit_card_rounded,
-                    accent: AppTheme.expenseIcon,
+            header: AppFormSheetHeader(
+              title: s.recordPayment,
+              icon: IOSIcons.credit_card_rounded,
+              accent: AppTheme.expenseIcon,
+            ),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Center(
+                child:
+                    Text(goal.name, style: Theme.of(ctx).textTheme.bodySmall),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: amountCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                autofocus: false,
+                decoration: InputDecoration(
+                  labelText: s.amountPaid,
+                  hintText: '0.00',
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 14),
+              AppPickerField<String>(
+                label: s.paidFromOptional,
+                value: selectedAccountId ?? '__none__',
+                prefixIcon: AppIcons.wallet,
+                items: [
+                  AppPickerItem(
+                    value: '__none__',
+                    label: s.noAccountDeduction,
+                    leadingIcon: AppIcons.close,
+                    iconColor: Colors.grey,
                   ),
-                  const SizedBox(height: 6),
-                  Center(
-                    child: Text(goal.name,
-                        style: Theme.of(ctx).textTheme.bodySmall),
+                  AppPickerItem(
+                    value: AppProvider.cashOnHandId,
+                    label: s.cashOnHand,
+                    leadingIcon: AppIcons.money,
+                    iconColor: AppTheme.cashOnHandIcon,
                   ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: amountCtrl,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: s.amountPaid,
-                      hintText: '0.00',
-                      prefixText:
-                          '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      filled: true,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  AppPickerField<String>(
-                    label: s.paidFromOptional,
-                    value: selectedAccountId ?? '__none__',
-                    prefixIcon: AppIcons.wallet,
-                    items: [
-                      AppPickerItem(
-                        value: '__none__',
-                        label: s.noAccountDeduction,
-                        leadingIcon: AppIcons.close,
-                        iconColor: Colors.grey,
-                      ),
-                      AppPickerItem(
-                        value: AppProvider.cashOnHandId,
-                        label: s.cashOnHand,
-                        leadingIcon: AppIcons.money,
-                        iconColor: AppTheme.cashOnHandIcon,
-                      ),
-                      ...provider.accounts.map((a) => AppPickerItem(
-                            value: a.id,
-                            label: a.name,
-                            leadingIcon: AppIcons.bank,
-                            iconColor: AppTheme.adaptiveIcon(ctx),
-                            imagePath: a.imagePath,
-                          )),
-                    ],
-                    onChanged: (v) => setModalState(
-                        () => selectedAccountId = (v == '__none__') ? null : v),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final amount = double.tryParse(amountCtrl.text) ?? 0;
-                        if (amount <= 0) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text(s.enterValidAmount)));
-                          return;
-                        }
-                        final remaining =
-                            goal.targetAmount - goal.currentAmount;
-                        final clampedAmount =
-                            amount.clamp(0, remaining).toDouble();
-                        final accountId = selectedAccountId ?? 'none';
-                        if (selectedAccountId != null) {
-                          provider.payDebt(
-                              goal.id, clampedAmount, selectedAccountId!);
-                        } else {
-                          // Update goal + always create transaction for history
-                          final newPaid = (goal.currentAmount + clampedAmount)
-                              .clamp(0, goal.targetAmount)
-                              .toDouble();
-                          provider.updateGoal(
-                              goal.copyWith(currentAmount: newPaid));
-                          provider.addTransaction(Transaction(
-                            id: const Uuid().v4(),
-                            type: 'debt_payment',
-                            amount: clampedAmount,
-                            date: DateTime.now().toIso8601String(),
-                            note: 'Payment: ${goal.name}',
-                            description: 'No account deduction',
-                            accountId: accountId,
-                          ));
-                        }
-                        Navigator.pop(ctx);
-                        final isPaidOff =
-                            (goal.currentAmount + clampedAmount) >=
-                                goal.targetAmount;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(isPaidOff
-                                  ? '${goal.name} is fully paid off!'
-                                  : '${cf.format(clampedAmount)} paid on ${goal.name}'),
-                              backgroundColor: AppTheme.success),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.success,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                      child: Text(s.recordPayment,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ]),
-          ),
-        ),
+                  ...provider.accounts.map((a) => AppPickerItem(
+                        value: a.id,
+                        label: a.name,
+                        leadingIcon: AppIcons.bank,
+                        iconColor: AppTheme.adaptiveIcon(ctx),
+                        imagePath: a.imagePath,
+                      )),
+                ],
+                onChanged: (v) => setModalState(
+                    () => selectedAccountId = (v == '__none__') ? null : v),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  final amount = double.tryParse(amountCtrl.text) ?? 0;
+                  if (amount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.enterValidAmount)));
+                    return;
+                  }
+                  final remaining = goal.targetAmount - goal.currentAmount;
+                  final clampedAmount = amount.clamp(0, remaining).toDouble();
+                  final accountId = selectedAccountId ?? 'none';
+                  if (selectedAccountId != null) {
+                    provider.payDebt(
+                        goal.id, clampedAmount, selectedAccountId!);
+                  } else {
+                    // Update goal + always create transaction for history
+                    final newPaid = (goal.currentAmount + clampedAmount)
+                        .clamp(0, goal.targetAmount)
+                        .toDouble();
+                    provider.updateGoal(goal.copyWith(currentAmount: newPaid));
+                    provider.addTransaction(Transaction(
+                      id: const Uuid().v4(),
+                      type: 'debt_payment',
+                      amount: clampedAmount,
+                      date: DateTime.now().toIso8601String(),
+                      note: '${s.debtPayment}: ${goal.name}',
+                      description: s.noAccountDeduction,
+                      accountId: accountId,
+                    ));
+                  }
+                  Navigator.pop(ctx);
+                  final isPaidOff =
+                      (goal.currentAmount + clampedAmount) >= goal.targetAmount;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(isPaidOff
+                            ? s.isFullyPaidOff.replaceAll('{name}', goal.name)
+                            : s.paidOn
+                                .replaceAll(
+                                    '{amount}', cf.format(clampedAmount))
+                                .replaceAll('{name}', goal.name)),
+                        backgroundColor: AppTheme.success),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.success,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: Text(s.recordPayment,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }
@@ -698,298 +709,277 @@ class DebtScreen extends StatelessWidget {
     int paymentDay = goal.paymentDay ?? 1;
     String? paymentSourceAccountId = goal.paymentSourceAccountId;
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AppFormSheet(
-          builder: (ctx, scrollController) => SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const AppFormSheetHandle(),
-                    const SizedBox(height: 16),
-                    AppFormSheetHeader(
-                      title: s.editDebt,
-                      icon: IOSIcons.credit_card_rounded,
-                      accent: AppTheme.adaptiveIcon(ctx),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(s.icon,
-                        style: Theme.of(ctx)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 12),
-                    Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: emojiOptions.map((e) {
-                          final isSel = selectedEmoji == e;
-                          return GestureDetector(
-                            onTap: () => setModalState(() => selectedEmoji = e),
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: isSel
-                                    ? AppTheme.adaptiveIconSurface(ctx)
-                                    : (isDark
-                                        ? AppTheme.darkSurfaceElevated
-                                        : AppTheme.lightBackground),
-                                borderRadius: BorderRadius.circular(12),
-                                border: isSel
-                                    ? Border.all(
-                                        color: AppTheme.adaptiveIcon(ctx),
-                                        width: 2)
-                                    : null,
-                              ),
-                              child: Center(
-                                  child: Text(e,
-                                      style: const TextStyle(fontSize: 22))),
-                            ),
-                          );
-                        }).toList()),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        labelText: s.debtName,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        prefixIcon: Icon(IOSIcons.credit_card_rounded,
-                            color: AppTheme.adaptiveIcon(ctx)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: totalCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: s.totalAmount,
-                        prefixText:
-                            '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        filled: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: paidCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: s.amountPaid,
-                        prefixText:
-                            '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        filled: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: ctx,
-                          initialDate: dueDate ??
-                              DateTime.now().add(const Duration(days: 30)),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now()
-                              .add(const Duration(days: 365 * 30)),
-                        );
-                        if (date != null) setModalState(() => dueDate = date);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border:
-                                Border.all(color: Theme.of(ctx).dividerColor)),
-                        child: Row(children: [
-                          Icon(IOSIcons.calendar_today_rounded,
-                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
-                          const SizedBox(width: 12),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Due Date (Optional)',
-                                    style: Theme.of(ctx).textTheme.bodySmall),
-                                Text(
-                                    dueDate != null
-                                        ? DateFormat('MMM d, yyyy')
-                                            .format(dueDate!)
-                                        : 'Not set',
-                                    style: Theme.of(ctx)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600)),
-                              ]),
-                          const Spacer(),
-                          Icon(IOSIcons.chevron_right_rounded,
-                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
-                        ]),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Monthly Payment Section
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: hasMonthlyPayment
-                                ? AppTheme.error.withOpacity(0.4)
-                                : Theme.of(ctx).dividerColor),
-                        color: hasMonthlyPayment
-                            ? AppTheme.error.withOpacity(0.04)
-                            : null,
-                      ),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Icon(IOSIcons.autorenew_rounded,
-                                  size: 18, color: AppTheme.adaptiveIcon(ctx)),
-                              const SizedBox(width: 8),
-                              Text('Monthly Payment',
-                                  style: Theme.of(ctx)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.w600)),
-                              const Spacer(),
-                              Switch(
-                                value: hasMonthlyPayment,
-                                onChanged: (v) =>
-                                    setModalState(() => hasMonthlyPayment = v),
-                                activeColor: AppTheme.error,
-                                activeTrackColor:
-                                    AppTheme.error.withOpacity(0.3),
-                              ),
-                            ]),
-                            if (hasMonthlyPayment) ...[
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: monthlyPaymentCtrl,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                decoration: InputDecoration(
-                                  labelText: 'Monthly Amount',
-                                  prefixText:
-                                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  filled: true,
-                                  isDense: true,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              AppPickerField<int>(
-                                label: 'Payment Day of Month',
-                                value: paymentDay,
-                                prefixIcon: AppIcons.calendar,
-                                items: List.generate(
-                                    28,
-                                    (i) => AppPickerItem(
-                                          value: i + 1,
-                                          label: 'Day ${i + 1}',
-                                        )),
-                                onChanged: (v) =>
-                                    setModalState(() => paymentDay = v ?? 1),
-                              ),
-                              const SizedBox(height: 12),
-                              AppPickerField<String>(
-                                label: 'Pay From',
-                                value: paymentSourceAccountId ??
-                                    AppProvider.cashOnHandId,
-                                prefixIcon: AppIcons.wallet,
-                                items: [
-                                  const AppPickerItem(
-                                    value: AppProvider.cashOnHandId,
-                                    label: 'Cash on Hand',
-                                    leadingIcon: AppIcons.money,
-                                    iconColor: AppTheme.cashOnHandIcon,
-                                  ),
-                                  ...provider.accounts.map((a) => AppPickerItem(
-                                        value: a.id,
-                                        label: a.name,
-                                        leadingIcon: AppIcons.bank,
-                                        iconColor: AppTheme.adaptiveIcon(ctx),
-                                        imagePath: a.imagePath,
-                                      )),
-                                ],
-                                onChanged: (v) => setModalState(
-                                    () => paymentSourceAccountId = v),
-                              ),
-                            ],
-                          ]),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (nameCtrl.text.trim().isEmpty) return;
-                          final total = double.tryParse(totalCtrl.text) ?? 0;
-                          if (total <= 0) return;
-                          final paid = double.tryParse(paidCtrl.text) ?? 0;
-                          final mp = hasMonthlyPayment
-                              ? (double.tryParse(monthlyPaymentCtrl.text) ?? 0)
-                              : null;
-                          final updatedGoal = goal.copyWith(
-                            name: nameCtrl.text.trim(),
-                            targetAmount: total,
-                            currentAmount: paid.clamp(0, total),
-                            targetDate: dueDate?.toIso8601String(),
-                            icon: selectedEmoji,
-                            monthlyPayment: hasMonthlyPayment
-                                ? (mp != null && mp > 0 ? mp : null)
-                                : null,
-                            paymentDay: hasMonthlyPayment ? paymentDay : null,
-                            paymentSourceAccountId: hasMonthlyPayment
-                                ? paymentSourceAccountId
-                                : null,
-                          );
-                          provider.updateGoal(updatedGoal);
-                          provider.syncDebtPaymentRuleForGoal(updatedGoal);
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('"${nameCtrl.text.trim()}" updated'),
-                                backgroundColor: AppTheme.goldPrimary),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.goldPrimary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
-                        ),
-                        child: const Text('Save Changes',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ]),
+            header: AppFormSheetHeader(
+              title: s.editDebt,
+              icon: IOSIcons.credit_card_rounded,
+              accent: AppTheme.adaptiveIcon(ctx),
             ),
-          ),
-        ),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(s.icon,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: emojiOptions.map((e) {
+                    final isSel = selectedEmoji == e;
+                    return GestureDetector(
+                      onTap: () => setModalState(() => selectedEmoji = e),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: isSel
+                              ? AppTheme.adaptiveIconSurface(ctx)
+                              : (isDark
+                                  ? AppTheme.darkSurfaceElevated
+                                  : AppTheme.lightBackground),
+                          borderRadius: BorderRadius.circular(12),
+                          border: isSel
+                              ? Border.all(
+                                  color: AppTheme.adaptiveIcon(ctx), width: 2)
+                              : null,
+                        ),
+                        child: Center(
+                            child:
+                                Text(e, style: const TextStyle(fontSize: 22))),
+                      ),
+                    );
+                  }).toList()),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: s.debtName,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  prefixIcon: Icon(IOSIcons.credit_card_rounded,
+                      color: AppTheme.adaptiveIcon(ctx)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: totalCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.totalAmount,
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: paidCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.amountPaid,
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: ctx,
+                    initialDate:
+                        dueDate ?? DateTime.now().add(const Duration(days: 30)),
+                    firstDate: DateTime(2020),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 30)),
+                  );
+                  if (date != null) setModalState(() => dueDate = date);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Theme.of(ctx).dividerColor)),
+                  child: Row(children: [
+                    Icon(IOSIcons.calendar_today_rounded,
+                        size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                    const SizedBox(width: 12),
+                    Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s.dueDateOptional,
+                              style: Theme.of(ctx).textTheme.bodySmall),
+                          Text(
+                              dueDate != null
+                                  ? MaterialLocalizations.of(ctx)
+                                      .formatMediumDate(dueDate!)
+                                  : s.notSet,
+                              style: Theme.of(ctx)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                        ]),
+                    const Spacer(),
+                    Icon(IOSIcons.chevron_right_rounded,
+                        size: 20, color: AppTheme.adaptiveIcon(ctx)),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: hasMonthlyPayment
+                          ? AppTheme.error.withOpacity(0.4)
+                          : Theme.of(ctx).dividerColor),
+                  color: hasMonthlyPayment
+                      ? AppTheme.error.withOpacity(0.04)
+                      : null,
+                ),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(IOSIcons.autorenew_rounded,
+                            size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                        const SizedBox(width: 8),
+                        Text(s.monthlyPaymentLabel,
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        Switch(
+                          value: hasMonthlyPayment,
+                          onChanged: (v) =>
+                              setModalState(() => hasMonthlyPayment = v),
+                          activeColor: AppTheme.error,
+                          activeTrackColor: AppTheme.error.withOpacity(0.3),
+                        ),
+                      ]),
+                      if (hasMonthlyPayment) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: monthlyPaymentCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                            labelText: s.monthlyAmount,
+                            prefixText:
+                                '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            filled: true,
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        AppPickerField<int>(
+                          label: s.paymentDayOfMonth,
+                          value: paymentDay,
+                          prefixIcon: AppIcons.calendar,
+                          items: List.generate(
+                              28,
+                              (i) => AppPickerItem(
+                                    value: i + 1,
+                                    label: '${s.day} ${i + 1}',
+                                  )),
+                          onChanged: (v) =>
+                              setModalState(() => paymentDay = v ?? 1),
+                        ),
+                        const SizedBox(height: 12),
+                        AppPickerField<String>(
+                          label: s.payFrom,
+                          value: paymentSourceAccountId ??
+                              AppProvider.cashOnHandId,
+                          prefixIcon: AppIcons.wallet,
+                          items: [
+                            AppPickerItem(
+                              value: AppProvider.cashOnHandId,
+                              label: s.cashOnHand,
+                              leadingIcon: AppIcons.money,
+                              iconColor: AppTheme.cashOnHandIcon,
+                            ),
+                            ...provider.accounts.map((a) => AppPickerItem(
+                                  value: a.id,
+                                  label: a.name,
+                                  leadingIcon: AppIcons.bank,
+                                  iconColor: AppTheme.adaptiveIcon(ctx),
+                                  imagePath: a.imagePath,
+                                )),
+                          ],
+                          onChanged: (v) =>
+                              setModalState(() => paymentSourceAccountId = v),
+                        ),
+                      ],
+                    ]),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (nameCtrl.text.trim().isEmpty) return;
+                  final total = double.tryParse(totalCtrl.text) ?? 0;
+                  if (total <= 0) return;
+                  final paid = double.tryParse(paidCtrl.text) ?? 0;
+                  final mp = hasMonthlyPayment
+                      ? (double.tryParse(monthlyPaymentCtrl.text) ?? 0)
+                      : null;
+                  final updatedGoal = goal.copyWith(
+                    name: nameCtrl.text.trim(),
+                    targetAmount: total,
+                    currentAmount: paid.clamp(0, total),
+                    targetDate: dueDate?.toIso8601String(),
+                    icon: selectedEmoji,
+                    monthlyPayment: hasMonthlyPayment
+                        ? (mp != null && mp > 0 ? mp : null)
+                        : null,
+                    paymentDay: hasMonthlyPayment ? paymentDay : null,
+                    paymentSourceAccountId:
+                        hasMonthlyPayment ? paymentSourceAccountId : null,
+                  );
+                  provider.updateGoal(updatedGoal);
+                  provider.syncDebtPaymentRuleForGoal(updatedGoal);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(s.tr('namedItemUpdated', {
+                          'name': nameCtrl.text.trim(),
+                        })),
+                        backgroundColor: AppTheme.goldPrimary),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.goldPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: Text(s.saveChanges,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }
 
   void _showAddDebtModal(BuildContext context, AppProvider provider) {
+    final s = S.of(context);
     final nameCtrl = TextEditingController();
     final totalCtrl = TextEditingController();
     final paidCtrl = TextEditingController();
@@ -1002,311 +992,282 @@ class DebtScreen extends StatelessWidget {
     int paymentDay = 1;
     String? paymentSourceAccountId;
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AppFormSheet(
-          builder: (ctx, scrollController) => SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const AppFormSheetHandle(),
-                    const SizedBox(height: 16),
-                    AppFormSheetHeader(
-                      title: 'Add Debt',
-                      icon: IOSIcons.credit_card_rounded,
-                      accent: AppTheme.adaptiveIcon(ctx),
-                    ),
-                    const SizedBox(height: 20),
-                    Text('Icon',
-                        style: Theme.of(ctx)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 12),
-                    Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: emojiOptions.map((e) {
-                          final isSel = selectedEmoji == e;
-                          return GestureDetector(
-                            onTap: () => setModalState(() => selectedEmoji = e),
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: isSel
-                                    ? AppTheme.adaptiveIconSurface(ctx)
-                                    : (isDark
-                                        ? AppTheme.darkSurfaceElevated
-                                        : AppTheme.lightBackground),
-                                borderRadius: BorderRadius.circular(12),
-                                border: isSel
-                                    ? Border.all(
-                                        color: AppTheme.adaptiveIcon(ctx),
-                                        width: 2)
-                                    : null,
-                              ),
-                              child: Center(
-                                  child: Text(e,
-                                      style: const TextStyle(fontSize: 22))),
-                            ),
-                          );
-                        }).toList()),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Debt Name',
-                        hintText: 'e.g., Car Loan, Mortgage',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        prefixIcon: Icon(IOSIcons.credit_card_rounded,
-                            color: AppTheme.adaptiveIcon(ctx)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: totalCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Total Amount',
-                        hintText: '0.00',
-                        prefixText:
-                            '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        filled: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: paidCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Already Paid (Optional)',
-                        hintText: '0.00',
-                        prefixText:
-                            '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        filled: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: ctx,
-                          initialDate:
-                              DateTime.now().add(const Duration(days: 30)),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now()
-                              .add(const Duration(days: 365 * 30)),
-                        );
-                        if (date != null) setModalState(() => dueDate = date);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border:
-                                Border.all(color: Theme.of(ctx).dividerColor)),
-                        child: Row(children: [
-                          Icon(IOSIcons.calendar_today_rounded,
-                              size: 18, color: AppTheme.adaptiveIcon(ctx)),
-                          const SizedBox(width: 12),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Due Date (Optional)',
-                                    style: Theme.of(ctx).textTheme.bodySmall),
-                                Text(
-                                    dueDate != null
-                                        ? DateFormat('MMM d, yyyy')
-                                            .format(dueDate!)
-                                        : 'Not set',
-                                    style: Theme.of(ctx)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600)),
-                              ]),
-                          const Spacer(),
-                          Icon(IOSIcons.chevron_right_rounded,
-                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
-                        ]),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Monthly Payment Section
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: hasMonthlyPayment
-                                ? AppTheme.error.withOpacity(0.4)
-                                : Theme.of(ctx).dividerColor),
-                        color: hasMonthlyPayment
-                            ? AppTheme.error.withOpacity(0.04)
-                            : null,
-                      ),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Icon(IOSIcons.autorenew_rounded,
-                                  size: 18, color: AppTheme.adaptiveIcon(ctx)),
-                              const SizedBox(width: 8),
-                              Text('Monthly Payment',
-                                  style: Theme.of(ctx)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.w600)),
-                              const Spacer(),
-                              Switch(
-                                value: hasMonthlyPayment,
-                                onChanged: (v) =>
-                                    setModalState(() => hasMonthlyPayment = v),
-                                activeColor: AppTheme.error,
-                                activeTrackColor:
-                                    AppTheme.error.withOpacity(0.3),
-                              ),
-                            ]),
-                            if (hasMonthlyPayment) ...[
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: monthlyPaymentCtrl,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                decoration: InputDecoration(
-                                  labelText: 'Monthly Amount',
-                                  hintText: '0.00',
-                                  prefixText:
-                                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  filled: true,
-                                  isDense: true,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              AppPickerField<int>(
-                                label: 'Payment Day of Month',
-                                value: paymentDay,
-                                prefixIcon: AppIcons.calendar,
-                                items: List.generate(
-                                    28,
-                                    (i) => AppPickerItem(
-                                          value: i + 1,
-                                          label: 'Day ${i + 1}',
-                                        )),
-                                onChanged: (v) =>
-                                    setModalState(() => paymentDay = v ?? 1),
-                              ),
-                              const SizedBox(height: 12),
-                              AppPickerField<String>(
-                                label: 'Pay From',
-                                value: paymentSourceAccountId ??
-                                    AppProvider.cashOnHandId,
-                                prefixIcon: AppIcons.wallet,
-                                items: [
-                                  const AppPickerItem(
-                                    value: AppProvider.cashOnHandId,
-                                    label: 'Cash on Hand',
-                                    leadingIcon: AppIcons.money,
-                                    iconColor: AppTheme.cashOnHandIcon,
-                                  ),
-                                  ...provider.accounts.map((a) => AppPickerItem(
-                                        value: a.id,
-                                        label: a.name,
-                                        leadingIcon: AppIcons.bank,
-                                        iconColor: AppTheme.adaptiveIcon(ctx),
-                                        imagePath: a.imagePath,
-                                      )),
-                                ],
-                                onChanged: (v) => setModalState(
-                                    () => paymentSourceAccountId = v),
-                              ),
-                            ],
-                          ]),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (nameCtrl.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Please enter a debt name')));
-                            return;
-                          }
-                          final total = double.tryParse(totalCtrl.text) ?? 0;
-                          if (total <= 0) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Please enter a valid total amount')));
-                            return;
-                          }
-                          final paid = double.tryParse(paidCtrl.text) ?? 0;
-                          final debtName = nameCtrl.text.trim();
-                          final messenger = ScaffoldMessenger.of(context);
-                          final mp = hasMonthlyPayment
-                              ? (double.tryParse(monthlyPaymentCtrl.text) ?? 0)
-                              : null;
-                          final newGoal = Goal(
-                            id: const Uuid().v4(),
-                            type: 'debt',
-                            name: debtName,
-                            targetAmount: total,
-                            currentAmount: paid,
-                            targetDate: dueDate?.toIso8601String(),
-                            icon: selectedEmoji,
-                            color: '#EF4444',
-                            monthlyPayment:
-                                hasMonthlyPayment && mp != null && mp > 0
-                                    ? mp
-                                    : null,
-                            paymentDay: hasMonthlyPayment ? paymentDay : null,
-                            paymentSourceAccountId: hasMonthlyPayment
-                                ? paymentSourceAccountId
-                                : null,
-                          );
-                          provider.addGoal(newGoal);
-                          provider.syncDebtPaymentRuleForGoal(newGoal);
-                          Navigator.pop(ctx);
-                          messenger.showSnackBar(SnackBar(
-                              content: Text('"$debtName" added'),
-                              backgroundColor: AppTheme.error));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.error,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
-                        ),
-                        child: const Text('Add Debt',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ]),
+            header: AppFormSheetHeader(
+              title: s.addDebt,
+              icon: IOSIcons.credit_card_rounded,
+              accent: AppTheme.adaptiveIcon(ctx),
             ),
-          ),
-        ),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(s.icon,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: emojiOptions.map((e) {
+                    final isSel = selectedEmoji == e;
+                    return GestureDetector(
+                      onTap: () => setModalState(() => selectedEmoji = e),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: isSel
+                              ? AppTheme.adaptiveIconSurface(ctx)
+                              : (isDark
+                                  ? AppTheme.darkSurfaceElevated
+                                  : AppTheme.lightBackground),
+                          borderRadius: BorderRadius.circular(12),
+                          border: isSel
+                              ? Border.all(
+                                  color: AppTheme.adaptiveIcon(ctx), width: 2)
+                              : null,
+                        ),
+                        child: Center(
+                            child:
+                                Text(e, style: const TextStyle(fontSize: 22))),
+                      ),
+                    );
+                  }).toList()),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: s.debtName,
+                  hintText: s.tr('debtNameHint'),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  prefixIcon: Icon(IOSIcons.credit_card_rounded,
+                      color: AppTheme.adaptiveIcon(ctx)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: totalCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.totalAmount,
+                  hintText: '0.00',
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: paidCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.tr('alreadyPaidOptional'),
+                  hintText: '0.00',
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: ctx,
+                    initialDate: DateTime.now().add(const Duration(days: 30)),
+                    firstDate: DateTime.now(),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 30)),
+                  );
+                  if (date != null) setModalState(() => dueDate = date);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Theme.of(ctx).dividerColor)),
+                  child: Row(children: [
+                    Icon(IOSIcons.calendar_today_rounded,
+                        size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                    const SizedBox(width: 12),
+                    Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s.dueDateOptional,
+                              style: Theme.of(ctx).textTheme.bodySmall),
+                          Text(
+                              dueDate != null
+                                  ? MaterialLocalizations.of(ctx)
+                                      .formatMediumDate(dueDate!)
+                                  : s.notSet,
+                              style: Theme.of(ctx)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                        ]),
+                    const Spacer(),
+                    Icon(IOSIcons.chevron_right_rounded,
+                        size: 20, color: AppTheme.adaptiveIcon(ctx)),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: hasMonthlyPayment
+                          ? AppTheme.error.withOpacity(0.4)
+                          : Theme.of(ctx).dividerColor),
+                  color: hasMonthlyPayment
+                      ? AppTheme.error.withOpacity(0.04)
+                      : null,
+                ),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(IOSIcons.autorenew_rounded,
+                            size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                        const SizedBox(width: 8),
+                        Text(s.monthlyPaymentLabel,
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        Switch(
+                          value: hasMonthlyPayment,
+                          onChanged: (v) =>
+                              setModalState(() => hasMonthlyPayment = v),
+                          activeColor: AppTheme.error,
+                          activeTrackColor: AppTheme.error.withOpacity(0.3),
+                        ),
+                      ]),
+                      if (hasMonthlyPayment) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: monthlyPaymentCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                            labelText: s.monthlyAmount,
+                            hintText: '0.00',
+                            prefixText:
+                                '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            filled: true,
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        AppPickerField<int>(
+                          label: s.paymentDayOfMonth,
+                          value: paymentDay,
+                          prefixIcon: AppIcons.calendar,
+                          items: List.generate(
+                              28,
+                              (i) => AppPickerItem(
+                                    value: i + 1,
+                                    label: '${s.day} ${i + 1}',
+                                  )),
+                          onChanged: (v) =>
+                              setModalState(() => paymentDay = v ?? 1),
+                        ),
+                        const SizedBox(height: 12),
+                        AppPickerField<String>(
+                          label: s.payFrom,
+                          value: paymentSourceAccountId ??
+                              AppProvider.cashOnHandId,
+                          prefixIcon: AppIcons.wallet,
+                          items: [
+                            AppPickerItem(
+                              value: AppProvider.cashOnHandId,
+                              label: s.cashOnHand,
+                              leadingIcon: AppIcons.money,
+                              iconColor: AppTheme.cashOnHandIcon,
+                            ),
+                            ...provider.accounts.map((a) => AppPickerItem(
+                                  value: a.id,
+                                  label: a.name,
+                                  leadingIcon: AppIcons.bank,
+                                  iconColor: AppTheme.adaptiveIcon(ctx),
+                                  imagePath: a.imagePath,
+                                )),
+                          ],
+                          onChanged: (v) =>
+                              setModalState(() => paymentSourceAccountId = v),
+                        ),
+                      ],
+                    ]),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (nameCtrl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.tr('pleaseEnterDebtName'))));
+                    return;
+                  }
+                  final total = double.tryParse(totalCtrl.text) ?? 0;
+                  if (total <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                        content: Text(s.tr('pleaseEnterValidTotalAmount'))));
+                    return;
+                  }
+                  final paid = double.tryParse(paidCtrl.text) ?? 0;
+                  final debtName = nameCtrl.text.trim();
+                  final messenger = ScaffoldMessenger.of(context);
+                  final mp = hasMonthlyPayment
+                      ? (double.tryParse(monthlyPaymentCtrl.text) ?? 0)
+                      : null;
+                  final newGoal = Goal(
+                    id: const Uuid().v4(),
+                    type: 'debt',
+                    name: debtName,
+                    targetAmount: total,
+                    currentAmount: paid,
+                    targetDate: dueDate?.toIso8601String(),
+                    icon: selectedEmoji,
+                    color: '#EF4444',
+                    monthlyPayment:
+                        hasMonthlyPayment && mp != null && mp > 0 ? mp : null,
+                    paymentDay: hasMonthlyPayment ? paymentDay : null,
+                    paymentSourceAccountId:
+                        hasMonthlyPayment ? paymentSourceAccountId : null,
+                  );
+                  provider.addGoal(newGoal);
+                  provider.syncDebtPaymentRuleForGoal(newGoal);
+                  Navigator.pop(ctx);
+                  messenger.showSnackBar(SnackBar(
+                      content: Text(s.debtAdded.replaceAll('{name}', debtName)),
+                      backgroundColor: AppTheme.error));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.error,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: Text(s.addDebt,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }

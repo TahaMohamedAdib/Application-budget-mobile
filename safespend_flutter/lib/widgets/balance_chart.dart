@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
+import '../l10n/app_localizations.dart';
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const _kGreen = Color(0xFF1D9E75);
@@ -12,24 +14,24 @@ const _kAmber = Color(0xFFBA7517);
 const _kSafeThreshold = 1500.0;
 const _kStartBalance = 2800.0;
 
-final _fmt = NumberFormat('#,##0', 'fr_FR');
-String _fmtMAD(double v) => '${_fmt.format(v)} MAD';
+String _fmtMAD(double value, String localeName) =>
+    '${NumberFormat('#,##0', localeName).format(value)} MAD';
 
 // ─── Periods ────────────────────────────────────────────────────────────────
 
 enum _Period { d7, d30, m3, y1 }
 
 extension _PeriodX on _Period {
-  String get label {
+  String label(S s) {
     switch (this) {
       case _Period.d7:
-        return '7j';
+        return s.oneWeek;
       case _Period.d30:
-        return '30j';
+        return s.oneMonth;
       case _Period.m3:
-        return '3 mois';
+        return s.threeMonths;
       case _Period.y1:
-        return '1 an';
+        return s.oneYear;
     }
   }
 
@@ -124,32 +126,30 @@ class _BalanceChartState extends State<BalanceChart> {
 
   // ── X-axis label ───────────────────────────────────────────────────────────
 
-  String _xLabel(double value, int days) {
+  String _xLabel(double value, int days, String localeName) {
     final i = value.toInt();
     final now = DateTime.now();
 
     switch (_period) {
       case _Period.d7:
         final day = now.subtract(Duration(days: days - 1 - i));
-        // short weekday in French
-        const weekdays = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
-        return weekdays[(day.weekday - 1) % 7];
+        return DateFormat('E', localeName).format(day);
 
       case _Period.d30:
         if (i % 7 != 0) return '';
         final day = now.subtract(Duration(days: days - 1 - i));
-        final month = DateFormat('MMM', 'fr_FR').format(day);
+        final month = DateFormat('MMM', localeName).format(day);
         return '${day.day} $month';
 
       case _Period.m3:
         if (i % 30 != 0) return '';
         final day = now.subtract(Duration(days: days - 1 - i));
-        return DateFormat('MMM', 'fr_FR').format(day);
+        return DateFormat('MMM', localeName).format(day);
 
       case _Period.y1:
         if (i % 30 != 0) return '';
         final day = now.subtract(Duration(days: days - 1 - i));
-        return DateFormat("MMM ''yy", 'fr_FR').format(day);
+        return DateFormat("MMM ''yy", localeName).format(day);
     }
   }
 
@@ -157,6 +157,7 @@ class _BalanceChartState extends State<BalanceChart> {
 
   @override
   Widget build(BuildContext context) {
+    final localeName = Localizations.localeOf(context).toString();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -164,6 +165,7 @@ class _BalanceChartState extends State<BalanceChart> {
           balance: _currentBalance,
           expenses: _totalExpenses,
           savings: _netSavings,
+          localeName: localeName,
         ),
         const SizedBox(height: 16),
         _PeriodSelector(
@@ -186,6 +188,8 @@ class _BalanceChartState extends State<BalanceChart> {
 
   Widget _buildChart() {
     final days = _period.days;
+    final localeName = Localizations.localeOf(context).toString();
+    final s = S.of(context);
 
     // Split spots into two datasets: above threshold (green) and below (red)
     final greenSpots = <FlSpot>[];
@@ -241,7 +245,10 @@ class _BalanceChartState extends State<BalanceChart> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               stops: const [0.0, 0.75],
-              colors: [gradientTop.withOpacity(0.30), gradientTop.withOpacity(0.0)],
+              colors: [
+                gradientTop.withOpacity(0.30),
+                gradientTop.withOpacity(0.0)
+              ],
             ),
           ),
         );
@@ -259,97 +266,112 @@ class _BalanceChartState extends State<BalanceChart> {
 
     return RepaintBoundary(
       child: LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: (days - 1).toDouble(),
-        minY: minY,
-        maxY: maxY,
-        // ── Grid ──────────────────────────────────────────────────────────
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => FlLine(
-            color: Colors.black.withOpacity(0.06),
-            strokeWidth: 1,
+        LineChartData(
+          minX: 0,
+          maxX: (days - 1).toDouble(),
+          minY: minY,
+          maxY: maxY,
+          // ── Grid ──────────────────────────────────────────────────────────
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) => FlLine(
+              color: Colors.black.withOpacity(0.06),
+              strokeWidth: 1,
+            ),
           ),
-        ),
-        borderData: FlBorderData(show: false),
-        // ── Axes ──────────────────────────────────────────────────────────
-        titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 28,
-              interval: 1,
-              getTitlesWidget: (value, meta) {
-                final label = _xLabel(value, days);
-                if (label.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    label,
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF888888)),
+          borderData: FlBorderData(show: false),
+          // ── Axes ──────────────────────────────────────────────────────────
+          titlesData: FlTitlesData(
+            leftTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 28,
+                interval: 1,
+                getTitlesWidget: (value, meta) {
+                  final label = _xLabel(value, days, localeName);
+                  if (label.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                          fontSize: 10, color: Color(0xFF888888)),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          // ── Dashed threshold line ─────────────────────────────────────────
+          extraLinesData: ExtraLinesData(
+            horizontalLines: [
+              HorizontalLine(
+                y: _kSafeThreshold,
+                color: _kAmber,
+                strokeWidth: 1.5,
+                dashArray: [6, 4],
+                label: HorizontalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  padding: const EdgeInsets.only(right: 6, bottom: 4),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: _kAmber,
+                    fontWeight: FontWeight.w600,
                   ),
-                );
-              },
-            ),
-          ),
-        ),
-        // ── Dashed threshold line ─────────────────────────────────────────
-        extraLinesData: ExtraLinesData(
-          horizontalLines: [
-            HorizontalLine(
-              y: _kSafeThreshold,
-              color: _kAmber,
-              strokeWidth: 1.5,
-              dashArray: [6, 4],
-              label: HorizontalLineLabel(
-                show: true,
-                alignment: Alignment.topRight,
-                padding: const EdgeInsets.only(right: 6, bottom: 4),
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: _kAmber,
-                  fontWeight: FontWeight.w600,
-                ),
-                labelResolver: (_) => 'Seuil ${_fmtMAD(_kSafeThreshold)}',
-              ),
-            ),
-          ],
-        ),
-        // ── Tooltip + Crosshair ───────────────────────────────────────────
-        lineTouchData: LineTouchData(
-          handleBuiltInTouches: true,
-          getTouchedSpotIndicator: (barData, spotIndexes) => spotIndexes.map((i) {
-            return TouchedSpotIndicatorData(
-              FlLine(color: barData.color?.withOpacity(0.5) ?? _kGreen.withOpacity(0.5),
-                strokeWidth: 1.5, dashArray: [4, 4]),
-              FlDotData(
-                getDotPainter: (_, __, bar, ___) => FlDotCirclePainter(
-                  radius: 5,
-                  color: bar.color ?? _kGreen,
-                  strokeWidth: 2.5,
-                  strokeColor: Colors.white,
+                  labelResolver: (_) =>
+                      '${s.safeToSpend} ${_fmtMAD(_kSafeThreshold, localeName)}',
                 ),
               ),
-            );
-          }).toList(),
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF1C1C1E),
-            tooltipRoundedRadius: 10,
-            tooltipPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            getTooltipItems: (touchedSpots) => touchedSpots.map((s) => LineTooltipItem(
-              _fmtMAD(s.y),
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
-            )).toList(),
+            ],
           ),
+          // ── Tooltip + Crosshair ───────────────────────────────────────────
+          lineTouchData: LineTouchData(
+            handleBuiltInTouches: true,
+            getTouchedSpotIndicator: (barData, spotIndexes) =>
+                spotIndexes.map((i) {
+              return TouchedSpotIndicatorData(
+                FlLine(
+                    color: barData.color?.withOpacity(0.5) ??
+                        _kGreen.withOpacity(0.5),
+                    strokeWidth: 1.5,
+                    dashArray: [4, 4]),
+                FlDotData(
+                  getDotPainter: (_, __, bar, ___) => FlDotCirclePainter(
+                    radius: 5,
+                    color: bar.color ?? _kGreen,
+                    strokeWidth: 2.5,
+                    strokeColor: Colors.white,
+                  ),
+                ),
+              );
+            }).toList(),
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => const Color(0xFF1C1C1E),
+              tooltipRoundedRadius: 10,
+              tooltipPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              getTooltipItems: (touchedSpots) => touchedSpots
+                  .map((s) => LineTooltipItem(
+                        _fmtMAD(s.y, localeName),
+                        const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13),
+                      ))
+                  .toList(),
+            ),
+          ),
+          lineBarsData: lineBars,
         ),
-        lineBarsData: lineBars,
       ),
-    ),
     );
   }
 }
@@ -361,23 +383,34 @@ class _MetricRow extends StatelessWidget {
     required this.balance,
     required this.expenses,
     required this.savings,
+    required this.localeName,
   });
 
   final double balance;
   final double expenses;
   final double savings;
+  final String localeName;
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Row(
       children: [
-        _MetricCard(label: 'Balance actuelle', value: _fmtMAD(balance), valueColor: _kGreen),
-        const SizedBox(width: 8),
-        _MetricCard(label: 'Dépenses / mois', value: _fmtMAD(expenses), valueColor: _kRed),
+        _MetricCard(
+          label: s.balance,
+          value: _fmtMAD(balance, localeName),
+          valueColor: _kGreen,
+        ),
         const SizedBox(width: 8),
         _MetricCard(
-          label: 'Épargne nette',
-          value: (savings >= 0 ? '+' : '') + _fmtMAD(savings),
+          label: '${s.expenses} ${s.perMonth}',
+          value: _fmtMAD(expenses, localeName),
+          valueColor: _kRed,
+        ),
+        const SizedBox(width: 8),
+        _MetricCard(
+          label: s.tr('netSavings'),
+          value: (savings >= 0 ? '+' : '') + _fmtMAD(savings, localeName),
           valueColor: _kGreen,
         ),
       ],
@@ -410,7 +443,7 @@ class _MetricCard extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 9.5, color: Color(0xFF888888)),
+              style: const TextStyle(fontSize: 10, color: Color(0xFF888888)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -418,7 +451,7 @@ class _MetricCard extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: valueColor,
               ),
@@ -442,6 +475,7 @@ class _PeriodSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Row(
       children: _Period.values.map((p) {
         final active = p == selected;
@@ -460,7 +494,7 @@ class _PeriodSelector extends StatelessWidget {
                 ),
               ),
               child: Text(
-                p.label,
+                p.label(s),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -482,13 +516,14 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return Row(
-      children: const [
-        _LegendDot(color: _kGreen, label: 'Balance'),
-        SizedBox(width: 16),
-        _LegendDot(color: _kRed, label: 'Revenu entrant'),
-        SizedBox(width: 16),
-        _LegendDot(color: _kAmber, label: 'Seuil safe'),
+      children: [
+        _LegendDot(color: _kGreen, label: s.balance),
+        const SizedBox(width: 16),
+        _LegendDot(color: _kRed, label: s.income),
+        const SizedBox(width: 16),
+        _LegendDot(color: _kAmber, label: s.safeToSpend),
       ],
     );
   }

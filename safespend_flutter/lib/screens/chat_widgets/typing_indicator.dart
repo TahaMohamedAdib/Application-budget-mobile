@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_fonts.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// ChatGPT-style "Thinking..." indicator with subtle dots.
@@ -71,7 +72,7 @@ class _ThinkingTextState extends State<_ThinkingText>
         return Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Text(
-            'Thinking$dots',
+            '${S.of(context).tr('thinking')}$dots',
             style: GoogleFonts.inter(
               fontSize: 14,
               color: widget.isDark ? Colors.white38 : Colors.black38,

@@ -1,5 +1,14 @@
 import 'dart:convert';
 
+const Object _notProvided = Object();
+
+bool _isLocalAvatarPath(String? reference) {
+  if (reference == null || reference.isEmpty) return false;
+  return reference.startsWith('/') ||
+      reference.startsWith('file:') ||
+      RegExp(r'^[A-Za-z]:[\\/]').hasMatch(reference);
+}
+
 /// User preferences.
 ///
 /// Persistence is split in two:
@@ -21,6 +30,14 @@ class Settings {
   final bool isDarkMode;
   final String netWorthScope; // 'all' or specific account ID
   final String? selectedAccountId;
+
+  /// Storage object path of the profile picture, e.g. `{uid}/avatar.jpg`.
+  ///
+  /// A path, never a URL. The avatars bucket is private, so links are signed
+  /// and expire within the hour; storing one would leave the picture broken
+  /// shortly after upload and permanently broken after a reinstall. Resolve
+  /// it for display with `SupabaseSyncService.resolveImageUrl`.
+  final String? avatarPath;
 
   // ── Device-local: general ──
   final String themeMode; // 'light', 'dark', 'system'
@@ -69,6 +86,7 @@ class Settings {
     this.isDarkMode = false,
     this.netWorthScope = 'all',
     this.selectedAccountId,
+    this.avatarPath,
     this.themeMode = 'system',
     this.locale = 'en',
     this.textScale = 1.0,
@@ -99,7 +117,10 @@ class Settings {
     double? monthlyIncome,
     bool? isDarkMode,
     String? netWorthScope,
-    String? selectedAccountId,
+    Object? selectedAccountId = _notProvided,
+    // Sentinel-guarded so clearing the picture (passing null) is
+    // distinguishable from "leave it alone".
+    Object? avatarPath = _notProvided,
     String? themeMode,
     String? locale,
     double? textScale,
@@ -129,7 +150,12 @@ class Settings {
       monthlyIncome: monthlyIncome ?? this.monthlyIncome,
       isDarkMode: isDarkMode ?? this.isDarkMode,
       netWorthScope: netWorthScope ?? this.netWorthScope,
-      selectedAccountId: selectedAccountId ?? this.selectedAccountId,
+      selectedAccountId: identical(selectedAccountId, _notProvided)
+          ? this.selectedAccountId
+          : selectedAccountId as String?,
+      avatarPath: identical(avatarPath, _notProvided)
+          ? this.avatarPath
+          : avatarPath as String?,
       themeMode: themeMode ?? this.themeMode,
       locale: locale ?? this.locale,
       textScale: textScale ?? this.textScale,
@@ -166,12 +192,20 @@ class Settings {
   /// their defaults, because [Settings] objects built by
   /// `SupabaseSyncService.loadProfile` carry defaults for all of them.
   Settings withRemoteProfile(Settings remote) {
+    // A local path means a newly selected picture is waiting for Storage.
+    // Keep showing that durable app-owned copy until the queued upload can
+    // finish. A server pull must not make the user's new picture disappear.
+    final avatar =
+        _isLocalAvatarPath(avatarPath) ? avatarPath : remote.avatarPath;
     return copyWith(
       currency: remote.currency,
       monthlyIncome: remote.monthlyIncome,
       isDarkMode: remote.isDarkMode,
       netWorthScope: remote.netWorthScope,
       selectedAccountId: remote.selectedAccountId,
+      // Carries the profile picture back after a reinstall: the server row is
+      // the only place it survives, since local storage is gone with the app.
+      avatarPath: avatar,
     );
   }
 
@@ -183,6 +217,7 @@ class Settings {
       'themeMode': themeMode,
       'netWorthScope': netWorthScope,
       'selectedAccountId': selectedAccountId,
+      'avatarPath': avatarPath,
       'notificationsEnabled': notificationsEnabled,
       'locale': locale,
       'textScale': textScale,
@@ -218,6 +253,7 @@ class Settings {
       themeMode: json['themeMode'] ?? 'system',
       netWorthScope: json['netWorthScope'] ?? 'all',
       selectedAccountId: json['selectedAccountId'],
+      avatarPath: json['avatarPath'],
       notificationsEnabled: json['notificationsEnabled'] ?? true,
       locale: json['locale'] ?? 'en',
       textScale: (json['textScale'] as num?)?.toDouble() ?? 1.0,
@@ -261,6 +297,7 @@ class Settings {
           themeMode == other.themeMode &&
           netWorthScope == other.netWorthScope &&
           selectedAccountId == other.selectedAccountId &&
+          avatarPath == other.avatarPath &&
           notificationsEnabled == other.notificationsEnabled &&
           locale == other.locale &&
           textScale == other.textScale &&
@@ -292,6 +329,7 @@ class Settings {
         themeMode,
         netWorthScope,
         selectedAccountId,
+        avatarPath,
         notificationsEnabled,
         locale,
         textScale,

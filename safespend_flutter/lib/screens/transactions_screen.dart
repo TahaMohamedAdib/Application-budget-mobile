@@ -11,9 +11,12 @@ import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../models/transaction.dart';
 import '../widgets/add_transaction_modal.dart';
+import '../widgets/transaction_delete_button.dart';
 import '../widgets/modern_chart.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/money_format.dart';
+import '../widgets/feature_help_button.dart';
+import '../widgets/stored_image.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -48,7 +51,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           // Filter by search query
           if (_searchController.text.isNotEmpty) {
             final query = _searchController.text.toLowerCase();
-            final note = (t.note ?? '').toLowerCase();
+            final note = (S
+                        .forLocale(context.read<AppProvider>().settings.locale)
+                        .systemNote(t.note) ??
+                    '')
+                .toLowerCase();
             final amount = t.amount.toString();
             if (!note.contains(query) && !amount.contains(query)) return false;
           }
@@ -137,6 +144,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             Text(
                               s.transactions,
                               style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const Spacer(),
+                            FeatureHelpButton(
+                              title: s.transactions,
+                              description: s.helpA1,
+                              icon: IOSIcons.receipt_long_rounded,
                             ),
                           ],
                         ),
@@ -252,7 +265,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Sort By', // no matching l10n key
+                                      s.sortBy,
                                       style:
                                           Theme.of(context).textTheme.bodySmall,
                                     ),
@@ -322,16 +335,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 Text(
                                   _searchController.text.isNotEmpty ||
                                           _filterType != 'all'
-                                      ? 'No transactions found'
-                                      : 'No transactions yet',
+                                      ? s.noTransactionsFound
+                                      : s.noTransactions,
                                   style: Theme.of(context).textTheme.titleLarge,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   _searchController.text.isNotEmpty ||
                                           _filterType != 'all'
-                                      ? 'Try adjusting your filters'
-                                      : 'Tap the + button to add your first transaction',
+                                      ? s.tryAdjustingFilters
+                                      : s.tapToAddFirstTransaction,
                                   style: Theme.of(context).textTheme.bodyMedium,
                                   textAlign: TextAlign.center,
                                 ),
@@ -364,23 +377,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     switch (_filterType) {
       case 'expense':
         lineColor = AppTheme.error;
-        chartLabel = 'Expenses';
+        chartLabel = s.expenses;
         break;
       case 'income':
         lineColor = AppTheme.success;
-        chartLabel = 'Income';
+        chartLabel = s.incomeLabel;
         break;
       case 'transfer':
         lineColor = AppTheme.info;
-        chartLabel = 'Transfers';
+        chartLabel = s.tr('transfers');
         break;
       case 'withdrawal':
         lineColor = AppTheme.warning;
-        chartLabel = 'Withdrawals';
+        chartLabel = s.tr('withdrawals');
         break;
       default:
         lineColor = AppTheme.goldPrimary;
-        chartLabel = 'Spending';
+        chartLabel = s.spending;
         break;
     }
 
@@ -496,15 +509,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  String _getDateGroupLabel(DateTime date) {
+  String _getDateGroupLabel(BuildContext context, DateTime date) {
+    final s = S.of(context);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final d = DateTime(date.year, date.month, date.day);
     final diff = today.difference(d).inDays;
-    if (diff == 0) return 'TODAY';
-    if (diff == 1) return 'YESTERDAY';
-    if (diff < 7) return DateFormat('EEEE').format(date).toUpperCase();
-    return DateFormat('MMM d').format(date).toUpperCase();
+    if (diff == 0) return s.today.toUpperCase();
+    if (diff == 1) return s.yesterday.toUpperCase();
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    if (diff < 7) return DateFormat('EEEE', locale).format(date).toUpperCase();
+    return DateFormat.MMMd(locale).format(date).toUpperCase();
   }
 
   List<Widget> _buildTransactionGroups(
@@ -526,7 +541,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 16, 0, 8),
           child: Text(
-            _getDateGroupLabel(date),
+            _getDateGroupLabel(context, date),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -571,7 +586,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     title: Text(s.deleteTransaction),
                                     content: Text(s.deleteConfirm.replaceAll(
                                         '{name}',
-                                        t.note ??
+                                        S
+                                                .forLocale(context
+                                                    .read<AppProvider>()
+                                                    .settings
+                                                    .locale)
+                                                .systemNote(t.note) ??
                                             _getTransactionTypeLabel(t.type))),
                                     actions: [
                                       TextButton(
@@ -624,11 +644,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: cat != null
-                                  ? _buildCategoryIcon(cat.icon,
-                                      AppTheme.adaptiveIcon(context))
+                                  ? _buildCategoryIcon(
+                                      cat.icon, AppTheme.adaptiveIcon(context))
                                   : AppIcon(
                                       _getTransactionDisplayIcon(
-                                          t.type, t.note),
+                                          t.type,
+                                          S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)),
                                       color: AppTheme.adaptiveIcon(context),
                                       size: 18),
                             ),
@@ -641,7 +667,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          t.note ??
+                                          S
+                                                  .forLocale(context
+                                                      .read<AppProvider>()
+                                                      .settings
+                                                      .locale)
+                                                  .systemNote(t.note) ??
                                               cat?.name ??
                                               _getTransactionTypeLabel(t.type),
                                           style: Theme.of(context)
@@ -658,13 +689,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: AppTheme
-                                                .adaptiveIconSurface(context),
+                                            color: AppTheme.adaptiveIconSurface(
+                                                context),
                                             borderRadius:
                                                 BorderRadius.circular(6),
                                           ),
                                           child: Text(
-                                            cat.name,
+                                            s.categoryDisplayName(
+                                                cat.id, cat.name),
                                             style: TextStyle(
                                                 fontSize: 9,
                                                 fontWeight: FontWeight.w600,
@@ -689,7 +721,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  cf.signed(t.amount, positive: t.type == 'income'),
+                                  cf.signed(t.amount,
+                                      positive: t.type == 'income'),
                                   style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -697,7 +730,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  DateFormat('MMM d, h:mm a').format(date),
+                                  DateFormat(
+                                          'MMM d, h:mm a',
+                                          Localizations.localeOf(context)
+                                              .toLanguageTag())
+                                      .format(date),
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
@@ -776,8 +813,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       child: cat != null
                           ? _buildCategoryIcon(
                               cat.icon, AppTheme.adaptiveIcon(ctx))
-                          : AppIcon(_getTransactionDisplayIcon(t.type, t.note),
-                              color: AppTheme.adaptiveIcon(ctx), size: 24),
+                          : AppIcon(
+                              _getTransactionDisplayIcon(
+                                  t.type,
+                                  S
+                                      .forLocale(context
+                                          .read<AppProvider>()
+                                          .settings
+                                          .locale)
+                                      .systemNote(t.note)),
+                              color: AppTheme.adaptiveIcon(ctx),
+                              size: 24),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -785,14 +831,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            t.note ?? cat?.name ?? t.type,
+                            S
+                                    .forLocale(context
+                                        .read<AppProvider>()
+                                        .settings
+                                        .locale)
+                                    .systemNote(t.note) ??
+                                cat?.name ??
+                                t.type,
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.w700),
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            DateFormat('MMM d, yyyy · h:mm a').format(date),
+                            '${MaterialLocalizations.of(ctx).formatMediumDate(date)} · ${MaterialLocalizations.of(ctx).formatTimeOfDay(TimeOfDay.fromDateTime(date))}',
                             style: TextStyle(
                                 fontSize: 13,
                                 color:
@@ -814,25 +867,25 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 // Info rows
                 if (t.description != null && t.description!.isNotEmpty)
                   _detailInfoRow(
-                      ctx, AppIcons.notes, 'Description', t.description!),
+                      ctx, AppIcons.notes, s.description, t.description!),
                 if (account != null)
-                  _detailInfoRow(ctx, AppIcons.bank, 'Account', account.name),
+                  _detailInfoRow(ctx, AppIcons.bank, s.account, account.name),
                 if (cat != null)
-                  _detailInfoRow(
-                      ctx, AppIcons.categoryIcon, 'Category', cat.name),
+                  _detailInfoRow(ctx, AppIcons.categoryIcon, s.category,
+                      s.categoryDisplayName(cat.id, cat.name)),
                 if (t.expenseSubType != null)
                   _detailInfoRow(
                       ctx,
                       AppIcons.tag,
-                      'Type',
+                      s.type,
                       t.expenseSubType![0].toUpperCase() +
                           t.expenseSubType!.substring(1)),
                 if (t.isRecurring)
-                  _detailInfoRow(ctx, AppIcons.repeat, 'Recurring', 'Yes'),
+                  _detailInfoRow(ctx, AppIcons.repeat, s.recurring, s.yes),
                 const SizedBox(height: 8),
                 // Receipt image
                 if (t.imagePath != null) ...[
-                  Text('Receipt',
+                  Text(s.receipt,
                       style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                   const SizedBox(height: 8),
@@ -840,50 +893,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     onTap: () => _openReceiptViewer(ctx, t.imagePath!),
                     child: Stack(
                       children: [
-                        ClipRRect(
+                        StoredImage(
+                          reference: t.imagePath,
+                          width: double.infinity,
+                          height: 180,
                           borderRadius: BorderRadius.circular(16),
-                          child: t.imagePath!.startsWith('http')
-                              ? Image.network(
-                                  t.imagePath!,
-                                  width: double.infinity,
-                                  height: 180,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (_, child, progress) =>
-                                      progress == null
-                                          ? child
-                                          : Container(
-                                              height: 180,
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(ctx)
-                                                    .dividerColor
-                                                    .withOpacity(0.08),
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                              ),
-                                              child: const Center(
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                          strokeWidth: 2)),
-                                            ),
-                                  errorBuilder: (_, __, ___) => Container(
-                                    height: 180,
-                                    color: Colors.grey.withOpacity(0.1),
-                                    child: const Center(
-                                        child:
-                                            AppIcon(AppIcons.image, size: 40)),
-                                  ),
-                                )
-                              : Image.file(File(t.imagePath!),
-                                  width: double.infinity,
-                                  height: 180,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                        height: 180,
-                                        color: Colors.grey.withOpacity(0.1),
-                                        child: const Center(
-                                            child: AppIcon(AppIcons.image,
-                                                size: 40)),
-                                      )),
+                          errorWidget:
+                              const AppIcon(AppIcons.image, size: 40),
                         ),
                         // Zoom hint badge
                         Positioned(
@@ -896,14 +912,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               color: Colors.black.withOpacity(0.55),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                AppIcon(AppIcons.zoomIn,
+                                const AppIcon(AppIcons.zoomIn,
                                     color: Colors.white, size: 14),
-                                SizedBox(width: 4),
-                                Text('Tap to open',
-                                    style: TextStyle(
+                                const SizedBox(width: 4),
+                                Text(s.tapToOpen,
+                                    style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500)),
@@ -919,52 +935,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 // Action buttons: Delete + Edit
                 Row(
                   children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            showDialog<bool>(
-                              context: context,
-                              builder: (dCtx) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20)),
-                                title: Text(s.deleteTransaction),
-                                content: Text(s.deleteConfirm.replaceAll(
-                                    '{name}',
-                                    t.note ??
-                                        _getTransactionTypeLabel(t.type))),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(dCtx, false),
-                                      child: Text(s.cancel)),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(dCtx, true);
-                                      provider.deleteTransaction(t.id);
-                                    },
-                                    style: TextButton.styleFrom(
-                                        foregroundColor: AppTheme.error),
-                                    child: Text(s.delete),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                          icon: const AppIcon(AppIcons.delete, size: 18),
-                          label: const Text('Delete',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.error,
-                            side: BorderSide(
-                                color: AppTheme.error.withOpacity(0.3)),
+                    TransactionDeleteButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        showDialog<bool>(
+                          context: context,
+                          builder: (dCtx) => AlertDialog(
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
+                                borderRadius: BorderRadius.circular(20)),
+                            title: Text(s.deleteTransaction),
+                            content: Text(s.deleteConfirm.replaceAll(
+                                '{name}',
+                                S
+                                        .forLocale(context
+                                            .read<AppProvider>()
+                                            .settings
+                                            .locale)
+                                        .systemNote(t.note) ??
+                                    _getTransactionTypeLabel(t.type))),
+                            actions: [
+                              TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(dCtx, false),
+                                  child: Text(s.cancel)),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(dCtx, true);
+                                  provider.deleteTransaction(t.id);
+                                },
+                                style: TextButton.styleFrom(
+                                    foregroundColor: AppTheme.error),
+                                child: Text(s.delete),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -974,17 +980,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         child: ElevatedButton.icon(
                           onPressed: () {
                             Navigator.pop(ctx);
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) =>
-                                  AddTransactionModal(initialTransaction: t),
-                            );
+                            showTransactionSheet(context, initialTransaction: t);
                           },
                           icon: const AppIcon(AppIcons.edit, size: 18),
-                          label: const Text('Edit Transaction',
-                              style: TextStyle(
+                          label: Text(s.editTransaction,
+                              style: const TextStyle(
                                   fontSize: 15, fontWeight: FontWeight.w700)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.goldPrimary,
@@ -1027,6 +1027,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   // ── Full-screen receipt viewer with pinch-to-zoom ──────────
   void _openReceiptViewer(BuildContext context, String imagePath) {
+    final s = S.of(context);
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
@@ -1048,29 +1049,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   child: InteractiveViewer(
                     minScale: 0.5,
                     maxScale: 6.0,
-                    child: imagePath.startsWith('http')
-                        ? Image.network(
-                            imagePath,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null
-                                    ? child
-                                    : const Center(
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white)),
-                            errorBuilder: (_, __, ___) => const AppIcon(
-                                AppIcons.image,
-                                color: Colors.white54,
-                                size: 64),
-                          )
-                        : Image.file(
-                            File(imagePath),
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const AppIcon(
-                                AppIcons.image,
-                                color: Colors.white54,
-                                size: 64),
-                          ),
+                    // Fills the viewer, so no rounded corners here.
+                    child: StoredImage(
+                      reference: imagePath,
+                      fit: BoxFit.contain,
+                      borderRadius: BorderRadius.zero,
+                      placeholder: const CircularProgressIndicator(
+                          color: Colors.white),
+                      errorWidget: const AppIcon(AppIcons.image,
+                          color: Colors.white54, size: 64),
+                    ),
                   ),
                 ),
                 // Close button
@@ -1096,14 +1084,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                 ),
                 // Hint label
-                const SafeArea(
+                SafeArea(
                   child: Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
-                      padding: EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.only(bottom: 24),
                       child: Text(
-                        'Pinch to zoom  •  Tap outside to close',
-                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                        s.pinchToZoom,
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12),
                       ),
                     ),
                   ),

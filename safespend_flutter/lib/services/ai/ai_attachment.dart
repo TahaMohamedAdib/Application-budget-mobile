@@ -21,6 +21,31 @@ class AIAttachment {
   /// Original file name, when one exists. Useful for documents.
   final String? fileName;
 
+  /// Largest attachment the app will send upstream.
+  ///
+  /// Providers bill by token and reject oversized payloads anyway, so an
+  /// unbounded read is a way to waste the user's quota and, on a large PDF,
+  /// exhaust memory on the device before the request is even attempted.
+  static const maxBytes = 8 * 1024 * 1024;
+
+  /// MIME types the app is willing to forward. An attachment is described by
+  /// the picker, not sniffed, so this list is what keeps an unexpected type
+  /// from being relayed to a provider on the user's behalf.
+  static const allowedMimeTypes = <String>{
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+    'image/gif',
+    'application/pdf',
+  };
+
+  /// True when the attachment is within limits and of an expected type.
+  bool get isAcceptable =>
+      bytes.isNotEmpty &&
+      bytes.length <= maxBytes &&
+      allowedMimeTypes.contains(mimeType.toLowerCase());
+
   const AIAttachment({
     required this.kind,
     required this.mimeType,

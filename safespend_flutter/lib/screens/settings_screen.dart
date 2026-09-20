@@ -1,14 +1,18 @@
+import '../widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/settings.dart';
 import '../providers/app_provider.dart';
+import '../widgets/unsynced_work_guard.dart';
 import '../services/auth_service.dart';
+import '../services/supabase_sync_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/ios_icons.dart';
 import '../utils/money_format.dart';
 import '../widgets/settings_ui.dart';
+import '../widgets/stored_image.dart';
 import 'account_screen.dart';
 import 'onboarding/app_tour_screen.dart';
 import 'settings/about_screen.dart';
@@ -22,7 +26,7 @@ import 'settings/notifications_screen.dart';
 import 'settings/security_screen.dart';
 
 /// Settings hub. Each row is a doorway to a focused screen rather than an
-/// inline dialog, so every preference has room to explain itself.
+/// compact editor sheet, with room to explain each preference.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -48,28 +52,24 @@ class SettingsScreen extends StatelessWidget {
                 SettingsRow(
                   icon: IOSIcons.light_mode_rounded,
                   label: s.appearance,
-                  detail: s.appearanceDetail,
                   value: _themeLabel(s, settings.themeMode),
                   onTap: () => _open(context, const AppearanceScreen()),
                 ),
                 SettingsRow(
                   icon: IOSIcons.attach_money_rounded,
                   label: s.currencyAndFormat,
-                  detail: s.currencyAndFormatDetail,
                   value: settings.currency,
                   onTap: () => _open(context, const CurrencyFormatScreen()),
                 ),
                 SettingsRow(
                   icon: IOSIcons.language_rounded,
                   label: s.language,
-                  detail: s.languageDetail,
                   value: S.displayNameForLocale(settings.locale),
                   onTap: () => _open(context, const LanguageScreen()),
                 ),
                 SettingsRow(
                   icon: IOSIcons.payments_rounded,
                   label: s.incomeSettings,
-                  detail: s.incomeSettingsDetail,
                   value: selected.monthlyIncome > 0
                       ? MoneyFormat.of(settings).format(selected.monthlyIncome)
                       : s.incomeNoSalary,
@@ -78,7 +78,6 @@ class SettingsScreen extends StatelessWidget {
                 SettingsRow(
                   icon: IOSIcons.notifications_rounded,
                   label: s.notifications,
-                  detail: s.notificationsDetail,
                   value: (settings.notificationsEnabled ?? true) ? s.on : s.off,
                   onTap: () => _open(context, const NotificationsScreen()),
                 ),
@@ -90,14 +89,12 @@ class SettingsScreen extends StatelessWidget {
                 SettingsRow(
                   icon: IOSIcons.lock_rounded,
                   label: s.securityAndPrivacy,
-                  detail: s.securityAndPrivacyDetail,
                   value: settings.appLockEnabled ? s.locked : null,
                   onTap: () => _open(context, const SecurityScreen()),
                 ),
                 SettingsRow(
                   icon: IOSIcons.account_balance_wallet_rounded,
                   label: s.dataAndStorage,
-                  detail: s.dataAndStorageDetail,
                   onTap: () => _open(context, const DataStorageScreen()),
                 ),
               ],
@@ -108,7 +105,6 @@ class SettingsScreen extends StatelessWidget {
                 SettingsRow(
                   icon: IOSIcons.auto_awesome_rounded,
                   label: s.tourReplay,
-                  detail: s.tourReplayDetail,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -121,14 +117,14 @@ class SettingsScreen extends StatelessWidget {
                 SettingsRow(
                   icon: IOSIcons.help_outline_rounded,
                   label: s.helpAndSupport,
-                  detail: s.helpAndSupportDetail,
-                  onTap: () => _open(context, const HelpSupportScreen()),
+                  onTap: () =>
+                      _open(context, const HelpSupportScreen(), asSheet: false),
                 ),
                 SettingsRow(
                   icon: IOSIcons.info_outline_rounded,
                   label: s.about,
-                  detail: s.aboutDetail,
-                  onTap: () => _open(context, const AboutScreen()),
+                  onTap: () =>
+                      _open(context, const AboutScreen(), asSheet: false),
                 ),
               ],
             ),
@@ -154,8 +150,13 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  static void _open(BuildContext context, Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  static void _open(BuildContext context, Widget screen,
+      {bool asSheet = true}) {
+    if (asSheet) {
+      showAppFormSheet(context: context, builder: (_) => screen);
+    } else {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    }
   }
 
   static String _themeLabel(S s, String mode) => switch (mode) {
@@ -176,8 +177,14 @@ class SettingsScreen extends StatelessWidget {
     );
     if (!confirmed || !context.mounted) return;
 
-    final auth = Provider.of<AuthService>(context, listen: false);
     final provider = context.read<AppProvider>();
+
+    // Signing out wipes the local database, so anything still queued would be
+    // destroyed with it. Warn before that happens, not after.
+    if (!await UnsyncedWorkGuard.confirm(context, provider)) return;
+    if (!context.mounted) return;
+
+    final auth = Provider.of<AuthService>(context, listen: false);
     await auth.signOut();
     provider.clearData();
     if (context.mounted) {
@@ -207,7 +214,7 @@ class _ProfileCard extends StatelessWidget {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
+      padding: const EdgeInsets.only(bottom: 26),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => Navigator.push(
@@ -216,11 +223,15 @@ class _ProfileCard extends StatelessWidget {
         ),
         child: GlassPanel(
           elevated: true,
-          padding: const EdgeInsets.all(18),
+          radius: 24,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
           child: Row(
             children: [
-              _Avatar(initial: initial),
-              const SizedBox(width: 15),
+              _Avatar(
+                initial: initial,
+                avatarPath: provider.settings.avatarPath,
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,37 +242,35 @@ class _ProfileCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context)
                           .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w700, fontSize: 19),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       email ?? s.localMode,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      // Built by hand this printed an unseparated figure with
-                      // the symbol jammed against it — and ignored the hide
-                      // setting, leaving net worth legible on the one screen
-                      // you open to turn hiding on.
-                      '${provider.accounts.length} ${s.accounts.toLowerCase()} · '
-                      '${MoneyFormat.of(provider.settings).negativeSigned(provider.getNetWorth())} '
-                      '${s.netWorth.toLowerCase()}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontSize: 11.5),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
                     ),
                   ],
                 ),
               ),
-              Icon(IOSIcons.chevron_right_rounded,
-                  size: 19, color: AppTheme.adaptiveIcon(context, alpha: 0.7)),
+              SizedBox(
+                width: 22,
+                height: 36,
+                child: Center(
+                  child: Transform.flip(
+                    flipX: Directionality.of(context) == TextDirection.rtl,
+                    child: Icon(
+                      IOSIcons.chevron_right_rounded,
+                      size: 19,
+                      color: AppTheme.adaptiveIcon(context, alpha: 0.62),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -271,34 +280,63 @@ class _ProfileCard extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.initial});
+  const _Avatar({required this.initial, required this.avatarPath});
 
   final String initial;
+  final String? avatarPath;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 52,
-      height: 52,
+    final fallback = Container(
+      width: 62,
+      height: 62,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.10)
-            : Colors.black.withValues(alpha: 0.05),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.14)
-              : Colors.black.withValues(alpha: 0.06),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.gold300, AppTheme.gold700],
         ),
       ),
       child: Text(
         initial,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: Theme.of(context).textTheme.titleLarge?.color,
+              color: Colors.white,
             ),
+      ),
+    );
+
+    return Container(
+      width: 62,
+      height: 62,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.18),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 10,
+            spreadRadius: -3,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: avatarPath == null || avatarPath!.isEmpty
+            ? fallback
+            : StoredImage(
+                reference: avatarPath,
+                bucket: SupabaseSyncService.avatarsBucket,
+                width: 62,
+                height: 62,
+                borderRadius: BorderRadius.circular(31),
+                errorWidget: fallback,
+              ),
       ),
     );
   }

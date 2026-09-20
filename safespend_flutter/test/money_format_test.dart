@@ -159,5 +159,29 @@ void main() {
     test('negatives keep their sign when compacted', () {
       expect(compact().format(-12400), '-12.4K \$');
     });
+
+    test('trillions get a unit of their own', () {
+      // A balance held in a low-denomination currency reaches 10^12 without
+      // being a strange amount of money; "1000B" is not how anyone writes it.
+      expect(compact().format(2500000000000), '2.5T \$');
+      expect(compact().format(1000000000000), '1T \$');
+    });
+
+    test('rounding carries into the unit above instead of printing 1000', () {
+      // 999,950 / 1000 rounds to 1000K, which has to read as 1M.
+      expect(compact().format(999950), '1M \$');
+      expect(compact().format(999950000), '1B \$');
+      expect(compact().format(999950000000), '1T \$');
+    });
+
+    test('a carried value still drops a pointless decimal', () {
+      // The promoted quotient is 0.99995, which is not a whole number — so
+      // deciding precision from the raw value would print "1.0T".
+      expect(compact().format(9999000000000), '10T \$');
+    });
+
+    test('the largest unit keeps its digits rather than inventing one', () {
+      expect(compact().format(999999000000000), '1000T \$');
+    });
   });
 }

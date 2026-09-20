@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/money_format.dart';
+import '../widgets/feature_help_button.dart';
 
 class CashOnHandScreen extends StatelessWidget {
   const CashOnHandScreen({super.key});
@@ -16,6 +17,7 @@ class CashOnHandScreen extends StatelessWidget {
 
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
+        final s = S.of(context);
         final cf = MoneyFormat.of(provider.settings);
         final totalCash = provider.totalCash;
 
@@ -63,11 +65,17 @@ class CashOnHandScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text('Cash',
+                        Text(s.tr('cash'),
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineSmall
                                 ?.copyWith(fontWeight: FontWeight.w700)),
+                        const Spacer(),
+                        FeatureHelpButton(
+                          title: s.tr('cash'),
+                          description: s.tr('cashSources'),
+                          icon: IOSIcons.payments_rounded,
+                        ),
                       ],
                     ),
                   ).animate().fadeIn(duration: 260.ms, curve: Curves.easeOut),
@@ -83,12 +91,14 @@ class CashOnHandScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               const Icon(IOSIcons.payments_rounded,
                                   color: AppTheme.cashOnHandIcon, size: 22),
                               const SizedBox(width: 10),
-                              Text('Total Cash',
+                              Text(s.tr('totalCash'),
                                   style: TextStyle(
                                       color: Colors.white.withOpacity(0.8),
                                       fontSize: 14,
@@ -104,7 +114,7 @@ class CashOnHandScreen extends StatelessWidget {
                                   letterSpacing: -1.5)),
                           const SizedBox(height: 8),
                           Text(
-                            'From withdrawals, income & transactions',
+                            s.tr('cashSources'),
                             style: TextStyle(
                                 color: Colors.white.withOpacity(0.6),
                                 fontSize: 12),
@@ -120,12 +130,16 @@ class CashOnHandScreen extends StatelessWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
-                    child: Row(
+                    child: Wrap(
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text('Cash Transactions',
+                        Text(s.tr('cashTransactions'),
                             style: Theme.of(context).textTheme.titleLarge),
-                        const Spacer(),
-                        Text('${cashTransactions.length} total',
+                        Text(
+                            s.tr('totalCount', {
+                              'count': cashTransactions.length,
+                            }),
                             style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
@@ -146,14 +160,14 @@ class CashOnHandScreen extends StatelessWidget {
                                 const Icon(IOSIcons.payments_rounded,
                                     size: 72, color: AppTheme.cashOnHandIcon),
                                 const SizedBox(height: 16),
-                                Text('No cash transactions yet',
+                                Text(s.tr('noCashTransactions'),
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
                                         ?.copyWith(
                                             fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 6),
-                                Text('Make a withdrawal to add cash on hand',
+                                Text(s.tr('withdrawToAddCash'),
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                     textAlign: TextAlign.center),
@@ -177,48 +191,150 @@ class CashOnHandScreen extends StatelessWidget {
 
                                 // Determine if this adds or removes cash
                                 bool addsCash = false;
-                                String description = t.note ?? '';
+                                String description = S
+                                        .forLocale(context
+                                            .read<AppProvider>()
+                                            .settings
+                                            .locale)
+                                        .systemNote(t.note) ??
+                                    '';
                                 if (t.type == 'withdrawal') {
                                   addsCash = true;
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Withdrawal from bank';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.tr('withdrawalFromBank');
                                 } else if (t.type == 'income' &&
                                     t.accountId == AppProvider.cashOnHandId) {
                                   addsCash = true;
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Cash income';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.tr('cashIncome');
                                 } else if (t.type == 'transfer' &&
                                     t.toAccountId == AppProvider.cashOnHandId) {
                                   addsCash = true;
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Transfer to cash';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.tr('transferToCash');
                                 } else if (t.type == 'expense' &&
                                     t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Cash expense';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.tr('cashExpense');
                                 } else if (t.type == 'transfer' &&
                                     t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Transfer from cash';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.tr('transferFromCash');
                                 } else if (t.type == 'goal_contribution' &&
                                     t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Goal contribution';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.goalContribution;
                                 } else if (t.type == 'debt_payment' &&
                                     t.accountId == AppProvider.cashOnHandId) {
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Debt payment';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.debtPayment;
                                 } else {
-                                  description = t.note?.isNotEmpty == true
-                                      ? t.note!
-                                      : 'Transaction';
+                                  description = S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note)
+                                              ?.isNotEmpty ==
+                                          true
+                                      ? S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note)!
+                                      : s.transaction;
                                 }
 
                                 return Column(
@@ -265,8 +381,9 @@ class CashOnHandScreen extends StatelessWidget {
                                                                     .w600)),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                    DateFormat('MMM d, yyyy')
-                                                        .format(date),
+                                                    MaterialLocalizations.of(
+                                                            context)
+                                                        .formatMediumDate(date),
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .bodySmall),
@@ -274,7 +391,8 @@ class CashOnHandScreen extends StatelessWidget {
                                             ),
                                           ),
                                           Text(
-                                            cf.signed(t.amount, positive: addsCash),
+                                            cf.signed(t.amount,
+                                                positive: addsCash),
                                             style: const TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w700,

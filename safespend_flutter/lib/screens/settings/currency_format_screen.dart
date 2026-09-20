@@ -1,3 +1,4 @@
+import '../../widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -37,13 +38,12 @@ class CurrencyFormatScreen extends StatelessWidget {
                 SettingsRow(
                   icon: IOSIcons.attach_money_rounded,
                   label: s.currency,
-                  detail: CurrencyHelper.getName(settings.currency),
+                  detail: S.of(context).currencyName(settings.currency),
                   value:
                       '${CurrencyHelper.getSymbol(settings.currency)} ${settings.currency}',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const CurrencyPickerScreen()),
+                  onTap: () => showAppFormSheet(
+                    context: context,
+                    builder: (_) => const CurrencyPickerScreen(),
                   ),
                 ),
               ],
@@ -82,11 +82,12 @@ class CurrencyFormatScreen extends StatelessWidget {
                   'd MMM yyyy',
                 ])
                   SettingsChoiceRow(
-                    label: DateFormat(format).format(DateTime(2026, 8, 16)),
+                    label: DateFormat(format,
+                            Localizations.localeOf(context).toLanguageTag())
+                        .format(DateTime(2026, 8, 16)),
                     detail: format,
                     selected: settings.dateFormat == format,
-                    onTap: () =>
-                        update(settings.copyWith(dateFormat: format)),
+                    onTap: () => update(settings.copyWith(dateFormat: format)),
                   ),
               ],
             ),
@@ -138,12 +139,8 @@ class _FormatPreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              S.of(context).preview.toUpperCase(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                    letterSpacing: 0.6,
-                  ),
+              S.of(context).preview,
+              style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: 10),
             Text(
@@ -160,7 +157,9 @@ class _FormatPreview extends StatelessWidget {
                     size: 13, color: AppTheme.adaptiveIcon(context)),
                 const SizedBox(width: 6),
                 Text(
-                  DateFormat(settings.dateFormat).format(DateTime.now()),
+                  DateFormat(settings.dateFormat,
+                          Localizations.localeOf(context).toLanguageTag())
+                      .format(DateTime.now()),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

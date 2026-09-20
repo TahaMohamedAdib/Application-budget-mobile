@@ -1,5 +1,7 @@
 import 'package:uuid/uuid.dart';
 
+import '../../../l10n/app_localizations.dart';
+import '../../../utils/money_format.dart';
 import '../../../models/category.dart';
 import '../../../models/goal.dart';
 import '../../../models/recurring_rule.dart';
@@ -145,7 +147,33 @@ class AIToolExecutor {
         message: 'Unknown tool "${call.name}".',
       );
     }
-    return _run(tool, call);
+
+    // Re-apply the guarantees from [submit] rather than assuming the call
+    // reaching this point is the one that was screened. `confirm` is a public
+    // entry point, and the call travels through UI state between the two
+    // steps, so trusting that journey would make identity stripping and
+    // required-argument checks bypassable by anything that can reach the
+    // executor with a hand-built call.
+    final sanitized = AIToolCall(
+      id: call.id,
+      name: call.name,
+      arguments: Map<String, dynamic>.from(call.arguments)
+        ..removeWhere((k, _) => _identityArgs.contains(k)),
+    );
+
+    final missing = tool.params
+        .where((p) => p.required && sanitized.arguments[p.name] == null)
+        .map((p) => p.name)
+        .toList();
+    if (missing.isNotEmpty) {
+      return AIToolResult.failure(
+        sanitized,
+        code: AIErrorKind.invalidToolRequest.name,
+        message: 'Missing required argument(s): ${missing.join(', ')}.',
+      );
+    }
+
+    return _run(tool, sanitized);
   }
 
   // ── Execution ─────────────────────────────────────────────────────────────
@@ -210,8 +238,18 @@ class AIToolExecutor {
   /// to something that doesn't exist.
   String? describe(AIToolCall call) {
     final a = call.arguments;
-    final cur = provider.settings.currency;
-    String money(num v) => '${_fmt(v.toDouble())} $cur';
+    final s = S.forLocale(provider.settings.locale);
+    String money(num v) =>
+        MoneyFormat.of(provider.settings).format(v.toDouble());
+    String typeLabel(String type) => switch (type) {
+          'expense' => s.expense,
+          'income' => s.income,
+          'transfer' => s.transfer,
+          'withdrawal' => s.withdrawal,
+          'goal_contribution' => s.savingsGoal,
+          'debt_payment' => s.debtPayment,
+          _ => s.transaction,
+        };
 
     switch (call.name) {
       case 'create_transaction':
@@ -219,52 +257,52 @@ class AIToolExecutor {
         final acc = _accountName(_str(a, 'account_id', required: true)!);
         if (acc == null) return null;
         final type = _str(a, 'type', required: true)!;
-        final label = _str(a, 'note') ?? type;
-        return '${_titleCase(type)} ${money(amount!)} — $label ($acc)';
+        final label = _str(a, 'note') ?? typeLabel(type);
+        return '${typeLabel(type)} ${money(amount!)} — $label ($acc)';
       case 'update_transaction':
         final t = _findTransaction(_str(a, 'transaction_id', required: true)!);
         if (t == null) return null;
-        return 'Update "${t.note ?? t.type}" (${money(t.amount)})';
+        return '${s.update}: "${s.systemNote(t.note) ?? typeLabel(t.type)}" (${money(t.amount)})';
       case 'delete_transaction':
         final t = _findTransaction(_str(a, 'transaction_id', required: true)!);
         if (t == null) return null;
-        return 'Delete "${t.note ?? t.type}" — ${money(t.amount)}';
+        return '${s.delete}: "${s.systemNote(t.note) ?? typeLabel(t.type)}" — ${money(t.amount)}';
       case 'create_transfer':
         final from = _accountName(_str(a, 'from_account_id', required: true)!);
         final to = _accountName(_str(a, 'to_account_id', required: true)!);
         if (from == null || to == null) return null;
-        return 'Transfer ${money(_num(a, 'amount', required: true)!)}\n$from → $to';
+        return '${s.transfer} ${money(_num(a, 'amount', required: true)!)}\n$from → $to';
       case 'create_budget':
       case 'update_budget':
         final c = _findCategory(_str(a, 'category_id', required: true)!);
         if (c == null) return null;
-        return 'Set ${c.name} budget to ${money(_num(a, 'limit', required: true)!)}';
+        return '${s.budgets}: ${s.categoryDisplayName(c.id, c.name)} — ${money(_num(a, 'limit', required: true)!)}';
       case 'create_goal':
-        return 'Create goal "${_str(a, 'name', required: true)}" — target ${money(_num(a, 'target_amount', required: true)!)}';
+        return '${s.addGoal}: "${_str(a, 'name', required: true)}" — ${s.targetAmount}: ${money(_num(a, 'target_amount', required: true)!)}';
       case 'update_goal':
         final g = _findGoal(_str(a, 'goal_id', required: true)!);
         if (g == null) return null;
-        return 'Update goal "${g.name}"';
+        return '${s.update} — ${s.savingsGoal}: "${g.name}"';
       case 'contribute_to_goal':
         final g = _findGoal(_str(a, 'goal_id', required: true)!);
         final acc = _accountName(_str(a, 'account_id', required: true)!);
         if (g == null || acc == null) return null;
-        return 'Add ${money(_num(a, 'amount', required: true)!)} to "${g.name}"\nfrom $acc';
+        return '${s.add}: ${money(_num(a, 'amount', required: true)!)} — "${g.name}"\n${s.from}: $acc';
       case 'create_subscription':
-        return 'New subscription "${_str(a, 'name', required: true)}" — ${money(_num(a, 'amount', required: true)!)} ${_str(a, 'frequency', required: true)}';
+        return '${s.subscription}: "${_str(a, 'name', required: true)}" — ${money(_num(a, 'amount', required: true)!)} ${s.tr(_str(a, 'frequency', required: true)!)}';
       case 'update_subscription':
         final r = _findRule(_str(a, 'subscription_id', required: true)!);
         if (r == null) return null;
-        return 'Update subscription "${r.templateTransaction.note ?? 'Subscription'}"';
+        return '${s.update} — ${s.subscription}: "${s.systemNote(r.templateTransaction.note) ?? s.subscription}"';
       case 'cancel_subscription':
         final r = _findRule(_str(a, 'subscription_id', required: true)!);
         if (r == null) return null;
-        return 'Cancel "${r.templateTransaction.note ?? 'Subscription'}"';
+        return '${s.cancel}: "${s.systemNote(r.templateTransaction.note) ?? s.subscription}"';
       case 'record_debt_payment':
         final g = _findGoal(_str(a, 'debt_id', required: true)!);
         final acc = _accountName(_str(a, 'account_id', required: true)!);
         if (g == null || acc == null) return null;
-        return 'Pay ${money(_num(a, 'amount', required: true)!)} toward "${g.name}"\nfrom $acc';
+        return '${s.debtPayment}: ${money(_num(a, 'amount', required: true)!)} — "${g.name}"\n${s.from}: $acc';
       default:
         return null;
     }
@@ -379,8 +417,7 @@ class AIToolExecutor {
       if (start != null && (d == null || d.isBefore(start))) return false;
       if (end != null && (d == null || d.isAfter(end))) return false;
       if (query != null && query.isNotEmpty) {
-        final hay =
-            '${t.note ?? ''} ${t.description ?? ''}'.toLowerCase();
+        final hay = '${t.note ?? ''} ${t.description ?? ''}'.toLowerCase();
         if (!hay.contains(query)) return false;
       }
       return true;
@@ -426,37 +463,37 @@ class AIToolExecutor {
   }
 
   Map<String, dynamic> _budgetStatus() => {
-        'budgets': provider.categories
-            .where((c) => c.budgetLimit > 0)
-            .map((c) {
-              final spent = provider.getCategorySpending(c.id);
-              return {
-                'category_id': c.id,
-                'name': c.name,
-                'limit': _r(c.budgetLimit),
-                'spent': _r(spent),
-                'remaining': _r(c.budgetLimit - spent),
-                'over_budget': spent > c.budgetLimit,
-              };
-            })
-            .toList(),
+        'budgets': provider.categories.where((c) => c.budgetLimit > 0).map((c) {
+          final spent = provider.getCategorySpending(c.id);
+          return {
+            'category_id': c.id,
+            'name': c.name,
+            'limit': _r(c.budgetLimit),
+            'spent': _r(spent),
+            'remaining': _r(c.budgetLimit - spent),
+            'over_budget': spent > c.budgetLimit,
+          };
+        }).toList(),
         'currency': provider.settings.currency,
       };
 
   Map<String, dynamic> _upcomingBills(AIToolCall call) {
     final days = _int(call.arguments, 'days_ahead')?.clamp(1, 365) ?? 30;
     final horizon = DateTime.now().add(Duration(days: days));
-    final bills = provider.recurringRules.where((r) {
-      if (!r.isActive) return false;
-      final d = DateTime.tryParse(r.nextDate);
-      return d != null && !d.isAfter(horizon);
-    }).map((r) => {
+    final bills = provider.recurringRules
+        .where((r) {
+          if (!r.isActive) return false;
+          final d = DateTime.tryParse(r.nextDate);
+          return d != null && !d.isAfter(horizon);
+        })
+        .map((r) => {
               'id': r.id,
               'name': r.templateTransaction.note ?? 'Bill',
               'amount': _r(r.templateTransaction.amount),
               'due_date': r.nextDate,
               'frequency': r.frequency,
-            }).toList()
+            })
+        .toList()
       ..sort((a, b) =>
           (a['due_date'] as String).compareTo(b['due_date'] as String));
     return {
@@ -471,7 +508,8 @@ class AIToolExecutor {
             .where((r) => r.isActive)
             .map((r) => {
                   'id': r.id,
-                  'name': r.templateTransaction.note ?? 'Subscription',
+                  'name': r.templateTransaction.note ??
+                      S.forLocale(provider.settings.locale).subscription,
                   'amount': _r(r.templateTransaction.amount),
                   'frequency': r.frequency,
                   'next_date': r.nextDate,
@@ -643,9 +681,10 @@ class AIToolExecutor {
     final target = _num(a, 'target_amount');
     provider.updateGoal(goal.copyWith(
       name: _str(a, 'name'),
-      targetAmount:
-          target == null ? null : _positive(target, 'target_amount'),
-      targetDate: _date(a, 'target_date')?.toIso8601String(),
+      targetAmount: target == null ? null : _positive(target, 'target_amount'),
+      targetDate: a.containsKey('target_date')
+          ? _date(a, 'target_date')?.toIso8601String()
+          : goal.targetDate,
     ));
     return {'goal_id': goal.id, 'updated': true};
   }
@@ -706,8 +745,8 @@ class AIToolExecutor {
   }
 
   Map<String, dynamic> _cancelSubscription(AIToolCall call) {
-    final rule = _findRule(_str(call.arguments, 'subscription_id',
-        required: true)!);
+    final rule =
+        _findRule(_str(call.arguments, 'subscription_id', required: true)!);
     if (rule == null) throw _ToolArgumentError('No subscription with that id.');
     provider.deleteRecurringRule(rule.id);
     return {'subscription_id': rule.id, 'cancelled': true};
@@ -781,8 +820,7 @@ class AIToolExecutor {
     return parsed;
   }
 
-  static int? _int(Map<String, dynamic> a, String key) =>
-      _num(a, key)?.toInt();
+  static int? _int(Map<String, dynamic> a, String key) => _num(a, key)?.toInt();
 
   static DateTime? _date(Map<String, dynamic> a, String key) {
     final raw = _str(a, key);

@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:safespend_flutter/l10n/app_localizations.dart';
 import 'package:safespend_flutter/providers/app_provider.dart';
 import 'package:safespend_flutter/screens/onboarding/aha_screen.dart';
+import 'package:safespend_flutter/screens/onboarding/app_tour_screen.dart';
+import 'package:safespend_flutter/screens/onboarding/feature_guide_sheet.dart';
 import 'package:safespend_flutter/screens/onboarding/hook_screen.dart';
 import 'package:safespend_flutter/screens/onboarding/language_selection_screen.dart';
 import 'package:safespend_flutter/screens/onboarding/onboarding_flow.dart';
@@ -26,9 +28,15 @@ final _screens = <String, Widget>{
   'preview': PreviewScreen(onNext: () {}, onBack: () {}),
   'setup': SetupScreen(onComplete: () {}, onBack: () {}),
   'flow': OnboardingFlow(onComplete: () {}),
+  'tour': AppTourScreen(onDone: () {}),
 };
 
-Widget _host(Widget screen, Brightness brightness, {String locale = 'en'}) {
+Widget _host(
+  Widget screen,
+  Brightness brightness, {
+  String locale = 'en',
+  double textScale = 1,
+}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => AppProvider()),
@@ -45,6 +53,12 @@ Widget _host(Widget screen, Brightness brightness, {String locale = 'en'}) {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(textScale),
+        ),
+        child: child!,
+      ),
       home: screen,
     ),
   );
@@ -53,18 +67,27 @@ Widget _host(Widget screen, Brightness brightness, {String locale = 'en'}) {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  for (final brightness in Brightness.values) {
-    for (final entry in _screens.entries) {
-      testWidgets('${entry.key} builds in ${brightness.name} mode',
-          (tester) async {
-        await tester.binding.setSurfaceSize(const Size(390, 844));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+  for (final locale in S.supportedLocales) {
+    for (final brightness in Brightness.values) {
+      for (final entry in _screens.entries) {
+        testWidgets(
+            '${entry.key} builds in ${locale.languageCode} ${brightness.name} mode',
+            (tester) async {
+          await tester.binding.setSurfaceSize(const Size(390, 844));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          final originalErrorHandler = FlutterError.onError;
+          FlutterError.onError = (details) {
+            debugPrint(details.toString());
+            originalErrorHandler?.call(details);
+          };
 
-        await tester.pumpWidget(_host(entry.value, brightness));
-        await tester.pump(const Duration(seconds: 1));
+          await tester.pumpWidget(
+              _host(entry.value, brightness, locale: locale.languageCode));
+          await tester.pump(const Duration(seconds: 1));
 
-        expect(tester.takeException(), isNull);
-      });
+          expect(tester.takeException(), isNull);
+        });
+      }
     }
   }
 
@@ -88,6 +111,87 @@ void main() {
         reason: 'setup screen threw in ${locale.languageCode}',
       );
     }
+  });
+
+  group('guided tour', () {
+    testWidgets('advances through real feature previews and completes',
+        (tester) async {
+      var completed = false;
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _host(
+          AppTourScreen(onDone: () => completed = true),
+          Brightness.light,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Welcome to SafeSpend'), findsOneWidget);
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.text('Next'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 450));
+      }
+      expect(find.text('Grow your wealth'), findsOneWidget);
+      await tester.tap(find.text('Get Started'));
+      expect(completed, isTrue);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('remains usable on a small phone with large text',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(375, 667));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _host(
+          AppTourScreen(onDone: () {}),
+          Brightness.dark,
+          textScale: 1.6,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Welcome to SafeSpend'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('contextual feature guide is dismissible', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _host(
+          Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => showAppFeatureGuideSheet(
+                    context,
+                    AppGuideFeature.budgets,
+                  ),
+                  child: const Text('Open guide'),
+                ),
+              ),
+            ),
+          ),
+          Brightness.light,
+        ),
+      );
+      await tester.tap(find.text('Open guide'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Plan with budgets'), findsOneWidget);
+      expect(find.text('Got it'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Got it'));
+      await tester.pumpAndSettle();
+      expect(find.text('Plan with budgets'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('questionnaire', () {

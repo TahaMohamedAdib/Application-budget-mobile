@@ -6,10 +6,7 @@ import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
-import 'widgets/app_picker_field.dart';
-import 'package:uuid/uuid.dart';
 import 'providers/app_provider.dart';
 import 'services/supabase_config.dart';
 import 'services/supabase_sync_service.dart';
@@ -17,8 +14,6 @@ import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_icons.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
-import 'models/transaction.dart';
-import 'models/recurring_rule.dart';
 import 'screens/today_screen.dart' show HomeScreen, HomeScreenState;
 import 'screens/budgets_screen.dart';
 import 'screens/wealth_screen.dart';
@@ -26,9 +21,10 @@ import 'screens/coach_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'screens/onboarding/app_tour_screen.dart';
+import 'screens/onboarding/feature_guide_sheet.dart';
 import 'screens/settings/pin_entry_screen.dart';
 import 'widgets/add_transaction_modal.dart';
-import 'utils/money_format.dart';
+import 'widgets/quick_actions_sheet.dart';
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
 
@@ -280,9 +276,8 @@ class _PrivacyGateState extends State<_PrivacyGate>
 
     if (state == AppLifecycleState.resumed) {
       if (!settings.appLockEnabled || _locked) return;
-      final away = _leftAt == null
-          ? Duration.zero
-          : DateTime.now().difference(_leftAt!);
+      final away =
+          _leftAt == null ? Duration.zero : DateTime.now().difference(_leftAt!);
       if (away.inMinutes >= settings.autoLockMinutes) {
         setState(() => _locked = true);
       }
@@ -375,6 +370,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _selectedIndex = 0;
   late final PageController _pageController;
   bool _isMenuOpen = false;
+  bool _featureGuideVisible = false;
   late final AnimationController _menuAnimController;
   late final Animation<double> _menuAnimation;
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
@@ -445,13 +441,41 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     if (index == 0 && _selectedIndex == 0) {
       _homeKey.currentState?.resetToAll();
     }
+    final changedTab = index != _selectedIndex;
     _closeMenu();
     setState(() => _selectedIndex = index);
-    _pageController.animateToPage(
+    final navigation = _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
     );
+    if (changedTab) {
+      unawaited(navigation.then((_) => _maybeShowFeatureGuide(index)));
+    }
+  }
+
+  Future<void> _maybeShowFeatureGuide(int index) async {
+    final feature = switch (index) {
+      // Tab 1 is the AI Coach, closed behind a "coming soon" screen. Popping
+      // its guide sheet there would advertise capabilities the tab no longer
+      // offers, so it stays silent until the coach reopens.
+      2 => AppGuideFeature.budgets,
+      3 => AppGuideFeature.wealth,
+      _ => null,
+    };
+    if (feature == null || _featureGuideVisible || !mounted) return;
+
+    final provider = context.read<AppProvider>();
+    final key = feature.name;
+    if (provider.hasSeenFeatureGuide(key) || _selectedIndex != index) return;
+
+    _featureGuideVisible = true;
+    try {
+      await showAppFeatureGuideSheet(context, feature);
+      if (mounted) await provider.markFeatureGuideSeen(key);
+    } finally {
+      _featureGuideVisible = false;
+    }
   }
 
   void _toggleMenu() {
@@ -471,23 +495,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _openTransactionModal(String type) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddTransactionModal(initialType: type),
-    );
-  }
-
-  void _openAddBillModal() {
-    _closeMenu();
-    final provider = Provider.of<AppProvider>(context, listen: false);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _QuickAddBillModal(provider: provider),
-    );
+    showTransactionSheet(context, initialType: type);
   }
 
   @override
@@ -528,138 +536,41 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
           // Quick actions panel — above nav bar + bump
           // Shown on every tab, matching iOS.
-            AnimatedBuilder(
-              animation: _menuAnimation,
-              builder: (_, __) {
-                if (_menuAnimation.value == 0) return const SizedBox.shrink();
-                return Positioned(
-                  // 22 above the pill's top edge (pill is 66 tall).
-                  bottom: navInset + 88,
-                  left: 16,
-                  right: 16,
-                  child: Transform.translate(
-                    offset: Offset(0, 16 * (1 - _menuAnimation.value)),
-                    child: Opacity(
-                      opacity: _menuAnimation.value,
-                      child: _buildQuickActionsPanel(isDark),
-                    ),
+          AnimatedBuilder(
+            animation: _menuAnimation,
+            builder: (_, __) {
+              if (_menuAnimation.value == 0) return const SizedBox.shrink();
+              return Positioned(
+                // 22 above the pill's top edge (pill is 66 tall).
+                bottom: navInset + 88,
+                left: 16,
+                right: 16,
+                child: Transform.translate(
+                  offset: Offset(0, 16 * (1 - _menuAnimation.value)),
+                  child: Opacity(
+                    opacity: _menuAnimation.value,
+                    child: _buildQuickActionsPanel(),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionsPanel(bool isDark) {
-    final actions = [
-      (
-        'Expense',
-        IOSIcons.arrow_upward_rounded,
-        AppTheme.expenseIcon,
-        'expense'
-      ),
-      (
-        'Income',
-        IOSIcons.arrow_downward_rounded,
-        AppTheme.incomeIcon,
-        'income'
-      ),
-      (
-        'Withdraw',
-        IOSIcons.account_balance_wallet_rounded,
-        AppTheme.withdrawalIcon,
-        'withdrawal'
-      ),
-      (
-        'Transfer',
-        IOSIcons.swap_horiz_rounded,
-        AppTheme.transferIcon,
-        'transfer'
-      ),
-    ];
+  Widget _buildQuickActionsPanel() {
+    void open(String type) {
+      _closeMenu();
+      _openTransactionModal(type);
+    }
 
-    return _buildIOSGlassQuickActionsPanel(isDark, actions);
-  }
-
-  Widget _buildIOSGlassQuickActionsPanel(
-    bool isDark,
-    List<(String, IconData, Color, String)> actions,
-  ) {
-    return Center(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: _alpha(Colors.black, isDark ? 0.50 : 0.16),
-              blurRadius: 34,
-              spreadRadius: -8,
-              offset: const Offset(0, 18),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
-          clipBehavior: Clip.antiAlias,
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-            child: Container(
-              width: 254,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? _alpha(const Color(0xFF242427), 0.72)
-                    : _alpha(Colors.white, 0.58),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: isDark
-                      ? _alpha(Colors.white, 0.12)
-                      : _alpha(Colors.white, 0.74),
-                  width: 1,
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          _alpha(Colors.white, 0.10),
-                          _alpha(Colors.white, 0.04),
-                          _alpha(Colors.black, 0.14),
-                        ]
-                      : [
-                          _alpha(Colors.white, 0.82),
-                          _alpha(Colors.white, 0.42),
-                          _alpha(Colors.white, 0.24),
-                        ],
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(actions.length, (i) {
-                  final (label, icon, color, type) = actions[i];
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      bottom: i == actions.length - 1 ? 0 : 6,
-                    ),
-                    child: _IOSQuickActionRow(
-                      label: label,
-                      icon: icon,
-                      color: color,
-                      isDark: isDark,
-                      onTap: () {
-                        _closeMenu();
-                        _openTransactionModal(type);
-                      },
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return QuickActionsPanel(
+      onExpense: () => open('expense'),
+      onIncome: () => open('income'),
+      onWithdrawal: () => open('withdrawal'),
+      onTransfer: () => open('transfer'),
     );
   }
 
@@ -718,6 +629,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
+                      final s = S.of(context);
                       final itemWidth = constraints.maxWidth / 5;
                       final indicatorWidth =
                           (itemWidth - 8).clamp(58.0, 78.0).toDouble();
@@ -751,15 +663,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                _buildIOSGlassNavItem(0, AppIcons.home,
+                                _buildIOSGlassNavItem(0, AppIcons.home, s.today,
                                     activeColor, inactiveColor),
-                                _buildIOSGlassNavItem(1, AppIcons.aiCoach,
-                                    activeColor, inactiveColor),
+                                _buildIOSGlassNavItem(
+                                    1,
+                                    AppIcons.aiCoach,
+                                    s.financialCoach,
+                                    activeColor,
+                                    inactiveColor),
                                 _buildIOSGlassAddItem(isDark),
                                 _buildIOSGlassNavItem(2, AppIcons.budgets,
-                                    activeColor, inactiveColor),
+                                    s.budgets, activeColor, inactiveColor),
                                 _buildIOSGlassNavItem(3, AppIcons.wealth,
-                                    activeColor, inactiveColor),
+                                    s.wealth, activeColor, inactiveColor),
                               ],
                             ),
                           ),
@@ -777,20 +693,33 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildIOSGlassNavItem(
-      int index, String icon, Color activeColor, Color inactiveColor) {
+    int index,
+    String icon,
+    String label,
+    Color activeColor,
+    Color inactiveColor,
+  ) {
     final isActive = _selectedIndex == index;
     return Expanded(
-      child: _PressScaleDetector(
-        onTap: () => _onTabTapped(index),
-        child: Center(
-          child: AnimatedScale(
-            scale: isActive ? 1.05 : 1,
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeOutCubic,
-            child: Iconify(
-              icon,
-              size: 23,
-              color: isActive ? activeColor : inactiveColor,
+      child: Semantics(
+        button: true,
+        selected: isActive,
+        label: label,
+        child: Tooltip(
+          message: label,
+          child: _PressScaleDetector(
+            onTap: () => _onTabTapped(index),
+            child: Center(
+              child: AnimatedScale(
+                scale: isActive ? 1.05 : 1,
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                child: Iconify(
+                  icon,
+                  size: 23,
+                  color: isActive ? activeColor : inactiveColor,
+                ),
+              ),
             ),
           ),
         ),
@@ -799,43 +728,52 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildIOSGlassAddItem(bool isDark) {
+    final addLabel = S.of(context).addTransaction;
     return Expanded(
-      child: _PressScaleDetector(
-        onTap: _toggleMenu,
-        child: Center(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: _alpha(AppTheme.success, isDark ? 0.32 : 0.26),
-                  blurRadius: 16,
-                  spreadRadius: -4,
-                  offset: const Offset(0, 8),
+      child: Semantics(
+        button: true,
+        label: addLabel,
+        expanded: _isMenuOpen,
+        child: Tooltip(
+          message: addLabel,
+          child: _PressScaleDetector(
+            onTap: _toggleMenu,
+            child: Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _alpha(AppTheme.success, isDark ? 0.32 : 0.26),
+                      blurRadius: 16,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: ClipOval(
-              clipBehavior: Clip.antiAlias,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppTheme.success,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF168A74)),
-                  ),
-                  child: Center(
-                    child: AnimatedRotation(
-                      turns: _isMenuOpen ? 0.125 : 0,
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOutCubic,
-                      child: const Iconify(
-                        AppIcons.add,
-                        color: Colors.white,
-                        size: 24,
+                child: ClipOval(
+                  clipBehavior: Clip.antiAlias,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppTheme.success,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF168A74)),
+                      ),
+                      child: Center(
+                        child: AnimatedRotation(
+                          turns: _isMenuOpen ? 0.125 : 0,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutCubic,
+                          child: const Iconify(
+                            AppIcons.add,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -901,376 +839,6 @@ class _IOSGlassSelection extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _IOSQuickActionRow extends StatefulWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  const _IOSQuickActionRow({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  @override
-  State<_IOSQuickActionRow> createState() => _IOSQuickActionRowState();
-}
-
-class _IOSQuickActionRowState extends State<_IOSQuickActionRow> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = widget.isDark ? Colors.white : const Color(0xFF1C1C1E);
-    final rowBg = widget.isDark
-        ? _alpha(Colors.white, _pressed ? 0.12 : 0.055)
-        : _alpha(Colors.white, _pressed ? 0.72 : 0.44);
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.985 : 1,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutCubic,
-          height: 58,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: rowBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: widget.isDark
-                  ? _alpha(Colors.white, 0.06)
-                  : _alpha(Colors.white, 0.48),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.adaptiveIconSurface(context),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(widget.icon, color: widget.color, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  widget.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Quick Add Bill Modal — standalone modal for adding a recurring bill from the speed dial
-class _QuickAddBillModal extends StatefulWidget {
-  final AppProvider provider;
-  const _QuickAddBillModal({required this.provider});
-
-  @override
-  State<_QuickAddBillModal> createState() => _QuickAddBillModalState();
-}
-
-class _QuickAddBillModalState extends State<_QuickAddBillModal> {
-  late final S s;
-  final _nameController = TextEditingController();
-  final _amountController = TextEditingController();
-  String _selectedFrequency = 'monthly';
-  DateTime _nextDate = DateTime.now();
-  String? _selectedAccountId;
-
-  @override
-  void initState() {
-    super.initState();
-    s = S.of(context);
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _amountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final provider = widget.provider;
-    if (_selectedAccountId == null) {
-      _selectedAccountId = provider.accounts.isNotEmpty
-          ? provider.accounts.first.id
-          : AppProvider.cashOnHandId;
-    }
-    final cf = MoneyFormat.of(provider.settings);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                  child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: Theme.of(context).dividerColor,
-                          borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 20),
-              Text(s.addBill,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: s.billName,
-                  hintText: 'e.g., Rent, Netflix, Electric',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  prefixIcon: Icon(IOSIcons.receipt_long_rounded,
-                      color: AppTheme.adaptiveIcon(context)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: s.billAmount,
-                  hintText: '0.00',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  prefixIcon: Icon(IOSIcons.attach_money_rounded,
-                      color: AppTheme.adaptiveIcon(context)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Account picker with Cash on Hand
-              AppPickerField<String>(
-                label: s.payFrom,
-                value: _selectedAccountId ?? AppProvider.cashOnHandId,
-                prefixIcon: AppIcons.wallet,
-                items: [
-                  AppPickerItem(
-                    value: AppProvider.cashOnHandId,
-                    label: 'Cash on Hand',
-                    subtitle: cf.format(provider.totalCash),
-                    leadingIcon: AppIcons.money,
-                    iconColor: AppTheme.cashOnHandIcon,
-                  ),
-                  ...provider.accounts.map((a) => AppPickerItem(
-                        value: a.id,
-                        label: a.name,
-                        subtitle: cf.format(a.balance),
-                        leadingIcon: _accountIcon(a.type),
-                        iconColor: AppTheme.adaptiveIcon(context),
-                      )),
-                ],
-                onChanged: (v) => setState(() => _selectedAccountId = v),
-              ),
-              const SizedBox(height: 24),
-              Text(s.frequency,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  {'key': 'daily', 'label': s.daily},
-                  {'key': 'weekly', 'label': s.weekly},
-                  {'key': 'monthly', 'label': s.monthly},
-                  {'key': 'yearly', 'label': s.yearly},
-                ].map((f) {
-                  final isSelected = _selectedFrequency == f['key'];
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _selectedFrequency = f['key']!),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppTheme.goldPrimary
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: isSelected
-                                  ? AppTheme.goldPrimary
-                                  : Theme.of(context).dividerColor),
-                        ),
-                        child: Center(
-                          child: Text(
-                            f['label']!,
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? Colors.white
-                                    : Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.color),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () async {
-                  final date = await showDatePicker(
-                      context: context,
-                      initialDate: _nextDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)));
-                  if (date != null) setState(() => _nextDate = date);
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: AppTheme.borderedCard(context),
-                  child: Row(
-                    children: [
-                      Icon(IOSIcons.calendar_today_rounded,
-                          size: 18,
-                          color: Theme.of(context).textTheme.bodySmall?.color),
-                      const SizedBox(width: 12),
-                      Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s.nextDueDate,
-                                style: Theme.of(context).textTheme.bodySmall),
-                            Text(DateFormat('MMM d, yyyy').format(_nextDate),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600)),
-                          ]),
-                      const Spacer(),
-                      Icon(IOSIcons.chevron_right_rounded,
-                          size: 20,
-                          color: Theme.of(context).textTheme.bodySmall?.color),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _saveBill,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      elevation: 0),
-                  child: Text(s.addBill,
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _accountIcon(String type) {
-    switch (type) {
-      case 'bank':
-        return AppIcons.bank;
-      case 'savings':
-        return AppIcons.savings;
-      case 'investment':
-        return AppIcons.trendUp;
-      case 'debt':
-        return AppIcons.creditCard;
-      default:
-        return AppIcons.wallet;
-    }
-  }
-
-  void _saveBill() {
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(s.pleaseEnterName)));
-      return;
-    }
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    if (amount <= 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(s.pleaseEnterAmount)));
-      return;
-    }
-    final accountId = _selectedAccountId ?? AppProvider.cashOnHandId;
-    final transaction = Transaction(
-      id: const Uuid().v4(),
-      type: 'expense',
-      amount: amount,
-      date: _nextDate.toIso8601String(),
-      note: _nameController.text,
-      accountId: accountId,
-    );
-    final bill = RecurringRule(
-      id: const Uuid().v4(),
-      templateTransaction: transaction,
-      frequency: _selectedFrequency,
-      nextDate: _nextDate.toIso8601String(),
-      isActive: true,
-    );
-    widget.provider.addRecurringRule(bill);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(s.billAdded.replaceAll('{name}', _nameController.text)),
-          backgroundColor: AppTheme.goldPrimary),
     );
   }
 }

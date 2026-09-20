@@ -1,10 +1,16 @@
+import '../widgets/app_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/feature_help_button.dart';
+import '../widgets/stored_image.dart';
+import '../services/supabase_sync_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -14,113 +20,11 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  final _nameController = TextEditingController();
-  final _currentPasswordController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
-  bool _isEditingName = false;
-  bool _isChangingPassword = false;
-  bool _showCurrentPassword = false;
-  bool _showNewPassword = false;
-  bool _showConfirmPassword = false;
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    final auth = Provider.of<AuthService>(context, listen: false);
-    _nameController.text = auth.displayName ?? '';
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveName() async {
-    if (_nameController.text.trim().isEmpty) return;
-    setState(() => _isLoading = true);
-
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final result = await auth.updateDisplayName(_nameController.text.trim());
-
-    setState(() {
-      _isLoading = false;
-      _isEditingName = false;
-      if (!result.success) {
-        _errorMessage = result.error;
-      }
-    });
-
-    if (result.success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(S.of(context).nameUpdated),
-            backgroundColor: Colors.green),
-      );
-    }
-  }
-
-  Future<void> _changePassword() async {
-    setState(() => _errorMessage = null);
-
-    final s = S.of(context);
-    if (_currentPasswordController.text.isEmpty) {
-      setState(() => _errorMessage = s.enterCurrentPwd);
-      return;
-    }
-    if (_newPasswordController.text.isEmpty) {
-      setState(() => _errorMessage = s.enterNewPwd);
-      return;
-    }
-    if (_newPasswordController.text.length < 6) {
-      setState(() => _errorMessage = s.passwordTooShort);
-      return;
-    }
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      setState(() => _errorMessage = s.passwordsDoNotMatch);
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final result = await auth.changePassword(
-      _currentPasswordController.text,
-      _newPasswordController.text,
-    );
-
-    setState(() {
-      _isLoading = false;
-      if (!result.success) {
-        _errorMessage = result.error;
-      } else {
-        _isChangingPassword = false;
-        _currentPasswordController.clear();
-        _newPasswordController.clear();
-        _confirmPasswordController.clear();
-      }
-    });
-
-    if (result.success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(S.of(context).passwordChanged),
-            backgroundColor: Colors.green),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = Provider.of<AuthService>(context);
+    final provider = Provider.of<AppProvider>(context);
     final s = S.of(context);
     final email = auth.user?.email ?? s.localMode;
     final displayName = auth.displayName ?? s.user;
@@ -151,6 +55,12 @@ class _AccountScreenState extends State<AccountScreen> {
                           .textTheme
                           .headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  FeatureHelpButton(
+                    title: s.account,
+                    description: s.profileInformation,
+                    icon: IOSIcons.person_rounded,
+                  ),
                 ],
               ),
             )
@@ -172,17 +82,10 @@ class _AccountScreenState extends State<AccountScreen> {
                     decoration: AppTheme.premiumCard(context),
                     child: Row(
                       children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: AppTheme.adaptiveIconSurface(context),
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          child: Center(
-                              child: Icon(IOSIcons.person_rounded,
-                                  color: AppTheme.adaptiveIcon(context),
-                                  size: 36)),
+                        _ProfileAvatar(
+                          avatarPath: provider.settings.avatarPath,
+                          enabled: !isLocalMode,
+                          onEdit: () => _showAvatarOptions(context, provider),
                         ),
                         const SizedBox(width: 20),
                         Expanded(
@@ -262,10 +165,10 @@ class _AccountScreenState extends State<AccountScreen> {
                                 ],
                               ),
                             ),
-                            if (!isLocalMode && !_isEditingName)
+                            if (!isLocalMode)
                               GestureDetector(
-                                onTap: () =>
-                                    setState(() => _isEditingName = true),
+                                onTap: () => _openProfileEditor(context,
+                                    changePassword: false),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 8),
@@ -284,76 +187,22 @@ class _AccountScreenState extends State<AccountScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        if (_isEditingName) ...[
-                          TextField(
-                            controller: _nameController,
-                            decoration: InputDecoration(
-                              hintText: s.enterYourName,
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none),
-                              filled: true,
-                              fillColor: isDark
-                                  ? AppTheme.darkSurfaceElevated
-                                  : AppTheme.lightBackground,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                            ),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppTheme.darkSurfaceElevated
+                                : AppTheme.lightBackground,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextButton(
-                                  onPressed: () =>
-                                      setState(() => _isEditingName = false),
-                                  child: Text(s.cancel),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _saveName,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.goldPrimary,
-                                    foregroundColor: Colors.black,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 14),
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.black))
-                                      : Text(s.save,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ] else
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppTheme.darkSurfaceElevated
-                                  : AppTheme.lightBackground,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(displayName,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w500)),
-                          ),
+                          child: Text(displayName,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w500)),
+                        ),
                       ],
                     ),
                   ).animate().fadeIn(
@@ -481,195 +330,45 @@ class _AccountScreenState extends State<AccountScreen> {
                                   ],
                                 ),
                               ),
-                              if (!_isChangingPassword)
-                                GestureDetector(
-                                  onTap: () => setState(() {
-                                    _isChangingPassword = true;
-                                    _errorMessage = null;
-                                  }),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981)
-                                          .withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(s.change,
-                                        style: const TextStyle(
-                                            color: Color(0xFF10B981),
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13)),
+                              GestureDetector(
+                                onTap: () => _openProfileEditor(context,
+                                    changePassword: true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981)
+                                        .withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
+                                  child: Text(s.change,
+                                      style: const TextStyle(
+                                          color: Color(0xFF10B981),
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13)),
                                 ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          if (_isChangingPassword) ...[
-                            if (_errorMessage != null) ...[
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.error.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(IOSIcons.error_outline_rounded,
-                                        size: 18,
-                                        color: AppTheme.adaptiveIcon(context)),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                        child: Text(_errorMessage!,
-                                            style: TextStyle(
-                                                color: AppTheme.error,
-                                                fontSize: 13))),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            TextField(
-                              controller: _currentPasswordController,
-                              obscureText: !_showCurrentPassword,
-                              decoration: InputDecoration(
-                                hintText: s.currentPassword,
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none),
-                                filled: true,
-                                fillColor: isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                      _showCurrentPassword
-                                          ? IOSIcons.visibility_off_rounded
-                                          : IOSIcons.visibility_rounded,
-                                      size: 20),
-                                  onPressed: () => setState(() =>
-                                      _showCurrentPassword =
-                                          !_showCurrentPassword),
-                                ),
-                              ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppTheme.darkSurfaceElevated
+                                  : AppTheme.lightBackground,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _newPasswordController,
-                              obscureText: !_showNewPassword,
-                              decoration: InputDecoration(
-                                hintText: s.newPassword,
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none),
-                                filled: true,
-                                fillColor: isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                      _showNewPassword
-                                          ? IOSIcons.visibility_off_rounded
-                                          : IOSIcons.visibility_rounded,
-                                      size: 20),
-                                  onPressed: () => setState(() =>
-                                      _showNewPassword = !_showNewPassword),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _confirmPasswordController,
-                              obscureText: !_showConfirmPassword,
-                              decoration: InputDecoration(
-                                hintText: s.confirmNewPassword,
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none),
-                                filled: true,
-                                fillColor: isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                      _showConfirmPassword
-                                          ? IOSIcons.visibility_off_rounded
-                                          : IOSIcons.visibility_rounded,
-                                      size: 20),
-                                  onPressed: () => setState(() =>
-                                      _showConfirmPassword =
-                                          !_showConfirmPassword),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextButton(
-                                    onPressed: () => setState(() {
-                                      _isChangingPassword = false;
-                                      _errorMessage = null;
-                                      _currentPasswordController.clear();
-                                      _newPasswordController.clear();
-                                      _confirmPasswordController.clear();
-                                    }),
-                                    child: Text(s.cancel),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        _isLoading ? null : _changePassword,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.goldPrimary,
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 14),
-                                    ),
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.black))
-                                        : Text(s.updatePassword,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w600)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ] else
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text('••••••••••••',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                          letterSpacing: 2)),
-                            ),
+                            child: Text('••••••••••••',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: 2)),
+                          ),
                         ],
                       ),
                     ).animate().fadeIn(
@@ -678,6 +377,308 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Offers to pick a new profile picture, or remove the current one.
+  Future<void> _showAvatarOptions(
+      BuildContext context, AppProvider provider) async {
+    final s = S.of(context);
+    final hasAvatar = (provider.settings.avatarPath ?? '').isNotEmpty;
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AvatarOptionsSheet(canRemove: hasAvatar),
+    );
+    if (action == null || !context.mounted) return;
+
+    if (action == 'remove') {
+      await provider.removeProfilePicture();
+      return;
+    }
+
+    final picked = await ImagePicker().pickImage(
+      source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      imageQuality: 85,
+      // Downscale at capture: an avatar is displayed at 72px, so a full
+      // camera frame is wasted bytes on the user's connection and quota.
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
+    if (picked == null || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await provider.setProfilePicture(picked.path);
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(s.tr('profilePictureFailed'))),
+      );
+    }
+  }
+}
+
+/// Picker for the profile-picture action. Separate so the sheet can be
+/// dismissed before the async work starts.
+class _AvatarOptionsSheet extends StatelessWidget {
+  const _AvatarOptionsSheet({required this.canRemove});
+
+  final bool canRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(IOSIcons.camera_alt_rounded,
+                  color: AppTheme.adaptiveIcon(context)),
+              title: Text(s.tr('takePhoto')),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: Icon(IOSIcons.photo_library_rounded,
+                  color: AppTheme.adaptiveIcon(context)),
+              title: Text(s.tr('chooseFromGallery')),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+            if (canRemove)
+              ListTile(
+                leading: Icon(IOSIcons.delete_rounded, color: AppTheme.error),
+                title: Text(s.tr('removePhoto'),
+                    style: TextStyle(color: AppTheme.error)),
+                onTap: () => Navigator.pop(context, 'remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _openProfileEditor(BuildContext context, {required bool changePassword}) {
+  showAppFormSheet<void>(
+    context: context,
+    builder: (_) => _ProfileEditSheet(changePassword: changePassword),
+  );
+}
+
+/// The profile picture, with an edit affordance.
+///
+/// Falls back to a person glyph when no picture is set, and while one is
+/// being resolved, so the header never collapses or shows a broken image.
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.avatarPath,
+    required this.enabled,
+    required this.onEdit,
+  });
+
+  final String? avatarPath;
+
+  /// False in local mode: there is no account to attach a picture to.
+  final bool enabled;
+
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = Icon(IOSIcons.person_rounded,
+        color: AppTheme.adaptiveIcon(context), size: 36);
+
+    return GestureDetector(
+      onTap: enabled ? onEdit : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppTheme.adaptiveIconSurface(context),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: avatarPath == null || avatarPath!.isEmpty
+                ? Center(child: placeholder)
+                : StoredImage(
+                    reference: avatarPath,
+                    bucket: SupabaseSyncService.avatarsBucket,
+                    width: 72,
+                    height: 72,
+                    borderRadius: BorderRadius.circular(22),
+                    errorWidget: placeholder,
+                  ),
+          ),
+          if (enabled)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: AppTheme.goldPrimary,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(Icons.camera_alt_rounded,
+                    size: 13, color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileEditSheet extends StatefulWidget {
+  const _ProfileEditSheet({required this.changePassword});
+  final bool changePassword;
+
+  @override
+  State<_ProfileEditSheet> createState() => _ProfileEditSheetState();
+}
+
+class _ProfileEditSheetState extends State<_ProfileEditSheet> {
+  final _name = TextEditingController();
+  final _current = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  final _visible = <bool>[false, false, false];
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _name.text = context.read<AuthService>().displayName ?? '';
+  }
+
+  @override
+  void dispose() {
+    for (final controller in [_name, _current, _password, _confirm]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    final s = S.of(context);
+    String? error;
+    if (widget.changePassword) {
+      if (_current.text.isEmpty) {
+        error = s.enterCurrentPwd;
+      } else if (_password.text.isEmpty) {
+        error = s.enterNewPwd;
+      } else if (_password.text.length < 6) {
+        error = s.passwordTooShort;
+      } else if (_password.text != _confirm.text) {
+        error = s.passwordsDoNotMatch;
+      }
+    } else if (_name.text.trim().isEmpty) {
+      error = s.enterYourName;
+    }
+    setState(() => _error = error);
+    if (error != null) return;
+
+    setState(() => _saving = true);
+    final auth = context.read<AuthService>();
+    final result = widget.changePassword
+        ? await auth.changePassword(_current.text, _password.text)
+        : await auth.updateDisplayName(_name.text.trim());
+    if (!mounted) return;
+    if (!result.success) {
+      setState(() {
+        _saving = false;
+        _error = s.tr('actionCouldNotBeCompleted');
+      });
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(widget.changePassword ? s.passwordChanged : s.nameUpdated),
+      backgroundColor: AppTheme.success,
+    ));
+    Navigator.pop(context);
+  }
+
+  Widget _passwordField(
+      TextEditingController controller, String label, int index) {
+    return TextField(
+      controller: controller,
+      obscureText: !_visible[index],
+      enableSuggestions: false,
+      autocorrect: false,
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: IconButton(
+          onPressed: () => setState(() => _visible[index] = !_visible[index]),
+          icon: Icon(
+              _visible[index]
+                  ? IOSIcons.visibility_off_rounded
+                  : IOSIcons.visibility_rounded,
+              size: 20),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return AppFormSheet(
+      header: AppFormSheetHeader(
+        title: widget.changePassword ? s.changePassword : s.displayName,
+        icon: widget.changePassword
+            ? IOSIcons.lock_rounded
+            : IOSIcons.badge_rounded,
+        accent: AppTheme.adaptiveIcon(context),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_error != null) ...[
+            Text(_error!, style: const TextStyle(color: AppTheme.error)),
+            const SizedBox(height: 16),
+          ],
+          if (widget.changePassword) ...[
+            _passwordField(_current, s.currentPassword, 0),
+            const SizedBox(height: 16),
+            _passwordField(_password, s.newPassword, 1),
+            const SizedBox(height: 16),
+            _passwordField(_confirm, s.confirmNewPassword, 2),
+          ] else
+            TextField(
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                  labelText: s.displayName, hintText: s.enterYourName),
+            ),
+        ],
+      ),
+      actions: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(widget.changePassword ? s.updatePassword : s.save),
         ),
       ),
     );

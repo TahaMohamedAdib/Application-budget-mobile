@@ -3,7 +3,11 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/money_format.dart';
+import 'money_amount.dart';
 import '../theme/ios_icons.dart';
+import '../l10n/app_localizations.dart';
+import 'feature_help_button.dart';
 
 Color _withAlpha(Color color, double alpha) => color.withValues(alpha: alpha);
 
@@ -53,7 +57,7 @@ class WealthPageHeader extends StatelessWidget {
       children: [
         _HeaderButton(
           icon: IOSIcons.arrow_back_rounded,
-          tooltip: 'Back',
+          tooltip: S.of(context).back,
           onTap: onBack,
         ),
         const SizedBox(width: 14),
@@ -80,6 +84,8 @@ class WealthPageHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
+        FeatureHelpButton(title: title, description: subtitle),
+        const SizedBox(width: 8),
         _HeaderButton(
           icon: IOSIcons.add_rounded,
           tooltip: addTooltip,
@@ -125,7 +131,15 @@ class _HeaderButton extends StatelessWidget {
 class WealthOverviewCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String amount;
+
+  /// The hero figure, as a number rather than preformatted text. The card
+  /// fits it to the available width, which it cannot do to a finished string.
+  final num amountValue;
+
+  /// Formatter for [amountValue]. The metric slots below stay strings because
+  /// several callers put a plain count there, not money.
+  final MoneyFormat formatter;
+
   final Color? amountColor;
   final String firstLabel;
   final String firstValue;
@@ -140,7 +154,8 @@ class WealthOverviewCard extends StatelessWidget {
     super.key,
     required this.icon,
     required this.label,
-    required this.amount,
+    required this.amountValue,
+    required this.formatter,
     required this.firstLabel,
     required this.firstValue,
     required this.secondLabel,
@@ -178,17 +193,13 @@ class WealthOverviewCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 18),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  amount,
-                  style: TextStyle(
-                    color: amountColor ?? textColor,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              MoneyAmount(
+                value: amountValue,
+                formatter: formatter,
+                fontSize: 34,
+                minFontSize: 22,
+                currencyInline: true,
+                color: amountColor ?? textColor,
               ),
               if (normalizedProgress != null) ...[
                 const SizedBox(height: 18),
@@ -255,11 +266,14 @@ class _OverviewMetric extends StatelessWidget {
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 4),
+        // A string, not a number: callers put plain counts here as well as
+        // money, so this slot only guarantees it will fit on one line.
         FittedBox(
           fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: Text(
             value,
+            maxLines: 1,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: valueColor,
                   fontWeight: FontWeight.w700,

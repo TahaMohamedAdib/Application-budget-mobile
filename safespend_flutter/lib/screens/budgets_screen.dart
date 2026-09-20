@@ -1,3 +1,4 @@
+import '../widgets/app_form_sheet.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
@@ -13,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../models/category.dart';
 import '../widgets/glass_action_button.dart';
+import '../widgets/feature_help_button.dart';
 import 'settings_screen.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/money_format.dart';
@@ -68,6 +70,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           ],
                         ),
                       ),
+                      FeatureHelpButton(
+                        title: s.tourBudgetsTitle,
+                        description: s.tourBudgetsBody,
+                        icon: IOSIcons.pie_chart_outline_rounded,
+                      ),
+                      const SizedBox(width: 4),
                       GestureDetector(
                         onTap: () => Navigator.push(
                             context,
@@ -122,7 +130,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           ),
                           const SizedBox(height: 8),
                           Builder(builder: (ctx) {
-                            final rawFmt = NumberFormat('#,##0.##', 'en_US');
+                            final rawFmt = NumberFormat(
+                                '#,##0.##',
+                                Localizations.localeOf(context)
+                                    .toLanguageTag());
                             final symbol = CurrencyHelper.getSymbol(
                                 provider.settings.currency);
                             return Text(
@@ -248,8 +259,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
-                      padding: EdgeInsets.fromLTRB(
-                          20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
+                      padding: EdgeInsets.fromLTRB(20, 16, 20,
+                          MediaQuery.of(context).padding.bottom + 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -295,7 +306,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                         title: Text(
                                                             '${s.delete} ${s.category}?'),
                                                         content: Text(
-                                                            '${s.delete} "${cat.name}"? ${s.cannotBeUndone}.'),
+                                                            '${s.delete} "${s.categoryDisplayName(cat.id, cat.name)}"? ${s.cannotBeUndone}.'),
                                                         actions: [
                                                           TextButton(
                                                               onPressed: () =>
@@ -384,7 +395,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                           CrossAxisAlignment
                                                               .start,
                                                       children: [
-                                                        Text(cat.name,
+                                                        Text(
+                                                            s.categoryDisplayName(
+                                                                cat.id,
+                                                                cat.name),
                                                             style: Theme.of(
                                                                     context)
                                                                 .textTheme
@@ -510,10 +524,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             padding: const EdgeInsets.only(top: 4, bottom: 10),
                             child: GlassActionButton(
                               label: s.addCategory,
-                              // Grey plus + green label, matching the other
-                              // "Add …" buttons across the app.
                               icon: AppIcon(AppIcons.add,
-                                  color: AppTheme.adaptiveIcon(context),
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.color,
                                   size: 24),
                               onTap: () =>
                                   _showAddCategoryModal(context, provider),
@@ -661,7 +676,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(cat.name,
+                          Text(s.categoryDisplayName(cat.id, cat.name),
                               style: Theme.of(ctx)
                                   .textTheme
                                   .headlineSmall
@@ -735,7 +750,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(t.note ?? 'Expense',
+                                      Text(
+                                          S
+                                                  .forLocale(context
+                                                      .read<AppProvider>()
+                                                      .settings
+                                                      .locale)
+                                                  .systemNote(t.note) ??
+                                              s.expense,
                                           style: Theme.of(ctx)
                                               .textTheme
                                               .titleMedium
@@ -743,8 +765,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                   fontWeight: FontWeight.w600)),
                                       const SizedBox(height: 2),
                                       Text(
-                                          DateFormat('MMM d, yyyy')
-                                              .format(DateTime.parse(t.date)),
+                                          MaterialLocalizations.of(ctx)
+                                              .formatMediumDate(
+                                                  DateTime.parse(t.date)),
                                           style: Theme.of(ctx)
                                               .textTheme
                                               .bodySmall),
@@ -773,6 +796,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
   void _showEditCategoryModal(BuildContext context, AppProvider provider,
       Category cat, MoneyFormat cf) {
+    final s = S.of(context);
     final nameCtrl = TextEditingController(text: cat.name);
     final budgetCtrl = TextEditingController(
         text: cat.budgetLimit > 0 ? cat.budgetLimit.toStringAsFixed(0) : '');
@@ -805,240 +829,209 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       'build': AppIcons.tools,
     };
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (ctx, setModalState) => AppFormSheet(
+            header: AppFormSheetHeader(
+                title: s.editCategory,
+                icon: IOSIcons.category_rounded,
+                accent: AppTheme.adaptiveIcon(ctx)),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${s.spentThisMonth}: ${cf.format(spent)}',
+                  style: Theme.of(ctx).textTheme.bodySmall),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: s.categoryName,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  prefixIcon: selectedIcon.startsWith('img:')
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.file(File(selectedIcon.substring(4)),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const AppIcon(AppIcons.image)),
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: AppIcon(
+                            _categoryIcon(selectedIcon),
+                            size: 18,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: budgetCtrl,
+                keyboardType: TextInputType.number,
+                style:
+                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  labelText: s.spendingLimit,
+                  hintText: '0.00',
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(s.logo,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  Center(
-                      child: Container(
-                          width: 48,
-                          height: 5,
-                          decoration: BoxDecoration(
-                              color: Theme.of(ctx).dividerColor,
-                              borderRadius: BorderRadius.circular(3)))),
-                  const SizedBox(height: 20),
-                  Text('Edit Category',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text('Spent this month: ${cf.format(spent)}',
-                      style: Theme.of(ctx).textTheme.bodySmall),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Category Name',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: selectedIcon.startsWith('img:')
-                          ? Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: Image.file(
-                                    File(selectedIcon.substring(4)),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const AppIcon(AppIcons.image)),
+                  SizedBox(
+                    width: 64,
+                    height: 64,
+                    child: Center(
+                      child: selectedIcon.startsWith('img:')
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.file(
+                                File(selectedIcon.substring(4)),
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const AppIcon(AppIcons.image, size: 48),
                               ),
                             )
-                          : Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              child: AppIcon(
-                                _categoryIcon(selectedIcon),
-                                size: 18,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                            ),
+                          : AppIcon(_categoryIcon(selectedIcon),
+                              size: 48, color: AppTheme.adaptiveIcon(ctx)),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: budgetCtrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      labelText: 'Monthly Spending Limit',
-                      hintText: '0.00',
-                      prefixText:
-                          '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      filled: true,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text('Logo',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 64,
-                        height: 64,
-                        child: Center(
-                          child: selectedIcon.startsWith('img:')
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Image.file(
-                                    File(selectedIcon.substring(4)),
-                                    width: 64,
-                                    height: 64,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const AppIcon(AppIcons.image, size: 48),
-                                  ),
-                                )
-                              : AppIcon(_categoryIcon(selectedIcon),
-                                  size: 48, color: AppTheme.adaptiveIcon(ctx)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        final picker = ImagePicker();
+                        final image = await picker.pickImage(
+                            source: ImageSource.gallery, imageQuality: 80);
+                        if (image != null)
+                          setModalState(
+                              () => selectedIcon = 'img:${image.path}');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppTheme.darkSurfaceElevated
+                              : AppTheme.lightBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppTheme.goldPrimary.withOpacity(0.3),
+                              width: 1.5),
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            final picker = ImagePicker();
-                            final image = await picker.pickImage(
-                                source: ImageSource.gallery, imageQuality: 80);
-                            if (image != null)
-                              setModalState(
-                                  () => selectedIcon = 'img:${image.path}');
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppTheme.darkSurfaceElevated
-                                  : AppTheme.lightBackground,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: AppTheme.goldPrimary.withOpacity(0.3),
-                                  width: 1.5),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                AppIcon(AppIcons.image,
-                                    size: 18,
-                                    color: AppTheme.adaptiveIcon(ctx)),
-                                const SizedBox(width: 8),
-                                const Text('Upload from Gallery',
-                                    style: TextStyle(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AppIcon(AppIcons.image,
+                                size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                            const SizedBox(width: 8),
+                            Flexible(
+                                child: Text(s.uploadFromGallery,
+                                    style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: AppTheme.goldPrimary)),
-                              ],
-                            ),
-                          ),
+                                        color: AppTheme.goldPrimary))),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text('Or choose icon',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: iconOptions.entries.map((entry) {
-                      final isSelected = selectedIcon == entry.key;
-                      return GestureDetector(
-                        onTap: () =>
-                            setModalState(() => selectedIcon = entry.key),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppTheme.goldPrimary.withOpacity(0.15)
-                                : (isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground),
-                            borderRadius: BorderRadius.circular(12),
-                            border: isSelected
-                                ? Border.all(
-                                    color: AppTheme.goldPrimary, width: 2)
-                                : null,
-                          ),
-                          child: AppIcon(entry.value,
-                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (nameCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                              content: Text('Please enter a category name')));
-                          return;
-                        }
-                        final budget = double.tryParse(budgetCtrl.text) ?? 0;
-                        if (budget <= 0) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                              content: Text('Please set a spending limit')));
-                          return;
-                        }
-                        provider.updateCategory(cat.copyWith(
-                          name: nameCtrl.text.trim(),
-                          icon: selectedIcon,
-                          budgetLimit: budget,
-                        ));
-                        Navigator.pop(ctx);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.goldPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                      child: const Text('Save Changes',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
+              const SizedBox(height: 20),
+              Text(s.orChooseIcon,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: iconOptions.entries.map((entry) {
+                  final isSelected = selectedIcon == entry.key;
+                  return GestureDetector(
+                    onTap: () => setModalState(() => selectedIcon = entry.key),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppTheme.goldPrimary.withOpacity(0.15)
+                            : (isDark
+                                ? AppTheme.darkSurfaceElevated
+                                : AppTheme.lightBackground),
+                        borderRadius: BorderRadius.circular(12),
+                        border: isSelected
+                            ? Border.all(color: AppTheme.goldPrimary, width: 2)
+                            : null,
+                      ),
+                      child: AppIcon(entry.value,
+                          size: 20, color: AppTheme.adaptiveIcon(ctx)),
+                    ),
+                  );
+                }).toList(),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (nameCtrl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                        content: Text(s.tr('pleaseEnterCategoryName'))));
+                    return;
+                  }
+                  final budget = double.tryParse(budgetCtrl.text) ?? 0;
+                  if (budget <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.setSpendingLimit)));
+                    return;
+                  }
+                  provider.updateCategory(cat.copyWith(
+                    name: nameCtrl.text.trim(),
+                    icon: selectedIcon,
+                    budgetLimit: budget,
+                  ));
+                  Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.goldPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: Text(s.saveChanges,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }
 
   void _showAddCategoryModal(BuildContext context, AppProvider provider) {
+    final s = S.of(context);
     final nameCtrl = TextEditingController();
     final budgetCtrl = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1069,239 +1062,208 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       'build': AppIcons.tools,
     };
 
-    showModalBottomSheet(
+    showAppFormSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (ctx, setModalState) => AppFormSheet(
+            header: AppFormSheetHeader(
+                title: s.addCategory,
+                icon: IOSIcons.category_rounded,
+                accent: AppTheme.adaptiveIcon(ctx)),
+            body:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: s.categoryName,
+                  hintText: s.tr('categoryNameHint'),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  prefixIcon: selectedIcon.startsWith('img:')
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.file(File(selectedIcon.substring(4)),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const AppIcon(AppIcons.image)),
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: AppIcon(
+                            _categoryIcon(selectedIcon),
+                            size: 18,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: budgetCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.monthlyBudget,
+                  hintText: '0.00',
+                  prefixText:
+                      '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(s.logo,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  Center(
-                      child: Container(
-                          width: 48,
-                          height: 5,
-                          decoration: BoxDecoration(
-                              color: Theme.of(ctx).dividerColor,
-                              borderRadius: BorderRadius.circular(3)))),
-                  const SizedBox(height: 20),
-                  Text('Add Category',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Category Name',
-                      hintText: 'e.g., Clothing',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      prefixIcon: selectedIcon.startsWith('img:')
-                          ? Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: Image.file(
-                                    File(selectedIcon.substring(4)),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const AppIcon(AppIcons.image)),
+                  SizedBox(
+                    width: 64,
+                    height: 64,
+                    child: Center(
+                      child: selectedIcon.startsWith('img:')
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.file(
+                                File(selectedIcon.substring(4)),
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const AppIcon(AppIcons.image, size: 48),
                               ),
                             )
-                          : Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              child: AppIcon(
-                                _categoryIcon(selectedIcon),
-                                size: 18,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                            ),
+                          : AppIcon(_categoryIcon(selectedIcon),
+                              size: 48, color: AppTheme.adaptiveIcon(ctx)),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: budgetCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Monthly Budget Limit',
-                      hintText: '0.00',
-                      prefixText:
-                          '${CurrencyHelper.getSymbol(provider.settings.currency)} ',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text('Logo',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 64,
-                        height: 64,
-                        child: Center(
-                          child: selectedIcon.startsWith('img:')
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Image.file(
-                                    File(selectedIcon.substring(4)),
-                                    width: 64,
-                                    height: 64,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const AppIcon(AppIcons.image, size: 48),
-                                  ),
-                                )
-                              : AppIcon(_categoryIcon(selectedIcon),
-                                  size: 48, color: AppTheme.adaptiveIcon(ctx)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        final picker = ImagePicker();
+                        final image = await picker.pickImage(
+                            source: ImageSource.gallery, imageQuality: 80);
+                        if (image != null)
+                          setModalState(
+                              () => selectedIcon = 'img:${image.path}');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppTheme.darkSurfaceElevated
+                              : AppTheme.lightBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppTheme.goldPrimary.withOpacity(0.3),
+                              width: 1.5),
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            final picker = ImagePicker();
-                            final image = await picker.pickImage(
-                                source: ImageSource.gallery, imageQuality: 80);
-                            if (image != null)
-                              setModalState(
-                                  () => selectedIcon = 'img:${image.path}');
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppTheme.darkSurfaceElevated
-                                  : AppTheme.lightBackground,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: AppTheme.goldPrimary.withOpacity(0.3),
-                                  width: 1.5),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                AppIcon(AppIcons.image,
-                                    size: 18,
-                                    color: AppTheme.adaptiveIcon(ctx)),
-                                const SizedBox(width: 8),
-                                const Text('Upload from Gallery',
-                                    style: TextStyle(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AppIcon(AppIcons.image,
+                                size: 18, color: AppTheme.adaptiveIcon(ctx)),
+                            const SizedBox(width: 8),
+                            Flexible(
+                                child: Text(s.uploadFromGallery,
+                                    style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: AppTheme.goldPrimary)),
-                              ],
-                            ),
-                          ),
+                                        color: AppTheme.goldPrimary))),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text('Or choose icon',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: iconOptions.entries.map((entry) {
-                      final isSelected = selectedIcon == entry.key;
-                      return GestureDetector(
-                        onTap: () =>
-                            setModalState(() => selectedIcon = entry.key),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppTheme.goldPrimary.withOpacity(0.15)
-                                : (isDark
-                                    ? AppTheme.darkSurfaceElevated
-                                    : AppTheme.lightBackground),
-                            borderRadius: BorderRadius.circular(12),
-                            border: isSelected
-                                ? Border.all(
-                                    color: AppTheme.goldPrimary, width: 2)
-                                : null,
-                          ),
-                          child: AppIcon(entry.value,
-                              size: 20, color: AppTheme.adaptiveIcon(ctx)),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (nameCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                              content: Text('Please enter a category name')));
-                          return;
-                        }
-                        final budget = double.tryParse(budgetCtrl.text) ?? 0;
-                        if (budget <= 0) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                              content: Text('Please set a spending limit')));
-                          return;
-                        }
-                        final newCat = Category(
-                          id: const Uuid().v4(),
-                          name: nameCtrl.text.trim(),
-                          group: 'variable',
-                          icon: selectedIcon,
-                          color: '#B8860B',
-                          budgetLimit: budget,
-                        );
-                        provider.addCategory(newCat);
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(
-                              content: Text('"${newCat.name}" added'),
-                              backgroundColor: AppTheme.goldPrimary),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.goldPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                      child: const Text('Add Category',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
+              const SizedBox(height: 20),
+              Text(s.orChooseIcon,
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: iconOptions.entries.map((entry) {
+                  final isSelected = selectedIcon == entry.key;
+                  return GestureDetector(
+                    onTap: () => setModalState(() => selectedIcon = entry.key),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppTheme.goldPrimary.withOpacity(0.15)
+                            : (isDark
+                                ? AppTheme.darkSurfaceElevated
+                                : AppTheme.lightBackground),
+                        borderRadius: BorderRadius.circular(12),
+                        border: isSelected
+                            ? Border.all(color: AppTheme.goldPrimary, width: 2)
+                            : null,
+                      ),
+                      child: AppIcon(entry.value,
+                          size: 20, color: AppTheme.adaptiveIcon(ctx)),
+                    ),
+                  );
+                }).toList(),
+              )
+            ]),
+            actions: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (nameCtrl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                        content: Text(s.tr('pleaseEnterCategoryName'))));
+                    return;
+                  }
+                  final budget = double.tryParse(budgetCtrl.text) ?? 0;
+                  if (budget <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(s.setSpendingLimit)));
+                    return;
+                  }
+                  final newCat = Category(
+                    id: const Uuid().v4(),
+                    name: nameCtrl.text.trim(),
+                    group: 'variable',
+                    icon: selectedIcon,
+                    color: '#B8860B',
+                    budgetLimit: budget,
+                  );
+                  provider.addCategory(newCat);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            s.categoryAdded.replaceAll('{name}', newCat.name)),
+                        backgroundColor: AppTheme.goldPrimary),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.goldPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: Text(s.addCategory,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            )),
       ),
     );
   }

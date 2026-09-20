@@ -441,24 +441,14 @@ class OnboardingHero extends StatelessWidget {
         Text(
           title,
           textAlign: textAlign,
-          style: TextStyle(
-            fontSize: 30,
-            height: 1.12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.9,
-            color: Theme.of(context).textTheme.titleLarge?.color,
-          ),
+          style: Theme.of(context).textTheme.headlineLarge,
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 10),
           Text(
             subtitle!,
             textAlign: textAlign,
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.45,
-              color: Theme.of(context).textTheme.bodySmall?.color,
-            ),
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
         ],
       ],
@@ -698,7 +688,7 @@ class OnboardingSegmented<T> extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 13,
                             fontWeight:
                                 active ? FontWeight.w600 : FontWeight.w500,
                             color: active
@@ -808,7 +798,7 @@ class OnboardingField extends StatelessWidget {
                   child: Text(
                     prefix!,
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
@@ -874,7 +864,7 @@ class OnboardingField extends StatelessWidget {
                   child: Text(
                     error!,
                     style: const TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: AppTheme.error,
                     ),
@@ -1083,7 +1073,7 @@ class OnboardingButton extends StatelessWidget {
                               maxLines: 1,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 17,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: -0.2,
                               ),
@@ -1128,7 +1118,7 @@ class OnboardingTextButton extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 14.5,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
             color: Theme.of(context).textTheme.bodySmall?.color,
           ),

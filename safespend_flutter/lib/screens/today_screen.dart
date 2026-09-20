@@ -19,11 +19,16 @@ import 'spending_screen.dart';
 import 'transactions_screen.dart';
 import 'all_subscriptions_screen.dart';
 import '../widgets/add_transaction_modal.dart';
+import '../widgets/transaction_delete_button.dart';
+import '../widgets/money_amount.dart';
 import '../widgets/account_picker_field.dart';
 import '../widgets/app_picker_field.dart';
+import '../widgets/feature_help_button.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/balance_series.dart';
 import '../utils/money_format.dart';
+import '../widgets/stored_image.dart';
+import '../services/supabase_sync_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.onOpenWealth});
@@ -45,6 +50,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   String _selectedTimeframe = '1m';
+  int? _selectedBalancePointIndex;
 
   // Transactions inline filter state
   final _txSearchController = TextEditingController();
@@ -66,8 +72,7 @@ class HomeScreenState extends State<HomeScreen> {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final totalCash = provider.totalCash;
-        final currencyFormat =
-            MoneyFormat.of(provider.settings);
+        final currencyFormat = MoneyFormat.of(provider.settings);
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -117,7 +122,7 @@ class HomeScreenState extends State<HomeScreen> {
                                   _buildHeaderAccountIcon(provider),
                                   const SizedBox(width: 8),
                                   Text(
-                                    _getSelectedAccountName(provider),
+                                    _getSelectedAccountName(provider, s),
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -139,6 +144,12 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const Spacer(),
+                        FeatureHelpButton(
+                          title: s.tourHomeTitle,
+                          description: s.tourHomeBody,
+                          icon: IOSIcons.home_rounded,
+                        ),
+                        const SizedBox(width: 8),
                         // Quick reveal. The same switch lives in Appearance,
                         // but hiding balances is something you do reactively —
                         // someone glances over — so it needs to be one tap
@@ -211,22 +222,22 @@ class HomeScreenState extends State<HomeScreen> {
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500)),
                             const SizedBox(height: 8),
-                            Text(
-                              currencyFormat
-                                  .format(_getAccountBalance(provider)),
-                              style: TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF1C1C1E),
-                                  letterSpacing: -1),
+                            MoneyAmount(
+                              key: const ValueKey('home-total-balance-amount'),
+                              value: _getAccountBalance(provider),
+                              formatter: currencyFormat,
+                              fontSize: 34,
+                              minFontSize: 22,
+                              currencyInline: true,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1C1C1E),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               provider.selectedAccountId == null
                                   ? s.accountsCombined
-                                  : _getSelectedAccountName(provider),
+                                  : _getSelectedAccountName(provider, s),
                               style: TextStyle(
                                   fontSize: 12,
                                   color: isDark
@@ -266,72 +277,35 @@ class HomeScreenState extends State<HomeScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        s.balanceEvolution,
+                                        s.balance,
                                         style: TextStyle(
                                           color: isDark
                                               ? Colors.white60
                                               : const Color(0xFF686C72),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
                                           letterSpacing: 0.2,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        currencyFormat.format(
-                                            _getAccountBalance(provider)),
-                                        style: TextStyle(
-                                          color: isDark
-                                              ? Colors.white
-                                              : const Color(0xFF1C1C1E),
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -0.5,
-                                        ),
+                                      const SizedBox(height: 7),
+                                      MoneyAmount(
+                                        key: const ValueKey(
+                                            'home-balance-evolution-amount'),
+                                        value: _getAccountBalance(provider),
+                                        formatter: currencyFormat,
+                                        fontSize: 28,
+                                        minFontSize: 16,
+                                        allowCompact: true,
+                                        currencyInline: true,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF1C1C1E),
                                       ),
                                     ],
                                   ),
                                 ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children:
-                                      ['1d', '1w', '1m', '6m', '1y'].map((tf) {
-                                    final isActive = _selectedTimeframe == tf;
-                                    return GestureDetector(
-                                      onTap: () => setState(
-                                          () => _selectedTimeframe = tf),
-                                      child: AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 180),
-                                        margin: const EdgeInsets.only(left: 4),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: isActive
-                                              ? AppTheme.goldPrimary
-                                              : (isDark
-                                                  ? Colors.white
-                                                      .withOpacity(0.08)
-                                                  : const Color(0xFFDDE0E3)),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          tf.toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: isActive
-                                                ? Colors.white
-                                                : (isDark
-                                                    ? Colors.white60
-                                                    : const Color(0xFF5F6368)),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
+                                const SizedBox(width: 12),
+                                _buildBalanceRangeSelector(isDark, s),
                               ],
                             ),
                             const SizedBox(height: 20),
@@ -406,7 +380,7 @@ class HomeScreenState extends State<HomeScreen> {
                               iconColor: AppTheme.adaptiveIcon(context),
                               amountColor: AppTheme.cashOnHandIcon,
                               label: s.cashOnHand,
-                              sublabel: 'From withdrawals',
+                              sublabel: s.fromWithdrawals,
                               amount: totalCash,
                               cf: currencyFormat,
                               onTap: () => Navigator.push(
@@ -423,7 +397,9 @@ class HomeScreenState extends State<HomeScreen> {
                               icon: AppIcons.investments,
                               iconColor: AppTheme.adaptiveIcon(context),
                               label: s.investments,
-                              sublabel: '${provider.holdings.length} holdings',
+                              sublabel: s.tr('holdingsCount', {
+                                'count': provider.holdings.length,
+                              }),
                               amount: provider.totalInvestmentValue,
                               cf: currencyFormat,
                               onTap: () => Navigator.push(
@@ -440,8 +416,11 @@ class HomeScreenState extends State<HomeScreen> {
                                 icon: AppIcons.creditCard,
                                 iconColor: AppTheme.adaptiveIcon(context),
                                 label: s.debt,
-                                sublabel:
-                                    '${provider.goals.where((g) => g.type == "debt").length} items',
+                                sublabel: s.tr('itemsCount', {
+                                  'count': provider.goals
+                                      .where((g) => g.type == 'debt')
+                                      .length,
+                                }),
                                 amount: -provider.totalDebtRemaining,
                                 cf: currencyFormat,
                                 onTap: () => Navigator.push(
@@ -479,26 +458,39 @@ class HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Text(s.upcomingSubscriptions,
+                                  Expanded(
+                                    child: Text(
+                                      s.upcomingSubscriptions,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleMedium
                                           ?.copyWith(
-                                              fontWeight: FontWeight.w600)),
-                                  GestureDetector(
+                                              fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(8),
                                     onTap: () => Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                             builder: (_) =>
                                                 const AllSubscriptionsScreen())),
-                                    child: Text(s.seeAll,
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: AppTheme.goldPrimary,
-                                            fontWeight: FontWeight.w500)),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 10),
+                                      child: Text(
+                                        s.seeAll,
+                                        textAlign: TextAlign.end,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppTheme.goldPrimary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -576,9 +568,8 @@ class HomeScreenState extends State<HomeScreen> {
                                                                     BorderRadius
                                                                         .circular(
                                                                             14),
-                                                                child: imgPath
-                                                                        .startsWith(
-                                                                            'http')
+                                                                child: imgPath.startsWith(
+                                                                        'http')
                                                                     ? Image.network(
                                                                         imgPath,
                                                                         fit: BoxFit
@@ -586,8 +577,8 @@ class HomeScreenState extends State<HomeScreen> {
                                                                         errorBuilder: (_, __, ___) => AppIcon(
                                                                             AppIcons
                                                                                 .autoRenew,
-                                                                            color: AppTheme
-                                                                                .adaptiveIcon(context),
+                                                                            color: AppTheme.adaptiveIcon(
+                                                                                context),
                                                                             size:
                                                                                 20))
                                                                     : Image.file(
@@ -600,13 +591,15 @@ class HomeScreenState extends State<HomeScreen> {
                                                                     _subCategoryIcon(cat
                                                                         .icon),
                                                                     color: AppTheme
-                                                                        .adaptiveIcon(context),
+                                                                        .adaptiveIcon(
+                                                                            context),
                                                                     size: 20)
                                                                 : AppIcon(
                                                                     AppIcons
                                                                         .autoRenew,
                                                                     color: AppTheme
-                                                                        .adaptiveIcon(context),
+                                                                        .adaptiveIcon(
+                                                                            context),
                                                                     size: 20),
                                                       );
                                                     }),
@@ -618,9 +611,17 @@ class HomeScreenState extends State<HomeScreen> {
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                              rule.templateTransaction
-                                                                      .note ??
-                                                                  'Subscription',
+                                                              S
+                                                                      .forLocale(context
+                                                                          .read<
+                                                                              AppProvider>()
+                                                                          .settings
+                                                                          .locale)
+                                                                      .systemNote(rule
+                                                                          .templateTransaction
+                                                                          .note) ??
+                                                                  s
+                                                                      .subscription,
                                                               style: Theme.of(
                                                                       context)
                                                                   .textTheme
@@ -649,8 +650,13 @@ class HomeScreenState extends State<HomeScreen> {
                                                                     today.day;
                                                             return Text(
                                                               isToday
-                                                                  ? 'Today · ${DateFormat('h:mm a').format(nd)}'
-                                                                  : 'Due ${DateFormat('MMM d').format(nd)}',
+                                                                  ? '${s.today} · ${MaterialLocalizations.of(ctx).formatTimeOfDay(TimeOfDay.fromDateTime(nd))}'
+                                                                  : s.tr(
+                                                                      'dueOn',
+                                                                      {
+                                                                          'date':
+                                                                              MaterialLocalizations.of(ctx).formatMediumDate(nd),
+                                                                        }),
                                                               style: Theme.of(
                                                                       context)
                                                                   .textTheme
@@ -802,8 +808,10 @@ class HomeScreenState extends State<HomeScreen> {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(20,
                           _activeFilter == 'transactions' ? 16 : 28, 20, 14),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Wrap(
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        alignment: WrapAlignment.spaceBetween,
                         children: [
                           Text(
                             _activeFilter == 'transactions'
@@ -921,8 +929,102 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Balance Chart ──
+  Widget _buildBalanceRangeSelector(bool isDark, S s) {
+    const ranges = ['1d', '1w', '1m', '6m', '1y'];
+    final selectedIndex = ranges.indexOf(_selectedTimeframe);
+    return Semantics(
+      label: s.balanceEvolution,
+      child: Container(
+        width: 163,
+        height: 44,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.black.withOpacity(0.18)
+              : Colors.black.withOpacity(0.055),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.04),
+          ),
+        ),
+        child: Stack(
+          children: [
+            AnimatedPositionedDirectional(
+              key: const ValueKey('balance-range-highlight'),
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+              start: selectedIndex * 31,
+              top: 0,
+              bottom: 0,
+              width: 31,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppTheme.success,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.success.withOpacity(0.26),
+                      blurRadius: 9,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Row(
+              children: ranges.map((range) {
+                final selected = _selectedTimeframe == range;
+                final label = range.toUpperCase();
+                return Semantics(
+                  button: true,
+                  selected: selected,
+                  label: label,
+                  child: Tooltip(
+                    message: label,
+                    child: InkWell(
+                      key: ValueKey('balance-range-$range'),
+                      borderRadius: BorderRadius.circular(9),
+                      onTap: () => setState(() {
+                        _selectedTimeframe = range;
+                        _selectedBalancePointIndex = null;
+                      }),
+                      child: SizedBox(
+                        width: 31,
+                        height: 38,
+                        child: Center(
+                          child: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 180),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                              color: selected
+                                  ? Colors.white
+                                  : (isDark
+                                      ? Colors.white60
+                                      : const Color(0xFF5F6368)),
+                            ),
+                            child: Text(label, maxLines: 1),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildBalanceChart(AppProvider provider, bool isDark, S s) {
-    final chartColor = isDark ? Colors.white : AppTheme.success;
+    final chartColor = AppTheme.success;
     final mutedColor = isDark ? Colors.white54 : const Color(0xFF6E7278);
 
     // The history itself lives in `utils/balance_series.dart`, under test.
@@ -955,165 +1057,233 @@ class HomeScreenState extends State<HomeScreen> {
 
     final labels = labelIndices(points.length).toSet();
     final cf = MoneyFormat.of(provider.settings);
-
-    String formatYLabel(double v) {
-      if (v.abs() >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-      if (v.abs() >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
-      return v.toStringAsFixed(0);
-    }
+    final selectedPointIndex = _selectedBalancePointIndex == null
+        ? null
+        : math.min(_selectedBalancePointIndex!, points.length - 1);
+    final visibleLabels = labels.where((index) {
+      if (selectedPointIndex == null) return true;
+      final minimumGap = math.max(1, (points.length / 10).round());
+      return (index - selectedPointIndex).abs() > minimumGap;
+    }).toSet();
+    if (selectedPointIndex != null) visibleLabels.add(selectedPointIndex);
 
     String formatDate(DateTime t) => switch (_selectedTimeframe) {
-          '1d' => DateFormat('HH:mm').format(t),
-          '6m' || '1y' => DateFormat('MMM').format(t),
-          _ => DateFormat('d MMM').format(t),
+          '1d' =>
+            DateFormat('HH:mm', Localizations.localeOf(context).toLanguageTag())
+                .format(t),
+          '6m' ||
+          '1y' =>
+            DateFormat('MMM', Localizations.localeOf(context).toLanguageTag())
+                .format(t),
+          _ =>
+            DateFormat('d MMM', Localizations.localeOf(context).toLanguageTag())
+                .format(t),
         };
 
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: (points.length - 1).toDouble(),
-        minY: axis.min,
-        maxY: axis.max,
-        // Keep the stroke, its glow and the fill inside the plot area so they
-        // cannot bleed over the labels and blur where the line really sits.
-        clipData: const FlClipData.all(),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: axis.step,
-          getDrawingHorizontalLine: (_) => FlLine(
-            color: isDark
-                ? Colors.white.withOpacity(0.08)
-                : Colors.black.withOpacity(0.08),
-            strokeWidth: 1,
-          ),
+    String formatSelectedDate(DateTime t) {
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      return DateFormat(
+        _selectedTimeframe == '1d' ? 'd MMM, HH:mm' : 'd MMM',
+        locale,
+      ).format(t);
+    }
+
+    String exactAmount(double amount) => cf.hidden
+        ? MoneyFormat.mask
+        : '${cf.number(amount, compactOverride: false)} ${cf.symbol}';
+
+    final trendLine = LineChartBarData(
+      spots: spots,
+      isCurved: true,
+      curveSmoothness: 0.32,
+      preventCurveOverShooting: true,
+      gradient: LinearGradient(
+        colors: [AppTheme.goldPrimary, chartColor],
+      ),
+      barWidth: 3,
+      isStrokeCapRound: true,
+      dotData: FlDotData(
+        show: selectedPointIndex != null,
+        checkToShowDot: (spot, _) => spot.x.round() == selectedPointIndex,
+        getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+          radius: 5,
+          color: chartColor,
+          strokeWidth: 3,
+          strokeColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
         ),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 46,
-              interval: axis.step,
-              getTitlesWidget: (value, meta) {
-                // The outer gridlines are pure headroom, so labelling them adds
-                // no information and risks clipping at the edges.
-                if ((value - meta.min).abs() < axis.step / 2 ||
-                    (value - meta.max).abs() < axis.step / 2) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Text(formatYLabel(value),
-                      style: TextStyle(fontSize: 10, color: mutedColor)),
-                );
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 24,
-              // One tick per sample, filtered to the indices `labelIndices`
-              // chose — it guarantees both ends are labelled and that no two
-              // labels ever land side by side.
-              interval: 1,
-              getTitlesWidget: (value, meta) {
-                final idx = value.round();
-                if (idx < 0 || idx >= points.length || !labels.contains(idx)) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(formatDate(points[idx].time),
-                      style: TextStyle(fontSize: 9, color: mutedColor)),
-                );
-              },
-            ),
-          ),
+      ),
+      shadow: Shadow(color: chartColor.withOpacity(0.28), blurRadius: 8),
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [0.0, 0.75],
+          colors: [
+            chartColor.withOpacity(isDark ? 0.20 : 0.14),
+            chartColor.withOpacity(0.0)
+          ],
         ),
-        lineTouchData: LineTouchData(
-          handleBuiltInTouches: true,
-          getTouchedSpotIndicator: (barData, spotIndexes) =>
-              spotIndexes.map((i) {
-            return TouchedSpotIndicatorData(
-              FlLine(
-                  color: chartColor.withOpacity(0.5),
-                  strokeWidth: 1.5,
-                  dashArray: [4, 4]),
-              FlDotData(
-                getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                  radius: 5,
-                  color: chartColor,
-                  strokeWidth: 2.5,
-                  strokeColor: chartColor.withOpacity(0.3),
-                ),
-              ),
-            );
-          }).toList(),
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF1C1C1E),
-            tooltipRoundedRadius: 10,
-            tooltipPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
-              final t = points[spot.x.round().clamp(0, points.length - 1)].time;
-              return LineTooltipItem(
-                cf.format(spot.y),
-                const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13),
-                children: [
-                  TextSpan(
-                    text:
-                        '\n${DateFormat(_selectedTimeframe == '1d' ? 'd MMM, HH:mm' : 'd MMM yyyy').format(t)}',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontWeight: FontWeight.w500,
-                        fontSize: 11),
-                  ),
+      ),
+    );
+
+    return Semantics(
+      image: true,
+      label:
+          '${s.balanceEvolution}, ${cf.format(_getAccountBalance(provider))}',
+      child: LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: (points.length - 1).toDouble(),
+          minY: axis.min,
+          maxY: axis.max,
+          showingTooltipIndicators: selectedPointIndex == null
+              ? const []
+              : [
+                  ShowingTooltipIndicators([
+                    LineBarSpot(
+                      trendLine,
+                      0,
+                      spots[selectedPointIndex],
+                    ),
+                  ]),
                 ],
+          // Keep the stroke, its glow and the fill inside the plot area so they
+          // cannot bleed over the labels and blur where the line really sits.
+          clipData: const FlClipData.all(),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                // One tick per sample, filtered to the indices `labelIndices`
+                // chose — it guarantees both ends are labelled and that no two
+                // labels ever land side by side.
+                interval: 1,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.round();
+                  if (idx < 0 ||
+                      idx >= points.length ||
+                      !visibleLabels.contains(idx)) {
+                    return const SizedBox.shrink();
+                  }
+                  final selected = idx == selectedPointIndex;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: AnimatedContainer(
+                      key: selected
+                          ? ValueKey('balance-date-selected-$idx')
+                          : null,
+                      duration: const Duration(milliseconds: 220),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: selected ? 9 : 2,
+                        vertical: selected ? 5 : 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? (isDark
+                                ? Colors.white.withOpacity(0.18)
+                                : Colors.black.withOpacity(0.10))
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        selected
+                            ? formatSelectedDate(points[idx].time)
+                            : formatDate(points[idx].time),
+                        style: TextStyle(
+                          fontSize: selected ? 10 : 9,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                          color: selected
+                              ? (isDark ? Colors.white : Colors.black87)
+                              : mutedColor,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          lineTouchData: LineTouchData(
+            handleBuiltInTouches: false,
+            touchSpotThreshold: 24,
+            touchCallback: (event, response) {
+              final isSelectionEvent = event is FlTapDownEvent ||
+                  event is FlPanStartEvent ||
+                  event is FlPanUpdateEvent;
+              final touched = response?.lineBarSpots;
+              if (!isSelectionEvent || touched == null || touched.isEmpty) {
+                return;
+              }
+              final index = touched.first.spotIndex;
+              if (_selectedBalancePointIndex != index) {
+                setState(() => _selectedBalancePointIndex = index);
+              }
+            },
+            getTouchedSpotIndicator: (barData, spotIndexes) =>
+                spotIndexes.map((i) {
+              return TouchedSpotIndicatorData(
+                FlLine(
+                    color: chartColor.withOpacity(0.5),
+                    strokeWidth: 1.5,
+                    dashArray: [4, 4]),
+                FlDotData(
+                  getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                    radius: 5,
+                    color: chartColor,
+                    strokeWidth: 2.5,
+                    strokeColor: chartColor.withOpacity(0.3),
+                  ),
+                ),
               );
             }).toList(),
-          ),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            // A balance moves in steps. A loose spline rounds those steps into
-            // peaks and troughs the balance never actually reached, so keep the
-            // curve tight and clamp it to the real values.
-            curveSmoothness: 0.2,
-            preventCurveOverShooting: true,
-            color: chartColor,
-            barWidth: 2.5,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            shadow: Shadow(color: chartColor.withOpacity(0.22), blurRadius: 6),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.0, 0.75],
-                colors: [
-                  chartColor.withOpacity(0.22),
-                  chartColor.withOpacity(0.0)
-                ],
-              ),
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => const Color(0xFF1C1C1E),
+              tooltipRoundedRadius: 10,
+              fitInsideHorizontally: true,
+              fitInsideVertically: true,
+              tooltipPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
+                final t =
+                    points[spot.x.round().clamp(0, points.length - 1)].time;
+                return LineTooltipItem(
+                  exactAmount(spot.y),
+                  const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13),
+                  children: [
+                    TextSpan(
+                      text:
+                          '\n${DateFormat(_selectedTimeframe == '1d' ? 'd MMM, HH:mm' : 'd MMM yyyy', Localizations.localeOf(context).toLanguageTag()).format(t)}',
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontWeight: FontWeight.w500,
+                          fontSize: 11),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ),
-        ],
+          lineBarsData: [trendLine],
+        ),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
       ),
     );
   }
-
 
   Widget _headerIcon(String icon, VoidCallback onTap) {
     return GestureDetector(
@@ -1224,6 +1394,7 @@ class HomeScreenState extends State<HomeScreen> {
     required double amount,
     required MoneyFormat cf,
     required VoidCallback onTap,
+
     /// Colour for the amount only — icons stay neutral across the app.
     /// Leave null to colour by the sign of [amount].
     Color? amountColor,
@@ -1241,21 +1412,16 @@ class HomeScreenState extends State<HomeScreen> {
               height: 44,
               child: Center(
                 child: imagePath != null
-                    ? ClipRRect(
+                    ? StoredImage(
+                        reference: imagePath,
+                        bucket: SupabaseSyncService.logosBucket,
+                        width: 44,
+                        height: 44,
                         borderRadius: BorderRadius.circular(14),
-                        child: imagePath.startsWith('http')
-                            ? Image.network(imagePath,
-                                width: 44,
-                                height: 44,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    AppIcon(icon, color: iconColor, size: 28))
-                            : Image.file(File(imagePath),
-                                width: 44,
-                                height: 44,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    AppIcon(icon, color: iconColor, size: 28)),
+                        placeholder:
+                            AppIcon(icon, color: iconColor, size: 28),
+                        errorWidget:
+                            AppIcon(icon, color: iconColor, size: 28),
                       )
                     : AppIcon(icon, color: iconColor, size: 28),
               ),
@@ -1327,15 +1493,17 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _getDateGroupLabel(DateTime date) {
+  String _getDateGroupLabel(BuildContext context, DateTime date) {
+    final s = S.of(context);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final d = DateTime(date.year, date.month, date.day);
     final diff = today.difference(d).inDays;
-    if (diff == 0) return 'TODAY';
-    if (diff == 1) return 'YESTERDAY';
-    if (diff < 7) return DateFormat('EEEE').format(date).toUpperCase();
-    return DateFormat('MMM d').format(date).toUpperCase();
+    if (diff == 0) return s.today.toUpperCase();
+    if (diff == 1) return s.yesterday.toUpperCase();
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    if (diff < 7) return DateFormat('EEEE', locale).format(date).toUpperCase();
+    return DateFormat.MMMd(locale).format(date).toUpperCase();
   }
 
   // ── Transactions inline filter helpers ──
@@ -1351,7 +1519,11 @@ class HomeScreenState extends State<HomeScreen> {
     if (_txSearchController.text.isNotEmpty) {
       final q = _txSearchController.text.toLowerCase();
       list = list.where((t) {
-        final note = (t.note ?? '').toLowerCase();
+        final note = (S
+                    .forLocale(context.read<AppProvider>().settings.locale)
+                    .systemNote(t.note) ??
+                '')
+            .toLowerCase();
         final desc = (t.description ?? '').toLowerCase();
         final amount = t.amount.toString();
         return note.contains(q) || desc.contains(q) || amount.contains(q);
@@ -1443,6 +1615,7 @@ class HomeScreenState extends State<HomeScreen> {
     bool isDark, {
     AppProvider? provider,
   }) {
+    final s = S.of(context);
     // Group by date
     final groups = <String, List<dynamic>>{};
     for (final t in transactions) {
@@ -1461,7 +1634,7 @@ class HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 16, 0, 8),
               child: Text(
-                _getDateGroupLabel(date),
+                _getDateGroupLabel(context, date),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
@@ -1504,8 +1677,8 @@ class HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: cat != null
-                                    ? _buildCategoryIcon(
-                                        cat.icon, AppTheme.adaptiveIcon(context))
+                                    ? _buildCategoryIcon(cat.icon,
+                                        AppTheme.adaptiveIcon(context))
                                     : Icon(_getTransactionIcon(t.type),
                                         color: AppTheme.adaptiveIcon(context),
                                         size: 20),
@@ -1516,7 +1689,12 @@ class HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      t.note ??
+                                      S
+                                              .forLocale(context
+                                                  .read<AppProvider>()
+                                                  .settings
+                                                  .locale)
+                                              .systemNote(t.note) ??
                                           cat?.name ??
                                           _getTransactionTypeLabel(t.type),
                                       style: Theme.of(context)
@@ -1529,7 +1707,12 @@ class HomeScreenState extends State<HomeScreen> {
                                     const SizedBox(height: 2),
                                     Text(
                                       t.description ??
-                                          DateFormat('h:mm a').format(tDate),
+                                          DateFormat(
+                                                  'h:mm a',
+                                                  Localizations.localeOf(
+                                                          context)
+                                                      .toLanguageTag())
+                                              .format(tDate),
                                       style:
                                           Theme.of(context).textTheme.bodySmall,
                                       overflow: TextOverflow.ellipsis,
@@ -1548,7 +1731,8 @@ class HomeScreenState extends State<HomeScreen> {
                                     // money went.
                                     cf.hidden
                                         ? cf.format(t.amount)
-                                        : cf.signed(t.amount, positive: t.type == 'income'),
+                                        : cf.signed(t.amount,
+                                            positive: t.type == 'income'),
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -1561,12 +1745,12 @@ class HomeScreenState extends State<HomeScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color:
-                                            AppTheme.adaptiveIconSurface(context),
+                                        color: AppTheme.adaptiveIconSurface(
+                                            context),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        cat.name,
+                                        s.categoryDisplayName(cat.id, cat.name),
                                         style: TextStyle(
                                             fontSize: 9,
                                             fontWeight: FontWeight.w600,
@@ -1576,7 +1760,11 @@ class HomeScreenState extends State<HomeScreen> {
                                     )
                                   else
                                     Text(
-                                      DateFormat('h:mm a').format(tDate),
+                                      DateFormat(
+                                              'h:mm a',
+                                              Localizations.localeOf(context)
+                                                  .toLanguageTag())
+                                          .format(tDate),
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -1685,7 +1873,12 @@ class HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            t.note ??
+                            S
+                                    .forLocale(context
+                                        .read<AppProvider>()
+                                        .settings
+                                        .locale)
+                                    .systemNote(t.note) ??
                                 cat?.name ??
                                 _getTransactionTypeLabel(t.type),
                             style: const TextStyle(
@@ -1694,7 +1887,11 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            DateFormat('MMM d, yyyy · h:mm a').format(date),
+                            DateFormat(
+                                    'MMM d, yyyy · h:mm a',
+                                    Localizations.localeOf(context)
+                                        .toLanguageTag())
+                                .format(date),
                             style: TextStyle(
                                 fontSize: 13,
                                 color:
@@ -1721,8 +1918,8 @@ class HomeScreenState extends State<HomeScreen> {
                   _detailInfoRow(ctx, IOSIcons.account_balance_rounded,
                       s.account, account.name),
                 if (cat != null)
-                  _detailInfoRow(
-                      ctx, IOSIcons.category_rounded, s.category, cat.name),
+                  _detailInfoRow(ctx, IOSIcons.category_rounded, s.category,
+                      s.categoryDisplayName(cat.id, cat.name)),
                 if (t.type != null)
                   _detailInfoRow(ctx, IOSIcons.label_rounded, s.type,
                       _getTransactionTypeLabel(t.type)),
@@ -1744,29 +1941,13 @@ class HomeScreenState extends State<HomeScreen> {
                       style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                   const SizedBox(height: 8),
-                  ClipRRect(
+                  StoredImage(
+                    reference: t.imagePath,
+                    width: double.infinity,
+                    height: 180,
                     borderRadius: BorderRadius.circular(16),
-                    child: t.imagePath!.startsWith('http')
-                        ? Image.network(t.imagePath!,
-                            width: double.infinity,
-                            height: 180,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                                height: 180,
-                                color: Colors.grey.withOpacity(0.1),
-                                child: const Center(
-                                    child: Icon(IOSIcons.broken_image_rounded,
-                                        size: 40))))
-                        : Image.file(File(t.imagePath!),
-                            width: double.infinity,
-                            height: 180,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                                height: 180,
-                                color: Colors.grey.withOpacity(0.1),
-                                child: const Center(
-                                    child: Icon(IOSIcons.broken_image_rounded,
-                                        size: 40)))),
+                    errorWidget: const Icon(IOSIcons.broken_image_rounded,
+                        size: 40),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -1775,56 +1956,45 @@ class HomeScreenState extends State<HomeScreen> {
                 // Action buttons: Edit + Delete
                 Row(
                   children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            if (provider != null) {
-                              final confirmed = true;
-                              Navigator.pop(ctx);
-                              showDialog<bool>(
-                                context: context,
-                                builder: (dCtx) => AlertDialog(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20)),
-                                  title: Text(s.deleteTransaction),
-                                  content: Text(s.deleteConfirm.replaceAll(
-                                      '{name}',
-                                      t.note ??
-                                          _getTransactionTypeLabel(t.type))),
-                                  actions: [
-                                    TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(dCtx, false),
-                                        child: Text(s.cancel)),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(dCtx, true);
-                                        provider!.deleteTransaction(t.id);
-                                      },
-                                      style: TextButton.styleFrom(
-                                          foregroundColor: AppTheme.error),
-                                      child: Text(s.delete),
-                                    ),
-                                  ],
+                    TransactionDeleteButton(
+                      onPressed: () {
+                        if (provider != null) {
+                          final confirmed = true;
+                          Navigator.pop(ctx);
+                          showDialog<bool>(
+                            context: context,
+                            builder: (dCtx) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)),
+                              title: Text(s.deleteTransaction),
+                              content: Text(s.deleteConfirm.replaceAll(
+                                  '{name}',
+                                  S
+                                          .forLocale(context
+                                              .read<AppProvider>()
+                                              .settings
+                                              .locale)
+                                          .systemNote(t.note) ??
+                                      _getTransactionTypeLabel(t.type))),
+                              actions: [
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dCtx, false),
+                                    child: Text(s.cancel)),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(dCtx, true);
+                                    provider!.deleteTransaction(t.id);
+                                  },
+                                  style: TextButton.styleFrom(
+                                      foregroundColor: AppTheme.error),
+                                  child: Text(s.delete),
                                 ),
-                              );
-                            }
-                          },
-                          icon: const Icon(IOSIcons.delete_outline_rounded,
-                              size: 18),
-                          label: const Text('Delete',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.error,
-                            side: BorderSide(
-                                color: AppTheme.error.withOpacity(0.3)),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                          ),
-                        ),
-                      ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1834,16 +2004,10 @@ class HomeScreenState extends State<HomeScreen> {
                         child: ElevatedButton.icon(
                           onPressed: () {
                             Navigator.pop(ctx);
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) =>
-                                  AddTransactionModal(initialTransaction: t),
-                            );
+                            showTransactionSheet(context, initialTransaction: t);
                           },
                           icon: const Icon(IOSIcons.edit_rounded, size: 18),
-                          label: Text(s.edit + ' ' + 'Transaction',
+                          label: Text(s.editTransaction,
                               style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight
@@ -1978,11 +2142,11 @@ class HomeScreenState extends State<HomeScreen> {
   // Transaction amount colours now come from AppTheme.transactionAmountColor
   // so every screen shares one definition.
 
-  String _getSelectedAccountName(AppProvider provider) {
-    if (provider.selectedAccountId == null) return 'All Accounts';
+  String _getSelectedAccountName(AppProvider provider, S s) {
+    if (provider.selectedAccountId == null) return s.allAccounts;
     final account =
         provider.accounts.where((a) => a.id == provider.selectedAccountId);
-    return account.isNotEmpty ? account.first.name : 'All Accounts';
+    return account.isNotEmpty ? account.first.name : s.allAccounts;
   }
 
   Widget _buildHeaderAccountIcon(AppProvider provider) {
@@ -1991,25 +2155,16 @@ class HomeScreenState extends State<HomeScreen> {
           provider.accounts.where((a) => a.id == provider.selectedAccountId);
       if (match.isNotEmpty && match.first.imagePath != null) {
         final path = match.first.imagePath!;
-        return SizedBox(
+        final fallback = Icon(_getAccountIcon(provider),
+            size: 16, color: AppTheme.adaptiveIcon(context));
+        return StoredImage(
+          reference: path,
+          bucket: SupabaseSyncService.logosBucket,
           width: 18,
           height: 18,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: path.startsWith('http')
-                ? Image.network(path,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                        _getAccountIcon(provider),
-                        size: 16,
-                        color: AppTheme.adaptiveIcon(context)))
-                : Image.file(File(path),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                        _getAccountIcon(provider),
-                        size: 16,
-                        color: AppTheme.adaptiveIcon(context))),
-          ),
+          borderRadius: BorderRadius.circular(5),
+          placeholder: fallback,
+          errorWidget: fallback,
         );
       }
     }
@@ -2135,7 +2290,8 @@ class HomeScreenState extends State<HomeScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(IOSIcons.autorenew_rounded,
-                                      color: AppTheme.adaptiveIcon(ctx), size: 20),
+                                      color: AppTheme.adaptiveIcon(ctx),
+                                      size: 20),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -2144,8 +2300,15 @@ class HomeScreenState extends State<HomeScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                          rule.templateTransaction.note ??
-                                              'Subscription',
+                                          S
+                                                  .forLocale(context
+                                                      .read<AppProvider>()
+                                                      .settings
+                                                      .locale)
+                                                  .systemNote(rule
+                                                      .templateTransaction
+                                                      .note) ??
+                                              s.subscription,
                                           style: Theme.of(ctx)
                                               .textTheme
                                               .titleMedium
@@ -2153,7 +2316,19 @@ class HomeScreenState extends State<HomeScreen> {
                                                   fontWeight: FontWeight.w600)),
                                       const SizedBox(height: 2),
                                       Text(
-                                          'Due ${DateFormat('MMM d').format(DateTime.parse(rule.nextDate))} · ${rule.frequency}',
+                                          '${s.tr('dueOn', {
+                                                'date':
+                                                    MaterialLocalizations.of(
+                                                            ctx)
+                                                        .formatMediumDate(
+                                                            DateTime.parse(
+                                                                rule.nextDate)),
+                                              })} · ${switch (rule.frequency) {
+                                            'weekly' => s.weekly,
+                                            'monthly' => s.monthly,
+                                            'yearly' => s.yearly,
+                                            _ => rule.frequency,
+                                          }}',
                                           style: Theme.of(ctx)
                                               .textTheme
                                               .bodySmall),

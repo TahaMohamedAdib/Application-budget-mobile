@@ -20,6 +20,19 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 -- Create indexes for config table
 CREATE INDEX IF NOT EXISTS idx_app_config_key ON public.app_config(key);
 
+-- Every other table in this schema enables RLS; app_config must too. Supabase
+-- exposes the whole public schema through PostgREST, so a table left without
+-- RLS is readable — and, with a permissive grant, writable — by any client
+-- holding the anon key. Nothing here is user data, but the trigger below
+-- trusts app_config to build URLs, so an attacker who could write to it could
+-- point generated links at a host they control.
+ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
+
+-- No policy is created deliberately: with RLS on and no policy, normal roles
+-- get nothing. The SECURITY DEFINER function below still reads it, because a
+-- definer function runs as the owner and bypasses RLS.
+REVOKE ALL ON public.app_config FROM anon, authenticated;
+
 -- ============================================
 -- Add missing columns to existing tables
 -- ============================================

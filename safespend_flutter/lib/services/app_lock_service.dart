@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'secure_storage_service.dart';
 
@@ -29,6 +30,11 @@ class AppLockService {
 
   static String _digest(String salt, String pin) =>
       sha256.convert(utf8.encode('$salt$pin')).toString();
+
+  /// Test-only view of [_digest], so the security regression suite can assert
+  /// that the salt actually varies the output without touching the keychain.
+  @visibleForTesting
+  static String debugDigestFor(String salt, String pin) => _digest(salt, pin);
 
   static String _newSalt() {
     final rng = Random.secure();

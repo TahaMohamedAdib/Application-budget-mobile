@@ -1,3 +1,4 @@
+import '../widgets/app_form_sheet.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
@@ -6,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -23,6 +24,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/ai_confirmation_card.dart';
+import '../widgets/feature_help_button.dart';
 import 'chat_widgets/chat_input_bar.dart';
 import 'chat_widgets/message_bubble.dart';
 import 'chat_widgets/suggestion_card.dart';
@@ -30,6 +32,15 @@ import 'chat_widgets/typing_indicator.dart';
 
 final _allowedEmails = EnvConfig.allowedEmails;
 const _openToAll = EnvConfig.aiOpenToAll;
+
+/// Closes the AI Coach for everyone and shows a "coming soon" screen in its
+/// place, whatever the build-time access flags say.
+///
+/// The feature is finished but not ready to be seen, so this gates at the
+/// screen rather than deleting anything: the services, tools, conversation
+/// store and sync paths are all untouched and keep compiling. Flip this to
+/// false to reopen it, and the allowlist in [_hasAccess] applies again.
+const _coachComingSoon = true;
 
 // ── Data models ────────────────────────────────────────────────
 /// An AI-requested mutation held pending user approval.
@@ -180,7 +191,9 @@ class _CoachScreenState extends State<CoachScreen> {
   @override
   void initState() {
     super.initState();
-    _loadConvos();
+    // Skipped while the coach is closed: _loadConvos hits secure storage and
+    // Supabase to build a history the "coming soon" screen never shows.
+    if (!_coachComingSoon) _loadConvos();
   }
 
   @override
@@ -407,7 +420,7 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   _Convo _newConvo() {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     return _Convo(
       id: const Uuid().v4(),
       title: s.newConversation,
@@ -456,6 +469,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Access ───────────────────────────────────────────────────
   bool _hasAccess(String? email) {
+    if (_coachComingSoon) return false;
     if (_openToAll) return true;
     if (email == null) return false;
     return _allowedEmails.any((e) => e.toLowerCase() == email.toLowerCase());
@@ -466,8 +480,8 @@ class _CoachScreenState extends State<CoachScreen> {
   /// Routes model-requested tools through the executor.
   ///
   /// Reads run immediately; writes surface a confirmation card and change
-  /// nothing until the user approves. No backend returns tool calls yet, so
-  /// this is dormant with the Gemini provider.
+  /// nothing until the user approves. Dormant while no backend returns tool
+  /// calls.
   void _handleToolCalls(AIResponse response, AppProvider provider) {
     final executor = AIToolExecutor(provider);
     final pending = <_PendingAction>[];
@@ -482,8 +496,7 @@ class _CoachScreenState extends State<CoachScreen> {
             summary: outcome.confirmationSummary ?? call.name,
           ));
         case AIToolDecision.rejected:
-          notes.add(outcome.result?.errorMessage ??
-              "I couldn't complete that action.");
+          notes.add(S.of(context).tr('actionCouldNotBeCompleted'));
         case AIToolDecision.executed:
           break;
       }
@@ -493,8 +506,7 @@ class _CoachScreenState extends State<CoachScreen> {
       _isTyping = false;
       if (response.text.isNotEmpty) {
         _current.messages.add(_ChatMsg(text: response.text, isUser: false));
-        _current.history
-            .add({'role': 'assistant', 'content': response.text});
+        _current.history.add({'role': 'assistant', 'content': response.text});
       }
       for (final note in notes) {
         _current.messages.add(_ChatMsg(text: note, isUser: false));
@@ -506,13 +518,14 @@ class _CoachScreenState extends State<CoachScreen> {
 
   /// Executes an approved mutation.
   void _confirmAction(_PendingAction action, AppProvider provider) {
+    final s = S.of(context);
     final result = AIToolExecutor(provider).confirm(action.call);
     setState(() {
       action.resolved = true;
-      action.resolvedLabel = result.ok ? 'Done' : 'Failed';
+      action.resolvedLabel = result.ok ? s.done : s.tr('failed');
       if (!result.ok) {
         _current.messages.add(_ChatMsg(
-          text: result.errorMessage ?? 'That action could not be completed.',
+          text: s.tr('actionCouldNotBeCompleted'),
           isUser: false,
         ));
       }
@@ -520,9 +533,10 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   void _cancelAction(_PendingAction action) {
+    final s = S.of(context);
     setState(() {
       action.resolved = true;
-      action.resolvedLabel = 'Cancelled';
+      action.resolvedLabel = s.tr('cancelled');
     });
   }
 
@@ -571,6 +585,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Send ─────────────────────────────────────────────────────
   Future<void> _send(AppProvider provider) async {
+    final s = S.of(context);
     final text = _msgCtrl.text.trim();
     final imgPath = _pendingImage;
     final docPath = _pendingFile;
@@ -581,7 +596,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
     String displayTxt = text;
     if (displayTxt.isEmpty) {
-      displayTxt = imgPath != null ? '📷 Image' : '📄 $docName';
+      displayTxt = imgPath != null ? '📷 ${s.tr('image')}' : '📄 $docName';
     }
     String historyContent = text.isNotEmpty ? text : '';
     if (imgPath != null)
@@ -606,7 +621,8 @@ class _CoachScreenState extends State<CoachScreen> {
       _pendingFile = null;
       _pendingFileName = null;
       _pendingFileMime = null;
-      if (_current.title == 'New conversation') {
+      if (_current.title == s.newConversation ||
+          _current.title == S.forLocale(S.fallbackLocale).newConversation) {
         _current.title = displayTxt.length > 40
             ? '${displayTxt.substring(0, 40)}...'
             : displayTxt;
@@ -643,18 +659,36 @@ class _CoachScreenState extends State<CoachScreen> {
 
       final attachments = <AIAttachment>[];
       if (attachBytes != null && attachMime != null) {
-        attachments.add(attachIsImage
+        final candidate = attachIsImage
             ? AIAttachment.image(bytes: attachBytes, mimeType: attachMime)
             : AIAttachment.document(
-                bytes: attachBytes,
-                mimeType: attachMime,
-                fileName: attachName));
+                bytes: attachBytes, mimeType: attachMime, fileName: attachName);
+        // Oversized or unexpected types are dropped before they reach a
+        // provider: the upstream would reject them anyway, and forwarding
+        // them spends the user's quota to no purpose.
+        if (!candidate.isAcceptable) {
+          if (mounted) {
+            setState(() {
+              _isTyping = false;
+              _pendingImage = null;
+              _pendingFile = null;
+              _pendingFileName = null;
+              _pendingFileMime = null;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(s.tr('attachmentRejected'))),
+            );
+          }
+          return;
+        }
+        attachments.add(candidate);
       }
 
       final response = await AIServiceFactory.instance.sendMessage(
         history: _current.history
             .map((h) => AIMessage(
-                  role: h['role'] == 'assistant' ? AIRole.assistant : AIRole.user,
+                  role:
+                      h['role'] == 'assistant' ? AIRole.assistant : AIRole.user,
                   text: h['content'] ?? '',
                 ))
             .toList(),
@@ -672,7 +706,7 @@ class _CoachScreenState extends State<CoachScreen> {
       }
 
       final reply = response.text.isEmpty
-          ? (response.error?.message ?? 'No response received.')
+          ? (s.tr('actionCouldNotBeCompleted'))
           : response.text;
       setState(() {
         _current.messages.add(_ChatMsg(text: reply, isUser: false));
@@ -684,8 +718,7 @@ class _CoachScreenState extends State<CoachScreen> {
       if (!mounted) return;
       setState(() {
         _current.messages.add(_ChatMsg(
-          text:
-              'Something went wrong. Please check your connection and try again.',
+          text: s.tr('chatConnectionError'),
           isUser: false,
           isError: true,
         ));
@@ -784,17 +817,22 @@ class _CoachScreenState extends State<CoachScreen> {
       if (c.isArchived) continue;
       String label;
       if (c.createdAt.isAfter(todayStart)) {
-        label = 'Today';
+        label = s.today;
       } else if (c.createdAt.isAfter(yesterdayStart)) {
-        label = 'Yesterday';
+        label = s.yesterday;
       } else if (c.createdAt.isAfter(weekStart)) {
-        label = 'Previous 7 Days';
+        label = s.tr('previousSevenDays');
       } else {
-        label = 'Older';
+        label = s.tr('older');
       }
       groups.putIfAbsent(label, () => []).add(c);
     }
-    final orderedLabels = ['Today', 'Yesterday', 'Previous 7 Days', 'Older'];
+    final orderedLabels = [
+      s.today,
+      s.yesterday,
+      s.tr('previousSevenDays'),
+      s.tr('older'),
+    ];
 
     return Drawer(
       backgroundColor: drawerBg,
@@ -829,7 +867,7 @@ class _CoachScreenState extends State<CoachScreen> {
                   Text(
                     'SafeSpend AI',
                     style: GoogleFonts.inter(
-                      fontSize: 19,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: isDark
                           ? AppTheme.darkTextPrimary
@@ -838,7 +876,7 @@ class _CoachScreenState extends State<CoachScreen> {
                   ),
                   const Spacer(),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: s.close,
                     icon: Icon(
                       IOSIcons.close_rounded,
                       size: 19,
@@ -1128,7 +1166,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Project detail view (ChatGPT-style) ───────────────────
   void _showProjectDetailView(_Project proj, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final bg = isDark ? const Color(0xFF0D0D0D) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtleColor = isDark ? Colors.white60 : Colors.black54;
@@ -1215,7 +1253,7 @@ class _CoachScreenState extends State<CoachScreen> {
                         child: Text(
                           proj.name,
                           style: GoogleFonts.inter(
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
                             color: textColor,
                           ),
@@ -1393,7 +1431,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Project actions (long-press on project tile) ──────────
   void _showProjectActions(_Project proj, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final bg = isDark ? const Color(0xFF1A1A1A) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtleColor = isDark ? Colors.white60 : Colors.black54;
@@ -1440,52 +1478,52 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Rename project dialog ─────────────────────────────────
   void _showRenameProjectDialog(_Project proj, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final ctrl = TextEditingController(text: proj.name);
-    showDialog(
+    showAppFormSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.renameProject,
-            style:
-                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: GoogleFonts.inter(fontSize: 15),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            hintText: s.projectName,
+      builder: (ctx) => AppFormSheet(
+          header: Text(s.renameProject,
+              style:
+                  GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+          body: TextField(
+            controller: ctrl,
+            autofocus: false,
+            style: GoogleFonts.inter(fontSize: 15),
+            decoration: InputDecoration(
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              hintText: s.projectName,
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel, style: GoogleFonts.inter(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () {
-              final newName = ctrl.text.trim();
-              if (newName.isNotEmpty) {
-                setState(() => proj.name = newName);
-                _saveProjects();
-                _syncProjectToCloud(proj);
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(s.save,
-                style: GoogleFonts.inter(
-                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+          actions: Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child:
+                  Text(s.cancel, style: GoogleFonts.inter(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                final newName = ctrl.text.trim();
+                if (newName.isNotEmpty) {
+                  setState(() => proj.name = newName);
+                  _saveProjects();
+                  _syncProjectToCloud(proj);
+                }
+                Navigator.pop(ctx);
+              },
+              child: Text(s.save,
+                  style: GoogleFonts.inter(
+                      color: AppTheme.goldPrimary,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ])),
     );
   }
 
   // ── Delete project confirmation ───────────────────────────
   void _confirmDeleteProject(_Project proj, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final convoCount = _convos.where((c) => c.projectId == proj.id).length;
     showDialog(
       context: context,
@@ -1496,7 +1534,10 @@ class _CoachScreenState extends State<CoachScreen> {
             style:
                 GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Text(
-          'This will delete "${proj.name}". $convoCount conversation${convoCount == 1 ? '' : 's'} will be unlinked but not deleted.',
+          s.tr('deleteProjectDescription', {
+            'name': proj.name,
+            'count': convoCount,
+          }),
           style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
         ),
         actions: [
@@ -1520,7 +1561,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Conversation action sheet ────────────────────────────────
   void _showConvoActions(_Convo conv, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final bg = isDark ? const Color(0xFF1A1A1A) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtleColor = isDark ? Colors.white60 : Colors.black54;
@@ -1612,50 +1653,50 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Rename dialog ──────────────────────────────────────────
   void _showRenameDialog(_Convo conv, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final ctrl = TextEditingController(text: conv.title);
-    showDialog(
+    showAppFormSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.rename,
-            style:
-                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: GoogleFonts.inter(fontSize: 15),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            hintText: s.conversationName,
+      builder: (ctx) => AppFormSheet(
+          header: Text(s.rename,
+              style:
+                  GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+          body: TextField(
+            controller: ctrl,
+            autofocus: false,
+            style: GoogleFonts.inter(fontSize: 15),
+            decoration: InputDecoration(
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              hintText: s.conversationName,
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel, style: GoogleFonts.inter(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () {
-              final newTitle = ctrl.text.trim();
-              if (newTitle.isNotEmpty) {
-                _renameConvo(conv, newTitle);
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(s.save,
-                style: GoogleFonts.inter(
-                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+          actions: Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child:
+                  Text(s.cancel, style: GoogleFonts.inter(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                final newTitle = ctrl.text.trim();
+                if (newTitle.isNotEmpty) {
+                  _renameConvo(conv, newTitle);
+                }
+                Navigator.pop(ctx);
+              },
+              child: Text(s.save,
+                  style: GoogleFonts.inter(
+                      color: AppTheme.goldPrimary,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ])),
     );
   }
 
   // ── Delete confirmation ─────────────────────────────────────
   void _confirmDeleteConvo(_Convo conv, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1665,7 +1706,7 @@ class _CoachScreenState extends State<CoachScreen> {
             style:
                 GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Text(
-          'This will permanently delete "${conv.title}".',
+          s.tr('deleteConversationDescription', {'name': conv.title}),
           style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
         ),
         actions: [
@@ -1689,7 +1730,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Project picker — "Add to project" submenu ───────────────
   void _showProjectPicker(_Convo conv, bool isDark) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final bg = isDark ? const Color(0xFF1A1A1A) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtleColor = isDark ? Colors.white60 : Colors.black54;
@@ -1805,7 +1846,9 @@ class _CoachScreenState extends State<CoachScreen> {
                                               fontWeight: FontWeight.w500,
                                               color: textColor)),
                                       Text(
-                                          '$convoCount conversation${convoCount == 1 ? '' : 's'}',
+                                          s.tr('conversationsCount', {
+                                            'count': convoCount,
+                                          }),
                                           style: GoogleFonts.inter(
                                               fontSize: 12,
                                               color: subtleColor)),
@@ -1835,61 +1878,65 @@ class _CoachScreenState extends State<CoachScreen> {
   // ── New project dialog ──────────────────────────────────────
   void _showNewProjectDialog(bool isDark,
       {void Function(String projectId)? onCreated}) {
-    final s = S.forLocale(S.fallbackLocale);
+    final s = S.of(context);
     final ctrl = TextEditingController();
-    showDialog(
+    showAppFormSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.newProject,
-            style:
-                GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: GoogleFonts.inter(fontSize: 15),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            hintText: s.projectName,
+      builder: (ctx) => AppFormSheet(
+          header: Text(s.newProject,
+              style:
+                  GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+          body: TextField(
+            controller: ctrl,
+            autofocus: false,
+            style: GoogleFonts.inter(fontSize: 15),
+            decoration: InputDecoration(
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              hintText: s.projectName,
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(s.cancel, style: GoogleFonts.inter(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = ctrl.text.trim();
-              if (name.isNotEmpty) {
-                final p = _Project(
-                    id: const Uuid().v4(),
-                    name: name,
-                    createdAt: DateTime.now());
-                setState(() => _projects.add(p));
-                _saveProjects();
-                _syncProjectToCloud(p);
-                Navigator.pop(ctx);
-                onCreated?.call(p.id);
-              }
-            },
-            child: Text(s.create,
-                style: GoogleFonts.inter(
-                    color: AppTheme.goldPrimary, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+          actions: Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child:
+                  Text(s.cancel, style: GoogleFonts.inter(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                final name = ctrl.text.trim();
+                if (name.isNotEmpty) {
+                  final p = _Project(
+                      id: const Uuid().v4(),
+                      name: name,
+                      createdAt: DateTime.now());
+                  setState(() => _projects.add(p));
+                  _saveProjects();
+                  _syncProjectToCloud(p);
+                  Navigator.pop(ctx);
+                  onCreated?.call(p.id);
+                }
+              },
+              child: Text(s.create,
+                  style: GoogleFonts.inter(
+                      color: AppTheme.goldPrimary,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ])),
     );
   }
 
   String _fmtDate(DateTime dt) {
+    final s = S.of(context);
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return DateFormat('MMM d').format(dt);
+    if (diff.inMinutes < 1) return s.tr('justNow');
+    if (diff.inHours < 1) {
+      return s.tr('minutesAgo', {'count': diff.inMinutes});
+    }
+    if (diff.inDays < 1) return s.tr('hoursAgo', {'count': diff.inHours});
+    if (diff.inDays < 7) return s.tr('daysAgo', {'count': diff.inDays});
+    return DateFormat.MMMd(Localizations.localeOf(context).toLanguageTag())
+        .format(dt);
   }
 
   // ── Build ────────────────────────────────────────────────────
@@ -1901,6 +1948,16 @@ class _CoachScreenState extends State<CoachScreen> {
         final hasAccess = _hasAccess(auth.user?.email);
         final bgColor =
             isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+
+        // Decided before the loading guard: a closed coach has no
+        // conversations to wait for, and blocking on that load would show a
+        // spinner forever whenever the network or secure storage is slow.
+        if (_coachComingSoon) {
+          return Scaffold(
+            backgroundColor: bgColor,
+            body: SafeArea(child: _buildComingSoon(context, isDark)),
+          );
+        }
 
         if (!_ready) {
           return Scaffold(
@@ -1945,6 +2002,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   // ── Header ───────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context, bool isDark) {
+    final s = S.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
@@ -1952,7 +2010,7 @@ class _CoachScreenState extends State<CoachScreen> {
         children: [
           _GlassIconButton(
             icon: IOSIcons.menu_rounded,
-            tooltip: 'Conversations',
+            tooltip: s.tr('conversations'),
             isDark: isDark,
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
@@ -2015,18 +2073,18 @@ class _CoachScreenState extends State<CoachScreen> {
     final suggestions = [
       (
         s.monthlyOverview,
-        'How am I doing this month?',
+        s.tr('monthlyOverviewPrompt'),
         IOSIcons.calendar_today_rounded
       ),
       (
         s.spendingAnalysis,
-        'Where does my money go?',
+        s.tr('spendingAnalysisPrompt'),
         IOSIcons.pie_chart_outline_rounded
       ),
-      (s.savingsTips, 'Help me save more money', IOSIcons.savings_outlined),
+      (s.savingsTips, s.tr('savingsTipsPrompt'), IOSIcons.savings_outlined),
       (
         s.budgetPlan,
-        'Create a plan for me',
+        s.tr('budgetPlanPrompt'),
         IOSIcons.account_balance_wallet_outlined
       ),
     ];
@@ -2064,7 +2122,7 @@ class _CoachScreenState extends State<CoachScreen> {
                   ),
               const SizedBox(height: 22),
               Text(
-                'What can I help you plan?',
+                s.tr('coachWelcomeTitle'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 24,
@@ -2076,7 +2134,7 @@ class _CoachScreenState extends State<CoachScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Ask about your spending, budget, savings, or financial goals.',
+                s.tr('coachWelcomeBody'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14,
@@ -2146,11 +2204,13 @@ class _CoachScreenState extends State<CoachScreen> {
               if (j < _pendingActions.length) {
                 final action = _pendingActions[j];
                 return AIConfirmationCard(
-                  summary: action.summary,
+                  summary: AIToolExecutor(context.read<AppProvider>())
+                          .describe(action.call) ??
+                      action.summary,
                   isResolved: action.resolved,
                   resolvedLabel: action.resolvedLabel,
-                  onConfirm: () => _confirmAction(
-                      action, context.read<AppProvider>()),
+                  onConfirm: () =>
+                      _confirmAction(action, context.read<AppProvider>()),
                   onCancel: () => _cancelAction(action),
                 ).animate().fadeIn(duration: 250.ms);
               }
@@ -2199,6 +2259,84 @@ class _CoachScreenState extends State<CoachScreen> {
         _pendingFileMime = null;
       }),
       onChanged: (_) => setState(() {}),
+    );
+  }
+
+  // ── Coming soon ──────────────────────────────────────────────
+  /// The closed Coach keeps help in the top-right safe area, separate from
+  /// the centered message. Conversation controls remain unavailable.
+  Widget _buildComingSoon(BuildContext context, bool isDark) {
+    final s = S.of(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FeatureHelpButton(
+              title: s.tourCoachTitle,
+              description: s.aiCoachComingSoon,
+              icon: IOSIcons.auto_awesome_rounded,
+            ),
+          ),
+        ),
+        Expanded(
+            child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: AppTheme.adaptiveIconSurface(context),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.adaptiveIcon(context, alpha: 0.16),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    IOSIcons.auto_awesome_rounded,
+                    size: 34,
+                    color: AppTheme.adaptiveIcon(context),
+                  ),
+                ).animate().fadeIn(duration: 320.ms).scale(
+                    begin: const Offset(0.92, 0.92),
+                    end: const Offset(1, 1),
+                    duration: 320.ms),
+                const SizedBox(height: 26),
+                Text(
+                  s.aiCoachComingSoon,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                    color: isDark ? Colors.white : const Color(0xFF1C1C1E),
+                  ),
+                ).animate().fadeIn(duration: 320.ms, delay: 80.ms),
+                const SizedBox(height: 10),
+                Text(
+                  s.financialCoach,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    height: 1.45,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
+                ).animate().fadeIn(duration: 320.ms, delay: 140.ms),
+              ],
+            ),
+          ),
+        )),
+      ],
     );
   }
 
