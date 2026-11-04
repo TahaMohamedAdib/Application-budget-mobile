@@ -72,9 +72,10 @@
     typed.textContent = reply;
     setState("Coach answered");
     if (announce) announcement.textContent = reply;
+    if (!motion.matches) later(() => play(mode, false), 2000);
   }
 
-  function typeReply(mode, character = 0) {
+  function typeReply(mode, character = 0, announce = true) {
     const reply = demos[mode].reply;
     coach.classList.remove("is-thinking");
     coach.classList.add("is-typing");
@@ -82,14 +83,14 @@
     typed.textContent = reply.slice(0, character);
 
     if (character >= reply.length) {
-      showComplete(mode);
+      showComplete(mode, announce);
       return;
     }
 
-    later(() => typeReply(mode, character + 1), 16);
+    later(() => typeReply(mode, character + 1, announce), 16);
   }
 
-  function play(mode = activeMode) {
+  function play(mode = activeMode, announce = true) {
     clearTimers();
     activeMode = mode;
     announcement.textContent = "";
@@ -108,7 +109,7 @@
     setState("Coach is thinking");
     later(() => {
       setState("Coach is replying");
-      typeReply(mode);
+      typeReply(mode, 0, announce);
     }, 1050);
   }
 
