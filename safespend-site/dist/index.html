@@ -233,25 +233,49 @@
       .next-note a { text-underline-offset: 3px; }
       .next-note a:hover { color: var(--teal); }
 
-      /* Coach preview, drawn with the app's chat styles (chat_widgets/message_bubble.dart,
-         widgets/ai_confirmation_card.dart) */
+      /* Coach preview, based on the app's chat widgets. This is a visual demo only:
+         nothing is sent, changed, or recorded from the website. */
       .coach { position: sticky; top: 24px; padding: 20px; border: 1px solid var(--border); border-radius: 20px; background: var(--bg); box-shadow: 0 2px 8px rgba(0, 0, 0, .05); }
-      .coach-head { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 16px; margin-bottom: 20px; border-bottom: 1px solid var(--divider); }
+      .coach-head { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 16px; margin-bottom: 14px; border-bottom: 1px solid var(--divider); }
       .coach-head b { font-size: 15px; font-weight: 700; }
-      .coach-head span { font-size: 13px; color: var(--text-3); }
-      .bubble-user { max-width: 82%; margin-left: auto; padding: 12px 16px; border-radius: 20px; background: #eff1f2; font-size: 15px; line-height: 1.5; }
-      .bubble-ai { margin-top: 20px; font-size: 15px; line-height: 1.6; }
-      .bubble-ai p + p { margin-top: 8px; }
-      .bubble-ai strong { font-weight: 600; }
-      .confirm { margin-top: 16px; padding: 16px; border: 1px solid rgba(115, 117, 127, .18); border-radius: 18px; background: var(--surface); }
-      .confirm-title { font-size: 14px; font-weight: 600; }
-      .confirm dl { margin-top: 12px; font-size: 14px; }
-      .confirm dl div { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; }
-      .confirm dt { color: var(--text-2); }
-      .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
-      .confirm-actions span { display: grid; place-items: center; height: 40px; border-radius: 12px; font-size: 14px; font-weight: 600; }
-      .confirm-actions .cancel { border: 1px solid rgba(115, 117, 127, .24); color: #73757f; }
-      .confirm-actions .ok { background: var(--teal); color: #fff; }
+      .coach-head > span { font-size: 13px; color: var(--text-3); }
+      .coach-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 13px; background: var(--surface); }
+      .coach-tab { min-height: 42px; padding: 9px 12px; border: 1px solid transparent; border-radius: 9px; color: var(--text-2); background: transparent; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 180ms var(--ease), color 180ms var(--ease), border-color 180ms var(--ease); }
+      .coach-tab[aria-selected="true"] { color: var(--text); border-color: var(--border); background: var(--bg); }
+      .coach-tab:hover { color: var(--text); }
+      .coach-tab:focus-visible, .coach-replay:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+      .coach-stage { min-height: 297px; padding-top: 18px; }
+      .coach-state { display: flex; align-items: center; gap: 7px; min-height: 19px; margin-bottom: 12px; color: var(--text-3); font-size: 12px; }
+      .coach-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+      .bubble-user { max-width: 86%; margin-left: auto; padding: 12px 16px; border-radius: 20px 20px 5px 20px; background: #eff1f2; font-size: 15px; line-height: 1.5; }
+      .bubble-voice { display: flex; align-items: center; gap: 10px; }
+      .voice-mark { display: grid; grid-template-columns: repeat(4, 3px); align-items: center; gap: 2px; width: 25px; height: 24px; }
+      .voice-mark i { display: block; width: 3px; border-radius: 6px; background: var(--teal); animation: voice-wave 900ms ease-in-out infinite alternate; }
+      .voice-mark i:nth-child(1) { height: 8px; animation-delay: -180ms; }
+      .voice-mark i:nth-child(2) { height: 16px; animation-delay: -360ms; }
+      .voice-mark i:nth-child(3) { height: 11px; animation-delay: -540ms; }
+      .voice-mark i:nth-child(4) { height: 19px; animation-delay: -720ms; }
+      .voice-copy { min-width: 0; }
+      .voice-copy b { display: block; font-size: 13px; font-weight: 650; }
+      .voice-copy span { display: block; overflow: hidden; color: var(--text-2); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+      .typing-row { display: none; align-items: center; gap: 8px; width: max-content; margin-top: 20px; padding: 10px 13px; border-radius: 16px 16px 16px 5px; background: var(--surface); color: var(--text-2); font-size: 13px; }
+      .coach.is-thinking .typing-row { display: flex; }
+      .typing-dots { display: inline-flex; gap: 3px; }
+      .typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: coach-dot 860ms var(--ease) infinite alternate; }
+      .typing-dots i:nth-child(2) { animation-delay: 140ms; }.typing-dots i:nth-child(3) { animation-delay: 280ms; }
+      .bubble-ai { min-height: 86px; margin-top: 20px; font-size: 15px; line-height: 1.6; }
+      .bubble-ai[hidden] { display: none; }
+      .bubble-ai p { margin: 0; }.bubble-ai strong { font-weight: 650; }
+      .reply-caret { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -.12em; background: var(--teal); animation: cursor-blink 720ms step-end infinite; }
+      .coach:not(.is-typing) .reply-caret { display: none; }
+      .coach-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--divider); }
+      .coach-controls span { color: var(--text-3); font-size: 12px; }
+      .coach-replay { min-height: 38px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--teal); background: var(--bg); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease), border-color 180ms var(--ease); }
+      .coach-replay:hover { border-color: var(--teal); background: var(--teal-50); }
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+      @keyframes coach-dot { to { transform: translateY(-3px); opacity: .42; } }
+      @keyframes cursor-blink { 50% { opacity: 0; } }
+      @keyframes voice-wave { to { transform: scaleY(.55); opacity: .6; } }
 
       /* ── Privacy ─────────────────────────── */
       .privacy-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; margin-top: 56px; }
@@ -307,9 +331,10 @@
 
       @media (prefers-reduced-motion: reduce) {
         html { scroll-behavior: auto; }
-        *, *::before, *::after { transition-duration: .01ms !important; }
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
       }
     </style>
+    <script src="assets/coach-demo.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -506,17 +531,17 @@
             <p class="next-note">The Coach will ask your permission before it reads anything. <a href="/privacy#shared">How the Coach will handle your data</a></p>
           </div>
 
-          <figure class="coach" aria-labelledby="coach-caption">
+          <figure class="coach is-thinking" aria-labelledby="coach-caption" data-coach-demo>
             <div class="coach-head">
               <b id="coach-caption">Coach</b>
               <span>Preview</span>
             </div>
-            <p class="bubble-user">I just paid 250 for dinner with friends, in cash</p>
-            <div class="bubble-ai">
+            <p class="bubble-user" hidden aria-hidden="true">I just paid 250 for dinner with friends, in cash</p>
+            <div class="bubble-ai" hidden aria-hidden="true">
               <p>I’ll add it as an expense from your cash once you confirm.</p>
               <p>Your safe-to-spend for today goes from <strong class="num">295.56</strong> to <strong class="num">281.67 MAD</strong>, with 5,070.00 left for the 18 days of November that remain.</p>
             </div>
-            <div class="confirm">
+            <div class="confirm" hidden aria-hidden="true">
               <p class="confirm-title">Add expense</p>
               <dl class="num">
                 <div><dt>Amount</dt><dd>250.00 MAD</dd></div>
@@ -528,6 +553,23 @@
                 <span class="ok">Confirm</span>
               </div>
             </div>
+            <div class="coach-tabs" role="tablist" aria-label="Coach preview type">
+              <button class="coach-tab" type="button" role="tab" aria-selected="true" aria-controls="coach-stage" id="coach-text-tab" data-coach-mode="text">Type a question</button>
+              <button class="coach-tab" type="button" role="tab" aria-selected="false" aria-controls="coach-stage" id="coach-voice-tab" data-coach-mode="voice">Send a voice note</button>
+            </div>
+            <div class="coach-stage" id="coach-stage" role="tabpanel" aria-labelledby="coach-text-tab">
+              <p class="coach-state" aria-live="polite"><i aria-hidden="true"></i><span data-coach-state>Coach is thinking</span></p>
+              <div class="bubble-user" data-coach-user>
+                <span>Can I afford a 300 MAD jacket this week?</span>
+              </div>
+              <div class="typing-row" aria-hidden="true"><span class="typing-dots"><i></i><i></i><i></i></span><span>Coach is thinking</span></div>
+              <div class="bubble-ai" data-coach-answer hidden aria-hidden="true"><p><span data-coach-typed></span><span class="reply-caret"></span></p></div>
+              <span class="sr-only" data-coach-announcement aria-live="polite"></span>
+            </div>
+            <figcaption class="coach-controls">
+              <span>Illustrative preview &mdash; no real data</span>
+              <button class="coach-replay" type="button" data-coach-replay>Replay</button>
+            </figcaption>
           </figure>
         </div>
       </section>
