@@ -38,22 +38,32 @@
     timers.push(window.setTimeout(callback, delay));
   }
 
-  function setState(text) {
+  function setState(text, announce = true) {
+    state.setAttribute("aria-live", announce ? "polite" : "off");
     state.textContent = text;
   }
 
-  function renderUser(mode) {
+  function promptFor(mode) {
+    return mode === "voice" ? demos.voice.transcript : demos.text.user;
+  }
+
+  function renderUser(mode, character) {
+    const prompt = promptFor(mode);
+    const visiblePrompt = Number.isInteger(character) ? prompt.slice(0, character) : prompt;
+    user.hidden = false;
+
     if (mode === "voice") {
       user.classList.add("bubble-voice");
       user.innerHTML = `
         <span class="voice-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        <span class="voice-copy"><b>Voice note <span class="num">0:08</span></b><span>${demos.voice.transcript}</span></span>
+        <span class="voice-copy"><b>Voice note <span class="num">0:08</span></b><span data-coach-transcript></span></span>
       `;
+      user.querySelector("[data-coach-transcript]").textContent = visiblePrompt;
       return;
     }
 
     user.classList.remove("bubble-voice");
-    user.textContent = demos.text.user;
+    user.textContent = visiblePrompt;
   }
 
   function setSelectedTab(mode) {
@@ -70,7 +80,7 @@
     coach.classList.remove("is-thinking", "is-typing");
     answer.hidden = false;
     typed.textContent = reply;
-    setState("Coach answered");
+    setState("Coach answered", announce);
     if (announce) announcement.textContent = reply;
     if (!motion.matches) later(() => play(mode, false), 2000);
   }
@@ -90,27 +100,48 @@
     later(() => typeReply(mode, character + 1, announce), 16);
   }
 
+  function startReply(mode, announce) {
+    coach.classList.remove("is-writing", "is-typing");
+    coach.classList.add("is-thinking");
+    setState("Coach is thinking", announce);
+    later(() => {
+      setState("Coach is replying", announce);
+      typeReply(mode, 0, announce);
+    }, 1050);
+  }
+
+  function typePrompt(mode, character = 0, announce = true) {
+    const prompt = promptFor(mode);
+    coach.classList.add("is-writing");
+    renderUser(mode, character);
+
+    if (character >= prompt.length) {
+      coach.classList.remove("is-writing");
+      later(() => startReply(mode, announce), 260);
+      return;
+    }
+
+    later(() => typePrompt(mode, character + 1, announce), mode === "voice" ? 12 : 16);
+  }
+
   function play(mode = activeMode, announce = true) {
     clearTimers();
     activeMode = mode;
     announcement.textContent = "";
     setSelectedTab(mode);
-    renderUser(mode);
+    user.hidden = true;
     typed.textContent = "";
     answer.hidden = true;
+    coach.classList.remove("is-thinking", "is-typing", "is-writing");
 
     if (motion.matches) {
+      renderUser(mode);
       showComplete(mode, false);
       return;
     }
 
-    coach.classList.remove("is-typing");
-    coach.classList.add("is-thinking");
-    setState("Coach is thinking");
-    later(() => {
-      setState("Coach is replying");
-      typeReply(mode, 0, announce);
-    }, 1050);
+    setState(mode === "voice" ? "User is recording" : "User is typing", announce);
+    typePrompt(mode, 0, announce);
   }
 
   tabs.forEach((tab) => {

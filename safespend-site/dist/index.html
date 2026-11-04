@@ -291,6 +291,8 @@
       .coach-state { display: flex; align-items: center; gap: 7px; min-height: 19px; margin-bottom: 12px; color: var(--text-3); font-size: 12px; }
       .coach-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
       .bubble-user { max-width: 86%; margin-left: auto; padding: 12px 16px; border-radius: 20px 20px 5px 20px; background: #eff1f2; font-size: 15px; line-height: 1.5; }
+      .bubble-user[hidden] { display: none; }
+      .coach.is-writing .bubble-user:not(.bubble-voice)::after, .coach.is-writing .bubble-voice [data-coach-transcript]::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -.12em; background: var(--teal); animation: cursor-blink 720ms step-end infinite; }
       .bubble-voice { display: flex; align-items: center; gap: 10px; }
       .voice-mark { display: grid; grid-template-columns: repeat(4, 3px); align-items: center; gap: 2px; width: 25px; height: 24px; }
       .voice-mark i { display: block; width: 3px; border-radius: 6px; background: var(--teal); animation: voice-wave 900ms ease-in-out infinite alternate; }
