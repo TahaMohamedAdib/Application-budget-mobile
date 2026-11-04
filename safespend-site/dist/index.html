@@ -157,6 +157,49 @@
       .receipt .total small { font-size: 14px; font-weight: 600; letter-spacing: 0; margin-left: 4px; color: var(--teal-200); }
       .receipt-note { margin-top: 16px; font-size: 13px; color: var(--text-2); }
 
+      /* ── Real app screens ─────────────────── */
+      .screen-tour { padding: 104px 0; border-top: 1px solid var(--border); background: var(--surface); }
+      .screen-tour .wrap { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); gap: 72px; align-items: center; }
+      .screen-tour .intro { max-width: 31em; }
+      .screen-list { display: grid; gap: 3px; margin-top: 34px; }
+      .screen-list button { display: flex; align-items: baseline; gap: 12px; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 9px; color: var(--text-2); background: transparent; font: inherit; font-size: 14px; text-align: left; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease); }
+      .screen-list button span { width: 22px; color: var(--text-3); font-variant-numeric: tabular-nums; font-size: 12px; }
+      .screen-list button[aria-current="true"] { color: var(--text); background: var(--bg); font-weight: 600; }
+      .screen-list button:hover { color: var(--text); }
+      .gallery { min-width: 0; }
+      .gallery-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+      .gallery-count { color: var(--text-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+      .appearance { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; }
+      .appearance[hidden] { display: none; }
+      .appearance-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); }
+      .appearance-switch button { min-height: 32px; padding: 4px 9px; border: 0; border-radius: 6px; color: var(--text-2); background: transparent; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease); }
+      .appearance-switch button[aria-pressed="true"] { color: var(--text); background: var(--surface); }
+      .gallery-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .55fr); gap: 24px; align-items: stretch; padding: 24px; border: 1px solid var(--border); border-radius: 24px; background: var(--bg); transition: background-color 220ms var(--ease), border-color 220ms var(--ease); }
+      .gallery-panel[data-appearance="dark"] { color: var(--dark-text); border-color: var(--dark-bg); background: var(--dark-bg); }
+      .gallery-panel[data-appearance="dark"] .gallery-caption p, .gallery-panel[data-appearance="dark"] .gallery-caption .screen-kicker { color: var(--dark-text-2); }
+      .gallery-panel[data-appearance="dark"] .gallery-controls { border-color: var(--dark-border); }
+      .gallery-panel[data-appearance="dark"] .gallery-control { color: var(--dark-text); border-color: var(--dark-border); background: var(--dark-card); }
+      .gallery-panel[data-appearance="dark"] .gallery-control:hover { border-color: var(--teal-200); color: var(--teal-200); }
+      .phone-stage { display: grid; place-items: center; min-height: 548px; padding: 16px; border-radius: 18px; background: #e9ebed; transition: background-color 220ms var(--ease); }
+      .gallery-panel[data-appearance="dark"] .phone-stage { background: #101516; }
+      .phone-frame { position: relative; width: min(100%, 285px); aspect-ratio: 735 / 1600; overflow: hidden; padding: 6px; border: 1px solid #101112; border-radius: 36px; background: #090a0b; box-shadow: 0 14px 28px rgba(0, 0, 0, .2); }
+      .gallery-panel[data-appearance="light"] .phone-frame { border-color: #c7c9cb; background: #f6f6f6; box-shadow: 0 14px 28px rgba(32, 33, 35, .13); }
+      .screen-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); border-radius: 30px; object-fit: cover; opacity: 0; transform: translateX(18px) scale(.988); transition: opacity 380ms var(--ease), transform 380ms var(--ease); }
+      .screen-image.is-active { opacity: 1; transform: translateX(0) scale(1); }
+      .screen-image.is-exiting-left { opacity: 0; transform: translateX(-18px) scale(.988); }
+      .screen-image.is-exiting-right { opacity: 0; transform: translateX(18px) scale(.988); }
+      .screen-image.is-entering-left { opacity: 0; transform: translateX(-18px) scale(.988); }
+      .screen-image.is-entering-right { opacity: 0; transform: translateX(18px) scale(.988); }
+      .gallery-caption { display: flex; flex-direction: column; justify-content: space-between; gap: 28px; min-width: 0; padding: 12px 2px 2px; }
+      .screen-kicker { margin-bottom: 10px; color: var(--text-3); font-size: 13px; }
+      .gallery-caption h3 { max-width: 11em; font-size: clamp(24px, 2.6vw, 32px); font-weight: 700; letter-spacing: -.035em; line-height: 1.12; }
+      .gallery-caption p { margin-top: 14px; color: var(--text-2); font-size: 14px; line-height: 1.6; }
+      .gallery-controls { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
+      .gallery-control { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 8px 11px; border: 1px solid var(--border); border-radius: 11px; color: var(--text); background: var(--bg); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease), border-color 180ms var(--ease); }
+      .gallery-control:hover { color: var(--teal); border-color: var(--teal); background: var(--teal-50); }
+      .gallery-control[data-gallery-autoplay] { min-width: auto; }
+      .gallery-control svg { width: 16px; height: 16px; }
+
       /* ── Shared section rhythm ────────────── */
       section { scroll-margin-top: 16px; }
       .section { padding: 104px 0; border-top: 1px solid var(--border); }
@@ -300,7 +343,7 @@
 
       /* ── Responsive ──────────────────────── */
       @media (max-width: 960px) {
-        .hero .wrap, .daret .wrap, .tongues .wrap { grid-template-columns: 1fr; gap: 48px; }
+        .hero .wrap, .daret .wrap, .tongues .wrap, .screen-tour .wrap { grid-template-columns: 1fr; gap: 48px; }
         .receipt-col { max-width: 480px; }
         .privacy-list { grid-template-columns: 1fr; gap: 32px; }
         .next .wrap { grid-template-columns: 1fr; gap: 48px; }
@@ -311,7 +354,7 @@
         .nav { display: none; }
         .hero { padding: 48px 0 72px; }
         .lede { font-size: 17px; }
-        .section, .daret { padding: 72px 0; }
+        .section, .daret, .screen-tour { padding: 72px 0; }
         .counts, .ledger { grid-template-columns: 1fr; gap: 40px; }
         .ledger { gap: 0; }
         .receipt { padding: 24px 20px 20px; }
@@ -324,9 +367,19 @@
         .rotation-head { flex-direction: column; gap: 4px; }
         .rotation-head b { line-height: 1.2; }
         .daret-facts div { grid-template-columns: 1fr; gap: 4px; }
+        .screen-list { grid-template-columns: 1fr 1fr; gap: 3px; }
+        .gallery-panel { grid-template-columns: 1fr; padding: 16px; }
+        .phone-stage { min-height: 480px; }
+        .phone-frame { width: min(100%, 250px); }
+        .gallery-caption { padding: 4px 2px 2px; }
+        .gallery-caption h3 { max-width: none; }
       }
       @media (max-width: 420px) {
         .wide-only { display: none; }
+        .screen-list { grid-template-columns: 1fr; }
+        .gallery-top { align-items: flex-start; flex-direction: column; }
+        .phone-stage { min-height: 435px; padding: 12px; }
+        .phone-frame { width: min(100%, 226px); }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -335,6 +388,7 @@
       }
     </style>
     <script src="assets/coach-demo.js" defer></script>
+    <script src="assets/screen-gallery.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -348,6 +402,7 @@
         <nav class="nav" aria-label="Sections">
           <a href="#the-math">The math</a>
           <a href="#daret">Daret</a>
+          <a href="#screens">Screens</a>
           <a href="#tracks">What it tracks</a>
           <a href="#coming-next">Coming next</a>
           <a href="#privacy">Privacy</a>
@@ -393,6 +448,64 @@
             </div>
             <figcaption class="receipt-note">Spend less today and tomorrow’s number goes up. Spend more and it comes down.</figcaption>
           </figure>
+        </div>
+      </section>
+
+      <section class="screen-tour" id="screens" aria-labelledby="screens-title">
+        <div class="wrap">
+          <div>
+            <p class="label">Inside the app</p>
+            <h2 id="screens-title">From your first screen to a clearer daily view</h2>
+            <p class="intro">Take the tour in the order SafeSpend introduces it: get oriented, see today, plan a budget, then grow your full financial picture.</p>
+            <div class="screen-list" aria-label="Screen tour steps">
+              <button type="button" data-screen-index="0" aria-current="true"><span>01</span>Welcome to SafeSpend</button>
+              <button type="button" data-screen-index="1" aria-current="false"><span>02</span>See everything at a glance</button>
+              <button type="button" data-screen-index="2" aria-current="false"><span>03</span>Plan with budgets</button>
+              <button type="button" data-screen-index="3" aria-current="false"><span>04</span>Grow your wealth</button>
+              <button type="button" data-screen-index="4" aria-current="false"><span>05</span>Home</button>
+              <button type="button" data-screen-index="5" aria-current="false"><span>06</span>Quick add</button>
+              <button type="button" data-screen-index="6" aria-current="false"><span>07</span>Budgets</button>
+              <button type="button" data-screen-index="7" aria-current="false"><span>08</span>Wealth</button>
+            </div>
+          </div>
+
+          <section class="gallery" data-screen-gallery role="region" aria-roledescription="carousel" aria-label="SafeSpend screen tour">
+            <div class="gallery-top">
+              <p class="gallery-count"><span data-gallery-current>01</span> / <span data-gallery-total>08</span></p>
+              <div class="appearance" data-gallery-appearance hidden>
+                <span>App appearance</span>
+                <div class="appearance-switch">
+                  <button type="button" data-gallery-theme="dark" aria-pressed="true">Dark</button>
+                  <button type="button" data-gallery-theme="light" aria-pressed="false">White</button>
+                </div>
+              </div>
+            </div>
+            <div class="gallery-panel" data-gallery-panel data-appearance="dark">
+              <div class="phone-stage">
+                <div class="phone-frame" data-gallery-frame>
+                  <img class="screen-image is-active" data-gallery-layer="0" src="assets/screens/demo1.jpeg" alt="Dark-mode SafeSpend welcome screen" width="735" height="1600" loading="lazy" />
+                  <img class="screen-image" data-gallery-layer="1" src="assets/screens/demo1.jpeg" alt="" width="735" height="1600" loading="lazy" aria-hidden="true" />
+                </div>
+              </div>
+              <div class="gallery-caption">
+                <div>
+                  <p class="screen-kicker" data-gallery-kicker>First launch</p>
+                  <h3 data-gallery-title>Welcome to SafeSpend</h3>
+                  <p data-gallery-description>A short introduction to the parts of your money life the app helps you keep in view.</p>
+                </div>
+                <div class="gallery-controls">
+                  <button class="gallery-control" type="button" data-gallery-prev aria-label="Previous screen">
+                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="m12 4-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="gallery-control" type="button" data-gallery-autoplay aria-pressed="true" aria-label="Pause automatic screen tour">Pause</button>
+                  <button class="gallery-control" type="button" data-gallery-next aria-label="Next screen">
+                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="m8 4 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <span class="sr-only" aria-live="polite" data-gallery-announcement></span>
+          </section>
         </div>
       </section>
 

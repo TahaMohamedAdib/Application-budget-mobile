@@ -70,9 +70,9 @@ Inter only, like the app (`app_fonts.dart`). Self-hosted `assets/Inter-Variable.
 | 404 | `404.html` | Not found |
 
 Document pages share `assets/doc.css`. `vercel.json` sets clean URLs and security headers (CSP allows no scripts — add a `script-src` if you ever add JS).
-Home page sections: hero (receipt) · The math · Daret · What it tracks · Languages · Coming next (Coach preview in the app's chat styles) · Privacy · closing.
+Home page sections: hero (receipt) · screen tour (real supplied app screens) · The math · Daret · What it tracks · Languages · Coming next (Coach preview in the app's chat styles) · Privacy · closing.
 **Coming next** lists only features that exist in the app code but are not released (AI Coach, voice, reminders and alerts). No dates. When one ships, move it into What it tracks and update `privacy.html` first.
-Real app screenshots: see `SCREENSHOTS.md` for capture settings and which section each one goes in.
+Real app screenshots: the home-page tour shows one framed iPhone screen at a time, in the app's actual onboarding then product order. Use the paired dark/white captures only on screens that have both. It must offer previous/next, pause, visible focus and reduced-motion behaviour; see `SCREENSHOTS.md` for the current assets and mapping.
 Placeholders to replace before launch: `{{YOUR FULL NAME}}` and `support@safespend.app`.
 Keep `privacy.html` in sync with the app: if a new service receives data (e.g. the AI Coach provider), update it first.
 
