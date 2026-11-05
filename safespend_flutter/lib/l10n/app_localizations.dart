@@ -260,6 +260,7 @@ class S {
   String get netWorth => _t('netWorth');
   String get cashOnHand => _t('cashOnHand');
   String get investments => _t('investments');
+  String get upcomingFeature => _t('upcomingFeature');
   String get debt => _t('debt');
   String get personalDebts => _t('personalDebts');
   String get savingsGoals => _t('savingsGoals');

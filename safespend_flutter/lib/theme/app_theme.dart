@@ -3,7 +3,7 @@ import 'app_colors.dart';
 import 'page_transitions.dart';
 import 'app_text_styles.dart';
 
-/// Central theme provider for SafeSpend.
+/// Central theme provider for VVollet.
 /// All color constants are backward-compatible aliases to AppColors.
 class AppTheme {
   AppTheme._();

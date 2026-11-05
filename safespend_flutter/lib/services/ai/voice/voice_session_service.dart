@@ -23,7 +23,7 @@ import 'voice_transport.dart';
 class VoiceSessionService extends ChangeNotifier {
   final VoiceTransport transport;
 
-  /// Invoked when the assistant requests a SafeSpend tool.
+  /// Invoked when the assistant requests a VVollet tool.
   final void Function(AIToolCall call)? onToolCall;
 
   VoiceSessionService({required this.transport, this.onToolCall});

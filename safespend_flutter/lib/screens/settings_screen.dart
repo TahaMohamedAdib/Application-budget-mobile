@@ -140,7 +140,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             Center(
               child: Text(
-                'SafeSpend ${AboutScreen.appVersion}',
+                'VVollet ${AboutScreen.appVersion}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),

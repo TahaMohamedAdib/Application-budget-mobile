@@ -4,7 +4,7 @@ import 'ai_response.dart';
 import 'ai_tool_call.dart';
 import 'financial_context_service.dart';
 
-/// The single seam between SafeSpend and whatever model serves it.
+/// The single seam between VVollet and whatever model serves it.
 ///
 /// Nothing above this interface knows about model vendors, prompt formats, or
 /// tool-calling dialects. Swapping providers is a matter of binding a different

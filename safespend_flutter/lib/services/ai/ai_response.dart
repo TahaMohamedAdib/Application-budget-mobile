@@ -62,7 +62,7 @@ class AIUsage {
 
 /// A numeric fact the assistant is explaining.
 ///
-/// Values here are always computed by SafeSpend, never by the model — see
+/// Values here are always computed by VVollet, never by the model — see
 /// `FinancialContextService`. Carrying them separately lets the UI render them
 /// as data and keeps the model's role to explanation.
 class AIFinancialInsight {

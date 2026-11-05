@@ -1,12 +1,12 @@
-# SafeSpend app map
+# VVollet app map
 
-Last updated: 2026-09-20
+Last updated: 2026-09-22
 
 This living product and code map describes the current working tree, including existing uncommitted changes. The initial baseline comes from source inspection, not a full runtime or deployment check. Update it at the end of app tasks following [AGENTS.md](../AGENTS.md).
 
 ## App at a glance
 
-SafeSpend is a Flutter personal finance app for accounts, cash, transactions, budgets, recurring payments, savings goals, debts, investments, and Daret savings groups. It includes an AI Coach, onboarding, localization, and personal settings.
+VVollet is a Flutter personal finance app for accounts, cash, transactions, budgets, recurring payments, savings goals, debts, investments, and Daret savings groups. It includes an AI Coach, onboarding, localization, and personal settings.
 
 | Layer | Main location | Responsibility |
 | --- | --- | --- |
@@ -23,27 +23,44 @@ SafeSpend is a Flutter personal finance app for accounts, cash, transactions, bu
 
 ```mermaid
 flowchart TD
-    Start[Startup and local load] --> Auth{Authenticated?}
-    Auth -->|No| Login[Auth screen]
-    Login --> Auth
-    Auth -->|Yes| Sync[Load user data from Supabase]
-    Sync --> Setup{Setup complete or accounts exist?}
-    Setup -->|No| Onboarding[Welcome / Language / Hook / Aha / Preview / Setup]
-    Onboarding --> Tour{App tour seen?}
-    Setup -->|Yes| Tour
-    Tour -->|No| Guide[App tour]
-    Guide --> Main[Main app]
-    Tour -->|Yes| Main
-    Main --> Home[Home / Today]
-    Main --> Coach[AI Coach]
-    Main --> Budgets[Budgets]
-    Main --> Wealth[Wealth]
-    Main --> Add[Global add actions]
-    Wealth --> Details[Accounts / Cash / Portfolio / Debt / Personal debts / Goals / Daret]
-    Home --> Subs[Subscriptions and bills]
+    Launch([Launch]) --> Boot["Initialize Flutter<br/>Supabase when configured<br/>legacy retry queue"]
+    Boot --> Privacy["Privacy gate wraps every route<br/>PIN lock + app-switcher mask"]
+    Privacy --> Ready{"Auth state and<br/>local cache ready?"}
+    Ready -->|No| Splash[Splash]
+    Splash --> Ready
+    Ready -->|No session| Auth["Authentication<br/>email/password • Google • Apple"]
+    Auth -->|Authenticated| UserData
+    Ready -->|Restored session| UserData["Prepare the user's data<br/>migrate legacy cache once<br/>load SQLite snapshot<br/>start sync and pull Supabase"]
+    Ready -->|Supabase unavailable: local mode| UserData
+    UserData --> Setup{"Setup complete<br/>or account exists?"}
+    Setup -->|No| Onboarding["Six-step onboarding<br/>Welcome → Language → Hook → Aha → Preview → Setup"]
+    Setup -->|Yes| TourCheck{"Guided tour seen?"}
+    Onboarding --> TourCheck
+    TourCheck -->|No| Tour[Guided app tour]
+    Tour --> Main[Main app]
+    TourCheck -->|Yes| Main
+
+    subgraph Tabs[Reachable main navigation]
+        Main --> Home[Home / Today]
+        Main --> Coach["AI Coach tab<br/>coming-soon screen only"]
+        Main --> Budgets[Budgets]
+        Main --> Wealth[Wealth]
+        Main --> Add["Global add menu<br/>Expense • Income • Withdraw • Transfer"]
+    end
+
+    Home --> HomeDetails["Accounts • Cash • Portfolio<br/>Debt • Subscriptions"]
+    Wealth --> WealthDetails["Accounts • Cash • Debt<br/>Personal debts • Goals • Daret"]
+    Wealth -. upcoming .-> WealthInvestments["Investments<br/>visible locked row"]
+    Home --> Settings[Settings]
+    Budgets --> Settings
+    Wealth --> Settings
+    Settings --> Preferences["Profile • Appearance • Currency • Language<br/>Income • Notifications • Security • Data • Help • About"]
+    Add --> TransactionSheet[Transaction form sheet]
+
+    Main -. not linked from current navigation .-> Unwired["Implemented but currently unwired<br/>Plan • Spending • Transactions screens"]
 ```
 
-- `MyApp._buildHome` and `MainScreen` in [main.dart](../lib/main.dart) coordinate authentication, load flags, onboarding, the tour, and main navigation.
+- `main`, `MyApp._buildHome`, `_PrivacyGate`, and `MainScreen` in [main.dart](../lib/main.dart) coordinate service startup, authentication/local-only mode, load flags, onboarding, the tour, privacy overlays, and main navigation.
 - [onboarding_flow.dart](../lib/screens/onboarding/onboarding_flow.dart) sequences six onboarding screens. [app_tour_screen.dart](../lib/screens/onboarding/app_tour_screen.dart) handles the tour; [feature_guide_sheet.dart](../lib/screens/onboarding/feature_guide_sheet.dart) provides the automatic first-visit guidance with seen-state saved through the provider. A small persistent question-mark button in each feature header opens the reusable [feature_help_button.dart](../lib/widgets/feature_help_button.dart) sheet, so users can replay a localized explanation of the current screen at any time.
 - The main pages are `HomeScreen`, `CoachScreen`, `BudgetsScreen`, and `WealthScreen`. Home is implemented in `today_screen.dart`. `CoachScreen` currently renders only a "coming soon" state: it is closed to every user, its tab stays in the bottom bar, and its feature guide and onboarding tour page are suppressed while closed.
 - The privacy gate wraps the app with PIN locking and background masking. Settings are accessible from feature screens.
@@ -62,14 +79,14 @@ Add/edit flows share the transaction-style floating sheet: accounts, categories,
 | Cash on hand | Physical cash balance and activity | [cash_on_hand_screen.dart](../lib/screens/cash_on_hand_screen.dart); provider's special cash account ID and transaction-derived `totalCash` |
 | Budgets | Category budgets and spending against limits; Add Category uses a flat neutral capsule with its existing 58px height, full width, and category form flow | [budgets_screen.dart](../lib/screens/budgets_screen.dart), [category.dart](../lib/models/category.dart), `getCategorySpending` |
 | Subscriptions / bills | Recurring payment management | [all_subscriptions_screen.dart](../lib/screens/all_subscriptions_screen.dart), [recurring_rule.dart](../lib/models/recurring_rule.dart), `processSubscriptions` |
-| Wealth | Net worth overview and financial detail entry points | [wealth_screen.dart](../lib/screens/wealth_screen.dart); provider aggregate calculations |
+| Wealth | Net worth overview and financial detail entry points. Its Investments breakdown row is visible but locked as an upcoming feature; it does not show an amount or open Portfolio. Portfolio remains implemented and reachable from Home. | [wealth_screen.dart](../lib/screens/wealth_screen.dart); provider aggregate calculations |
 | Portfolio | Holdings, purchases/sales, valuation, quote lookup | [portfolio_screen.dart](../lib/screens/portfolio_screen.dart), [holding.dart](../lib/models/holding.dart), [stock_price_service.dart](../lib/services/stock_price_service.dart) |
 | Savings goals | Targets, progress, contributions from a funding source | [goals_screen.dart](../lib/screens/goals_screen.dart), [goal.dart](../lib/models/goal.dart), `contributeToGoalFromSource` |
 | Debt | Debt tracking, repayments, recurring instalments | [debt_screen.dart](../lib/screens/debt_screen.dart); debt accounts/goals and provider payment methods |
 | Personal debts | Personal lending/borrowing records and payment/return flows | [personal_debts_screen.dart](../lib/screens/personal_debts_screen.dart); goals, `recordPersonalDebtReturn`, `receiveDebtPayment` |
 | Daret | Rotating savings groups, shares, contributions, payouts | [daret_screen.dart](../lib/screens/daret_screen.dart), [daret.dart](../lib/models/daret.dart); provider Daret methods |
 | AI Coach | **Closed to all users behind a "coming soon" screen.** Its existing help button is pinned to the physical top-right inside the safe area, separate from the centered, scrollable message, including in RTL locales. The conversation UI, attachments, tool actions and AI services are intact and still compile, but nothing reaches them. Gated by the `_coachComingSoon` constant in [coach_screen.dart](../lib/screens/coach_screen.dart); set it to `false` to reopen, and the email allowlist in `_hasAccess` applies again. | [coach_screen.dart](../lib/screens/coach_screen.dart), [chat_widgets](../lib/screens/chat_widgets), [AI services](../lib/services/ai) |
-| Settings / profile | Appearance, currency, language, income, notification preferences, security, data management, help/about, profile. The hub uses an iOS-inspired large collapsing title, a compact account card that renders the saved profile picture, and flat inset groups with 56px rows, teal icon tiles, plain trailing values, and edge-aligned chevrons in the SafeSpend palette. Preference destinations open in compact floating sheets with fixed help/close controls and scrollable groups, inheriting the same grouped surfaces and controls. Navigation remains directional in RTL. Profile name/password changes have isolated sheet drafts; preference controls retain their existing immediate-save behavior. | [settings_screen.dart](../lib/screens/settings_screen.dart), [settings](../lib/screens/settings), [settings_ui.dart](../lib/widgets/settings_ui.dart), [account_screen.dart](../lib/screens/account_screen.dart) |
+| Settings / profile | Appearance, currency, language, income, notification preferences, security, data management, help/about, profile. The hub uses an iOS-inspired large collapsing title, a compact account card that renders the saved profile picture, and flat inset groups with 56px rows, teal icon tiles, plain trailing values, and edge-aligned chevrons in the VVollet palette. Preference destinations open in compact floating sheets with fixed help/close controls and scrollable groups, inheriting the same grouped surfaces and controls. Navigation remains directional in RTL. Profile name/password changes have isolated sheet drafts; preference controls retain their existing immediate-save behavior. | [settings_screen.dart](../lib/screens/settings_screen.dart), [settings](../lib/screens/settings), [settings_ui.dart](../lib/widgets/settings_ui.dart), [account_screen.dart](../lib/screens/account_screen.dart) |
 
 Additional implementations exist in [plan_screen.dart](../lib/screens/plan_screen.dart), [spending_screen.dart](../lib/screens/spending_screen.dart), and [transactions_screen.dart](../lib/screens/transactions_screen.dart). At baseline, searching `lib` found their constructors only in their own declarations: treat them as currently unwired screens, not main navigation destinations. Plan contains fixed, variable, and sinking-fund UI.
 
@@ -101,24 +118,69 @@ Additional implementations exist in [plan_screen.dart](../lib/screens/plan_scree
 
 ```mermaid
 flowchart LR
-    UI[Screens and forms] --> Provider[AppProvider]
-    Provider --> Local[SharedPreferences local cache]
-    Provider --> Sync[SupabaseSyncService]
-    Sync --> Queue[Persisted retry queue]
-    Sync --> Cloud[Supabase user data]
-    Auth[AuthService] --> Cloud
-    Coach[Coach screen] --> AI[AIServiceFactory]
-    AI --> Backend[SafeSpend backend adapter - only provider]
-    Backend --> EdgeFn[Supabase chat Edge Function]
+    subgraph Presentation[Presentation]
+        UI[Screens and form sheets]
+        AuthUI[Authentication UI]
+        Coach["AI Coach tab<br/>coming soon"]
+    end
+
+    subgraph State[Runtime state and business rules]
+        Provider[AppProvider]
+        Auth[AuthService]
+        SyncService[SupabaseSyncService]
+    end
+
+    subgraph Device[On-device persistence]
+        Prefs["SharedPreferences<br/>startup flags + legacy JSON cache"]
+        SQLite["SQLite<br/>per-user entity snapshot"]
+        LegacyQueue["SharedPreferences retry queue<br/>current failed-write path"]
+        DurableQueue["SQLite sync_queue<br/>LocalRepository API path"]
+        Secure["Secure storage<br/>PIN and protected values"]
+    end
+
+    subgraph Cloud[Supabase]
+        CloudAuth[Auth]
+        Database[(User data tables)]
+        Storage[(Private image buckets)]
+        Edge["chat Edge Function<br/>JWT check + rate limit"]
+    end
+
+    UI --> Provider
+    AuthUI --> Auth
+    Auth --> CloudAuth
+    Auth --> Secure
+
+    Prefs -->|initial and fallback load| Provider
+    SQLite -->|fast authenticated load| Provider
+    Provider -->|debounced legacy cache| Prefs
+    Provider -->|snapshot mirror; not queued| SQLite
+    Provider -->|current CRUD sync path| SyncService
+    SyncService -->|online writes and full pulls| Database
+    SyncService -->|image upload and signed URLs| Storage
+    SyncService -->|failed writes| LegacyQueue
+    LegacyQueue -->|connectivity retry| SyncService
+
+    Provider -->|starts after user load| Engine[SyncEngine]
+    DurableQueue -->|ordered push| Engine
+    Engine -->|remote bridge| SyncService
+    Engine -->|incremental pull| SQLite
+
+    Coach -. send path disabled while closed .-> AI["AIServiceFactory<br/>VVollet backend client"]
+    Provider -. computed financial context .-> AI
+    AI -. dormant request path .-> Edge
+    Edge --> DeepSeek[DeepSeek API]
+    Edge -->|verifies caller| CloudAuth
 ```
 
-- [auth_service.dart](../lib/services/auth_service.dart) owns authentication state. [supabase_config.dart](../lib/services/supabase_config.dart) initializes the client.
-- [supabase_sync_service.dart](../lib/services/supabase_sync_service.dart) loads/saves user data and persists failed/offline operations for retry on connectivity changes. The provider coordinates local/cloud loading and clearing local state.
+- [auth_service.dart](../lib/services/auth_service.dart) owns authentication state and restores Supabase sessions. When Supabase is unavailable it deliberately enters authenticated local-only mode as `local_user`; cloud sign-in methods are unavailable in that mode. [supabase_config.dart](../lib/services/supabase_config.dart) initializes the client.
+- [app_provider.dart](../lib/providers/app_provider.dart) is currently in a **transitional dual-persistence state**. It first loads the legacy SharedPreferences cache, then for an authenticated user initializes SQLite, imports the legacy cache once, serves a SQLite snapshot when present, starts `SyncEngine`, and performs a full Supabase pull. Normal provider mutations still write the SharedPreferences cache, mirror a non-dirty snapshot into SQLite, and call the public `SupabaseSyncService` methods directly.
+- [supabase_sync_service.dart](../lib/services/supabase_sync_service.dart) is therefore still the active app-wide mutation sync path. Failed operations are stored in its SharedPreferences-backed retry queue and flushed on connectivity changes. The newer [local_repository.dart](../lib/data/local_repository.dart), [sync_queue.dart](../lib/data/sync_queue.dart), and [sync_engine.dart](../lib/data/sync_engine.dart) implement atomic SQLite writes plus a durable ordered queue, but current `AppProvider` CRUD methods do not yet call those repository write APIs. Treat that path as partially integrated rather than the sole production path.
+- Daret records are local-only in the current implementation: `SyncEngine` explicitly completes Daret queue work without a remote write because no Supabase Daret table/endpoint exists.
 - [secure_storage_service.dart](../lib/services/secure_storage_service.dart) and [app_lock_service.dart](../lib/services/app_lock_service.dart) support protected storage and the app PIN. [image_service.dart](../lib/services/image_service.dart) handles image operations.
 - **User images (profile pictures, receipts, account logos) persist across reinstall once their upload reaches Supabase.** Uploads go to private Supabase Storage buckets (`avatars`, `receipts`, `logos`) under a per-user folder with a server-chosen name, and the database row stores the **object path**, never a URL. Buckets are private, so links must be signed and expire within the hour; persisting one would break the image shortly after upload and permanently after a reinstall. `SupabaseSyncService.resolveImageUrl` signs a path on demand and caches the result, and [stored_image.dart](../lib/widgets/stored_image.dart) accepts an object path, a local file path, or a legacy full URL. A selected profile image is first copied from the temporary image-picker cache into app-owned storage and shown immediately. A failed/offline cloud upload is deduplicated in the persisted retry queue; server refreshes preserve that pending local picture, and later retry stores `{user_id}/avatar.jpg` in `profiles.avatar_url`. Removing the picture cancels its pending upload, clears the cloud reference, and deletes the local copy. Both [supabase_complete_setup.sql](../supabase_complete_setup.sql) and [20260919000000_profile_avatars.sql](../supabase_migrations/20260919000000_profile_avatars.sql) create the private avatar bucket and owner policies.
 - [stock_price_service.dart](../lib/services/stock_price_service.dart) calls Yahoo Finance chart/search endpoints. Live availability was not checked in this task.
 - [env_config.dart](../lib/services/env_config.dart) and [ai_config.dart](../lib/services/ai/ai_config.dart) define build configuration. Keep secret values out of documentation.
-- [ai_service_factory.dart](../lib/services/ai/ai_service_factory.dart) binds the AI adapter. Only the SafeSpend backend adapter remains: it calls a configured backend with the user's Supabase session token and holds no credential of its own. A direct-to-Gemini adapter was removed in the 2026-09 security work because it required an API key compiled into the app binary, where it is extractable.
+- [ai_service_factory.dart](../lib/services/ai/ai_service_factory.dart) binds the AI adapter. Only the VVollet backend adapter remains: it calls a configured backend with the user's Supabase session token and holds no credential of its own. A direct-to-Gemini adapter was removed in the 2026-09 security work because it required an API key compiled into the app binary, where it is extractable.
 - [financial_context_service.dart](../lib/services/ai/financial_context_service.dart) builds Coach's financial snapshot. [AI tools](../lib/services/ai/tools) define actions and execution; [ai_confirmation_card.dart](../lib/widgets/ai_confirmation_card.dart) presents confirmations. In the executor, reads execute directly and writes require confirmation.
 - [voice](../lib/services/ai/voice) contains session/transport abstractions. `VoiceTransport` explicitly has no concrete implementation yet; realtime voice is not established as shipped.
 - [supabase/functions/chat](../supabase/functions/chat) is the DeepSeek Edge Function the app now targets by default: `AIConfig.baseUrl` falls back to the configured Supabase project's `/functions` host, so the client resolves to `/functions/v1/chat`. The function verifies the caller's Supabase JWT, validates the payload, caps body size and rate-limits per user. Whether it is actually deployed was not verified from the repository.
@@ -194,4 +256,6 @@ Append one concise entry per relevant completed task. Keep the sections above cu
 | 2026-09-20 | Moved the AI Coach coming-soon help button from the centered message group to a fixed top-right row inside the safe area (20px right inset, 14px top inset). Preserved its size, localized guide, and the closed Coach state. | `lib/screens/coach_screen.dart`, `docs/APP_MAP.md` | Existing Coach and help suites: 5 tests passed, including the Coach matrix across all 16 locales and both themes, and localized guide opening/closing. Diff whitespace check passed. No physical-device run. Release APK built successfully: 64.30 MiB, SHA-256 `FD09CDC00B49F55909F976A6F87AEAC2E0FAA989E3439E137ED6F44C3E262AD0`. |
 | 2026-09-20 | Fixed profile-picture selection when Supabase Storage is unavailable. The chosen image is copied out of the picker cache into durable app storage and appears immediately; failed uploads are persisted and deduplicated for retry, server refreshes keep the pending picture, cloud settings never receive a device-local path, and removal cancels pending work. Added the missing private avatar bucket and policies to the complete setup and corrected the migration's update policy and legacy trigger conflict. | `lib/services/image_service.dart`, `lib/services/supabase_sync_service.dart`, `lib/providers/app_provider.dart`, `lib/models/settings.dart`, `supabase_complete_setup.sql`, `supabase_migrations/20260919000000_profile_avatars.sql`, `test/image_persistence_test.dart`, `docs/APP_MAP.md`, `build/app/outputs/flutter-apk/app-release.apk` | Live read-only Storage check reproduced the root cause: HTTP 400 `Bucket not found`. Image-persistence plus complete Settings matrix: 400 tests passed. Full `flutter analyze lib test/image_persistence_test.dart`: 0 errors; 398 existing warning/info notices remain. `git diff --check` passed. Release APK built successfully: 64.38 MiB, SHA-256 `A61BD5411AC74714763E5F1A47D63D6F558ABA9D3B6DD99F2F0BB0F44C16D313`. Live migration was not deployed because no Supabase management token was available; no physical-device run. |
 | 2026-09-20 | User reported applying the profile-avatar migration to the live Supabase project. | `supabase_migrations/20260919000000_profile_avatars.sql`, `docs/APP_MAP.md` | Anonymous metadata checks returned the same 400 response for the existing private `receipts` and `logos` buckets and for `avatars`; this endpoint cannot verify private buckets. No authenticated upload/download test was available. No app code changed and the APK was not rebuilt. |
-| 2026-09-20 | Adapted the Settings hub and shared subsection UI to the supplied iPhone Settings reference while retaining SafeSpend's teal, charcoal, and warm-light theme. Added a large collapsing title, a compact account card that displays the saved profile picture, flatter inset groups, slimmer semantic rows, teal icon tiles, and plain trailing values/chevrons. Existing navigation, editor sheets, actions, localization, RTL behavior, help controls, and immediate-save preferences remain intact. | `lib/screens/settings_screen.dart`, `lib/widgets/settings_ui.dart`, `docs/APP_MAP.md`, `build/app/outputs/flutter-apk/app-release.apk` | Rendered and visually inspected the Settings hub at 390x844 in dark and light themes. Settings, confirmation, typography, and shared feature-form suites: 657 passed, 0 failed, including all 16 locales, both themes, navigation arrows, raw-key detection, and add/edit sheet flows. Targeted analysis: no issues. `git diff --check` passed. Release APK built successfully: 64.36 MiB, SHA-256 `C424E45109A3F28F7A04B9054AF6377328E5F0E5257F43E41480CC8D867FB374`. No physical-device run was available. |
+| 2026-09-20 | Adapted the Settings hub and shared subsection UI to the supplied iPhone Settings reference while retaining VVollet's teal, charcoal, and warm-light theme. Added a large collapsing title, a compact account card that displays the saved profile picture, flatter inset groups, slimmer semantic rows, teal icon tiles, and plain trailing values/chevrons. Existing navigation, editor sheets, actions, localization, RTL behavior, help controls, and immediate-save preferences remain intact. | `lib/screens/settings_screen.dart`, `lib/widgets/settings_ui.dart`, `docs/APP_MAP.md`, `build/app/outputs/flutter-apk/app-release.apk` | Rendered and visually inspected the Settings hub at 390x844 in dark and light themes. Settings, confirmation, typography, and shared feature-form suites: 657 passed, 0 failed, including all 16 locales, both themes, navigation arrows, raw-key detection, and add/edit sheet flows. Targeted analysis: no issues. `git diff --check` passed. Release APK built successfully: 64.36 MiB, SHA-256 `C424E45109A3F28F7A04B9054AF6377328E5F0E5257F43E41480CC8D867FB374`. No physical-device run was available. |
+| 2026-09-20 | Replaced the misleading high-level diagrams with source-verified navigation and runtime architecture. The maps now distinguish reachable tabs and detail routes from unwired screens, show onboarding and privacy gates, mark Coach traffic as disabled while the coming-soon gate is active, and document the actual transitional sync design: SharedPreferences fallback and retry queue, SQLite snapshot, partially integrated durable SQLite queue, Supabase tables/storage/auth, and the dormant AI backend path. | `docs/APP_MAP.md`; verified against `lib/main.dart`, `lib/providers/app_provider.dart`, `lib/services/auth_service.dart`, `lib/services/supabase_sync_service.dart`, `lib/data`, `lib/screens/coach_screen.dart`, `lib/services/ai`, `supabase/functions/chat/index.ts` | Source/reference search confirmed current route constructors and data-flow call sites. Markdown links and Mermaid blocks were checked structurally; documentation-only change, so Flutter tests and live services were not run. |
+| 2026-09-22 | Closed the Investments entry on the Wealth breakdown as an upcoming feature. The row stays visible with a localized status and lock, is announced as disabled, hides its amount and chevron, and cannot open Portfolio. The existing Portfolio implementation and its Home entry remain unchanged. | `lib/screens/wealth_screen.dart`, `lib/l10n/app_localizations.dart`, `lib/l10n/translations_{core,extra}.dart`, `test/wealth_investments_closed_test.dart`, `docs/APP_MAP.md`, `build/app/outputs/flutter-apk/app-release.apk` | Focused behavior/localization tests: 2 passed. Wealth smoke matrix: 48 passed across all 16 locales, both themes, and populated data. Targeted analysis: no errors; 11 pre-existing warnings/info remain in `wealth_screen.dart`. Diff whitespace check passed. Release APK built successfully: 64.36 MiB, SHA-256 `0B40776CFA7DF75EE4396372170BDBA4B96D17494AD28EF913DF4A06F9395BEC`. The release build currently uses the debug signing key and is suitable for direct installation/testing, not store distribution. No physical-device run. |

@@ -18,7 +18,7 @@ const translationsSettings = <String, Map<String, String>>{
 
     // Appearance
     'appearanceDetail': 'Theme, text size, motion',
-    'appearanceSubtitle': 'How SafeSpend looks on this device',
+    'appearanceSubtitle': 'How VVollet looks on this device',
     'theme': 'Theme',
     'themeFooter': "System follows your device's light and dark setting.",
     'textSize': 'Text Size',
@@ -61,7 +61,7 @@ const translationsSettings = <String, Map<String, String>>{
 
     // Notifications
     'notificationsDetail': 'Alerts, summaries, quiet hours',
-    'notificationsSubtitle': 'What SafeSpend tells you about',
+    'notificationsSubtitle': 'What VVollet tells you about',
     'pushNotificationsFooter': 'Turning this off silences every alert below.',
     'alerts': 'Alerts',
     'billReminders': 'Bill Reminders',
@@ -87,7 +87,7 @@ const translationsSettings = <String, Map<String, String>>{
     'securityAndPrivacyDetail': 'App lock, data sharing',
     'securityAndPrivacySubtitle': 'Who can open the app and what it shares',
     'appLock': 'App Lock',
-    'appLockDetail': 'Require a PIN to open SafeSpend',
+    'appLockDetail': 'Require a PIN to open VVollet',
     'appLockFooter':
         'The PIN is stored as a salted hash in the device keychain. It protects this app only — it is not your account password.',
     'changePin': 'Change PIN',
@@ -185,7 +185,7 @@ const translationsSettings = <String, Map<String, String>>{
     'legal': 'Legal',
     'termsOfService': 'Terms of Service',
     'termsDesc':
-        'SafeSpend is provided as-is to help you track your own finances. It does not provide financial, tax or investment advice. You are responsible for the accuracy of the data you enter and for any decisions you make based on it.',
+        'VVollet is provided as-is to help you track your own finances. It does not provide financial, tax or investment advice. You are responsible for the accuracy of the data you enter and for any decisions you make based on it.',
     'copyDiagnostics': 'Copy Diagnostics',
     'copyDiagnosticsDetail': 'App version and device info for support',
     'madeWithCare': 'Made with care for everyday money',
@@ -200,7 +200,7 @@ const translationsSettings = <String, Map<String, String>>{
     'locked': 'Verrouillé',
     'preview': 'Aperçu',
     'appearanceDetail': 'Thème, taille du texte, animations',
-    'appearanceSubtitle': 'L’apparence de SafeSpend sur cet appareil',
+    'appearanceSubtitle': 'L’apparence de VVollet sur cet appareil',
     'theme': 'Thème',
     'themeFooter':
         'Système suit le réglage clair/sombre de votre appareil.',
@@ -240,7 +240,7 @@ const translationsSettings = <String, Map<String, String>>{
     'sunday': 'Dimanche',
     'monday': 'Lundi',
     'notificationsDetail': 'Alertes, résumés, heures calmes',
-    'notificationsSubtitle': 'Ce dont SafeSpend vous informe',
+    'notificationsSubtitle': 'Ce dont VVollet vous informe',
     'pushNotificationsFooter':
         'Désactiver cette option coupe toutes les alertes ci-dessous.',
     'alerts': 'Alertes',
@@ -267,7 +267,7 @@ const translationsSettings = <String, Map<String, String>>{
     'securityAndPrivacySubtitle':
         'Qui peut ouvrir l’app et ce qu’elle partage',
     'appLock': 'Verrouillage de l’app',
-    'appLockDetail': 'Exiger un code PIN pour ouvrir SafeSpend',
+    'appLockDetail': 'Exiger un code PIN pour ouvrir VVollet',
     'appLockFooter':
         'Le code PIN est stocké sous forme de hachage salé dans le trousseau de l’appareil. Il protège uniquement cette app — ce n’est pas le mot de passe de votre compte.',
     'changePin': 'Modifier le code PIN',
@@ -361,7 +361,7 @@ const translationsSettings = <String, Map<String, String>>{
     'legal': 'Mentions légales',
     'termsOfService': 'Conditions d’utilisation',
     'termsDesc':
-        'SafeSpend est fourni tel quel pour vous aider à suivre vos finances. L’app ne fournit aucun conseil financier, fiscal ou en investissement. Vous êtes responsable de l’exactitude des données saisies et des décisions que vous prenez.',
+        'VVollet est fourni tel quel pour vous aider à suivre vos finances. L’app ne fournit aucun conseil financier, fiscal ou en investissement. Vous êtes responsable de l’exactitude des données saisies et des décisions que vous prenez.',
     'copyDiagnostics': 'Copier les diagnostics',
     'copyDiagnosticsDetail':
         'Version de l’app et infos appareil pour l’assistance',
@@ -377,7 +377,7 @@ const translationsSettings = <String, Map<String, String>>{
     'locked': 'مقفل',
     'preview': 'معاينة',
     'appearanceDetail': 'المظهر وحجم النص والحركة',
-    'appearanceSubtitle': 'شكل SafeSpend على هذا الجهاز',
+    'appearanceSubtitle': 'شكل VVollet على هذا الجهاز',
     'theme': 'المظهر',
     'themeFooter': 'يتبع «النظام» إعداد الفاتح والداكن في جهازك.',
     'textSize': 'حجم النص',
@@ -414,7 +414,7 @@ const translationsSettings = <String, Map<String, String>>{
     'sunday': 'الأحد',
     'monday': 'الاثنين',
     'notificationsDetail': 'التنبيهات والملخصات وساعات الهدوء',
-    'notificationsSubtitle': 'ما الذي يخبرك به SafeSpend',
+    'notificationsSubtitle': 'ما الذي يخبرك به VVollet',
     'pushNotificationsFooter': 'إيقاف هذا يُسكت كل التنبيهات أدناه.',
     'alerts': 'التنبيهات',
     'billReminders': 'تذكير الفواتير',
@@ -437,7 +437,7 @@ const translationsSettings = <String, Map<String, String>>{
     'securityAndPrivacyDetail': 'قفل التطبيق ومشاركة البيانات',
     'securityAndPrivacySubtitle': 'من يستطيع فتح التطبيق وما الذي يشاركه',
     'appLock': 'قفل التطبيق',
-    'appLockDetail': 'طلب رمز PIN لفتح SafeSpend',
+    'appLockDetail': 'طلب رمز PIN لفتح VVollet',
     'appLockFooter':
         'يُخزَّن رمز PIN كبصمة مُملَّحة في سلسلة مفاتيح الجهاز. يحمي هذا التطبيق فقط — وهو ليس كلمة مرور حسابك.',
     'changePin': 'تغيير رمز PIN',
@@ -528,7 +528,7 @@ const translationsSettings = <String, Map<String, String>>{
     'legal': 'قانوني',
     'termsOfService': 'شروط الخدمة',
     'termsDesc':
-        'يُقدَّم SafeSpend كما هو لمساعدتك على تتبّع أموالك. لا يقدّم التطبيق أي نصيحة مالية أو ضريبية أو استثمارية. أنت مسؤول عن دقة البيانات التي تُدخلها وعن أي قرارات تبنيها عليها.',
+        'يُقدَّم VVollet كما هو لمساعدتك على تتبّع أموالك. لا يقدّم التطبيق أي نصيحة مالية أو ضريبية أو استثمارية. أنت مسؤول عن دقة البيانات التي تُدخلها وعن أي قرارات تبنيها عليها.',
     'copyDiagnostics': 'نسخ التشخيصات',
     'copyDiagnosticsDetail': 'إصدار التطبيق ومعلومات الجهاز للدعم',
     'madeWithCare': 'صُنع بعناية لأموالك اليومية',
@@ -543,7 +543,7 @@ const translationsSettings = <String, Map<String, String>>{
     'locked': 'Bloqueado',
     'preview': 'Vista previa',
     'appearanceDetail': 'Tema, tamaño de texto, animaciones',
-    'appearanceSubtitle': 'Cómo se ve SafeSpend en este dispositivo',
+    'appearanceSubtitle': 'Cómo se ve VVollet en este dispositivo',
     'theme': 'Tema',
     'themeFooter':
         'Sistema sigue la configuración clara u oscura de tu dispositivo.',
@@ -582,7 +582,7 @@ const translationsSettings = <String, Map<String, String>>{
     'sunday': 'Domingo',
     'monday': 'Lunes',
     'notificationsDetail': 'Alertas, resúmenes, horas de silencio',
-    'notificationsSubtitle': 'De qué te avisa SafeSpend',
+    'notificationsSubtitle': 'De qué te avisa VVollet',
     'pushNotificationsFooter':
         'Desactivarlo silencia todas las alertas de abajo.',
     'alerts': 'Alertas',
@@ -606,7 +606,7 @@ const translationsSettings = <String, Map<String, String>>{
     'securityAndPrivacyDetail': 'Bloqueo, uso de datos',
     'securityAndPrivacySubtitle': 'Quién puede abrir la app y qué comparte',
     'appLock': 'Bloqueo de la app',
-    'appLockDetail': 'Pedir un PIN para abrir SafeSpend',
+    'appLockDetail': 'Pedir un PIN para abrir VVollet',
     'appLockFooter':
         'El PIN se guarda como hash con sal en el llavero del dispositivo. Solo protege esta app: no es la contraseña de tu cuenta.',
     'changePin': 'Cambiar PIN',
@@ -697,7 +697,7 @@ const translationsSettings = <String, Map<String, String>>{
     'legal': 'Legal',
     'termsOfService': 'Términos del servicio',
     'termsDesc':
-        'SafeSpend se ofrece tal cual para ayudarte a controlar tus finanzas. No proporciona asesoramiento financiero, fiscal ni de inversión. Eres responsable de la exactitud de los datos que introduces y de las decisiones que tomes con ellos.',
+        'VVollet se ofrece tal cual para ayudarte a controlar tus finanzas. No proporciona asesoramiento financiero, fiscal ni de inversión. Eres responsable de la exactitud de los datos que introduces y de las decisiones que tomes con ellos.',
     'copyDiagnostics': 'Copiar diagnósticos',
     'copyDiagnosticsDetail':
         'Versión de la app e info del dispositivo para soporte',
@@ -713,7 +713,7 @@ const translationsSettings = <String, Map<String, String>>{
     'locked': 'Gesperrt',
     'preview': 'Vorschau',
     'appearanceDetail': 'Design, Textgröße, Animationen',
-    'appearanceSubtitle': 'Wie SafeSpend auf diesem Gerät aussieht',
+    'appearanceSubtitle': 'Wie VVollet auf diesem Gerät aussieht',
     'theme': 'Design',
     'themeFooter': 'System folgt der Hell-/Dunkel-Einstellung deines Geräts.',
     'textSize': 'Textgröße',
@@ -750,7 +750,7 @@ const translationsSettings = <String, Map<String, String>>{
     'sunday': 'Sonntag',
     'monday': 'Montag',
     'notificationsDetail': 'Hinweise, Berichte, Ruhezeiten',
-    'notificationsSubtitle': 'Worüber SafeSpend dich informiert',
+    'notificationsSubtitle': 'Worüber VVollet dich informiert',
     'pushNotificationsFooter':
         'Wenn du das ausschaltest, verstummen alle Hinweise unten.',
     'alerts': 'Hinweise',
@@ -776,7 +776,7 @@ const translationsSettings = <String, Map<String, String>>{
     'securityAndPrivacyDetail': 'App-Sperre, Datenfreigabe',
     'securityAndPrivacySubtitle': 'Wer die App öffnen darf und was sie teilt',
     'appLock': 'App-Sperre',
-    'appLockDetail': 'PIN zum Öffnen von SafeSpend verlangen',
+    'appLockDetail': 'PIN zum Öffnen von VVollet verlangen',
     'appLockFooter':
         'Die PIN wird als gesalzener Hash im Schlüsselbund des Geräts gespeichert. Sie schützt nur diese App — sie ist nicht dein Kontopasswort.',
     'changePin': 'PIN ändern',
@@ -868,7 +868,7 @@ const translationsSettings = <String, Map<String, String>>{
     'legal': 'Rechtliches',
     'termsOfService': 'Nutzungsbedingungen',
     'termsDesc':
-        'SafeSpend wird ohne Gewähr bereitgestellt, um dir bei der Verwaltung deiner Finanzen zu helfen. Die App bietet keine Finanz-, Steuer- oder Anlageberatung. Du bist für die Richtigkeit der eingegebenen Daten und für deine Entscheidungen verantwortlich.',
+        'VVollet wird ohne Gewähr bereitgestellt, um dir bei der Verwaltung deiner Finanzen zu helfen. Die App bietet keine Finanz-, Steuer- oder Anlageberatung. Du bist für die Richtigkeit der eingegebenen Daten und für deine Entscheidungen verantwortlich.',
     'copyDiagnostics': 'Diagnose kopieren',
     'copyDiagnosticsDetail': 'App-Version und Geräteinfos für den Support',
     'madeWithCare': 'Mit Sorgfalt für das Geld des Alltags gemacht',
@@ -883,7 +883,7 @@ const translationsSettings = <String, Map<String, String>>{
     'locked': 'Bloqueado',
     'preview': 'Pré-visualização',
     'appearanceDetail': 'Tema, tamanho do texto, animações',
-    'appearanceSubtitle': 'Como o SafeSpend aparece neste dispositivo',
+    'appearanceSubtitle': 'Como o VVollet aparece neste dispositivo',
     'theme': 'Tema',
     'themeFooter': 'Sistema segue a definição clara ou escura do dispositivo.',
     'textSize': 'Tamanho do texto',
@@ -921,7 +921,7 @@ const translationsSettings = <String, Map<String, String>>{
     'sunday': 'Domingo',
     'monday': 'Segunda-feira',
     'notificationsDetail': 'Alertas, resumos, horas silenciosas',
-    'notificationsSubtitle': 'Sobre o que o SafeSpend o avisa',
+    'notificationsSubtitle': 'Sobre o que o VVollet o avisa',
     'pushNotificationsFooter':
         'Desativar isto silencia todos os alertas abaixo.',
     'alerts': 'Alertas',
@@ -946,7 +946,7 @@ const translationsSettings = <String, Map<String, String>>{
     'securityAndPrivacyDetail': 'Bloqueio da app, partilha de dados',
     'securityAndPrivacySubtitle': 'Quem pode abrir a app e o que ela partilha',
     'appLock': 'Bloqueio da app',
-    'appLockDetail': 'Exigir um PIN para abrir o SafeSpend',
+    'appLockDetail': 'Exigir um PIN para abrir o VVollet',
     'appLockFooter':
         'O PIN é guardado como hash com sal no porta-chaves do dispositivo. Protege apenas esta app — não é a palavra-passe da sua conta.',
     'changePin': 'Alterar PIN',
@@ -1039,7 +1039,7 @@ const translationsSettings = <String, Map<String, String>>{
     'legal': 'Legal',
     'termsOfService': 'Termos de serviço',
     'termsDesc':
-        'O SafeSpend é fornecido tal como está para o ajudar a acompanhar as suas finanças. Não presta aconselhamento financeiro, fiscal ou de investimento. É responsável pela exatidão dos dados que introduz e pelas decisões que toma com base neles.',
+        'O VVollet é fornecido tal como está para o ajudar a acompanhar as suas finanças. Não presta aconselhamento financeiro, fiscal ou de investimento. É responsável pela exatidão dos dados que introduz e pelas decisões que toma com base neles.',
     'copyDiagnostics': 'Copiar diagnósticos',
     'copyDiagnosticsDetail':
         'Versão da app e informação do dispositivo para o suporte',

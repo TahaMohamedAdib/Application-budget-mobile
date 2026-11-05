@@ -25,14 +25,14 @@ Future<void> main() async {
       name: 'QA Checking',
       type: 'bank',
       balance: 4800,
-      bankName: 'SafeSpend QA',
+      bankName: 'VVollet QA',
     ));
     provider.addAccount(Account(
       id: 'qa-savings',
       name: 'QA Savings',
       type: 'savings',
       balance: 2200,
-      bankName: 'SafeSpend QA',
+      bankName: 'VVollet QA',
     ));
     provider.addTransaction(Transaction(
       id: 'qa-income',
@@ -80,7 +80,7 @@ class _QaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) => MaterialApp(
-        title: 'SafeSpend QA',
+        title: 'VVollet QA',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,

@@ -9,11 +9,11 @@ import '../l10n/app_localizations.dart';
 import 'feature_help_button.dart';
 import 'app_form_sheet.dart';
 
-/// Building blocks for SafeSpend's iOS-inspired settings surfaces.
+/// Building blocks for VVollet's iOS-inspired settings surfaces.
 ///
 /// The layout follows the familiar inset-grouped Settings pattern while the
 /// teal accent, Inter typography, dark charcoal and warm light surfaces keep
-/// it recognisably part of SafeSpend.
+/// it recognisably part of VVollet.
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
 

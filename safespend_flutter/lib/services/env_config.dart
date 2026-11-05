@@ -38,7 +38,7 @@ class EnvConfig {
   // makes a security default look applied when it is not.
   static String get aiProvider => AIConfig.provider.name;
 
-  /// Base URL of the self-hosted SafeSpend AI backend. No hosting credential
+  /// Base URL of the self-hosted VVollet AI backend. No hosting credential
   /// is ever compiled into the app — the backend authenticates callers with
   /// their existing Supabase session token.
   static String get aiBaseUrl => AIConfig.baseUrl;

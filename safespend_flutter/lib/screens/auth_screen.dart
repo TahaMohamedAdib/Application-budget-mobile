@@ -185,7 +185,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 // Title
                 Text(
-                  'SafeSpend',
+                  'VVollet',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,

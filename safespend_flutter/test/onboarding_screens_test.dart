@@ -128,7 +128,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Welcome to SafeSpend'), findsOneWidget);
+      expect(find.text('Welcome to VVollet'), findsOneWidget);
       for (var i = 0; i < 4; i++) {
         await tester.tap(find.text('Next'));
         await tester.pump();
@@ -154,7 +154,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Welcome to SafeSpend'), findsOneWidget);
+      expect(find.text('Welcome to VVollet'), findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

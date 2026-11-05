@@ -1,5 +1,5 @@
 -- ============================================================
--- SafeSpend Flutter — Complete Supabase Setup
+-- VVollet Flutter — Complete Supabase Setup
 -- Paste this entire script in: Supabase → SQL Editor → Run
 -- Safe to run multiple times (uses IF NOT EXISTS / ADD COLUMN IF NOT EXISTS)
 -- ============================================================

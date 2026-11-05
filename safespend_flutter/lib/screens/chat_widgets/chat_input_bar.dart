@@ -110,7 +110,7 @@ class ChatInputBar extends StatelessWidget {
                           color: foreground,
                         ),
                         decoration: InputDecoration(
-                          hintText: s.tr('askSafeSpendAi'),
+                          hintText: s.tr('askVVolletAi'),
                           hintStyle: GoogleFonts.inter(
                             fontSize: 15,
                             color: isDark

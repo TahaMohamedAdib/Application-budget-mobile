@@ -1,4 +1,4 @@
-# SafeSpend AI Coach — Setup Guide
+# VVollet AI Coach — Setup Guide
 
 ## Architecture
 

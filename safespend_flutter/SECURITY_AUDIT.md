@@ -1,4 +1,4 @@
-# SafeSpend — Security Audit
+# VVollet — Security Audit
 
 **Date:** 2026-09-17
 **Scope:** `safespend_flutter/` — Flutter client, Supabase schema and policies, Deno Edge Function.
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-SafeSpend is a personal-finance app: a Flutter client talking directly to Supabase, with one Edge Function proxying an LLM. There is no traditional backend, so **Postgres Row Level Security is the only authorization boundary that matters**. That boundary was found to be correctly built — every one of the eleven user tables enables RLS with `auth.uid() = user_id` on all four verbs.
+VVollet is a personal-finance app: a Flutter client talking directly to Supabase, with one Edge Function proxying an LLM. There is no traditional backend, so **Postgres Row Level Security is the only authorization boundary that matters**. That boundary was found to be correctly built — every one of the eleven user tables enables RLS with `auth.uid() = user_id` on all four verbs.
 
 The serious problems were at the edges of that boundary rather than inside it:
 
@@ -33,7 +33,7 @@ Overall posture after remediation: **good for a solo-developer product, not yet 
 | Database | Supabase Postgres | 11 user tables, all RLS-enabled |
 | Storage | Supabase Storage | `receipts`, `logos` buckets |
 | Serverless | Deno Edge Function (`chat`) | Proxies DeepSeek |
-| AI | Gemini direct, or SafeSpend backend | Provider-switchable |
+| AI | Gemini direct, or VVollet backend | Provider-switchable |
 | Local secrets | `flutter_secure_storage` | Keychain / EncryptedSharedPreferences |
 | CI/CD | None | No pipeline, no Docker, no IaC |
 
@@ -103,7 +103,7 @@ For that default to be usable rather than merely safe, `AIConfig.baseUrl` falls 
 
 Three supporting changes were needed:
 
-- The Edge Function now speaks the documented `SafeSpendAIService` wire contract, returning `{conversation_id, type, text, tool_calls, suggestions, insights, usage}`. It previously returned `{reply}` only, which the client could not parse. It accepts both `text` and `content` on inbound messages, and still emits `reply` alongside the new shape, so a client mid-rollout is not broken.
+- The Edge Function now speaks the documented `VVolletAIService` wire contract, returning `{conversation_id, type, text, tool_calls, suggestions, insights, usage}`. It previously returned `{reply}` only, which the client could not parse. It accepts both `text` and `content` on inbound messages, and still emits `reply` alongside the new shape, so a client mid-rollout is not broken.
 - `EnvConfig.aiProvider` and `EnvConfig.aiBaseUrl` were **duplicate declarations** of the same build flags with their own defaults. After the change they disagreed with `AIConfig`: this file still believed the app was on Gemini while the factory had already built the backend service. They now delegate to `AIConfig`, so there is one source of truth. This kind of split is how a security default comes to look applied without being applied.
 - Regression tests assert that `AIProvider` has exactly one value, that the backend is usable without extra flags, that the endpoint resolves to the Edge Function, and that the app never addresses a model-provider host directly. The first of these fails if anyone reintroduces a key-bearing provider.
 

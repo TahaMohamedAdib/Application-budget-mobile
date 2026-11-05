@@ -159,7 +159,7 @@ Deno.serve(async (req: Request) => {
       if (role !== 'user' && role !== 'assistant') {
         return json({ error: 'Invalid message role' }, 400, cors)
       }
-      // SafeSpendAIService sends `text`; the older shape used `content`.
+      // VVolletAIService sends `text`; the older shape used `content`.
       // Accept both so a client mid-rollout is not broken by the switch.
       const value = typeof text === 'string' ? text : content
       if (typeof value !== 'string' || value.length > MAX_MESSAGE_CHARS) {
@@ -207,7 +207,7 @@ Deno.serve(async (req: Request) => {
     const reply = data.choices?.[0]?.message?.content ?? 'No response received.'
     const usage = data.usage ?? {}
 
-    // The response shape SafeSpendAIService parses (AIResponse.fromJson).
+    // The response shape VVolletAIService parses (AIResponse.fromJson).
     // `reply` is kept alongside it so an older client still works during a
     // staged rollout; it can be dropped once every build is on the new one.
     return json(
@@ -280,7 +280,7 @@ function buildSystemPrompt(ctx: Record<string, unknown>): string {
   const now = new Date()
   const monthYear = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
-  return `You are SafeSpend AI Coach, a sharp and empathetic personal financial advisor built into the SafeSpend budget app.
+  return `You are VVollet AI Coach, a sharp and empathetic personal financial advisor built into the VVollet budget app.
 
 ═══ LIVE FINANCIAL SNAPSHOT — ${monthYear} ═══
 

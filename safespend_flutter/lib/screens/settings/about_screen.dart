@@ -31,7 +31,7 @@ class AboutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'SafeSpend',
+                'VVollet',
                 style: Theme.of(context)
                     .textTheme
                     .headlineSmall
@@ -58,7 +58,7 @@ class AboutScreen extends StatelessWidget {
               label: s.openSourceLicenses,
               onTap: () => showLicensePage(
                 context: context,
-                applicationName: 'SafeSpend',
+                applicationName: 'VVollet',
                 applicationVersion: appVersion,
               ),
             ),
@@ -88,7 +88,7 @@ class AboutScreen extends StatelessWidget {
               onTap: () async {
                 final view = View.of(context);
                 final diagnostics = <String, Object>{
-                  'app': 'SafeSpend $appVersion ($buildNumber)',
+                  'app': 'VVollet $appVersion ($buildNumber)',
                   'locale': Localizations.localeOf(context).toString(),
                   'brightness': Theme.of(context).brightness.name,
                   'devicePixelRatio': view.devicePixelRatio,

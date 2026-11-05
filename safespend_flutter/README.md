@@ -1,6 +1,6 @@
-﻿# SafeSpend Flutter App
+﻿# VVollet Flutter App
 
-SafeSpend is a personal finance app built with Flutter and Provider, with local persistence and Supabase synchronization. Its main tabs are Home, AI Coach, Budgets, and Wealth.
+VVollet is a personal finance app built with Flutter and Provider, with local persistence and Supabase synchronization. Its main tabs are Home, AI Coach, Budgets, and Wealth.
 
 ## App documentation
 

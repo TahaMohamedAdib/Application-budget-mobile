@@ -1,4 +1,4 @@
--- SafeSpend Flutter Migration
+-- VVollet Flutter Migration
 -- Run this SQL in your Supabase SQL Editor to add columns required by the Flutter app
 -- This is safe to run multiple times (uses IF NOT EXISTS)
 
