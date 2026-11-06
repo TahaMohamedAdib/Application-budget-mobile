@@ -34,10 +34,10 @@ class AIException implements Exception {
       AIErrorKind.network =>
         'Connection problem. Check your internet and try again.',
       AIErrorKind.backendUnavailable =>
-        'SafeSpend AI is temporarily unavailable. Please try again shortly.',
+        'VVollet AI is temporarily unavailable. Please try again shortly.',
       AIErrorKind.authExpired => 'Your session expired. Please sign in again.',
       AIErrorKind.rateLimited =>
-        'SafeSpend AI is busy right now. Please wait a moment and try again.',
+        'VVollet AI is busy right now. Please wait a moment and try again.',
       AIErrorKind.invalidToolRequest =>
         "I couldn't complete that action — the request was incomplete.",
       AIErrorKind.toolExecutionFailed =>
@@ -47,7 +47,7 @@ class AIException implements Exception {
       AIErrorKind.attachmentFailed =>
         "That file couldn't be read. Try a different one.",
       AIErrorKind.notConfigured =>
-        'SafeSpend AI is not configured yet. Please contact support.',
+        'VVollet AI is not configured yet. Please contact support.',
       AIErrorKind.unknown => 'Something went wrong. Please try again later.',
     };
     return AIException(kind, message, cause: cause);

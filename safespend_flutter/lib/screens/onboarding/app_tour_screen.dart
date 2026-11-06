@@ -532,7 +532,7 @@ class _WelcomePreview extends StatelessWidget {
             Positioned(
               top: 2,
               child: Text(
-                'SafeSpend',
+                S.appName,
                 style: TextStyle(
                   color: _previewPrimary(context),
                   fontSize: 13,

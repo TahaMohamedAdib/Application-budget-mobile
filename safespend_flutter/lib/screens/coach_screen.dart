@@ -865,7 +865,7 @@ class _CoachScreenState extends State<CoachScreen> {
                   ),
                   const SizedBox(width: 11),
                   Text(
-                    'SafeSpend AI',
+                    '${S.appName} AI',
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -2038,7 +2038,7 @@ class _CoachScreenState extends State<CoachScreen> {
                   ),
                   const SizedBox(width: 9),
                   Text(
-                    'SafeSpend AI',
+                    '${S.appName} AI',
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,

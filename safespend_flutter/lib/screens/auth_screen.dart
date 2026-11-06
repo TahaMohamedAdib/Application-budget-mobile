@@ -66,7 +66,8 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(S.of(context).tr('actionCouldNotBeCompleted')), backgroundColor: AppTheme.error),
+              content: Text(S.of(context).tr('actionCouldNotBeCompleted')),
+              backgroundColor: AppTheme.error),
         );
       }
     }
@@ -83,8 +84,7 @@ class _AuthScreenState extends State<AuthScreen> {
             Icon(IOSIcons.mark_email_unread_rounded,
                 color: AppTheme.adaptiveIcon(ctx)),
             const SizedBox(width: 10),
-            Text(s.confirmEmail,
-                style: Theme.of(ctx).textTheme.titleLarge),
+            Text(s.confirmEmail, style: Theme.of(ctx).textTheme.titleLarge),
           ],
         ),
         content: Text(
@@ -130,7 +130,9 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
     if (!result.success && result.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(S.of(context).tr('actionCouldNotBeCompleted')), backgroundColor: AppTheme.error),
+        SnackBar(
+            content: Text(S.of(context).tr('actionCouldNotBeCompleted')),
+            backgroundColor: AppTheme.error),
       );
     }
   }
@@ -141,7 +143,9 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
     if (!result.success && result.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(S.of(context).tr('actionCouldNotBeCompleted')), backgroundColor: AppTheme.error),
+        SnackBar(
+            content: Text(S.of(context).tr('actionCouldNotBeCompleted')),
+            backgroundColor: AppTheme.error),
       );
     }
   }
@@ -185,7 +189,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 // Title
                 Text(
-                  'SafeSpend',
+                  S.appName,
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
@@ -263,7 +267,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         validator: (v) {
                           if (v == null || v.isEmpty)
                             return s.tr('passwordRequired');
-                          if (v.length < 8) return s.tr('atLeastEightCharacters');
+                          if (v.length < 8)
+                            return s.tr('atLeastEightCharacters');
                           if (!RegExp(r'[A-Z]').hasMatch(v))
                             return s.tr('includeUppercaseLetter');
                           if (!RegExp(r'[0-9]').hasMatch(v))

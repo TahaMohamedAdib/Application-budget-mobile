@@ -175,7 +175,7 @@ class MyApp extends StatelessWidget {
             break;
         }
         return MaterialApp(
-          title: 'SafeSpend',
+          title: S.appName,
           debugShowCheckedModeBanner: false,
           scrollBehavior: const AppScrollBehavior(),
           theme: AppTheme.lightTheme,
@@ -345,7 +345,7 @@ class _SplashScreen extends StatelessWidget {
             Icon(IOSIcons.account_balance_wallet_rounded,
                 size: 64, color: AppTheme.adaptiveIcon(context)),
             const SizedBox(height: 16),
-            Text('SafeSpend',
+            Text(S.appName,
                 style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,

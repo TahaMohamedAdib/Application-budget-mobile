@@ -71,7 +71,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'SafeSpend',
+                S.appName,
                 style: TextStyle(
                   fontSize: 52,
                   fontWeight: FontWeight.w800,

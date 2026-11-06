@@ -5,31 +5,31 @@
   const slides = [
     {
       kicker: "First launch",
-      title: "Welcome to SafeSpend",
+      title: "Welcome to VVollet",
       description: "A short introduction to the parts of your money life the app helps you keep in view.",
       dark: "assets/screens/demo1.jpeg",
-      altDark: "Dark-mode SafeSpend welcome screen",
+      altDark: "Dark-mode VVollet welcome screen",
     },
     {
       kicker: "First launch",
       title: "See everything at a glance",
       description: "The first promise of the app: see what is safe to spend today without doing the calculation yourself.",
       dark: "assets/screens/demo2.jpeg",
-      altDark: "Dark-mode SafeSpend onboarding screen showing the safe-to-spend amount for today",
+      altDark: "Dark-mode VVollet onboarding screen showing the safe-to-spend amount for today",
     },
     {
       kicker: "First launch",
       title: "Plan with budgets",
       description: "Set a limit for the things that matter, then let the month stay legible as you spend.",
       dark: "assets/screens/demo3.jpeg",
-      altDark: "Dark-mode SafeSpend onboarding screen about planning with budgets",
+      altDark: "Dark-mode VVollet onboarding screen about planning with budgets",
     },
     {
       kicker: "First launch",
       title: "Grow your wealth",
       description: "Bring accounts, cash, savings goals and debts into one view of what you own and owe.",
       dark: "assets/screens/demo4.jpeg",
-      altDark: "Dark-mode SafeSpend onboarding screen about growing wealth",
+      altDark: "Dark-mode VVollet onboarding screen about growing wealth",
     },
     {
       kicker: "Everyday app",
@@ -37,8 +37,8 @@
       description: "Your dashboard keeps the current balance and recent activity close, in either app appearance.",
       dark: "assets/screens/home-dark.jpeg",
       light: "assets/screens/home-light.jpeg",
-      altDark: "SafeSpend Home screen in dark appearance with balance chart and recent transactions",
-      altLight: "SafeSpend Home screen in white appearance with balance chart and recent transactions",
+      altDark: "VVollet Home screen in dark appearance with balance chart and recent transactions",
+      altLight: "VVollet Home screen in white appearance with balance chart and recent transactions",
     },
     {
       kicker: "Everyday app",
@@ -46,8 +46,8 @@
       description: "Record an expense, income, cash withdrawal or transfer from the action menu.",
       dark: "assets/screens/quick-add-dark.jpeg",
       light: "assets/screens/quick-add-light.jpeg",
-      altDark: "SafeSpend dark Home screen with the quick-add action menu open",
-      altLight: "SafeSpend white Home screen with the quick-add action menu open",
+      altDark: "VVollet dark Home screen with the quick-add action menu open",
+      altLight: "VVollet white Home screen with the quick-add action menu open",
     },
     {
       kicker: "Everyday app",
@@ -55,8 +55,8 @@
       description: "See how each category is tracking before a small expense becomes a month-end surprise.",
       dark: "assets/screens/budgets-dark.jpeg",
       light: "assets/screens/budgets-light.jpeg",
-      altDark: "SafeSpend Budgets screen in dark appearance",
-      altLight: "SafeSpend Budgets screen in white appearance",
+      altDark: "VVollet Budgets screen in dark appearance",
+      altLight: "VVollet Budgets screen in white appearance",
     },
     {
       kicker: "Everyday app",
@@ -64,8 +64,8 @@
       description: "Keep your accounts, cash, savings and debts together for a more complete financial picture.",
       dark: "assets/screens/wealth-dark.jpeg",
       light: "assets/screens/wealth-light.jpeg",
-      altDark: "SafeSpend Wealth screen in dark appearance",
-      altLight: "SafeSpend Wealth screen in white appearance",
+      altDark: "VVollet Wealth screen in dark appearance",
+      altLight: "VVollet Wealth screen in white appearance",
     },
   ];
 
