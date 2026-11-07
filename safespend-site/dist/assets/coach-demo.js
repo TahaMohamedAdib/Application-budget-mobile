@@ -2,20 +2,23 @@
   const coach = document.querySelector("[data-coach-demo]");
   if (!coach) return;
 
-  const demos = {
-    text: {
-      label: "Typed question",
-      user: "Can I afford a 300 MAD jacket this week?",
-      reply:
-        "Yes. The jacket would be added to your spending and budget history. I can prepare it for your confirmation.",
-    },
-    voice: {
-      label: "Voice message",
-      transcript: "Add 250 MAD for dinner with friends, paid in cash.",
-      reply:
-        "I can prepare that expense from Cash. It will reduce your cash balance by 250.00 MAD after you confirm. I'll wait for your confirmation before changing anything.",
-    },
-  };
+  let demos;
+  function setDemos() {
+    const money = window.VVolletCurrency?.format || ((amount) => `MAD ${Number(amount).toFixed(2)}`);
+    demos = {
+      text: {
+        label: "Typed question",
+        user: `Can I afford a ${money(300)} jacket this week?`,
+        reply: "Yes. The jacket would be added to your spending and budget history. I can prepare it for your confirmation.",
+      },
+      voice: {
+        label: "Voice message",
+        transcript: `Add ${money(250)} for dinner with friends, paid in cash.`,
+        reply: `I can prepare that expense from Cash. It will reduce your cash balance by ${money(250)} after you confirm. I'll wait for your confirmation before changing anything.`,
+      },
+    };
+  }
+  setDemos();
 
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const tabs = [...coach.querySelectorAll("[data-coach-mode]")];
@@ -160,5 +163,9 @@
 
   replay.addEventListener("click", () => play());
   motion.addEventListener?.("change", () => play());
+  window.addEventListener("vvollet:currencychange", () => {
+    setDemos();
+    play(activeMode, false);
+  });
   play();
 })();

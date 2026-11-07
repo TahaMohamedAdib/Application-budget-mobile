@@ -17,6 +17,7 @@
     <link rel="icon" href="assets/safespend-wallet.jpeg" />
     <link rel="preload" href="assets/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <title>VVollet: Your money, clearly organized</title>
+    <script src="assets/theme.js"></script>
     <style>
       @font-face {
         font-family: Inter;
@@ -99,10 +100,20 @@
       .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; text-decoration: none; }
       .brand img { width: 32px; height: 32px; border-radius: 8px; }
       .brand picture { display: flex; }
-      .nav { display: flex; gap: 4px; font-size: 14px; color: var(--text-2); }
+      .nav { display: flex; gap: 4px; margin-left: auto; font-size: 14px; color: var(--text-2); }
       .nav a { padding: 8px 12px; border-radius: 8px; text-decoration: none; transition: color .15s var(--ease), background-color .15s var(--ease); }
       .nav a:hover { color: var(--text); background: var(--surface); }
-      .menu-toggle { display: none; }
+      .theme-toggle, .menu-toggle { display: none; }
+      .theme-toggle {
+        display: inline-grid; place-items: center; width: 44px; height: 44px; margin-left: 12px; padding: 0;
+        border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); cursor: pointer;
+        transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
+      }
+      .theme-toggle:hover { background: var(--surface); border-color: var(--text-3); }
+      .theme-toggle .theme-icon { width: 18px; height: 18px; }
+      .theme-toggle .sun { display: none; }
+      html[data-theme="dark"] .theme-toggle .sun { display: block; }
+      html[data-theme="dark"] .theme-toggle .moon { display: none; }
 
       /* ── Hero ─────────────────────────────── */
       .hero { padding: 72px 0 96px; }
@@ -370,6 +381,18 @@
         .coach { box-shadow: none; }
       }
 
+      html[data-theme="light"] {
+        --bg: #ffffff; --surface: #f7f7f8; --text: #202123; --text-2: #6e6e80; --text-3: #8e8ea0;
+        --border: #e5e5e5; --divider: #ececf1; --teal-50: #e8f9f7; --teal-text: var(--teal); --bubble: #eff1f2;
+      }
+      html[data-theme="dark"] {
+        --bg: #181a1b; --surface: #212324; --text: #ececec; --text-2: #aaaaaa; --text-3: #8e8e8e;
+        --border: #3a3a3a; --divider: #2a2a2a; --teal-50: rgba(94, 207, 188, .12); --teal-text: #5ecfbc; --bubble: #2a2c2d;
+      }
+      html[data-theme="dark"] .daret { background: #111213; border-block: 1px solid var(--border); }
+      html[data-theme="dark"] .gallery-panel[data-appearance="dark"] { border-color: var(--border); }
+      html[data-theme="dark"] .coach { box-shadow: none; }
+
       /* ── Responsive ──────────────────────── */
       @media (max-width: 960px) {
         .hero .wrap, .daret .wrap, .tongues .wrap, .screen-tour .wrap { grid-template-columns: 1fr; gap: 48px; }
@@ -381,6 +404,7 @@
       @media (max-width: 720px) {
         .wrap { width: min(1120px, 100% - 40px); }
         .nav { display: none; }
+        .theme-toggle { display: inline-grid; margin-left: auto; }
   .masthead { position: relative; z-index: 50; }
   .menu-toggle {
     display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0;
@@ -436,6 +460,7 @@
     </style>
     <script src="assets/coach-demo.js" defer></script>
     <script src="assets/screen-gallery.js" defer></script>
+    <script src="assets/currency.js" defer></script>
     <script src="assets/menu.js" defer></script>
   </head>
   <body>
@@ -458,6 +483,10 @@
           <a href="#coming-next">Coming next</a>
           <a href="#privacy">Privacy</a>
         </nav>
+        <button class="theme-toggle" data-theme-toggle type="button" aria-label="Switch to dark theme" aria-pressed="false">
+          <svg class="theme-icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" /></svg>
+          <svg class="theme-icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2.2M12 19.8V22M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2 12h2.2M19.8 12H22M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56" /></svg>
+        </button>
         <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
           <span aria-hidden="true"></span><span aria-hidden="true"></span>
         </button>
@@ -488,11 +517,11 @@
               <table class="num">
                 <caption><b>Friday, 13 November</b>An example month</caption>
                 <tbody>
-                  <tr><th scope="row">Monthly income</th><td>9,500.00</td></tr>
-                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Spent so far</th><td>2,930.00</td></tr>
-                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Daret contribution</th><td>1,000.00</td></tr>
-                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Emergency fund</th><td>250.00</td></tr>
-                  <tr class="total"><th scope="row">Remaining balance</th><td>5,320.00<small>MAD</small></td></tr>
+                  <tr><th scope="row">Monthly income</th><td data-currency-amount="9500">MAD 9,500.00</td></tr>
+                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Spent so far</th><td data-currency-amount="2930">MAD 2,930.00</td></tr>
+                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Daret contribution</th><td data-currency-amount="1000">MAD 1,000.00</td></tr>
+                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Emergency fund</th><td data-currency-amount="250">MAD 250.00</td></tr>
+                  <tr class="total"><th scope="row">Remaining balance</th><td data-currency-amount="5320">MAD 5,320.00</td></tr>
                 </tbody>
               </table>
             </div>
@@ -608,7 +637,7 @@
           <figure class="rotation" aria-labelledby="rotation-caption">
             <div class="rotation-head">
               <b id="rotation-caption">Daret with the cousins</b>
-              <span class="num">10 shares · 1,000.00 MAD a month</span>
+              <span class="num">10 shares · <span data-currency-amount="1000">MAD 1,000.00</span> a month</span>
             </div>
             <ol class="months">
               <li class="month paid"><b>Jul</b>Paid</li>
@@ -625,7 +654,7 @@
             <p class="rotation-key">
               <span><i style="background:rgba(255,255,255,.12)"></i>Paid</span>
               <span><i style="border:1px solid var(--dark-text)"></i>This month</span>
-              <span><i style="background:var(--teal)"></i>Pot comes to you · <span class="num">10,000.00 MAD</span></span>
+              <span><i style="background:var(--teal)"></i>Pot comes to you · <span class="num" data-currency-amount="10000">MAD 10,000.00</span></span>
             </p>
           </figure>
         </div>
@@ -703,12 +732,12 @@
             <p class="bubble-user" hidden aria-hidden="true">I just paid 250 for dinner with friends, in cash</p>
             <div class="bubble-ai" hidden aria-hidden="true">
               <p>I’ll add it as an expense from your cash once you confirm.</p>
-              <p>This expense reduces your cash balance by <strong class="num">250.00 MAD</strong>. Nothing changes until you confirm.</p>
+              <p>This expense reduces your cash balance by <strong class="num" data-currency-amount="250">MAD 250.00</strong>. Nothing changes until you confirm.</p>
             </div>
             <div class="confirm" hidden aria-hidden="true">
               <p class="confirm-title">Add expense</p>
               <dl class="num">
-                <div><dt>Amount</dt><dd>250.00 MAD</dd></div>
+                <div><dt>Amount</dt><dd data-currency-amount="250">MAD 250.00</dd></div>
                 <div><dt>Paid from</dt><dd>Cash</dd></div>
                 <div><dt>Note</dt><dd>Dinner with friends</dd></div>
               </dl>
