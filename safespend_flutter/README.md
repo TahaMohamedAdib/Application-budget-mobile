@@ -27,3 +27,17 @@ flutter test
 ```
 
 See the app map for focused tests associated with each feature. Dependencies and package metadata are in [pubspec.yaml](pubspec.yaml).
+
+## Pre-release checks
+
+From `safespend_flutter/`, run:
+
+```powershell
+.\tool\audit.ps1
+```
+
+Use `-SkipBundle` when iterating on Dart code only. The command runs dependency
+resolution, analysis, the full Flutter test suite (including localization key
+parity), and the Android release bundle build. The bundle is still debug-signed
+until a production keystore is configured; it must not be uploaded to Google
+Play.

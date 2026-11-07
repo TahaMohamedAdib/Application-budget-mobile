@@ -109,6 +109,19 @@ later step fails, there is no durable deletion-job/retry record. This cannot be
 validated or safely redesigned without an isolated Supabase test project and
 deployment authority; it remains open.
 
+## CI and test-harness progress
+
+Added `.github/workflows/flutter-audit.yml`, pinned to Flutter 3.47.9. On pull
+requests and protected branches it resolves packages, analyzes, runs all Flutter
+tests (which includes the catalog-parity suite), builds a release AAB, and
+uploads that artifact for review. This confirms compilation only until the
+debug-signing finding is resolved with secure CI keystore inputs.
+
+`safespend_flutter/tool/audit.ps1` provides the corresponding local command.
+The previously observed SharedPreferences error in `ai_tool_executor_test.dart`
+was a test setup defect: the test bound Flutter but did not install mock
+preferences. It now does, and its 13 tests pass without the plugin exception.
+
 ## Limitations
 
 No physical Android/iOS device, App Store/Play Console, Supabase management credentials, or non-production Supabase test project was provided. No statement about deployed RLS, bucket privacy, Edge Function behavior, production account deletion, OAuth configuration, email templates, or store-listing status should be inferred from source inspection alone.
