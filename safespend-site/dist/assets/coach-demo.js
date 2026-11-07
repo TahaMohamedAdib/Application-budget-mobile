@@ -7,13 +7,13 @@
       label: "Typed question",
       user: "Can I afford a 300 MAD jacket this week?",
       reply:
-        "Yes. After the jacket, you would have about 2,070.00 MAD left for the 7 days in this example. That stays within the plan shown here.",
+        "Yes. The jacket would be added to your spending and budget history. I can prepare it for your confirmation.",
     },
     voice: {
       label: "Voice message",
       transcript: "Add 250 MAD for dinner with friends, paid in cash.",
       reply:
-        "I can prepare that expense from Cash. This example moves today's safe-to-spend amount from 295.56 to 281.67 MAD. I'll wait for your confirmation before changing anything.",
+        "I can prepare that expense from Cash. It will reduce your cash balance by 250.00 MAD after you confirm. I'll wait for your confirmation before changing anything.",
     },
   };
 

@@ -13,9 +13,9 @@
     {
       kicker: "First launch",
       title: "See everything at a glance",
-      description: "The first promise of the app: see what is safe to spend today without doing the calculation yourself.",
+      description: "See your accounts, cash, budgets and upcoming commitments in one place.",
       dark: "assets/screens/demo2.jpeg",
-      altDark: "Dark-mode VVollet onboarding screen showing the safe-to-spend amount for today",
+      altDark: "Dark-mode VVollet onboarding screen showing a financial overview",
     },
     {
       kicker: "First launch",
