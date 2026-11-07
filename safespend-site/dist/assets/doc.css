@@ -1,5 +1,5 @@
 /* Shared styles for the document pages (privacy, terms, support, delete account).
-   Tokens match index.html and the app (lib/theme/app_colors.dart) — see design-system/safespend/MASTER.md. */
+   Tokens match index.html and the app (lib/theme/app_colors.dart); see design-system/safespend/MASTER.md. */
 
 @font-face {
   font-family: Inter;
