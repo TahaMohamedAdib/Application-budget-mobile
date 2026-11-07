@@ -87,6 +87,28 @@ Validation on 2026-11-07:
 Still not verified: platform per-app language manifests, locale change after a
 background resume, a live profile migration, and device-rendered RTL behavior.
 
+Android 13+ per-app language metadata was added in
+`android/app/src/main/res/xml/locales_config.xml` and referenced from the
+manifest. A release AAB build was started twice but this environment did not
+return a final Gradle exit status or artifact before its command capture
+expired; build status remains **NOT VERIFIED**.
+
+## Account deletion source review
+
+The in-app Account screen invokes `AuthService.deleteAccount`, which calls the
+`delete-account` Edge Function using the current JWT. The function derives the
+user id from that token, ignores request body identity, deletes objects beneath
+that user's prefix in `receipts`, `avatars`, and `logos`, then deletes the auth
+user. User data tables and the AI conversation/project migration reference
+`auth.users` with `ON DELETE CASCADE`.
+
+**HIGH residual risk:** Storage deletion and auth deletion are separate,
+non-transactional operations. If Storage removal succeeds but admin user
+deletion fails, the account remains but its images are irreversibly gone. If a
+later step fails, there is no durable deletion-job/retry record. This cannot be
+validated or safely redesigned without an isolated Supabase test project and
+deployment authority; it remains open.
+
 ## Limitations
 
 No physical Android/iOS device, App Store/Play Console, Supabase management credentials, or non-production Supabase test project was provided. No statement about deployed RLS, bucket privacy, Edge Function behavior, production account deletion, OAuth configuration, email templates, or store-listing status should be inferred from source inspection alone.
