@@ -96,6 +96,7 @@
       .nav { display: flex; gap: 4px; font-size: 14px; color: var(--text-2); }
       .nav a { padding: 8px 12px; border-radius: 8px; text-decoration: none; transition: color .15s var(--ease), background-color .15s var(--ease); }
       .nav a:hover { color: var(--text); background: var(--surface); }
+      .menu-toggle { display: none; }
 
       /* ── Hero ─────────────────────────────── */
       .hero { padding: 72px 0 96px; }
@@ -354,6 +355,24 @@
       @media (max-width: 720px) {
         .wrap { width: min(1120px, 100% - 40px); }
         .nav { display: none; }
+  .masthead { position: relative; z-index: 50; }
+  .menu-toggle {
+    display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); cursor: pointer;
+  }
+  .menu-toggle span { grid-area: 1 / 1; width: 18px; height: 1.5px; border-radius: 1px; background: currentColor; transition: transform .2s var(--ease); }
+  .menu-toggle span:first-child { transform: translateY(-4px); }
+  .menu-toggle span:last-child { transform: translateY(4px); }
+  .masthead.is-open .menu-toggle span:first-child { transform: rotate(45deg); }
+  .masthead.is-open .menu-toggle span:last-child { transform: rotate(-45deg); }
+  .masthead.is-open .nav {
+    display: flex; flex-direction: column; gap: 2px;
+    position: absolute; top: 100%; left: 0; right: 0;
+    padding: 8px 20px 16px; background: var(--bg);
+    border-bottom: 1px solid var(--border); box-shadow: 0 12px 24px -12px rgba(0, 0, 0, .18);
+    font-size: 16px;
+  }
+  .masthead.is-open .nav a { padding: 12px; }
         .hero { padding: 48px 0 72px; }
         .lede { font-size: 17px; }
         .section, .daret, .screen-tour { padding: 72px 0; }
@@ -391,6 +410,7 @@
     </style>
     <script src="assets/coach-demo.js" defer></script>
     <script src="assets/screen-gallery.js" defer></script>
+    <script src="assets/menu.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -401,7 +421,7 @@
           <img src="assets/safespend-wallet.jpeg" alt="" width="34" height="34" />
           VVollet
         </a>
-        <nav class="nav" aria-label="Sections">
+        <nav id="site-nav" class="nav" aria-label="Sections">
           <a href="#money-overview">Your money</a>
           <a href="#daret">Daret</a>
           <a href="#screens">Screens</a>
@@ -409,6 +429,9 @@
           <a href="#coming-next">Coming next</a>
           <a href="#privacy">Privacy</a>
         </nav>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+          <span aria-hidden="true"></span><span aria-hidden="true"></span>
+        </button>
       </div>
     </header>
 
