@@ -66,7 +66,8 @@
 
   let current = 0;
   let activeLayer = 0;
-  let theme = "dark";
+  // Start on the app appearance that matches the visitor's system theme.
+  let theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   let timer;
   let paused = false;
   let engaged = false;

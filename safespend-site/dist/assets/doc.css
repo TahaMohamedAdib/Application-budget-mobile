@@ -20,6 +20,8 @@
   --text-2: #6e6e80;    /* lightTextSecondary */
   --border: #e5e5e5;    /* lightBorder */
   --dark-text-2: #aaaaaa;
+  --teal-text: var(--teal);  /* teal used as text or outline */
+  color-scheme: light dark;
   --sans: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   --ease: cubic-bezier(.22, 1, .36, 1);
 }
@@ -37,14 +39,14 @@ body {
 }
 h1, h2, h3, p, ul, ol, dl, dd { margin: 0; }
 a { color: inherit; text-underline-offset: 3px; }
-:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--teal-text); outline-offset: 3px; border-radius: 4px; }
 
 .wrap { width: min(1120px, 100% - 48px); margin-inline: auto; }
 
 .skip-link {
   position: absolute; top: 12px; left: 12px; z-index: 100;
   padding: 12px 16px; border-radius: 8px;
-  background: #212121; color: var(--bg);
+  background: #212121; color: #fff;
   transform: translateY(-200%);
   transition: transform .2s var(--ease);
 }
@@ -54,6 +56,7 @@ a { color: inherit; text-underline-offset: 3px; }
 .masthead .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 72px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; text-decoration: none; }
 .brand img { width: 32px; height: 32px; border-radius: 8px; }
+.brand picture { display: flex; }
 .masthead nav { display: flex; gap: 4px; font-size: 14px; color: var(--text-2); }
 .masthead nav a { padding: 8px 12px; border-radius: 8px; text-decoration: none; transition: color .15s var(--ease), background-color .15s var(--ease); }
 .masthead nav a:hover { color: var(--text); background: var(--surface); }
@@ -120,6 +123,21 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
 footer a { text-decoration: none; }
 footer a:hover { color: var(--text); text-decoration: underline; }
+
+/* Dark theme: follows the system setting */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181a1b;        /* darkBackground */
+    --surface: #212324;   /* darkSurfaceElevated */
+    --text: #ececec;      /* darkTextPrimary */
+    --text-2: #aaaaaa;    /* darkTextSecondary */
+    --border: #3a3a3a;    /* darkBorder */
+    --teal-50: rgba(94, 207, 188, .12);
+    --teal-text: #5ecfbc; /* gold200: teal readable on dark */
+  }
+  .callout { border-color: var(--border); }
+  .doc-body a { color: var(--teal-text); }
+}
 
 @media (max-width: 960px) {
   .doc { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 48px 0 72px; }

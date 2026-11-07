@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#181a1b" media="(prefers-color-scheme: dark)" />
     <meta
       name="description"
       content="VVollet brings your income, spending, accounts, budgets, goals and Daret groups into one clear view."
@@ -48,6 +50,9 @@
         --dark-text-2: #aaaaaa;   /* darkTextSecondary */
         --dark-text-3: #8e8e8e;   /* darkTextTertiary */
         --dark-border: rgba(255, 255, 255, .08);
+        --teal-text: var(--teal);  /* teal used as text or outline */
+        --bubble: #eff1f2;
+        color-scheme: light dark;
 
         --sans: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
         --ease: cubic-bezier(.22, 1, .36, 1);
@@ -77,13 +82,13 @@
       .skip-link {
         position: absolute; top: 12px; left: 12px; z-index: 100;
         padding: 12px 16px; border-radius: 8px;
-        background: var(--dark-card); color: var(--bg);
+        background: var(--dark-card); color: #fff;
         transform: translateY(-200%);
         transition: transform .2s var(--ease);
       }
       .skip-link:focus { transform: none; }
 
-      :focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 4px; }
+      :focus-visible { outline: 2px solid var(--teal-text); outline-offset: 3px; border-radius: 4px; }
       .on-navy :focus-visible { outline-color: var(--teal-200); }
 
       .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
@@ -93,6 +98,7 @@
       .masthead .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 72px; }
       .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; text-decoration: none; }
       .brand img { width: 32px; height: 32px; border-radius: 8px; }
+      .brand picture { display: flex; }
       .nav { display: flex; gap: 4px; font-size: 14px; color: var(--text-2); }
       .nav a { padding: 8px 12px; border-radius: 8px; text-decoration: none; transition: color .15s var(--ease), background-color .15s var(--ease); }
       .nav a:hover { color: var(--text); background: var(--surface); }
@@ -184,6 +190,7 @@
       .phone-stage { display: grid; place-items: center; min-height: 548px; padding: 16px; border-radius: 18px; background: #e9ebed; transition: background-color 220ms var(--ease); }
       .gallery-panel[data-appearance="dark"] .phone-stage { background: #101516; }
       .phone-frame { position: relative; width: min(100%, 285px); aspect-ratio: 735 / 1600; overflow: hidden; padding: 6px; border: 1px solid #101112; border-radius: 36px; background: #090a0b; box-shadow: 0 14px 28px rgba(0, 0, 0, .2); }
+      .gallery-panel[data-appearance="light"] { --bg: #ffffff; --surface: #f7f7f8; --text: #202123; --text-2: #6e6e80; --text-3: #8e8ea0; --border: #e5e5e5; --teal-text: var(--teal); --teal-50: #e8f9f7; color: var(--text); }
       .gallery-panel[data-appearance="light"] .phone-frame { border-color: #c7c9cb; background: #f6f6f6; box-shadow: 0 14px 28px rgba(32, 33, 35, .13); }
       .screen-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); border-radius: 30px; object-fit: cover; opacity: 0; transform: translateX(18px) scale(.988); transition: opacity 380ms var(--ease), transform 380ms var(--ease); }
       .screen-image.is-active { opacity: 1; transform: translateX(0) scale(1); }
@@ -197,7 +204,7 @@
       .gallery-caption p { margin-top: 14px; color: var(--text-2); font-size: 14px; line-height: 1.6; }
       .gallery-controls { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
       .gallery-control { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 8px 11px; border: 1px solid var(--border); border-radius: 11px; color: var(--text); background: var(--bg); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease), border-color 180ms var(--ease); }
-      .gallery-control:hover { color: var(--teal); border-color: var(--teal); background: var(--teal-50); }
+      .gallery-control:hover { color: var(--teal-text); border-color: var(--teal-text); background: var(--teal-50); }
       .gallery-control[data-gallery-autoplay] { min-width: auto; }
       .gallery-control svg { width: 16px; height: 16px; }
 
@@ -275,7 +282,7 @@
       .next-list p { margin-top: 8px; color: var(--text-2); font-size: 15px; }
       .next-note { margin-top: 24px; font-size: 14px; color: var(--text-2); }
       .next-note a { text-underline-offset: 3px; }
-      .next-note a:hover { color: var(--teal); }
+      .next-note a:hover { color: var(--teal-text); }
 
       /* Coach preview, based on the app's chat widgets. This is a visual demo only:
          nothing is sent, changed, or recorded from the website. */
@@ -287,11 +294,11 @@
       .coach-tab { min-height: 42px; padding: 9px 12px; border: 1px solid transparent; border-radius: 9px; color: var(--text-2); background: transparent; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 180ms var(--ease), color 180ms var(--ease), border-color 180ms var(--ease); }
       .coach-tab[aria-selected="true"] { color: var(--text); border-color: var(--border); background: var(--bg); }
       .coach-tab:hover { color: var(--text); }
-      .coach-tab:focus-visible, .coach-replay:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+      .coach-tab:focus-visible, .coach-replay:focus-visible { outline: 3px solid var(--teal-text); outline-offset: 2px; }
       .coach-stage { min-height: 297px; padding-top: 18px; }
       .coach-state { display: flex; align-items: center; gap: 7px; min-height: 19px; margin-bottom: 12px; color: var(--text-3); font-size: 12px; }
       .coach-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
-      .bubble-user { max-width: 86%; margin-left: auto; padding: 12px 16px; border-radius: 20px 20px 5px 20px; background: #eff1f2; font-size: 15px; line-height: 1.5; }
+      .bubble-user { max-width: 86%; margin-left: auto; padding: 12px 16px; border-radius: 20px 20px 5px 20px; background: var(--bubble); font-size: 15px; line-height: 1.5; }
       .bubble-user[hidden] { display: none; }
       .coach.is-writing .bubble-user:not(.bubble-voice)::after, .coach.is-writing .bubble-voice [data-coach-transcript]::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -.12em; background: var(--teal); animation: cursor-blink 720ms step-end infinite; }
       .bubble-voice { display: flex; align-items: center; gap: 10px; }
@@ -316,8 +323,8 @@
       .coach:not(.is-typing) .reply-caret { display: none; }
       .coach-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--divider); }
       .coach-controls span { color: var(--text-3); font-size: 12px; }
-      .coach-replay { min-height: 38px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--teal); background: var(--bg); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease), border-color 180ms var(--ease); }
-      .coach-replay:hover { border-color: var(--teal); background: var(--teal-50); }
+      .coach-replay { min-height: 38px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--teal-text); background: var(--bg); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease), border-color 180ms var(--ease); }
+      .coach-replay:hover { border-color: var(--teal-text); background: var(--teal-50); }
       .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
       @keyframes coach-dot { to { transform: translateY(-3px); opacity: .42; } }
       @keyframes cursor-blink { 50% { opacity: 0; } }
@@ -340,9 +347,28 @@
       footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
       .more { margin-top: 40px; font-size: 15px; }
       .more a { text-underline-offset: 3px; }
-      .more a:hover { color: var(--teal); }
+      .more a:hover { color: var(--teal-text); }
       footer a { text-decoration: none; }
       footer a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+      /* ── Dark theme: follows the system setting ── */
+      @media (prefers-color-scheme: dark) {
+        :root {
+        --bg: #181a1b;        /* darkBackground */
+        --surface: #212324;   /* darkSurfaceElevated */
+        --text: #ececec;      /* darkTextPrimary */
+        --text-2: #aaaaaa;    /* darkTextSecondary */
+        --text-3: #8e8e8e;    /* darkTextTertiary */
+        --border: #3a3a3a;    /* darkBorder */
+        --divider: #2a2a2a;   /* darkDivider */
+        --teal-50: rgba(94, 207, 188, .12);
+        --teal-text: #5ecfbc; /* gold200: teal readable on dark */
+        --bubble: #2a2c2d;
+        }
+        .daret { background: #111213; border-block: 1px solid var(--border); }
+        .gallery-panel[data-appearance="dark"] { border-color: var(--border); }
+        .coach { box-shadow: none; }
+      }
 
       /* ── Responsive ──────────────────────── */
       @media (max-width: 960px) {
@@ -418,7 +444,10 @@
     <header class="masthead">
       <div class="wrap">
         <a class="brand" href="#main" aria-label="VVollet, back to top">
-          <img src="assets/safespend-wallet.jpeg" alt="" width="34" height="34" />
+          <picture>
+            <source srcset="assets/wallet-dark.jpeg" media="(prefers-color-scheme: dark)" />
+            <img src="assets/safespend-wallet.jpeg" alt="" width="34" height="34" />
+          </picture>
           VVollet
         </a>
         <nav id="site-nav" class="nav" aria-label="Sections">
