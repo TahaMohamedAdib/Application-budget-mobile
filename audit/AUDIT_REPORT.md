@@ -138,6 +138,16 @@ test (3 tests pass). Application/package IDs are not changed in this audit
 because changing them creates a new store identity and breaks upgrade
 continuity.
 
+## Finance and offline baseline
+
+`financial_integrity_audit_test.dart` and `core_feature_logic_test.dart` pass
+with the locale-preference tests (**25 tests** in the targeted run). They cover
+transfer reversal, Daret idempotency, goal/debt caps, recurrence limits,
+account deletion reversal, fees, and net-worth treatment. The larger offline
+persistence/provider run was started; all observed tests passed, but its first
+run exposed the locale merge regression described above before completion. It
+must be rerun in CI after this commit before it is recorded as a complete pass.
+
 ## Limitations
 
 No physical Android/iOS device, App Store/Play Console, Supabase management credentials, or non-production Supabase test project was provided. No statement about deployed RLS, bucket privacy, Edge Function behavior, production account deletion, OAuth configuration, email templates, or store-listing status should be inferred from source inspection alone.

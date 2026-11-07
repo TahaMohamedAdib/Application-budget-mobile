@@ -211,11 +211,12 @@ class Settings {
       isDarkMode: remote.isDarkMode,
       netWorthScope: remote.netWorthScope,
       selectedAccountId: remote.selectedAccountId,
-      // Language intentionally follows the account: the paired intent marker
-      // prevents a remote automatic default from masquerading as a manual
-      // preference on another device.
-      locale: remote.locale,
-      localeManuallySelected: remote.localeManuallySelected,
+      // Only an explicit remote choice travels across devices. An automatic
+      // value represents that other device's language list and must never
+      // overwrite this device's own detected language.
+      locale: remote.localeManuallySelected ? remote.locale : locale,
+      localeManuallySelected:
+          remote.localeManuallySelected ? true : localeManuallySelected,
       // Carries the profile picture back after a reinstall: the server row is
       // the only place it survives, since local storage is gone with the app.
       avatarPath: avatar,

@@ -25,4 +25,15 @@ void main() {
     expect(Settings.fromJson(selected.toJson()).localeManuallySelected, isTrue);
     expect(Settings.fromJson({'locale': 'en'}).localeManuallySelected, isFalse);
   });
+
+  test('only an explicit remote choice overrides this device language', () {
+    const local = Settings(locale: 'fr');
+    const automaticRemote = Settings(locale: 'ar');
+    const manualRemote = Settings(locale: 'ar', localeManuallySelected: true);
+
+    expect(local.withRemoteProfile(automaticRemote).locale, 'fr');
+    expect(local.withRemoteProfile(manualRemote).locale, 'ar');
+    expect(
+        local.withRemoteProfile(manualRemote).localeManuallySelected, isTrue);
+  });
 }
