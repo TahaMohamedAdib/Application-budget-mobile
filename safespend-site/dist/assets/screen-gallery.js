@@ -5,31 +5,10 @@
   const slides = [
     {
       kicker: "First launch",
-      title: "Welcome to VVollet",
-      description: "A short introduction to the parts of your money life the app helps you keep in view.",
-      dark: "assets/screens/demo1.jpeg",
-      altDark: "Dark-mode VVollet welcome screen",
-    },
-    {
-      kicker: "First launch",
-      title: "See everything at a glance",
-      description: "See your accounts, cash, budgets and upcoming commitments in one place.",
-      dark: "assets/screens/demo2.jpeg",
-      altDark: "Dark-mode VVollet onboarding screen showing a financial overview",
-    },
-    {
-      kicker: "First launch",
       title: "Plan with budgets",
       description: "Set a limit for the things that matter, then let the month stay legible as you spend.",
       dark: "assets/screens/demo3.jpeg",
       altDark: "Dark-mode VVollet onboarding screen about planning with budgets",
-    },
-    {
-      kicker: "First launch",
-      title: "Grow your wealth",
-      description: "Bring accounts, cash, savings goals and debts into one view of what you own and owe.",
-      dark: "assets/screens/demo4.jpeg",
-      altDark: "Dark-mode VVollet onboarding screen about growing wealth",
     },
     {
       kicker: "Everyday app",
