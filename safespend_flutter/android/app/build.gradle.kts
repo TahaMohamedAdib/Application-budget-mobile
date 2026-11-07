@@ -10,6 +10,9 @@ plugins {
 
 val releasePropertiesFile = rootProject.file("key.properties")
 val releaseProperties = Properties()
+val releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
 if (releasePropertiesFile.exists()) {
     FileInputStream(releasePropertiesFile).use(releaseProperties::load)
 }
@@ -46,17 +49,19 @@ android {
             // Store credentials only in ignored key.properties (local) or
             // generated from encrypted CI secrets. A store build must never
             // silently fall back to the Android debug certificate.
-            if (!releasePropertiesFile.exists()) {
+            if (releaseTaskRequested && !releasePropertiesFile.exists()) {
                 throw GradleException(
                     "Release signing is required. Create android/key.properties from " +
                         "android/key.properties.example or inject it in CI."
                 )
             }
-            signingConfig = signingConfigs.create("release") {
-                keyAlias = releaseProperties.getProperty("keyAlias")
-                keyPassword = releaseProperties.getProperty("keyPassword")
-                storeFile = file(releaseProperties.getProperty("storeFile"))
-                storePassword = releaseProperties.getProperty("storePassword")
+            if (releasePropertiesFile.exists()) {
+                signingConfig = signingConfigs.create("release") {
+                    keyAlias = releaseProperties.getProperty("keyAlias")
+                    keyPassword = releaseProperties.getProperty("keyPassword")
+                    storeFile = file(releaseProperties.getProperty("storeFile"))
+                    storePassword = releaseProperties.getProperty("storePassword")
+                }
             }
         }
     }
