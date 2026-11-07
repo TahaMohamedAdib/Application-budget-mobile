@@ -1,3 +1,4 @@
+import 'translations_legal.dart';
 import 'translations_core.dart';
 import 'translations_audit.dart';
 import 'translations_currencies.dart';
@@ -21,6 +22,7 @@ final translations = _merge([
   translationsSettings,
   translationsSettingsExtra,
   translationsOnboarding,
+  translationsLegal,
 ]);
 
 Map<String, Map<String, String>> _merge(

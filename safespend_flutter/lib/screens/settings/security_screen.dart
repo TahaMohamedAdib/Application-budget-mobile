@@ -83,28 +83,6 @@ class SecurityScreen extends StatelessWidget {
               ],
             ),
             SettingsGroup(
-              header: s.diagnostics,
-              footer: s.diagnosticsFooter,
-              children: [
-                SettingsSwitchRow(
-                  icon: IOSIcons.pie_chart_outline_rounded,
-                  label: s.usageAnalytics,
-                  detail: s.usageAnalyticsDetail,
-                  value: settings.analyticsEnabled,
-                  onChanged: (v) =>
-                      update(settings.copyWith(analyticsEnabled: v)),
-                ),
-                SettingsSwitchRow(
-                  icon: IOSIcons.error_outline_rounded,
-                  label: s.crashReports,
-                  detail: s.crashReportsDetail,
-                  value: settings.crashReportsEnabled,
-                  onChanged: (v) =>
-                      update(settings.copyWith(crashReportsEnabled: v)),
-                ),
-              ],
-            ),
-            SettingsGroup(
               children: [
                 SettingsRow(
                   icon: IOSIcons.shield_rounded,
