@@ -31,6 +31,19 @@ function json(body: unknown, status = 200): Response {
 
 type Admin = ReturnType<typeof createClient>
 
+async function markDeletion(
+  admin: Admin,
+  userId: string,
+  status: 'requested' | 'storage_deleted' | 'deleting_auth' | 'failed',
+  lastError: string | null = null,
+) {
+  const { error } = await admin.from('account_deletion_jobs').upsert(
+    { user_id: userId, status, last_error: lastError },
+    { onConflict: 'user_id' },
+  )
+  if (error) throw error
+}
+
 /// Lists every object path under [prefix], descending into sub-folders.
 async function listAll(admin: Admin, bucket: string, prefix: string): Promise<string[]> {
   const paths: string[] = []
@@ -79,6 +92,11 @@ Deno.serve(async (req) => {
   })
 
   try {
+    // The row makes a partial operation visible and lets the person retry
+    // safely. Every storage operation is idempotent, so a retry after a
+    // network/auth failure cannot delete somebody else's data or corrupt a
+    // completed bucket cleanup.
+    await markDeletion(admin, userId, 'requested')
     for (const bucket of USER_BUCKETS) {
       const paths = await listAll(admin, bucket, userId)
       for (let i = 0; i < paths.length; i += 100) {
@@ -87,9 +105,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    await markDeletion(admin, userId, 'storage_deleted')
+    await markDeletion(admin, userId, 'deleting_auth')
+
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId)
     if (deleteError) throw deleteError
   } catch (e) {
+    // Keep the job for a user-initiated retry. Do not return internal error
+    // details to the device, where they could expose deployment information.
+    try {
+      await markDeletion(admin, userId, 'failed', 'deletion_step_failed')
+    } catch (_) {
+      // Preserve the original failure response even if status persistence is
+      // unavailable; the request can still be retried safely.
+    }
     console.error('[delete-account] failed for', userId, e)
     return json({ error: 'delete_failed' }, 500)
   }

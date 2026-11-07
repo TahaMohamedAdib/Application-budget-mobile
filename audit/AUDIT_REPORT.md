@@ -148,6 +148,20 @@ persistence/provider run was started; all observed tests passed, but its first
 run exposed the locale merge regression described above before completion. It
 must be rerun in CI after this commit before it is recorded as a complete pass.
 
+## Source hardening completed after audit findings
+
+- Android release Gradle configuration no longer falls back to the debug key.
+  It requires ignored `android/key.properties`, with an example file for local
+  use. CI materializes that file only from encrypted keystore secrets and
+  builds/uploads an AAB only when those secrets exist.
+- Account deletion now persists an RLS-protected `account_deletion_jobs` row
+  through requested, Storage-complete, auth-deletion, and failed states. A
+  failed request is safe to retry; successful auth deletion cascades the job.
+
+`release_guardrails_test.dart` has 2 passing static regression checks. Deno is
+not installed in this workspace, so TypeScript type-checking and a real
+Supabase job lifecycle remain **NOT VERIFIED**.
+
 ## Limitations
 
 No physical Android/iOS device, App Store/Play Console, Supabase management credentials, or non-production Supabase test project was provided. No statement about deployed RLS, bucket privacy, Edge Function behavior, production account deletion, OAuth configuration, email templates, or store-listing status should be inferred from source inspection alone.
