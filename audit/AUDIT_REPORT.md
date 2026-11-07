@@ -122,6 +122,22 @@ The previously observed SharedPreferences error in `ai_tool_executor_test.dart`
 was a test setup defect: the test bound Flutter but did not install mock
 preferences. It now does, and its 13 tests pass without the plugin exception.
 
+## Android permissions and branding scan
+
+Removed `READ_MEDIA_IMAGES` and legacy `READ_EXTERNAL_STORAGE` from the
+manifest. The app uses `image_picker` and `file_picker`, whose system picker/
+chooser flows do not need broad media-library access for the selected file.
+`test/android_manifest_policy_test.dart` verifies those permissions stay absent
+and that cleartext traffic remains disabled (2 tests pass).
+
+No user-visible “SafeSpend” text was found in the Flutter UI. Remaining legacy
+identifiers include Android/iOS application IDs, Dart package/import names,
+the SQLite filename, and diagnostics provider IDs. `Info.plist`'s
+`CFBundleName` was corrected to VVollet and is guarded by the manifest-policy
+test (3 tests pass). Application/package IDs are not changed in this audit
+because changing them creates a new store identity and breaks upgrade
+continuity.
+
 ## Limitations
 
 No physical Android/iOS device, App Store/Play Console, Supabase management credentials, or non-production Supabase test project was provided. No statement about deployed RLS, bucket privacy, Edge Function behavior, production account deletion, OAuth configuration, email templates, or store-listing status should be inferred from source inspection alone.
