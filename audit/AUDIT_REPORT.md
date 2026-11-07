@@ -162,6 +162,13 @@ must be rerun in CI after this commit before it is recorded as a complete pass.
 not installed in this workspace, so TypeScript type-checking and a real
 Supabase job lifecycle remain **NOT VERIFIED**.
 
+An unsigned `flutter build appbundle --release` now fails closed at Gradle
+configuration with the expected release-signing message. Flutter also warns
+that Gradle 8.14, AGP 8.11.1, and Kotlin 2.2.20 will soon lose support; this
+is a tracked pre-release maintenance item, not upgraded automatically because
+the coordinated Android build-tool upgrade needs a signed release regression
+run.
+
 ## Limitations
 
 No physical Android/iOS device, App Store/Play Console, Supabase management credentials, or non-production Supabase test project was provided. No statement about deployed RLS, bucket privacy, Edge Function behavior, production account deletion, OAuth configuration, email templates, or store-listing status should be inferred from source inspection alone.
