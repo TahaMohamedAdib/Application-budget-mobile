@@ -21,6 +21,7 @@ import '../data/sync_engine.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/image_service.dart';
 import '../utils/recurring_dates.dart';
+import '../l10n/app_localizations.dart';
 
 /// Top-level function for compute() — parses all cached JSON off the main thread.
 Map<String, dynamic> _parseLocalData(Map<String, String?> rawJson) {
@@ -455,6 +456,7 @@ class AppProvider with ChangeNotifier {
         _transactions = parsed['transactions'] as List<Transaction>;
       if (parsed.containsKey('settings'))
         _settings = parsed['settings'] as Settings;
+      _applyDeviceLocale(PlatformDispatcher.instance.locales);
       if (parsed.containsKey('recurringRules'))
         _recurringRules = parsed['recurringRules'] as List<RecurringRule>;
       if (parsed.containsKey('holdings'))
@@ -1920,11 +1922,33 @@ class AppProvider with ChangeNotifier {
   }
 
   void setLocale(String locale) {
-    _settings = _settings.copyWith(locale: locale);
+    _settings = _settings.copyWith(
+      locale: S.normalizeLocaleCode(locale),
+      localeManuallySelected: true,
+    );
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
     if (uid != null) SupabaseSyncService.saveProfile(uid, _settings);
+  }
+
+  /// Refreshes the automatic language only while the person has not made an
+  /// explicit choice. Public for lifecycle integration and deterministic tests.
+  void applyDeviceLocales(Iterable<Locale> locales) {
+    if (_settings.localeManuallySelected) return;
+    final resolved = S.resolveDeviceLocale(locales);
+    if (_settings.locale == resolved) return;
+    _settings = _settings.copyWith(locale: resolved);
+    _saveToLocal();
+    notifyListeners();
+  }
+
+  void _applyDeviceLocale(Iterable<Locale> locales) {
+    if (_settings.localeManuallySelected) return;
+    final resolved = S.resolveDeviceLocale(locales);
+    if (_settings.locale == resolved) return;
+    _settings = _settings.copyWith(locale: resolved);
+    _saveToLocal();
   }
 
   // ============================================

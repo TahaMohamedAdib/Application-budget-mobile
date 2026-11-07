@@ -21,6 +21,20 @@ class S {
     return languageNames.containsKey(normalized) ? normalized : fallbackLocale;
   }
 
+  /// Resolves the first supported language in the platform preference order.
+  /// Region and script are deliberately ignored because the catalogs are
+  /// language-level (`fr`, not `fr_CA`); an unsupported list falls back to
+  /// English deterministically.
+  static String resolveDeviceLocale(Iterable<Locale> preferredLocales) {
+    for (final locale in preferredLocales) {
+      final code = normalizeLocaleCode(locale.languageCode);
+      if (code != fallbackLocale || locale.languageCode.toLowerCase() == 'en') {
+        return code;
+      }
+    }
+    return fallbackLocale;
+  }
+
   static String displayNameForLocale(String? locale) =>
       localeDisplayNames[normalizeLocaleCode(locale)] ??
       localeDisplayNames[fallbackLocale]!;

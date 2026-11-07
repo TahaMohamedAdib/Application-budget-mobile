@@ -67,6 +67,26 @@ remaining audit phases and fixes.
 4. Add minimal CI: analysis, deterministic tests, localization check, and Android release build; leave credentials/signing setup as documented secure CI inputs.
 5. Exercise a release build, permissions, account deletion, Coach gating, branding, legal/site content, and accessibility within the capabilities of this environment.
 
+## Phase 2 progress — locale selection
+
+Implemented the precedence contract in source: a language selected in Settings
+is marked explicitly and wins; otherwise the first supported locale in the
+platform preference order is selected; an all-unsupported list falls back to
+English. The intent marker and locale are persisted locally and added to the
+Supabase profile mapping with migration
+`supabase_migrations/20261107000000_locale_preferences.sql`.
+
+Validation on 2026-11-07:
+
+- `flutter test test/locale_preference_test.dart test/localization_catalog_test.dart`: **38 passed**.
+- The catalog check confirms exact key parity, nonblank values, and placeholder
+  parity across all 16 catalogs.
+- Focused analysis found no errors; it retains 42 pre-existing style/info
+  diagnostics in the large provider and sync-service files.
+
+Still not verified: platform per-app language manifests, locale change after a
+background resume, a live profile migration, and device-rendered RTL behavior.
+
 ## Limitations
 
 No physical Android/iOS device, App Store/Play Console, Supabase management credentials, or non-production Supabase test project was provided. No statement about deployed RLS, bucket privacy, Edge Function behavior, production account deletion, OAuth configuration, email templates, or store-listing status should be inferred from source inspection alone.

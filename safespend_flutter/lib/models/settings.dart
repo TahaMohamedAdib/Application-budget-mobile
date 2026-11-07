@@ -43,6 +43,10 @@ class Settings {
   final String themeMode; // 'light', 'dark', 'system'
   final String locale; // 'en', 'fr', 'ar', 'es', etc.
 
+  /// True only after the person actively chooses a language. Until then the
+  /// app follows the device preference list on launch/resume.
+  final bool localeManuallySelected;
+
   // ── Device-local: appearance ──
   /// Multiplier applied on top of the platform text scale. 0.9 – 1.3.
   final double textScale;
@@ -89,6 +93,7 @@ class Settings {
     this.avatarPath,
     this.themeMode = 'system',
     this.locale = 'en',
+    this.localeManuallySelected = false,
     this.textScale = 1.0,
     this.hideAmounts = false,
     this.decimalPlaces = 2,
@@ -123,6 +128,7 @@ class Settings {
     Object? avatarPath = _notProvided,
     String? themeMode,
     String? locale,
+    bool? localeManuallySelected,
     double? textScale,
     bool? hideAmounts,
     int? decimalPlaces,
@@ -158,6 +164,8 @@ class Settings {
           : avatarPath as String?,
       themeMode: themeMode ?? this.themeMode,
       locale: locale ?? this.locale,
+      localeManuallySelected:
+          localeManuallySelected ?? this.localeManuallySelected,
       textScale: textScale ?? this.textScale,
       hideAmounts: hideAmounts ?? this.hideAmounts,
       decimalPlaces: decimalPlaces ?? this.decimalPlaces,
@@ -203,6 +211,11 @@ class Settings {
       isDarkMode: remote.isDarkMode,
       netWorthScope: remote.netWorthScope,
       selectedAccountId: remote.selectedAccountId,
+      // Language intentionally follows the account: the paired intent marker
+      // prevents a remote automatic default from masquerading as a manual
+      // preference on another device.
+      locale: remote.locale,
+      localeManuallySelected: remote.localeManuallySelected,
       // Carries the profile picture back after a reinstall: the server row is
       // the only place it survives, since local storage is gone with the app.
       avatarPath: avatar,
@@ -220,6 +233,7 @@ class Settings {
       'avatarPath': avatarPath,
       'notificationsEnabled': notificationsEnabled,
       'locale': locale,
+      'localeManuallySelected': localeManuallySelected,
       'textScale': textScale,
       'hideAmounts': hideAmounts,
       'decimalPlaces': decimalPlaces,
@@ -256,6 +270,10 @@ class Settings {
       avatarPath: json['avatarPath'],
       notificationsEnabled: json['notificationsEnabled'] ?? true,
       locale: json['locale'] ?? 'en',
+      // Old settings have no intent marker, so they correctly opt into device
+      // detection rather than treating an inherited English default as a
+      // deliberate choice.
+      localeManuallySelected: json['localeManuallySelected'] ?? false,
       textScale: (json['textScale'] as num?)?.toDouble() ?? 1.0,
       hideAmounts: json['hideAmounts'] ?? false,
       decimalPlaces: (json['decimalPlaces'] as num?)?.toInt() ?? 2,
@@ -300,6 +318,7 @@ class Settings {
           avatarPath == other.avatarPath &&
           notificationsEnabled == other.notificationsEnabled &&
           locale == other.locale &&
+          localeManuallySelected == other.localeManuallySelected &&
           textScale == other.textScale &&
           hideAmounts == other.hideAmounts &&
           decimalPlaces == other.decimalPlaces &&
@@ -332,6 +351,7 @@ class Settings {
         avatarPath,
         notificationsEnabled,
         locale,
+        localeManuallySelected,
         textScale,
         hideAmounts,
         decimalPlaces,
