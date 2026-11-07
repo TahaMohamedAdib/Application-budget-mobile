@@ -3,7 +3,7 @@
 /// https://www.vvollet.com/privacy.
 const Map<String, Map<String, String>> translationsLegal = {
   'en': {
-    'privacyDesc': 'Your data is saved to your VVollet account on Supabase, where only you can read it, and a copy stays on your phone. We don’t sell your data, show ads or use analytics. Ticker symbols are sent to Yahoo Finance and Parqet to fetch prices and logos.\n\nFull privacy policy: vvollet.com/privacy',
+    'privacyDesc': 'Your data is saved to your VVollet account on Supabase, where only you can read it, and a copy stays on your phone. We don’t sell your data, show ads or use analytics.\n\nFull privacy policy: vvollet.com/privacy',
     'accountDeletionAction': 'Delete account',
     'accountDeletionDetail': 'Permanently delete your account and all its data',
     'accountDeletionConfirmTitle': 'Delete your account?',
@@ -12,7 +12,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Your account has been deleted.',
   },
   'fr': {
-    'privacyDesc': 'Vos données sont enregistrées dans votre compte VVollet sur Supabase, où vous seul pouvez les lire, et une copie reste sur votre téléphone. Nous ne vendons pas vos données, n’affichons pas de publicité et n’utilisons pas d’outils d’analyse. Les symboles boursiers sont envoyés à Yahoo Finance et Parqet pour obtenir les cours et les logos.\n\nPolitique de confidentialité complète : vvollet.com/privacy',
+    'privacyDesc': 'Vos données sont enregistrées dans votre compte VVollet sur Supabase, où vous seul pouvez les lire, et une copie reste sur votre téléphone. Nous ne vendons pas vos données, n’affichons pas de publicité et n’utilisons pas d’outils d’analyse.\n\nPolitique de confidentialité complète : vvollet.com/privacy',
     'accountDeletionAction': 'Supprimer le compte',
     'accountDeletionDetail': 'Supprimer définitivement votre compte et toutes ses données',
     'accountDeletionConfirmTitle': 'Supprimer votre compte ?',
@@ -21,7 +21,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Votre compte a été supprimé.',
   },
   'ar': {
-    'privacyDesc': 'تُحفظ بياناتك في حسابك على VVollet لدى Supabase، حيث لا يمكن لأحد غيرك قراءتها، وتبقى نسخة منها على هاتفك. لا نبيع بياناتك ولا نعرض إعلانات ولا نستخدم أدوات تحليل. تُرسل رموز الأسهم إلى Yahoo Finance وParqet لجلب الأسعار والشعارات.\n\nسياسة الخصوصية الكاملة: vvollet.com/privacy',
+    'privacyDesc': 'تُحفظ بياناتك في حسابك على VVollet لدى Supabase، حيث لا يمكن لأحد غيرك قراءتها، وتبقى نسخة منها على هاتفك. لا نبيع بياناتك ولا نعرض إعلانات ولا نستخدم أدوات تحليل.\n\nسياسة الخصوصية الكاملة: vvollet.com/privacy',
     'accountDeletionAction': 'حذف الحساب',
     'accountDeletionDetail': 'حذف حسابك وجميع بياناته نهائيًا',
     'accountDeletionConfirmTitle': 'حذف حسابك؟',
@@ -30,7 +30,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'تم حذف حسابك.',
   },
   'es': {
-    'privacyDesc': 'Tus datos se guardan en tu cuenta de VVollet en Supabase, donde solo tú puedes leerlos, y una copia queda en tu teléfono. No vendemos tus datos, no mostramos anuncios ni usamos analíticas. Los símbolos bursátiles se envían a Yahoo Finance y Parqet para obtener precios y logotipos.\n\nPolítica de privacidad completa: vvollet.com/privacy',
+    'privacyDesc': 'Tus datos se guardan en tu cuenta de VVollet en Supabase, donde solo tú puedes leerlos, y una copia queda en tu teléfono. No vendemos tus datos, no mostramos anuncios ni usamos analíticas.\n\nPolítica de privacidad completa: vvollet.com/privacy',
     'accountDeletionAction': 'Eliminar cuenta',
     'accountDeletionDetail': 'Eliminar para siempre tu cuenta y todos sus datos',
     'accountDeletionConfirmTitle': '¿Eliminar tu cuenta?',
@@ -39,7 +39,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Tu cuenta se ha eliminado.',
   },
   'de': {
-    'privacyDesc': 'Deine Daten werden in deinem VVollet-Konto bei Supabase gespeichert, wo nur du sie lesen kannst, und eine Kopie bleibt auf deinem Handy. Wir verkaufen keine Daten, zeigen keine Werbung und nutzen keine Analysetools. Tickersymbole werden an Yahoo Finance und Parqet gesendet, um Kurse und Logos abzurufen.\n\nVollständige Datenschutzerklärung: vvollet.com/privacy',
+    'privacyDesc': 'Deine Daten werden in deinem VVollet-Konto bei Supabase gespeichert, wo nur du sie lesen kannst, und eine Kopie bleibt auf deinem Handy. Wir verkaufen keine Daten, zeigen keine Werbung und nutzen keine Analysetools.\n\nVollständige Datenschutzerklärung: vvollet.com/privacy',
     'accountDeletionAction': 'Konto löschen',
     'accountDeletionDetail': 'Dein Konto und alle Daten endgültig löschen',
     'accountDeletionConfirmTitle': 'Konto löschen?',
@@ -48,7 +48,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Dein Konto wurde gelöscht.',
   },
   'pt': {
-    'privacyDesc': 'Seus dados são salvos na sua conta VVollet no Supabase, onde só você pode lê-los, e uma cópia fica no seu telefone. Não vendemos seus dados, não exibimos anúncios nem usamos ferramentas de análise. Os símbolos de ações são enviados ao Yahoo Finance e à Parqet para obter cotações e logotipos.\n\nPolítica de privacidade completa: vvollet.com/privacy',
+    'privacyDesc': 'Seus dados são salvos na sua conta VVollet no Supabase, onde só você pode lê-los, e uma cópia fica no seu telefone. Não vendemos seus dados, não exibimos anúncios nem usamos ferramentas de análise.\n\nPolítica de privacidade completa: vvollet.com/privacy',
     'accountDeletionAction': 'Excluir conta',
     'accountDeletionDetail': 'Excluir permanentemente sua conta e todos os dados',
     'accountDeletionConfirmTitle': 'Excluir sua conta?',
@@ -57,7 +57,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Sua conta foi excluída.',
   },
   'it': {
-    'privacyDesc': 'I tuoi dati sono salvati nel tuo account VVollet su Supabase, dove solo tu puoi leggerli, e una copia resta sul telefono. Non vendiamo i tuoi dati, non mostriamo pubblicità e non usiamo strumenti di analisi. I simboli dei titoli vengono inviati a Yahoo Finance e Parqet per ottenere prezzi e loghi.\n\nInformativa completa sulla privacy: vvollet.com/privacy',
+    'privacyDesc': 'I tuoi dati sono salvati nel tuo account VVollet su Supabase, dove solo tu puoi leggerli, e una copia resta sul telefono. Non vendiamo i tuoi dati, non mostriamo pubblicità e non usiamo strumenti di analisi.\n\nInformativa completa sulla privacy: vvollet.com/privacy',
     'accountDeletionAction': 'Elimina account',
     'accountDeletionDetail': 'Elimina definitivamente il tuo account e tutti i dati',
     'accountDeletionConfirmTitle': 'Eliminare il tuo account?',
@@ -66,7 +66,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Il tuo account è stato eliminato.',
   },
   'tr': {
-    'privacyDesc': 'Verilerin Supabase üzerindeki VVollet hesabına kaydedilir; onları yalnızca sen okuyabilirsin ve bir kopyası telefonunda kalır. Verilerini satmıyor, reklam göstermiyor ve analiz araçları kullanmıyoruz. Fiyatları ve logoları almak için hisse sembolleri Yahoo Finance ve Parqet’e gönderilir.\n\nGizlilik politikasının tamamı: vvollet.com/privacy',
+    'privacyDesc': 'Verilerin Supabase üzerindeki VVollet hesabına kaydedilir; onları yalnızca sen okuyabilirsin ve bir kopyası telefonunda kalır. Verilerini satmıyor, reklam göstermiyor ve analiz araçları kullanmıyoruz.\n\nGizlilik politikasının tamamı: vvollet.com/privacy',
     'accountDeletionAction': 'Hesabı sil',
     'accountDeletionDetail': 'Hesabını ve tüm verilerini kalıcı olarak sil',
     'accountDeletionConfirmTitle': 'Hesabın silinsin mi?',
@@ -75,7 +75,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Hesabın silindi.',
   },
   'nl': {
-    'privacyDesc': 'Je gegevens worden opgeslagen in je VVollet-account bij Supabase, waar alleen jij ze kunt lezen, en een kopie blijft op je telefoon. We verkopen je gegevens niet, tonen geen advertenties en gebruiken geen analysetools. Tickersymbolen worden naar Yahoo Finance en Parqet gestuurd om koersen en logo’s op te halen.\n\nVolledig privacybeleid: vvollet.com/privacy',
+    'privacyDesc': 'Je gegevens worden opgeslagen in je VVollet-account bij Supabase, waar alleen jij ze kunt lezen, en een kopie blijft op je telefoon. We verkopen je gegevens niet, tonen geen advertenties en gebruiken geen analysetools.\n\nVolledig privacybeleid: vvollet.com/privacy',
     'accountDeletionAction': 'Account verwijderen',
     'accountDeletionDetail': 'Je account en alle gegevens definitief verwijderen',
     'accountDeletionConfirmTitle': 'Je account verwijderen?',
@@ -84,7 +84,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Je account is verwijderd.',
   },
   'ru': {
-    'privacyDesc': 'Ваши данные хранятся в вашем аккаунте VVollet в Supabase, где их можете читать только вы, а копия остаётся на телефоне. Мы не продаём данные, не показываем рекламу и не используем аналитику. Тикеры акций отправляются в Yahoo Finance и Parqet для получения цен и логотипов.\n\nПолная политика конфиденциальности: vvollet.com/privacy',
+    'privacyDesc': 'Ваши данные хранятся в вашем аккаунте VVollet в Supabase, где их можете читать только вы, а копия остаётся на телефоне. Мы не продаём данные, не показываем рекламу и не используем аналитику.\n\nПолная политика конфиденциальности: vvollet.com/privacy',
     'accountDeletionAction': 'Удалить аккаунт',
     'accountDeletionDetail': 'Навсегда удалить аккаунт и все данные',
     'accountDeletionConfirmTitle': 'Удалить аккаунт?',
@@ -93,7 +93,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Ваш аккаунт удалён.',
   },
   'zh': {
-    'privacyDesc': '您的数据保存在 Supabase 上的 VVollet 账户中，只有您本人可以读取，手机上也会保留一份副本。我们不出售您的数据，不展示广告，也不使用分析工具。股票代码会发送至 Yahoo Finance 和 Parqet，用于获取价格和标志。\n\n完整隐私政策：vvollet.com/privacy',
+    'privacyDesc': '您的数据保存在 Supabase 上的 VVollet 账户中，只有您本人可以读取，手机上也会保留一份副本。我们不出售您的数据，不展示广告，也不使用分析工具。\n\n完整隐私政策：vvollet.com/privacy',
     'accountDeletionAction': '删除账户',
     'accountDeletionDetail': '永久删除您的账户及所有数据',
     'accountDeletionConfirmTitle': '删除您的账户？',
@@ -102,7 +102,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': '您的账户已删除。',
   },
   'ja': {
-    'privacyDesc': 'データは Supabase 上の VVollet アカウントに保存され、読めるのはあなただけです。コピーは端末にも保存されます。データの販売、広告表示、分析ツールの使用は行いません。株価とロゴを取得するため、ティッカーシンボルが Yahoo Finance と Parqet に送信されます。\n\nプライバシーポリシー全文：vvollet.com/privacy',
+    'privacyDesc': 'データは Supabase 上の VVollet アカウントに保存され、読めるのはあなただけです。コピーは端末にも保存されます。データの販売、広告表示、分析ツールの使用は行いません。\n\nプライバシーポリシー全文：vvollet.com/privacy',
     'accountDeletionAction': 'アカウントを削除',
     'accountDeletionDetail': 'アカウントとすべてのデータを完全に削除します',
     'accountDeletionConfirmTitle': 'アカウントを削除しますか？',
@@ -111,7 +111,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'アカウントを削除しました。',
   },
   'ko': {
-    'privacyDesc': '데이터는 Supabase의 VVollet 계정에 저장되며 본인만 읽을 수 있고, 사본은 휴대폰에도 보관됩니다. 데이터를 판매하거나 광고를 표시하거나 분석 도구를 사용하지 않습니다. 시세와 로고를 가져오기 위해 종목 코드가 Yahoo Finance와 Parqet으로 전송됩니다.\n\n전체 개인정보 처리방침: vvollet.com/privacy',
+    'privacyDesc': '데이터는 Supabase의 VVollet 계정에 저장되며 본인만 읽을 수 있고, 사본은 휴대폰에도 보관됩니다. 데이터를 판매하거나 광고를 표시하거나 분석 도구를 사용하지 않습니다.\n\n전체 개인정보 처리방침: vvollet.com/privacy',
     'accountDeletionAction': '계정 삭제',
     'accountDeletionDetail': '계정과 모든 데이터를 영구적으로 삭제합니다',
     'accountDeletionConfirmTitle': '계정을 삭제할까요?',
@@ -120,7 +120,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': '계정이 삭제되었습니다.',
   },
   'hi': {
-    'privacyDesc': 'आपका डेटा Supabase पर आपके VVollet खाते में सहेजा जाता है, जिसे केवल आप पढ़ सकते हैं, और एक कॉपी आपके फ़ोन पर रहती है। हम आपका डेटा नहीं बेचते, विज्ञापन नहीं दिखाते और एनालिटिक्स का उपयोग नहीं करते। कीमतें और लोगो लाने के लिए स्टॉक टिकर Yahoo Finance और Parqet को भेजे जाते हैं।\n\nपूरी गोपनीयता नीति: vvollet.com/privacy',
+    'privacyDesc': 'आपका डेटा Supabase पर आपके VVollet खाते में सहेजा जाता है, जिसे केवल आप पढ़ सकते हैं, और एक कॉपी आपके फ़ोन पर रहती है। हम आपका डेटा नहीं बेचते, विज्ञापन नहीं दिखाते और एनालिटिक्स का उपयोग नहीं करते।\n\nपूरी गोपनीयता नीति: vvollet.com/privacy',
     'accountDeletionAction': 'खाता हटाएँ',
     'accountDeletionDetail': 'अपना खाता और उसका सारा डेटा हमेशा के लिए हटाएँ',
     'accountDeletionConfirmTitle': 'अपना खाता हटाएँ?',
@@ -129,7 +129,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'आपका खाता हटा दिया गया है।',
   },
   'id': {
-    'privacyDesc': 'Data Anda disimpan di akun VVollet Anda di Supabase, yang hanya bisa dibaca oleh Anda, dan salinannya tetap ada di ponsel. Kami tidak menjual data Anda, tidak menampilkan iklan, dan tidak memakai alat analitik. Simbol saham dikirim ke Yahoo Finance dan Parqet untuk mengambil harga dan logo.\n\nKebijakan privasi lengkap: vvollet.com/privacy',
+    'privacyDesc': 'Data Anda disimpan di akun VVollet Anda di Supabase, yang hanya bisa dibaca oleh Anda, dan salinannya tetap ada di ponsel. Kami tidak menjual data Anda, tidak menampilkan iklan, dan tidak memakai alat analitik.\n\nKebijakan privasi lengkap: vvollet.com/privacy',
     'accountDeletionAction': 'Hapus akun',
     'accountDeletionDetail': 'Hapus akun dan semua datanya secara permanen',
     'accountDeletionConfirmTitle': 'Hapus akun Anda?',
@@ -138,7 +138,7 @@ const Map<String, Map<String, String>> translationsLegal = {
     'accountDeletionDone': 'Akun Anda telah dihapus.',
   },
   'pl': {
-    'privacyDesc': 'Twoje dane są zapisywane na Twoim koncie VVollet w Supabase, gdzie tylko Ty możesz je odczytać, a kopia zostaje w telefonie. Nie sprzedajemy danych, nie wyświetlamy reklam i nie używamy narzędzi analitycznych. Symbole giełdowe są wysyłane do Yahoo Finance i Parqet w celu pobrania cen i logo.\n\nPełna polityka prywatności: vvollet.com/privacy',
+    'privacyDesc': 'Twoje dane są zapisywane na Twoim koncie VVollet w Supabase, gdzie tylko Ty możesz je odczytać, a kopia zostaje w telefonie. Nie sprzedajemy danych, nie wyświetlamy reklam i nie używamy narzędzi analitycznych.\n\nPełna polityka prywatności: vvollet.com/privacy',
     'accountDeletionAction': 'Usuń konto',
     'accountDeletionDetail': 'Trwale usuń konto i wszystkie jego dane',
     'accountDeletionConfirmTitle': 'Usunąć konto?',
