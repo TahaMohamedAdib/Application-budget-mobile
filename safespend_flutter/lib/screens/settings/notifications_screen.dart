@@ -57,8 +57,8 @@ class NotificationsScreen extends StatelessWidget {
               children: [
                 SettingsSwitchRow(
                   icon: IOSIcons.today,
-                  label: 'Expense reminder',
-                  detail: 'A daily local reminder to log spending',
+                  label: s.expenseReminder,
+                  detail: s.expenseReminderDetail,
                   enabled: on,
                   value: settings.expenseReminderEnabled,
                   onChanged: (v) =>
@@ -67,7 +67,7 @@ class NotificationsScreen extends StatelessWidget {
                 if (settings.expenseReminderEnabled)
                   SettingsRow(
                     icon: IOSIcons.access_time_rounded,
-                    label: 'Reminder time',
+                    label: s.reminderTime,
                     value: _fmt(settings.expenseReminderMinutes),
                     onTap: on
                         ? () => _pickTime(

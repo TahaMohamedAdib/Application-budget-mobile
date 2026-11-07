@@ -736,6 +736,9 @@ class S {
   String get billRemindersDetail => _t('billRemindersDetail');
   String get budgetAlerts => _t('budgetAlerts');
   String get budgetAlertsDetail => _t('budgetAlertsDetail');
+  String get expenseReminder => _t('expenseReminder');
+  String get expenseReminderDetail => _t('expenseReminderDetail');
+  String get reminderTime => _t('reminderTime');
   String get largeTransactionAlerts => _t('largeTransactionAlerts');
   String get largeTransactionAlertsDetail => _t('largeTransactionAlertsDetail');
   String get alertThreshold => _t('alertThreshold');

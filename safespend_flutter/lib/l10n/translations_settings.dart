@@ -68,6 +68,9 @@ const translationsSettings = <String, Map<String, String>>{
     'billRemindersDetail': 'Before a subscription or bill is due',
     'budgetAlerts': 'Budget Alerts',
     'budgetAlertsDetail': 'When a category nears its limit',
+    'expenseReminder': 'Expense Reminder',
+    'expenseReminderDetail': 'A daily local reminder to log spending',
+    'reminderTime': 'Reminder Time',
     'largeTransactionAlerts': 'Large Transactions',
     'largeTransactionAlertsDetail':
         'When a single charge exceeds your threshold',
@@ -127,15 +130,19 @@ const translationsSettings = <String, Map<String, String>>{
     'syncedToCloud': 'Synced to cloud',
     'syncing': 'Syncing…',
     'syncPending': 'Waiting to sync',
-    'syncPendingDetail': '{count} change(s) saved on this device, not yet uploaded.',
+    'syncPendingDetail':
+        '{count} change(s) saved on this device, not yet uploaded.',
     'syncOffline': 'Offline',
-    'syncOfflineDetail': "You're offline. Changes are saved here and upload automatically.",
+    'syncOfflineDetail':
+        "You're offline. Changes are saved here and upload automatically.",
     'syncFailed': 'Sync problem',
-    'syncFailedDetail': "{count} change(s) couldn't be uploaded. Tap to try again.",
+    'syncFailedDetail':
+        "{count} change(s) couldn't be uploaded. Tap to try again.",
     'syncRetry': 'Retry now',
     'syncNow': 'Sync now',
     'unsyncedWarningTitle': 'Unsynced changes',
-    'unsyncedWarningMessage': "{count} change(s) haven't reached the cloud yet. If you continue, they will be lost.",
+    'unsyncedWarningMessage':
+        "{count} change(s) haven't reached the cloud yet. If you continue, they will be lost.",
     'unsyncedWarningContinue': 'Continue anyway',
     'syncFooter': "Changes upload automatically when you're online.",
     'syncLocalModeFooter':
@@ -156,7 +163,8 @@ const translationsSettings = <String, Map<String, String>>{
     'storedOnThisDevice': 'Stored on this device',
     'storageOverviewNote': 'Cached locally so the app works offline.',
     'dangerZone': 'Danger Zone',
-    'dangerZoneFooter': 'This clears the local copy. Cloud data is not deleted.',
+    'dangerZoneFooter':
+        'This clears the local copy. Cloud data is not deleted.',
     'clearLocalData': 'Clear Local Data',
     'clearLocalDataDetail': 'Remove the cached copy from this device',
     'clearLocalDataConfirm':
@@ -190,7 +198,6 @@ const translationsSettings = <String, Map<String, String>>{
     'copyDiagnosticsDetail': 'App version and device info for support',
     'madeWithCare': 'Made with care for everyday money',
   },
-
   'fr': {
     'preferences': 'Préférences',
     'privacyAndData': 'Confidentialité et données',
@@ -202,8 +209,7 @@ const translationsSettings = <String, Map<String, String>>{
     'appearanceDetail': 'Thème, taille du texte, animations',
     'appearanceSubtitle': 'L’apparence de VVollet sur cet appareil',
     'theme': 'Thème',
-    'themeFooter':
-        'Système suit le réglage clair/sombre de votre appareil.',
+    'themeFooter': 'Système suit le réglage clair/sombre de votre appareil.',
     'textSize': 'Taille du texte',
     'textSizeApply': 'Définir',
     'textSizeApplied': 'Taille du texte mise à jour',
@@ -249,8 +255,7 @@ const translationsSettings = <String, Map<String, String>>{
     'budgetAlerts': 'Alertes de budget',
     'budgetAlertsDetail': 'Quand une catégorie approche de sa limite',
     'largeTransactionAlerts': 'Grosses transactions',
-    'largeTransactionAlertsDetail':
-        'Quand une dépense dépasse votre seuil',
+    'largeTransactionAlertsDetail': 'Quand une dépense dépasse votre seuil',
     'alertThreshold': 'Seuil',
     'summaries': 'Résumés',
     'dailySummary': 'Résumé quotidien',
@@ -258,14 +263,12 @@ const translationsSettings = <String, Map<String, String>>{
     'weeklyReport': 'Rapport hebdomadaire',
     'weeklyReportDetail': 'Répartition des dépenses chaque semaine',
     'quietHours': 'Heures calmes',
-    'quietHoursFooter':
-        'Les notifications sont retenues pendant ces heures.',
+    'quietHoursFooter': 'Les notifications sont retenues pendant ces heures.',
     'from': 'De',
     'to': 'À',
     'securityAndPrivacy': 'Sécurité et confidentialité',
     'securityAndPrivacyDetail': 'Verrouillage, partage des données',
-    'securityAndPrivacySubtitle':
-        'Qui peut ouvrir l’app et ce qu’elle partage',
+    'securityAndPrivacySubtitle': 'Qui peut ouvrir l’app et ce qu’elle partage',
     'appLock': 'Verrouillage de l’app',
     'appLockDetail': 'Exiger un code PIN pour ouvrir VVollet',
     'appLockFooter':
@@ -297,22 +300,25 @@ const translationsSettings = <String, Map<String, String>>{
     'pinMismatch': 'Les codes PIN ne correspondent pas',
     'dataAndStorage': 'Données et stockage',
     'dataAndStorageDetail': 'Export, synchronisation, suppression',
-    'dataAndStorageSubtitle':
-        'Où vivent vos données et comment les récupérer',
+    'dataAndStorageSubtitle': 'Où vivent vos données et comment les récupérer',
     'sync': 'Synchronisation',
     'syncStatus': 'État',
     'syncedToCloud': 'Synchronisé sur le cloud',
     'syncing': 'Synchronisation…',
     'syncPending': 'En attente de synchronisation',
-    'syncPendingDetail': '{count} modification(s) enregistrée(s) sur cet appareil, pas encore envoyée(s).',
+    'syncPendingDetail':
+        '{count} modification(s) enregistrée(s) sur cet appareil, pas encore envoyée(s).',
     'syncOffline': 'Hors ligne',
-    'syncOfflineDetail': 'Vous êtes hors ligne. Les modifications sont enregistrées ici et envoyées automatiquement.',
+    'syncOfflineDetail':
+        'Vous êtes hors ligne. Les modifications sont enregistrées ici et envoyées automatiquement.',
     'syncFailed': 'Problème de synchronisation',
-    'syncFailedDetail': "{count} modification(s) n'ont pas pu être envoyées. Touchez pour réessayer.",
+    'syncFailedDetail':
+        "{count} modification(s) n'ont pas pu être envoyées. Touchez pour réessayer.",
     'syncRetry': 'Réessayer',
     'syncNow': 'Synchroniser',
     'unsyncedWarningTitle': 'Modifications non synchronisées',
-    'unsyncedWarningMessage': '{count} modification(s) ne sont pas encore sur le cloud. Si vous continuez, elles seront perdues.',
+    'unsyncedWarningMessage':
+        '{count} modification(s) ne sont pas encore sur le cloud. Si vous continuez, elles seront perdues.',
     'unsyncedWarningContinue': 'Continuer quand même',
     'syncFooter':
         'Les modifications sont envoyées automatiquement quand vous êtes en ligne.',
@@ -367,7 +373,6 @@ const translationsSettings = <String, Map<String, String>>{
         'Version de l’app et infos appareil pour l’assistance',
     'madeWithCare': 'Conçu avec soin pour l’argent du quotidien',
   },
-
   'ar': {
     'preferences': 'التفضيلات',
     'privacyAndData': 'الخصوصية والبيانات',
@@ -447,8 +452,7 @@ const translationsSettings = <String, Map<String, String>>{
     'afterNMinutes': 'بعد {n} دقائق',
     'maskOnAppSwitch': 'الإخفاء في مبدّل التطبيقات',
     'maskOnAppSwitchDetail': 'تمويه الشاشة عند تبديل التطبيقات',
-    'maskOnAppSwitchFooter':
-        'يمنع ظهور الأرصدة في معاينة مبدّل التطبيقات.',
+    'maskOnAppSwitchFooter': 'يمنع ظهور الأرصدة في معاينة مبدّل التطبيقات.',
     'changePasswordDetail': 'تحديث كلمة مرور حسابك',
     'diagnostics': 'التشخيصات',
     'diagnosticsFooter':
@@ -481,7 +485,8 @@ const translationsSettings = <String, Map<String, String>>{
     'syncRetry': 'إعادة المحاولة',
     'syncNow': 'مزامنة الآن',
     'unsyncedWarningTitle': 'تغييرات غير متزامنة',
-    'unsyncedWarningMessage': 'لم يصل {count} تغيير إلى السحابة بعد. إذا تابعت، ستفقدها.',
+    'unsyncedWarningMessage':
+        'لم يصل {count} تغيير إلى السحابة بعد. إذا تابعت، ستفقدها.',
     'unsyncedWarningContinue': 'المتابعة على أي حال',
     'syncFooter': 'تُرفع التغييرات تلقائياً عندما تكون متصلاً.',
     'syncLocalModeFooter':
@@ -496,14 +501,12 @@ const translationsSettings = <String, Map<String, String>>{
     'copyToClipboardDetail': 'الصق النسخة الاحتياطية أينما تشاء',
     'exportSaved': 'تم حفظ النسخة الاحتياطية',
     'exportCancelled': 'أُلغي التصدير',
-    'exportUseClipboard':
-        'حفظ الملفات غير متاح هنا — استخدم النسخ إلى الحافظة',
+    'exportUseClipboard': 'حفظ الملفات غير متاح هنا — استخدم النسخ إلى الحافظة',
     'copiedToClipboard': 'تم النسخ إلى الحافظة',
     'storedOnThisDevice': 'مخزَّن على هذا الجهاز',
     'storageOverviewNote': 'مخزَّن محلياً ليعمل التطبيق دون اتصال.',
     'dangerZone': 'منطقة خطرة',
-    'dangerZoneFooter':
-        'هذا يمسح النسخة المحلية. لا تُحذف بيانات السحابة.',
+    'dangerZoneFooter': 'هذا يمسح النسخة المحلية. لا تُحذف بيانات السحابة.',
     'clearLocalData': 'مسح البيانات المحلية',
     'clearLocalDataDetail': 'إزالة النسخة المخزنة من هذا الجهاز',
     'clearLocalDataConfirm':
@@ -533,7 +536,6 @@ const translationsSettings = <String, Map<String, String>>{
     'copyDiagnosticsDetail': 'إصدار التطبيق ومعلومات الجهاز للدعم',
     'madeWithCare': 'صُنع بعناية لأموالك اليومية',
   },
-
   'es': {
     'preferences': 'Preferencias',
     'privacyAndData': 'Privacidad y datos',
@@ -642,15 +644,19 @@ const translationsSettings = <String, Map<String, String>>{
     'syncedToCloud': 'Sincronizado en la nube',
     'syncing': 'Sincronizando…',
     'syncPending': 'Pendiente de sincronizar',
-    'syncPendingDetail': '{count} cambio(s) guardado(s) en este dispositivo, aún sin subir.',
+    'syncPendingDetail':
+        '{count} cambio(s) guardado(s) en este dispositivo, aún sin subir.',
     'syncOffline': 'Sin conexión',
-    'syncOfflineDetail': 'Estás sin conexión. Los cambios se guardan aquí y se suben automáticamente.',
+    'syncOfflineDetail':
+        'Estás sin conexión. Los cambios se guardan aquí y se suben automáticamente.',
     'syncFailed': 'Problema de sincronización',
-    'syncFailedDetail': 'No se pudieron subir {count} cambio(s). Toca para reintentar.',
+    'syncFailedDetail':
+        'No se pudieron subir {count} cambio(s). Toca para reintentar.',
     'syncRetry': 'Reintentar',
     'syncNow': 'Sincronizar ahora',
     'unsyncedWarningTitle': 'Cambios sin sincronizar',
-    'unsyncedWarningMessage': '{count} cambio(s) aún no han llegado a la nube. Si continúas, se perderán.',
+    'unsyncedWarningMessage':
+        '{count} cambio(s) aún no han llegado a la nube. Si continúas, se perderán.',
     'unsyncedWarningContinue': 'Continuar de todos modos',
     'syncFooter': 'Los cambios se suben automáticamente cuando hay conexión.',
     'syncLocalModeFooter':
@@ -703,7 +709,6 @@ const translationsSettings = <String, Map<String, String>>{
         'Versión de la app e info del dispositivo para soporte',
     'madeWithCare': 'Hecho con cuidado para el dinero del día a día',
   },
-
   'de': {
     'preferences': 'Einstellungen',
     'privacyAndData': 'Datenschutz & Daten',
@@ -812,17 +817,22 @@ const translationsSettings = <String, Map<String, String>>{
     'syncedToCloud': 'Mit der Cloud synchronisiert',
     'syncing': 'Synchronisieren…',
     'syncPending': 'Wartet auf Synchronisierung',
-    'syncPendingDetail': '{count} Änderung(en) auf diesem Gerät gespeichert, noch nicht hochgeladen.',
+    'syncPendingDetail':
+        '{count} Änderung(en) auf diesem Gerät gespeichert, noch nicht hochgeladen.',
     'syncOffline': 'Offline',
-    'syncOfflineDetail': 'Du bist offline. Änderungen werden hier gespeichert und automatisch hochgeladen.',
+    'syncOfflineDetail':
+        'Du bist offline. Änderungen werden hier gespeichert und automatisch hochgeladen.',
     'syncFailed': 'Synchronisierungsproblem',
-    'syncFailedDetail': '{count} Änderung(en) konnten nicht hochgeladen werden. Zum Wiederholen tippen.',
+    'syncFailedDetail':
+        '{count} Änderung(en) konnten nicht hochgeladen werden. Zum Wiederholen tippen.',
     'syncRetry': 'Erneut versuchen',
     'syncNow': 'Jetzt synchronisieren',
     'unsyncedWarningTitle': 'Nicht synchronisierte Änderungen',
-    'unsyncedWarningMessage': '{count} Änderung(en) sind noch nicht in der Cloud. Wenn du fortfährst, gehen sie verloren.',
+    'unsyncedWarningMessage':
+        '{count} Änderung(en) sind noch nicht in der Cloud. Wenn du fortfährst, gehen sie verloren.',
     'unsyncedWarningContinue': 'Trotzdem fortfahren',
-    'syncFooter': 'Änderungen werden automatisch hochgeladen, wenn du online bist.',
+    'syncFooter':
+        'Änderungen werden automatisch hochgeladen, wenn du online bist.',
     'syncLocalModeFooter':
         'Du bist im lokalen Modus — Daten bleiben nur auf diesem Gerät.',
     'signedInAs': 'Angemeldet als',
@@ -873,7 +883,6 @@ const translationsSettings = <String, Map<String, String>>{
     'copyDiagnosticsDetail': 'App-Version und Geräteinfos für den Support',
     'madeWithCare': 'Mit Sorgfalt für das Geld des Alltags gemacht',
   },
-
   'pt': {
     'preferences': 'Preferências',
     'privacyAndData': 'Privacidade e dados',
@@ -982,15 +991,19 @@ const translationsSettings = <String, Map<String, String>>{
     'syncedToCloud': 'Sincronizado com a nuvem',
     'syncing': 'A sincronizar…',
     'syncPending': 'A aguardar sincronização',
-    'syncPendingDetail': '{count} alteração(ões) guardada(s) neste dispositivo, ainda por enviar.',
+    'syncPendingDetail':
+        '{count} alteração(ões) guardada(s) neste dispositivo, ainda por enviar.',
     'syncOffline': 'Offline',
-    'syncOfflineDetail': 'Está offline. As alterações são guardadas aqui e enviadas automaticamente.',
+    'syncOfflineDetail':
+        'Está offline. As alterações são guardadas aqui e enviadas automaticamente.',
     'syncFailed': 'Problema de sincronização',
-    'syncFailedDetail': 'Não foi possível enviar {count} alteração(ões). Toque para tentar novamente.',
+    'syncFailedDetail':
+        'Não foi possível enviar {count} alteração(ões). Toque para tentar novamente.',
     'syncRetry': 'Tentar novamente',
     'syncNow': 'Sincronizar agora',
     'unsyncedWarningTitle': 'Alterações não sincronizadas',
-    'unsyncedWarningMessage': '{count} alteração(ões) ainda não chegaram à cloud. Se continuar, serão perdidas.',
+    'unsyncedWarningMessage':
+        '{count} alteração(ões) ainda não chegaram à cloud. Se continuar, serão perdidas.',
     'unsyncedWarningContinue': 'Continuar mesmo assim',
     'syncFooter':
         'As alterações são enviadas automaticamente quando estiver online.',
@@ -1010,8 +1023,7 @@ const translationsSettings = <String, Map<String, String>>{
         'Guardar ficheiros não está disponível aqui — use a área de transferência',
     'copiedToClipboard': 'Copiado para a área de transferência',
     'storedOnThisDevice': 'Guardado neste dispositivo',
-    'storageOverviewNote':
-        'Em cache local para a app funcionar sem ligação.',
+    'storageOverviewNote': 'Em cache local para a app funcionar sem ligação.',
     'dangerZone': 'Zona de risco',
     'dangerZoneFooter':
         'Isto limpa a cópia local. Os dados na nuvem não são eliminados.',
