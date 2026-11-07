@@ -20,6 +20,7 @@ import '../data/local_repository.dart';
 import '../data/sync_engine.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/image_service.dart';
+import '../services/notifications/notification_service.dart';
 import '../utils/recurring_dates.dart';
 import '../l10n/app_localizations.dart';
 
@@ -147,6 +148,30 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   String? get _userId => SupabaseSyncService.currentUserId;
+
+  /// Notification failures must never block a financial mutation.
+  void _refreshNotifications() {
+    if (_settings.notificationsEnabled != true) return;
+    unawaited(NotificationService.instance
+        .refresh(
+      settings: _settings,
+      transactions: _transactions,
+      recurringRules: _recurringRules,
+    )
+        .catchError((Object e) {
+      if (kDebugMode) debugPrint('[notifications] refresh failed: $e');
+    }));
+    if (_settings.budgetAlerts) {
+      unawaited(NotificationService.instance
+          .evaluateBudgets(
+            categories: _categories,
+            spendingFor: getCategorySpending,
+          )
+          .catchError((Object e) {
+        if (kDebugMode) debugPrint('[notifications] budget check failed: $e');
+      }));
+    }
+  }
 
   // ── Local-first store ─────────────────────────────────────────────
   //
@@ -394,6 +419,7 @@ class AppProvider with ChangeNotifier {
     _localDataLoaded = true;
     notifyListeners();
     unawaited(SupabaseSyncService.clearPendingRetryQueue());
+    unawaited(NotificationService.instance.cancelAll());
     _clearLocalCache();
     _clearRepository(signingOutUserId);
   }
@@ -483,6 +509,7 @@ class AppProvider with ChangeNotifier {
       notifyListeners();
       processSalaries();
       processSubscriptions();
+      _refreshNotifications();
     }
   }
 
@@ -540,6 +567,7 @@ class AppProvider with ChangeNotifier {
         prefs.setString('categories',
             jsonEncode(_categories.map((c) => c.toJson()).toList())),
       ]);
+      _refreshNotifications();
 
       // Mirror into SQLite, which is the store the app will read from. Awaited
       // after the blobs rather than alongside them: if this throws, the legacy
@@ -1779,13 +1807,15 @@ class AppProvider with ChangeNotifier {
   double getCategorySpending(String categoryId) {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    return _transactions
-        .where((t) =>
-            t.type == 'expense' &&
-            t.categoryId == categoryId &&
-            DateTime.parse(t.date)
-                .isAfter(startOfMonth.subtract(const Duration(days: 1))))
-        .fold(0.0, (sum, t) => sum + t.amount);
+    final startOfNextMonth = DateTime(now.year, now.month + 1, 1);
+    return _transactions.where((t) {
+      final date = DateTime.tryParse(t.date);
+      return t.type == 'expense' &&
+          t.categoryId == categoryId &&
+          date != null &&
+          !date.isBefore(startOfMonth) &&
+          date.isBefore(startOfNextMonth);
+    }).fold(0.0, (sum, t) => sum + t.amount);
   }
 
   // ============================================
@@ -1841,6 +1871,7 @@ class AppProvider with ChangeNotifier {
     _settings = settings;
     _saveToLocal();
     notifyListeners();
+    _refreshNotifications();
     final uid = _userId;
     if (uid != null) SupabaseSyncService.saveProfile(uid, settings);
   }

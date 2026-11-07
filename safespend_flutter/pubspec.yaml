@@ -53,6 +53,10 @@ dependencies:
   file_picker: ^8.0.0
   flutter_markdown: ^0.6.18
   flutter_secure_storage: ^10.0.0
+  # Local, on-device reminders and budget alerts. No push service or device
+  # token collection is used.
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.2
 
   # Already present transitively (via supabase); declared so the app-lock PIN
   # hashing can import it. Pure Dart — no native config, nothing new to fetch.

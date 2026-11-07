@@ -62,6 +62,12 @@ class Settings {
 
   // ── Device-local: notifications ──
   final bool? notificationsEnabled;
+
+  /// A daily, local-only nudge to record spending. Opt-in by default.
+  final bool expenseReminderEnabled;
+
+  /// Minutes after midnight used by [expenseReminderEnabled].
+  final int expenseReminderMinutes;
   final bool billReminders;
   final bool budgetAlerts;
   final bool dailySummary;
@@ -100,7 +106,9 @@ class Settings {
     this.compactNumbers = false,
     this.dateFormat = 'dd/MM/yyyy',
     this.firstDayOfWeek = DateTime.monday,
-    this.notificationsEnabled = true,
+    this.notificationsEnabled = false,
+    this.expenseReminderEnabled = false,
+    this.expenseReminderMinutes = 20 * 60,
     this.billReminders = true,
     this.budgetAlerts = true,
     this.dailySummary = false,
@@ -136,6 +144,8 @@ class Settings {
     String? dateFormat,
     int? firstDayOfWeek,
     bool? notificationsEnabled,
+    bool? expenseReminderEnabled,
+    int? expenseReminderMinutes,
     bool? billReminders,
     bool? budgetAlerts,
     bool? dailySummary,
@@ -173,6 +183,10 @@ class Settings {
       dateFormat: dateFormat ?? this.dateFormat,
       firstDayOfWeek: firstDayOfWeek ?? this.firstDayOfWeek,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      expenseReminderEnabled:
+          expenseReminderEnabled ?? this.expenseReminderEnabled,
+      expenseReminderMinutes:
+          expenseReminderMinutes ?? this.expenseReminderMinutes,
       billReminders: billReminders ?? this.billReminders,
       budgetAlerts: budgetAlerts ?? this.budgetAlerts,
       dailySummary: dailySummary ?? this.dailySummary,
@@ -233,6 +247,8 @@ class Settings {
       'selectedAccountId': selectedAccountId,
       'avatarPath': avatarPath,
       'notificationsEnabled': notificationsEnabled,
+      'expenseReminderEnabled': expenseReminderEnabled,
+      'expenseReminderMinutes': expenseReminderMinutes,
       'locale': locale,
       'localeManuallySelected': localeManuallySelected,
       'textScale': textScale,
@@ -269,7 +285,12 @@ class Settings {
       netWorthScope: json['netWorthScope'] ?? 'all',
       selectedAccountId: json['selectedAccountId'],
       avatarPath: json['avatarPath'],
-      notificationsEnabled: json['notificationsEnabled'] ?? true,
+      // Notification delivery was not wired in old builds. Do not silently
+      // opt an existing person into a new OS permission/reminder system.
+      notificationsEnabled: json['notificationsEnabled'] ?? false,
+      expenseReminderEnabled: json['expenseReminderEnabled'] ?? false,
+      expenseReminderMinutes:
+          (json['expenseReminderMinutes'] as num?)?.toInt() ?? 20 * 60,
       locale: json['locale'] ?? 'en',
       // Old settings have no intent marker, so they correctly opt into device
       // detection rather than treating an inherited English default as a
@@ -318,6 +339,8 @@ class Settings {
           selectedAccountId == other.selectedAccountId &&
           avatarPath == other.avatarPath &&
           notificationsEnabled == other.notificationsEnabled &&
+          expenseReminderEnabled == other.expenseReminderEnabled &&
+          expenseReminderMinutes == other.expenseReminderMinutes &&
           locale == other.locale &&
           localeManuallySelected == other.localeManuallySelected &&
           textScale == other.textScale &&
@@ -351,6 +374,8 @@ class Settings {
         selectedAccountId,
         avatarPath,
         notificationsEnabled,
+        expenseReminderEnabled,
+        expenseReminderMinutes,
         locale,
         localeManuallySelected,
         textScale,
