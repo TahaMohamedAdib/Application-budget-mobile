@@ -20,7 +20,11 @@
     });
 
     document.querySelectorAll("[data-theme-favicon]").forEach((favicon) => {
-      favicon.href = theme === "dark" ? favicon.dataset.darkFavicon : favicon.dataset.lightFavicon;
+      const iconSource = theme === "dark" ? favicon.dataset.darkFavicon : favicon.dataset.lightFavicon;
+      // Replacing the element makes Chromium and Safari refresh a cached tab icon immediately.
+      const refreshedFavicon = favicon.cloneNode();
+      refreshedFavicon.href = `${iconSource}?theme=${theme}`;
+      favicon.replaceWith(refreshedFavicon);
     });
 
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
