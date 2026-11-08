@@ -23,6 +23,8 @@ void main() {
     expect(screen, contains('final deletedUserId = auth.userId;'));
     expect(screen, contains('provider.clearData(userId: deletedUserId);'));
     expect(provider, contains('final signingOutUserId = userId ?? _userId;'));
+    expect(provider,
+        contains('clearPendingRetryQueue(userId: signingOutUserId)'));
   });
 
   test('the deletion function clears all known per-user Storage buckets', () {

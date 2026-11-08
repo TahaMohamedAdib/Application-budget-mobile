@@ -421,7 +421,12 @@ class AppProvider with ChangeNotifier {
     // gated on it, and nothing re-runs loadData() to set it again.
     _localDataLoaded = true;
     notifyListeners();
-    unawaited(SupabaseSyncService.clearPendingRetryQueue());
+    // Remove only this person's queued cloud writes before a future
+    // connectivity event can replay them after the server has deleted the
+    // account. A normal sign-out must not discard another user's queue.
+    unawaited(
+      SupabaseSyncService.clearPendingRetryQueue(userId: signingOutUserId),
+    );
     // Notification cleanup is best-effort. A platform-plugin failure must not
     // prevent sign-out/account deletion from clearing the person's data.
     unawaited(NotificationService.instance.cancelAll().catchError((Object e) {
