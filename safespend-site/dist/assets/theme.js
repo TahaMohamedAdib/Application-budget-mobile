@@ -19,6 +19,10 @@
       source.media = theme === "dark" ? "all" : "not all";
     });
 
+    document.querySelectorAll("[data-theme-favicon]").forEach((favicon) => {
+      favicon.href = theme === "dark" ? favicon.dataset.darkFavicon : favicon.dataset.lightFavicon;
+    });
+
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
       const nextTheme = theme === "dark" ? "light" : "dark";
       button.setAttribute("aria-label", `Switch to ${nextTheme} theme`);

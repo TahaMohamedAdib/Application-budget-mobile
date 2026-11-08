@@ -14,7 +14,7 @@
     <meta property="og:description" content="A budgeting app for accounts, cash, bills, goals, Daret groups and more." />
     <meta property="og:image" content="assets/vvollet-wallet-transparent.png" />
     <meta property="og:type" content="website" />
-    <link rel="icon" type="image/png" href="assets/vvollet-wallet-transparent.png" />
+    <link rel="icon" type="image/png" data-theme-favicon data-light-favicon="assets/vvollet-wallet-transparent.png" data-dark-favicon="assets/vvollet-wallet-dark-transparent.png" href="assets/vvollet-wallet-transparent.png" />
     <link rel="preload" href="assets/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <title>VVollet: Your money, clearly organized</title>
     <script src="assets/theme.js"></script>
@@ -469,7 +469,7 @@
     <header class="masthead">
       <div class="wrap">
         <a class="brand" href="#main" aria-label="VVollet, back to top">
-          <picture><img src="assets/vvollet-wallet-transparent.png" alt="" width="34" height="34" /></picture>
+          <picture><source srcset="assets/vvollet-wallet-dark-transparent.png" media="(prefers-color-scheme: dark)" /><img src="assets/vvollet-wallet-transparent.png" alt="" width="34" height="34" /></picture>
           VVollet
         </a>
         <nav id="site-nav" class="nav" aria-label="Sections">
