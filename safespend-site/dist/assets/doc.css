@@ -85,6 +85,31 @@ html[data-theme="dark"] .theme-toggle .moon { display: none; }
 }
 .doc-head .summary { margin-top: 20px; font-size: 18px; color: var(--text-2); }
 
+/* Delete-account page: present the two paths clearly before the supporting detail. */
+.delete-page .doc-head { margin-bottom: 56px; }
+.eyebrow, .section-label {
+  margin-bottom: 12px; color: var(--teal-text); font-size: 12px; font-weight: 700;
+  letter-spacing: .09em; line-height: 1.2; text-transform: uppercase;
+}
+.delete-hero { position: relative; padding: 36px 40px 40px; border: 1px solid var(--border); border-radius: 24px; background: linear-gradient(135deg, var(--surface), var(--bg)); overflow: hidden; }
+.delete-hero::after { content: ""; position: absolute; right: -80px; bottom: -100px; width: 240px; height: 240px; border: 1px solid color-mix(in srgb, var(--teal) 26%, transparent); border-radius: 50%; pointer-events: none; }
+.delete-hero .meta { position: relative; margin-bottom: 28px; }
+.delete-hero h1, .delete-hero .summary, .delete-assurances { position: relative; z-index: 1; }
+.delete-assurances { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; padding: 0; list-style: none; }
+.delete-assurances li { padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--text-2); font-size: 13px; }
+.delete-options { padding-top: 0 !important; border-top: 0 !important; }
+.delete-page .delete-options h2 { margin-bottom: 20px; }
+.delete-options-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.delete-option { position: relative; min-height: 232px; padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.delete-page .delete-option h3 { margin: 20px 0 8px; font-size: 18px; letter-spacing: -.02em; }
+.delete-option p { color: var(--text-2); font-size: 15px; }
+.option-number { color: var(--teal-text); font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: .08em; }
+.option-detail, .text-link { display: inline-block; margin-top: 18px; color: var(--teal-text); font-size: 13px; font-weight: 650; }
+.text-link { text-decoration: none; }
+.text-link:hover { text-decoration: underline; }
+.delete-callout { margin-top: 24px; }
+.delete-callout .callout-note { margin-top: 4px; }
+
 .toc { grid-column: 1; grid-row: 1 / span 2; align-self: start; position: sticky; top: 24px; padding-top: 4px; font-size: 14px; }
 .toc p { margin-bottom: 12px; font-size: 13px; color: var(--text-2); }
 .toc ol { padding: 0; list-style: none; border-left: 1px solid var(--border); }
@@ -189,6 +214,9 @@ html[data-theme="dark"] .doc-body a { color: var(--teal-text); }
   .masthead.is-open nav a { padding: 12px; }
   .doc-body table { font-size: 14px; }
   .doc-body th, .doc-body td { padding-right: 12px; }
+  .delete-hero { padding: 28px 24px 30px; border-radius: 20px; }
+  .delete-options-grid { grid-template-columns: 1fr; }
+  .delete-option { min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; }
