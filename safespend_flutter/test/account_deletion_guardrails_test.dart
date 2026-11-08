@@ -32,6 +32,8 @@ void main() {
         .readAsStringSync();
 
     expect(function, contains("['receipts', 'avatars', 'logos']"));
+    expect(function, contains('admin.storage.listBuckets()'));
+    expect(function, contains('existingBuckets.has(name)'));
     expect(function, contains('admin.storage.from(bucket).remove'));
   });
 }

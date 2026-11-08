@@ -97,7 +97,13 @@ Deno.serve(async (req) => {
     // network/auth failure cannot delete somebody else's data or corrupt a
     // completed bucket cleanup.
     await markDeletion(admin, userId, 'requested')
-    for (const bucket of USER_BUCKETS) {
+    // Production may not have every optional image feature enabled yet. Do
+    // not turn a missing optional bucket into a permanent account-deletion
+    // failure; clean every known bucket that actually exists instead.
+    const { data: buckets, error: bucketsError } = await admin.storage.listBuckets()
+    if (bucketsError) throw bucketsError
+    const existingBuckets = new Set((buckets ?? []).map((bucket) => bucket.id))
+    for (const bucket of USER_BUCKETS.filter((name) => existingBuckets.has(name))) {
       const paths = await listAll(admin, bucket, userId)
       for (let i = 0; i < paths.length; i += 100) {
         const { error } = await admin.storage.from(bucket).remove(paths.slice(i, i + 100))
