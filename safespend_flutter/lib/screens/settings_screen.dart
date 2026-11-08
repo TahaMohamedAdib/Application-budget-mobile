@@ -186,7 +186,7 @@ class SettingsScreen extends StatelessWidget {
 
     final auth = Provider.of<AuthService>(context, listen: false);
     await auth.signOut();
-    provider.clearData();
+    await provider.clearData();
     if (context.mounted) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }

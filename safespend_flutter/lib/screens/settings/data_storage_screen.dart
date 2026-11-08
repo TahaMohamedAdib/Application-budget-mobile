@@ -159,7 +159,7 @@ class DataStorageScreen extends StatelessWidget {
     if (!await UnsyncedWorkGuard.confirm(context, p)) return;
     if (!context.mounted) return;
 
-    p.clearData();
+    await p.clearData();
     if (!context.mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
   }

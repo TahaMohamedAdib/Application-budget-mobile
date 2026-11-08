@@ -51,14 +51,18 @@ class _AccountScreenState extends State<AccountScreen> {
     setState(() => _deleting = false);
 
     if (!result.success) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(s.tr('accountDeletionFailed'))));
+      messenger
+          .showSnackBar(SnackBar(content: Text(s.tr('accountDeletionFailed'))));
       return;
     }
 
     await auth.signOut();
-    provider.clearData(userId: deletedUserId);
-    messenger.showSnackBar(SnackBar(content: Text(s.tr('accountDeletionDone'))));
+    // Do not report a completed deletion while this device could still retain
+    // the account's SQLite rows or queued writes.
+    await provider.clearData(userId: deletedUserId);
+    if (!mounted) return;
+    messenger
+        .showSnackBar(SnackBar(content: Text(s.tr('accountDeletionDone'))));
     navigator.popUntil((route) => route.isFirst);
   }
 
@@ -425,7 +429,8 @@ class _AccountScreenState extends State<AccountScreen> {
                         type: MaterialType.transparency,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          onTap: _deleting ? null : () => _deleteAccount(context),
+                          onTap:
+                              _deleting ? null : () => _deleteAccount(context),
                           child: Padding(
                             padding: const EdgeInsets.all(20),
                             child: Row(
@@ -438,8 +443,10 @@ class _AccountScreenState extends State<AccountScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Center(
-                                      child: Icon(IOSIcons.delete_outline_rounded,
-                                          size: 20, color: AppTheme.error)),
+                                      child: Icon(
+                                          IOSIcons.delete_outline_rounded,
+                                          size: 20,
+                                          color: AppTheme.error)),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(

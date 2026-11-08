@@ -164,9 +164,9 @@ class AppProvider with ChangeNotifier {
     if (_settings.budgetAlerts) {
       unawaited(NotificationService.instance
           .evaluateBudgets(
-            categories: _categories,
-            spendingFor: getCategorySpending,
-          )
+        categories: _categories,
+        spendingFor: getCategorySpending,
+      )
           .catchError((Object e) {
         if (kDebugMode) debugPrint('[notifications] budget check failed: $e');
       }));
@@ -395,7 +395,7 @@ class AppProvider with ChangeNotifier {
 
   /// Clear all data (used on sign out). Resets flags so the next user
   /// can load their own data from Supabase cleanly.
-  void clearData({String? userId}) {
+  Future<void> clearData({String? userId}) async {
     // Captured before the fields are reset: the Supabase session may already
     // be gone by the time the wipe runs, and a null id would wipe nothing.
     // Account deletion invalidates the Supabase session before the local wipe.
@@ -424,18 +424,16 @@ class AppProvider with ChangeNotifier {
     // Remove only this person's queued cloud writes before a future
     // connectivity event can replay them after the server has deleted the
     // account. A normal sign-out must not discard another user's queue.
-    unawaited(
-      SupabaseSyncService.clearPendingRetryQueue(userId: signingOutUserId),
-    );
+    await SupabaseSyncService.clearPendingRetryQueue(userId: signingOutUserId);
     // Notification cleanup is best-effort. A platform-plugin failure must not
     // prevent sign-out/account deletion from clearing the person's data.
-    unawaited(NotificationService.instance.cancelAll().catchError((Object e) {
+    await NotificationService.instance.cancelAll().catchError((Object e) {
       if (kDebugMode) {
         debugPrint('[AppProvider] notification cleanup failed: $e');
       }
-    }));
-    _clearLocalCache();
-    _clearRepository(signingOutUserId);
+    });
+    await _clearLocalCache();
+    await _clearRepository(signingOutUserId);
   }
 
   /// Stops sync and removes this user's local rows at sign-out.
@@ -443,15 +441,11 @@ class AppProvider with ChangeNotifier {
   /// Both halves matter. Leaving the engine running would have it sync a user
   /// who is no longer signed in, and leaving the rows would let the next
   /// account on this device read the previous one's finances.
-  void _clearRepository(String? userId) {
-    unawaited(_syncEngine.stop());
+  Future<void> _clearRepository(String? userId) async {
+    await _syncEngine.stop();
     _repositoryReady = false;
     if (userId == null) return;
-    unawaited(
-      LocalDatabase.instance.wipeUser(userId).catchError((Object e) {
-        if (kDebugMode) debugPrint('[AppProvider] local wipe failed: $e');
-      }),
-    );
+    await LocalDatabase.instance.wipeUser(userId);
   }
 
   Future<void> _clearLocalCache() async {
