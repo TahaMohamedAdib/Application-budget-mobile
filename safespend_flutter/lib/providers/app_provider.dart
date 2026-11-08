@@ -395,10 +395,13 @@ class AppProvider with ChangeNotifier {
 
   /// Clear all data (used on sign out). Resets flags so the next user
   /// can load their own data from Supabase cleanly.
-  void clearData() {
+  void clearData({String? userId}) {
     // Captured before the fields are reset: the Supabase session may already
     // be gone by the time the wipe runs, and a null id would wipe nothing.
-    final signingOutUserId = _userId;
+    // Account deletion invalidates the Supabase session before the local wipe.
+    // Its caller therefore supplies the identity captured while it was still
+    // authenticated; ordinary sign-out continues to resolve the current one.
+    final signingOutUserId = userId ?? _userId;
     _accounts = [];
     _transactions = [];
     _categories = [];
@@ -419,7 +422,13 @@ class AppProvider with ChangeNotifier {
     _localDataLoaded = true;
     notifyListeners();
     unawaited(SupabaseSyncService.clearPendingRetryQueue());
-    unawaited(NotificationService.instance.cancelAll());
+    // Notification cleanup is best-effort. A platform-plugin failure must not
+    // prevent sign-out/account deletion from clearing the person's data.
+    unawaited(NotificationService.instance.cancelAll().catchError((Object e) {
+      if (kDebugMode) {
+        debugPrint('[AppProvider] notification cleanup failed: $e');
+      }
+    }));
     _clearLocalCache();
     _clearRepository(signingOutUserId);
   }

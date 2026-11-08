@@ -39,6 +39,9 @@ class _AccountScreenState extends State<AccountScreen> {
 
     final auth = context.read<AuthService>();
     final provider = context.read<AppProvider>();
+    // Save this before signing out: deleting the remote Auth user invalidates
+    // the current session, but the local SQLite rows still need its id.
+    final deletedUserId = auth.userId;
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
@@ -54,7 +57,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
 
     await auth.signOut();
-    provider.clearData();
+    provider.clearData(userId: deletedUserId);
     messenger.showSnackBar(SnackBar(content: Text(s.tr('accountDeletionDone'))));
     navigator.popUntil((route) => route.isFirst);
   }
