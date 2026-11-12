@@ -33,8 +33,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.taha.safespend"
+        // Must match the Play Console listing. The Kotlin namespace above stays
+        // com.taha.safespend; only the published app identity changed.
+        applicationId = "com.vvollet.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -42,6 +43,19 @@ android {
         multiDexEnabled = true
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    // Configure signing before build types reference it. Defining this inside
+    // the release block can leave AGP using its default debug configuration.
+    val releaseSigningConfig = if (releasePropertiesFile.exists()) {
+        signingConfigs.create("release") {
+            keyAlias = releaseProperties.getProperty("keyAlias")
+            keyPassword = releaseProperties.getProperty("keyPassword")
+            storeFile = file(releaseProperties.getProperty("storeFile"))
+            storePassword = releaseProperties.getProperty("storePassword")
+        }
+    } else {
+        null
     }
 
     buildTypes {
@@ -55,13 +69,8 @@ android {
                         "android/key.properties.example or inject it in CI."
                 )
             }
-            if (releasePropertiesFile.exists()) {
-                signingConfig = signingConfigs.create("release") {
-                    keyAlias = releaseProperties.getProperty("keyAlias")
-                    keyPassword = releaseProperties.getProperty("keyPassword")
-                    storeFile = file(releaseProperties.getProperty("storeFile"))
-                    storePassword = releaseProperties.getProperty("storePassword")
-                }
+            if (releaseSigningConfig != null) {
+                signingConfig = releaseSigningConfig
             }
         }
     }
