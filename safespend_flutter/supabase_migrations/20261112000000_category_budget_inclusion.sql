@@ -27,3 +27,20 @@ returns trigger language plpgsql security definer set search_path = public as $$
 begin insert into public.category_initialization(user_id) values (new.id) on conflict do nothing; return new; end $$;
 drop trigger if exists on_auth_user_category_marker on auth.users;
 create trigger on_auth_user_category_marker after insert on auth.users for each row execute function public.mark_new_category_account();
+
+create or replace function public.initialize_default_categories(p_categories jsonb)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare v_user uuid := auth.uid(); v_marker public.category_initialization%rowtype;
+begin
+  if v_user is null then raise exception 'authentication required'; end if;
+  select * into v_marker from public.category_initialization where user_id = v_user for update;
+  if not found or v_marker.initialized_at is not null then return false; end if;
+  insert into public.user_categories(user_id, category_id, group_name, name, icon, color, budget_limit, include_in_monthly_budget)
+  select v_user, x->>'id', x->>'group', x->>'name', x->>'icon', x->>'color', coalesce((x->>'budgetLimit')::numeric, 0), coalesce((x->>'includeInMonthlyBudget')::boolean, true)
+  from jsonb_array_elements(p_categories) x
+  on conflict (user_id, category_id) do nothing;
+  update public.category_initialization set initialized_at = now() where user_id = v_user;
+  return true;
+end $$;
+revoke all on function public.initialize_default_categories(jsonb) from public;
+grant execute on function public.initialize_default_categories(jsonb) to authenticated;

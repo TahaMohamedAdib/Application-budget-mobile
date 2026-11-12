@@ -1238,6 +1238,19 @@ class SupabaseSyncService {
     }
   }
 
+  static Future<bool> initializeDefaultCategories(
+      List<Category> categories) async {
+    try {
+      final result = await _db.rpc('initialize_default_categories', params: {
+        'p_categories':
+            categories.map((category) => category.toJson()).toList(),
+      });
+      return result == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> _saveCategoryRemote(
       String userId, Category category) async {
     await _db.from('user_categories').upsert(
