@@ -650,7 +650,7 @@ class _CoachScreenState extends State<CoachScreen> {
         attachName = docName;
       }
 
-      // Financial context is computed by VVollet, never by the model.
+      // Financial context is computed by SafeSpend, never by the model.
       var ctx = FinancialContextService.build(provider);
       final projectCtx = _buildProjectContextSummary();
       if (projectCtx != null) {
@@ -865,7 +865,7 @@ class _CoachScreenState extends State<CoachScreen> {
                   ),
                   const SizedBox(width: 11),
                   Text(
-                    'VVollet AI',
+                    '${S.appName} AI',
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -2038,7 +2038,7 @@ class _CoachScreenState extends State<CoachScreen> {
                   ),
                   const SizedBox(width: 9),
                   Text(
-                    'VVollet AI',
+                    '${S.appName} AI',
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,

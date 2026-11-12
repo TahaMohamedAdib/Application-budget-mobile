@@ -140,7 +140,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             Center(
               child: Text(
-                'VVollet ${AboutScreen.appVersion}',
+                '${S.appName} ${AboutScreen.appVersion}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -186,7 +186,7 @@ class SettingsScreen extends StatelessWidget {
 
     final auth = Provider.of<AuthService>(context, listen: false);
     await auth.signOut();
-    await provider.clearData();
+    provider.clearData();
     if (context.mounted) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }

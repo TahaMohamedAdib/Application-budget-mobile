@@ -6,7 +6,7 @@ This living product and code map describes the current working tree, including e
 
 ## App at a glance
 
-VVollet is a Flutter personal finance app for accounts, cash, transactions, budgets, recurring payments, savings goals, debts, investments, and Daret savings groups. It includes an AI Coach, onboarding, localization, and personal settings.
+VVollet is a Flutter personal finance app for accounts, cash, transactions, budgets, recurring payments, savings goals, debts, investments, and Daret savings groups. It includes an AI Coach, onboarding, localization, and personal settings. Its internal package identifiers and persisted-data keys retain the former `safespend` name for compatibility with existing installs.
 
 | Layer | Main location | Responsibility |
 | --- | --- | --- |

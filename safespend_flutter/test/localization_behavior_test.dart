@@ -11,6 +11,14 @@ void main() {
     expect(S.normalizeLocaleCode('unknown'), 'en');
   });
 
+  test('product name is VVollet in every locale', () {
+    for (final locale in S.supportedLocales) {
+      final copy = S.forLocale(locale.languageCode).tourWelcomeTitle;
+      expect(copy, contains(S.appName), reason: locale.languageCode);
+      expect(copy, isNot(contains('SafeSpend')), reason: locale.languageCode);
+    }
+  });
+
   for (final locale in S.supportedLocales) {
     final code = locale.languageCode;
     final s = S.forLocale(code);

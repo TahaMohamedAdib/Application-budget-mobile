@@ -3,6 +3,10 @@ import 'translations.dart';
 import '../utils/system_note.dart';
 
 class S {
+  /// Public product name. Keep this separate from the package name so a
+  /// branding change does not break existing installs or persisted data.
+  static const appName = 'VVollet';
+
   final String _locale;
 
   S._(String locale) : _locale = normalizeLocaleCode(locale);
@@ -42,8 +46,13 @@ class S {
   static String flagForLocale(String? locale) =>
       localeFlags[normalizeLocaleCode(locale)] ?? '\u{1F310}';
 
-  String _t(String key) =>
-      translations[_locale]?[key] ?? translations[fallbackLocale]?[key] ?? key;
+  String _t(String key) => _withCurrentBrand(
+      translations[_locale]?[key] ?? translations[fallbackLocale]?[key] ?? key);
+
+  static String _withCurrentBrand(String value) => value
+      .replaceAll('SafeSpend', appName)
+      // The Hindi AI prompt used a phonetic rendering of the previous name.
+      .replaceAll('सेफस्पेंड', appName);
 
   /// Looks up [key] and expands named placeholders such as `{name}`.
   ///

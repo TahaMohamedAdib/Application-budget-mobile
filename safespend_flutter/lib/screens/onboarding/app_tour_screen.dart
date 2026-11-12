@@ -31,7 +31,7 @@ class _TourPage {
 
 /// First-run product tour, replayable from Settings.
 ///
-/// Each page demonstrates an actual VVollet workflow rather than presenting
+/// Each page demonstrates an actual SafeSpend workflow rather than presenting
 /// an abstract icon. The layout stays scrollable for Dynamic Type and short
 /// screens, supports the native back gesture/swipe, and respects Reduce Motion.
 class AppTourScreen extends StatefulWidget {
@@ -532,7 +532,7 @@ class _WelcomePreview extends StatelessWidget {
             Positioned(
               top: 2,
               child: Text(
-                'VVollet',
+                S.appName,
                 style: TextStyle(
                   color: _previewPrimary(context),
                   fontSize: 13,

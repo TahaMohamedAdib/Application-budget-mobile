@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#181a1b" media="(prefers-color-scheme: dark)" />
+    <meta
+      name="description"
+      content="VVollet brings your income, spending, accounts, budgets, goals and Daret groups into one clear view."
+    />
+    <meta property="og:title" content="VVollet: Your money, clearly organized" />
+    <meta property="og:description" content="A budgeting app for accounts, cash, bills, goals, Daret groups and more." />
+    <meta property="og:image" content="assets/vvollet-wallet-transparent.png" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/png" data-theme-favicon data-light-favicon="assets/vvollet-wallet-transparent.png" data-dark-favicon="assets/vvollet-wallet-dark-transparent.png" href="assets/vvollet-wallet-transparent.png" />
+    <link rel="preload" href="assets/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <title>VVollet: Your money, clearly organized</title>
+    <script src="assets/theme.js"></script>
+    <style>
+      @font-face {
+        font-family: Inter;
+        src: url("assets/Inter-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: swap;
+      }
+
+      :root {
+        /* From the app: safespend_flutter/lib/theme/app_colors.dart */
+        --teal: #0b715f;          /* goldPrimary: primary, income, success */
+        --teal-600: #095c4d;      /* gold600: hover */
+        --teal-200: #5ecfbc;      /* gold200: teal on dark surfaces */
+        --teal-100: #c2ede7;      /* gold100 */
+        --teal-50: #e8f9f7;       /* gold50 */
+        --expense: #ef4444;       /* error: expenses */
+
+        /* Light theme */
+        --bg: #ffffff;            /* lightBackground */
+        --surface: #f7f7f8;       /* lightSurface */
+        --text: #202123;          /* lightTextPrimary */
+        --text-2: #6e6e80;        /* lightTextSecondary */
+        --text-3: #8e8ea0;        /* lightTextTertiary */
+        --border: #e5e5e5;        /* lightBorder */
+        --divider: #ececf1;       /* lightDivider */
+
+        /* Dark theme */
+        --dark-bg: #181a1b;       /* darkBackground */
+        --dark-card: #212121;     /* goldCard (dark), middle stop */
+        --dark-text: #ececec;     /* darkTextPrimary */
+        --dark-text-2: #aaaaaa;   /* darkTextSecondary */
+        --dark-text-3: #8e8e8e;   /* darkTextTertiary */
+        --dark-border: rgba(255, 255, 255, .08);
+        --teal-text: var(--teal);  /* teal used as text or outline */
+        --bubble: #eff1f2;
+        color-scheme: light dark;
+
+        --sans: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+        --ease: cubic-bezier(.22, 1, .36, 1);
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background: var(--bg);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      h1, h2, h3, p, dl, dd, ul, ol, figure { margin: 0; }
+      ul, ol { padding: 0; list-style: none; }
+      a { color: inherit; }
+      img { display: block; max-width: 100%; }
+
+      .wrap { width: min(1120px, 100% - 48px); margin-inline: auto; }
+
+      .skip-link {
+        position: absolute; top: 12px; left: 12px; z-index: 100;
+        padding: 12px 16px; border-radius: 8px;
+        background: var(--dark-card); color: #fff;
+        transform: translateY(-200%);
+        transition: transform .2s var(--ease);
+      }
+      .skip-link:focus { transform: none; }
+
+      :focus-visible { outline: 2px solid var(--teal-text); outline-offset: 3px; border-radius: 4px; }
+      .on-navy :focus-visible { outline-color: var(--teal-200); }
+
+      .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+      /* ── Header ───────────────────────────── */
+      .masthead { border-bottom: 1px solid var(--border); }
+      .masthead .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 72px; }
+      .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; text-decoration: none; }
+      .brand img { width: 32px; height: 32px; border-radius: 8px; }
+      .brand picture { display: flex; }
+      .nav { display: flex; gap: 4px; margin-left: auto; font-size: 14px; color: var(--text-2); }
+      .nav a { padding: 8px 12px; border-radius: 8px; text-decoration: none; transition: color .15s var(--ease), background-color .15s var(--ease); }
+      .nav a:hover { color: var(--text); background: var(--surface); }
+      .theme-toggle, .menu-toggle { display: none; }
+      .theme-toggle {
+        display: inline-grid; place-items: center; width: 44px; height: 44px; margin-left: 12px; padding: 0;
+        border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); cursor: pointer;
+        transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
+      }
+      .theme-toggle:hover { background: var(--surface); border-color: var(--text-3); }
+      .theme-toggle .theme-icon { width: 18px; height: 18px; }
+      .theme-toggle .sun { display: none; }
+      html[data-theme="dark"] .theme-toggle .sun { display: block; }
+      html[data-theme="dark"] .theme-toggle .moon { display: none; }
+
+      /* ── Hero ─────────────────────────────── */
+      .hero { padding: 72px 0 96px; }
+      .hero .wrap { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 64px; align-items: center; }
+      .dateline { margin-bottom: 28px; font-size: 13px; color: var(--text-2); letter-spacing: .01em; }
+      .dateline span + span::before { content: "·"; margin: 0 8px; color: var(--border); }
+
+      h1 {
+        font-weight: 700;
+        font-size: clamp(40px, 6vw, 68px);
+        line-height: 1.04;
+        letter-spacing: -.04em;
+      }
+
+      .lede { max-width: 33em; margin-top: 28px; font-size: 18px; color: var(--text-2); line-height: 1.65; }
+      .lede strong { color: var(--text); font-weight: 600; }
+
+      .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 32px; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        min-height: 48px; padding: 0 20px; border-radius: 12px;
+        background: var(--teal); color: #fff;
+        font-weight: 600; font-size: 15px; text-decoration: none;
+        transition: background-color .15s var(--ease), transform .15s var(--ease);
+      }
+      .btn:hover { background: var(--teal-600); }
+      .btn:active { transform: scale(.98); }
+      .btn svg { width: 16px; height: 16px; transition: transform .2s var(--ease); }
+      .btn:hover svg { transform: translateY(2px); }
+      .soon { font-size: 14px; color: var(--text-2); }
+
+      /* The receipt: the product's one number, shown with its working */
+      .receipt {
+        position: relative;
+        padding: 28px 28px 24px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #2f2f2f, #212121 50%, #1a1a1a);
+        border: 1px solid var(--dark-border);
+        color: var(--dark-text);
+        box-shadow: 0 8px 24px -4px rgba(0, 0, 0, .3);
+      }
+      .receipt::before {
+        /* dashed stitching, as on the wallet icon */
+        content: ""; position: absolute; inset: 8px;
+        border: 1.5px dashed rgba(94, 207, 188, .45);
+        border-radius: 12px; pointer-events: none;
+      }
+      .receipt table { width: 100%; border-collapse: collapse; font-size: 15px; }
+      .receipt caption { text-align: left; padding-bottom: 16px; font-size: 13px; color: var(--dark-text-2); }
+      .receipt caption b { display: block; color: #fff; font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+      .receipt th { font-weight: 400; text-align: left; color: var(--dark-text-2); padding: 8px 0; }
+      .receipt td { text-align: right; padding: 8px 0; white-space: nowrap; }
+      .receipt .op { display: inline-block; width: 1.1em; color: var(--teal-200); }
+      .receipt .op.minus { color: var(--expense); }
+      .receipt .sub th, .receipt .sub td { border-top: 1px solid var(--dark-border); color: #fff; font-weight: 600; }
+      .receipt .total th, .receipt .total td { border-top: 1.5px dashed rgba(94, 207, 188, .45); padding-top: 16px; vertical-align: baseline; }
+      .receipt .total th { color: #fff; font-weight: 600; }
+      .receipt .total td { font-size: 40px; font-weight: 700; letter-spacing: -.04em; color: var(--teal-200); line-height: 1; }
+      .receipt .total small { font-size: 14px; font-weight: 600; letter-spacing: 0; margin-left: 4px; color: var(--teal-200); }
+      .receipt-note { margin-top: 16px; font-size: 13px; color: var(--text-2); }
+
+      /* ── Real app screens ─────────────────── */
+      .screen-tour { padding: 104px 0; border-top: 1px solid var(--border); background: var(--surface); }
+      .screen-tour .wrap { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); gap: 72px; align-items: center; }
+      .screen-tour .intro { max-width: 31em; }
+      .screen-list { display: grid; gap: 3px; margin-top: 34px; }
+      .screen-list button { display: flex; align-items: baseline; gap: 12px; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 9px; color: var(--text-2); background: transparent; font: inherit; font-size: 14px; text-align: left; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease); }
+      .screen-list button span { width: 22px; color: var(--text-3); font-variant-numeric: tabular-nums; font-size: 12px; }
+      .screen-list button[aria-current="true"] { color: var(--text); background: var(--bg); font-weight: 600; }
+      .screen-list button:hover { color: var(--text); }
+      .gallery { min-width: 0; }
+      .gallery-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+      .gallery-count { color: var(--text-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+      .appearance { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; }
+      .appearance[hidden] { display: none; }
+      .appearance-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); }
+      .appearance-switch button { min-height: 32px; padding: 4px 9px; border: 0; border-radius: 6px; color: var(--text-2); background: transparent; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease); }
+      .appearance-switch button[aria-pressed="true"] { color: var(--text); background: var(--surface); }
+      .gallery-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .55fr); gap: 24px; align-items: stretch; padding: 24px; border: 1px solid var(--border); border-radius: 24px; background: var(--bg); transition: background-color 220ms var(--ease), border-color 220ms var(--ease); }
+      .gallery-panel[data-appearance="dark"] { color: var(--dark-text); border-color: var(--dark-bg); background: var(--dark-bg); }
+      .gallery-panel[data-appearance="dark"] .gallery-caption p, .gallery-panel[data-appearance="dark"] .gallery-caption .screen-kicker { color: var(--dark-text-2); }
+      .gallery-panel[data-appearance="dark"] .gallery-controls { border-color: var(--dark-border); }
+      .gallery-panel[data-appearance="dark"] .gallery-control { color: var(--dark-text); border-color: var(--dark-border); background: var(--dark-card); }
+      .gallery-panel[data-appearance="dark"] .gallery-control:hover { border-color: var(--teal-200); color: var(--teal-200); }
+      .phone-stage { display: grid; place-items: center; min-height: 548px; padding: 16px; border-radius: 18px; background: #e9ebed; transition: background-color 220ms var(--ease); }
+      .gallery-panel[data-appearance="dark"] .phone-stage { background: #101516; }
+      .phone-frame { position: relative; width: min(100%, 285px); aspect-ratio: 735 / 1600; overflow: hidden; padding: 6px; border: 1px solid #101112; border-radius: 36px; background: #090a0b; box-shadow: 0 14px 28px rgba(0, 0, 0, .2); }
+      .gallery-panel[data-appearance="light"] { --bg: #ffffff; --surface: #f7f7f8; --text: #202123; --text-2: #6e6e80; --text-3: #8e8ea0; --border: #e5e5e5; --teal-text: var(--teal); --teal-50: #e8f9f7; color: var(--text); }
+      .gallery-panel[data-appearance="light"] .phone-frame { border-color: #c7c9cb; background: #f6f6f6; box-shadow: 0 14px 28px rgba(32, 33, 35, .13); }
+      .screen-image { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); border-radius: 30px; object-fit: cover; opacity: 0; transform: translateX(18px) scale(.988); transition: opacity 380ms var(--ease), transform 380ms var(--ease); }
+      .screen-image.is-active { opacity: 1; transform: translateX(0) scale(1); }
+      .screen-image.is-exiting-left { opacity: 0; transform: translateX(-18px) scale(.988); }
+      .screen-image.is-exiting-right { opacity: 0; transform: translateX(18px) scale(.988); }
+      .screen-image.is-entering-left { opacity: 0; transform: translateX(-18px) scale(.988); }
+      .screen-image.is-entering-right { opacity: 0; transform: translateX(18px) scale(.988); }
+      .gallery-caption { display: flex; flex-direction: column; justify-content: space-between; gap: 28px; min-width: 0; padding: 12px 2px 2px; }
+      .screen-kicker { margin-bottom: 10px; color: var(--text-3); font-size: 13px; }
+      .gallery-caption h3 { max-width: 11em; font-size: clamp(24px, 2.6vw, 32px); font-weight: 700; letter-spacing: -.035em; line-height: 1.12; }
+      .gallery-caption p { margin-top: 14px; color: var(--text-2); font-size: 14px; line-height: 1.6; }
+      .gallery-controls { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
+      .gallery-control { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 8px 11px; border: 1px solid var(--border); border-radius: 11px; color: var(--text); background: var(--bg); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease), border-color 180ms var(--ease); }
+      .gallery-control:hover { color: var(--teal-text); border-color: var(--teal-text); background: var(--teal-50); }
+      .gallery-control[data-gallery-autoplay] { min-width: auto; }
+      .gallery-control svg { width: 16px; height: 16px; }
+
+      /* ── Shared section rhythm ────────────── */
+      section { scroll-margin-top: 16px; }
+      .section { padding: 104px 0; border-top: 1px solid var(--border); }
+      .label { margin-bottom: 16px; font-size: 13px; font-weight: 500; color: var(--text-2); }
+      h2 {
+        max-width: 18em;
+        font-weight: 700;
+        font-size: clamp(30px, 4vw, 46px);
+        line-height: 1.1;
+        letter-spacing: -.035em;
+      }
+      .intro { max-width: 36em; margin-top: 20px; font-size: 17px; color: var(--text-2); }
+
+      /* ── What counts ─────────────────────── */
+      .counts { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 56px; }
+      .counts h3 { padding-bottom: 12px; border-bottom: 1px solid var(--text); font-size: 15px; font-weight: 600; }
+      .counts li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+      .counts li span:last-child { color: var(--text-2); font-size: 14px; text-align: right; }
+      .counts .no h3 { color: var(--text-2); border-color: var(--border); }
+
+      /* ── Daret ────────────────────────────── */
+      .daret { padding: 112px 0; background: var(--dark-bg); color: var(--dark-text); }
+      .daret .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 72px; align-items: center; }
+      .daret .label { color: var(--dark-text-2); }
+      .daret .intro { color: var(--dark-text-2); }
+      .daret-facts { margin-top: 32px; border-top: 1px solid var(--dark-border); }
+      .daret-facts div { display: grid; grid-template-columns: 9.5em 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--dark-border); font-size: 15px; }
+      .daret-facts dt { color: var(--dark-text-3); }
+
+      .rotation { padding: 28px; border: 1px solid var(--dark-border); border-radius: 20px; background: var(--dark-card); }
+      .rotation-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+      .rotation-head b { font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+      .rotation-head span { font-size: 13px; color: var(--dark-text-3); }
+      .months { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+      .month {
+        position: relative;
+        padding: 12px 8px 8px; border-radius: 8px;
+        border: 1px solid var(--dark-border);
+        font-size: 13px; color: var(--dark-text-3);
+      }
+      .month b { display: block; font-weight: 600; color: #fff; font-size: 14px; }
+      .month.paid { background: rgba(255, 255, 255, .04); color: var(--dark-text-2); }
+      .month.paid::after { content: "✓"; position: absolute; top: 8px; right: 8px; color: var(--teal-200); font-size: 12px; }
+      .month.now { border-color: var(--dark-text); }
+      .month.mine { background: var(--teal); border-color: var(--teal); color: #fff; }
+      .month.mine b { color: #fff; }
+      .rotation-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; font-size: 13px; color: var(--dark-text-2); }
+      .rotation-key i { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 2px; vertical-align: -1px; }
+
+      /* ── Ledger of features ───────────────── */
+      .ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 64px; margin-top: 56px; counter-reset: item; }
+      .ledger li { display: grid; grid-template-columns: 2.5em 1fr; gap: 4px 12px; padding: 24px 0; border-top: 1px solid var(--border); counter-increment: item; }
+      .ledger li::before { content: counter(item, decimal-leading-zero); grid-row: span 2; padding-top: 4px; font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+      .ledger h3 { font-size: 19px; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
+      .ledger p { color: var(--text-2); font-size: 15px; }
+
+      /* ── Languages ───────────────────────── */
+      .tongues { padding: 88px 0; background: var(--surface); border-top: 1px solid var(--border); }
+      .tongues .wrap { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 64px; align-items: center; }
+      .phrases li { padding: 16px 0; border-bottom: 1px solid var(--border); font-size: clamp(20px, 2.4vw, 26px); font-weight: 600; letter-spacing: -.02em; line-height: 1.3; }
+      .phrases li:first-child { border-top: 1px solid var(--border); }
+      .phrases [lang="ar"] { font-family: "Noto Sans Arabic", "Geeza Pro", "Segoe UI", Tahoma, sans-serif; letter-spacing: 0; }
+      .phrases small { display: block; margin-top: 2px; font-family: var(--sans); font-size: 12px; color: var(--text-2); }
+
+      /* ── Coming next ─────────────────────── */
+      .next .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 72px; align-items: start; }
+      .next-list { margin-top: 40px; }
+      .next-list li { padding: 24px 0; border-top: 1px solid var(--border); }
+      .next-list li:last-child { border-bottom: 1px solid var(--border); }
+      .next-list .status { display: block; margin-bottom: 4px; font-size: 13px; color: var(--text-3); }
+      .next-list h3 { font-size: 19px; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; }
+      .next-list p { margin-top: 8px; color: var(--text-2); font-size: 15px; }
+      .next-note { margin-top: 24px; font-size: 14px; color: var(--text-2); }
+      .next-note a { text-underline-offset: 3px; }
+      .next-note a:hover { color: var(--teal-text); }
+
+      /* Coach preview, based on the app's chat widgets. This is a visual demo only:
+         nothing is sent, changed, or recorded from the website. */
+      .coach { position: sticky; top: 24px; padding: 20px; border: 1px solid var(--border); border-radius: 20px; background: var(--bg); box-shadow: 0 2px 8px rgba(0, 0, 0, .05); }
+      .coach-head { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 16px; margin-bottom: 14px; border-bottom: 1px solid var(--divider); }
+      .coach-head b { font-size: 15px; font-weight: 700; }
+      .coach-head > span { font-size: 13px; color: var(--text-3); }
+      .coach-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 13px; background: var(--surface); }
+      .coach-tab { min-height: 42px; padding: 9px 12px; border: 1px solid transparent; border-radius: 9px; color: var(--text-2); background: transparent; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 180ms var(--ease), color 180ms var(--ease), border-color 180ms var(--ease); }
+      .coach-tab[aria-selected="true"] { color: var(--text); border-color: var(--border); background: var(--bg); }
+      .coach-tab:hover { color: var(--text); }
+      .coach-tab:focus-visible, .coach-replay:focus-visible { outline: 3px solid var(--teal-text); outline-offset: 2px; }
+      .coach-stage { min-height: 297px; padding-top: 18px; }
+      .coach-state { display: flex; align-items: center; gap: 7px; min-height: 19px; margin-bottom: 12px; color: var(--text-3); font-size: 12px; }
+      .coach-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+      .bubble-user { max-width: 86%; margin-left: auto; padding: 12px 16px; border-radius: 20px 20px 5px 20px; background: var(--bubble); font-size: 15px; line-height: 1.5; }
+      .bubble-user[hidden] { display: none; }
+      .coach.is-writing .bubble-user:not(.bubble-voice)::after, .coach.is-writing .bubble-voice [data-coach-transcript]::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -.12em; background: var(--teal); animation: cursor-blink 720ms step-end infinite; }
+      .bubble-voice { display: flex; align-items: center; gap: 10px; }
+      .voice-mark { display: grid; grid-template-columns: repeat(4, 3px); align-items: center; gap: 2px; width: 25px; height: 24px; }
+      .voice-mark i { display: block; width: 3px; border-radius: 6px; background: var(--teal); animation: voice-wave 900ms ease-in-out infinite alternate; }
+      .voice-mark i:nth-child(1) { height: 8px; animation-delay: -180ms; }
+      .voice-mark i:nth-child(2) { height: 16px; animation-delay: -360ms; }
+      .voice-mark i:nth-child(3) { height: 11px; animation-delay: -540ms; }
+      .voice-mark i:nth-child(4) { height: 19px; animation-delay: -720ms; }
+      .voice-copy { min-width: 0; }
+      .voice-copy b { display: block; font-size: 13px; font-weight: 650; }
+      .voice-copy span { display: block; overflow: hidden; color: var(--text-2); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+      .typing-row { display: none; align-items: center; gap: 8px; width: max-content; margin-top: 20px; padding: 10px 13px; border-radius: 16px 16px 16px 5px; background: var(--surface); color: var(--text-2); font-size: 13px; }
+      .coach.is-thinking .typing-row { display: flex; }
+      .typing-dots { display: inline-flex; gap: 3px; }
+      .typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: coach-dot 860ms var(--ease) infinite alternate; }
+      .typing-dots i:nth-child(2) { animation-delay: 140ms; }.typing-dots i:nth-child(3) { animation-delay: 280ms; }
+      .bubble-ai { min-height: 86px; margin-top: 20px; font-size: 15px; line-height: 1.6; }
+      .bubble-ai[hidden] { display: none; }
+      .bubble-ai p { margin: 0; }.bubble-ai strong { font-weight: 650; }
+      .reply-caret { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -.12em; background: var(--teal); animation: cursor-blink 720ms step-end infinite; }
+      .coach:not(.is-typing) .reply-caret { display: none; }
+      .coach-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--divider); }
+      .coach-controls span { color: var(--text-3); font-size: 12px; }
+      .coach-replay { min-height: 38px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--teal-text); background: var(--bg); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: color 180ms var(--ease), background-color 180ms var(--ease), border-color 180ms var(--ease); }
+      .coach-replay:hover { border-color: var(--teal-text); background: var(--teal-50); }
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+      @keyframes coach-dot { to { transform: translateY(-3px); opacity: .42; } }
+      @keyframes cursor-blink { 50% { opacity: 0; } }
+      @keyframes voice-wave { to { transform: scaleY(.55); opacity: .6; } }
+
+      /* ── Privacy ─────────────────────────── */
+      .privacy-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; margin-top: 56px; }
+      .privacy-list li { padding-top: 20px; border-top: 2px solid var(--text); }
+      .privacy-list h3 { margin-bottom: 8px; font-size: 16px; font-weight: 600; }
+      .privacy-list p { color: var(--text-2); font-size: 15px; }
+
+      /* ── Closing ─────────────────────────── */
+      .closing { padding: 96px 0; border-top: 1px solid var(--border); }
+      .closing .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 32px; }
+      .closing h2 { max-width: 14em; }
+      .closing p { max-width: 24em; color: var(--text-2); }
+
+      footer { padding: 28px 0 40px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+      footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+      footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
+      .more { margin-top: 40px; font-size: 15px; }
+      .more a { text-underline-offset: 3px; }
+      .more a:hover { color: var(--teal-text); }
+      footer a { text-decoration: none; }
+      footer a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+      /* ── Dark theme: follows the system setting ── */
+      @media (prefers-color-scheme: dark) {
+        :root {
+        --bg: #181a1b;        /* darkBackground */
+        --surface: #212324;   /* darkSurfaceElevated */
+        --text: #ececec;      /* darkTextPrimary */
+        --text-2: #aaaaaa;    /* darkTextSecondary */
+        --text-3: #8e8e8e;    /* darkTextTertiary */
+        --border: #3a3a3a;    /* darkBorder */
+        --divider: #2a2a2a;   /* darkDivider */
+        --teal-50: rgba(94, 207, 188, .12);
+        --teal-text: #5ecfbc; /* gold200: teal readable on dark */
+        --bubble: #2a2c2d;
+        }
+        .daret { background: #111213; border-block: 1px solid var(--border); }
+        .gallery-panel[data-appearance="dark"] { border-color: var(--border); }
+        .coach { box-shadow: none; }
+      }
+
+      html[data-theme="light"] {
+        --bg: #ffffff; --surface: #f7f7f8; --text: #202123; --text-2: #6e6e80; --text-3: #8e8ea0;
+        --border: #e5e5e5; --divider: #ececf1; --teal-50: #e8f9f7; --teal-text: var(--teal); --bubble: #eff1f2;
+      }
+      html[data-theme="dark"] {
+        --bg: #181a1b; --surface: #212324; --text: #ececec; --text-2: #aaaaaa; --text-3: #8e8e8e;
+        --border: #3a3a3a; --divider: #2a2a2a; --teal-50: rgba(94, 207, 188, .12); --teal-text: #5ecfbc; --bubble: #2a2c2d;
+      }
+      html[data-theme="dark"] .daret { background: #111213; border-block: 1px solid var(--border); }
+      html[data-theme="dark"] .gallery-panel[data-appearance="dark"] { border-color: var(--border); }
+      html[data-theme="dark"] .coach { box-shadow: none; }
+
+      /* ── Responsive ──────────────────────── */
+      @media (max-width: 960px) {
+        .hero .wrap, .daret .wrap, .tongues .wrap, .screen-tour .wrap { grid-template-columns: 1fr; gap: 48px; }
+        .receipt-col { max-width: 480px; }
+        .privacy-list { grid-template-columns: 1fr; gap: 32px; }
+        .next .wrap { grid-template-columns: 1fr; gap: 48px; }
+        .coach { position: static; max-width: 480px; }
+      }
+      @media (max-width: 720px) {
+        .wrap { width: min(1120px, 100% - 40px); }
+        .nav { display: none; }
+        .theme-toggle { display: inline-grid; margin-left: auto; }
+  .masthead { position: relative; z-index: 50; }
+  .menu-toggle {
+    display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); cursor: pointer;
+  }
+  .menu-toggle span { grid-area: 1 / 1; width: 18px; height: 1.5px; border-radius: 1px; background: currentColor; transition: transform .2s var(--ease); }
+  .menu-toggle span:first-child { transform: translateY(-4px); }
+  .menu-toggle span:last-child { transform: translateY(4px); }
+  .masthead.is-open .menu-toggle span:first-child { transform: rotate(45deg); }
+  .masthead.is-open .menu-toggle span:last-child { transform: rotate(-45deg); }
+  .masthead.is-open .nav {
+    display: flex; flex-direction: column; gap: 2px;
+    position: absolute; top: 100%; left: 0; right: 0;
+    padding: 8px 20px 16px; background: var(--bg);
+    border-bottom: 1px solid var(--border); box-shadow: 0 12px 24px -12px rgba(0, 0, 0, .18);
+    font-size: 16px;
+  }
+  .masthead.is-open .nav a { padding: 12px; }
+        .hero { padding: 48px 0 72px; }
+        .lede { font-size: 17px; }
+        .section, .daret, .screen-tour { padding: 72px 0; }
+        .counts, .ledger { grid-template-columns: 1fr; gap: 40px; }
+        .ledger { gap: 0; }
+        .receipt { padding: 24px 20px 20px; }
+        .receipt .total td { font-size: 34px; }
+        .months { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+        .month { padding: 8px 4px 8px; font-size: 11px; }
+        .month b { font-size: 13px; }
+        .month.paid::after { top: 4px; right: 4px; font-size: 10px; }
+        .rotation { padding: 20px; }
+        .rotation-head { flex-direction: column; gap: 4px; }
+        .rotation-head b { line-height: 1.2; }
+        .daret-facts div { grid-template-columns: 1fr; gap: 4px; }
+        .screen-list { grid-template-columns: 1fr 1fr; gap: 3px; }
+        .gallery-panel { grid-template-columns: 1fr; padding: 16px; }
+        .phone-stage { min-height: 480px; }
+        .phone-frame { width: min(100%, 250px); }
+        .gallery-caption { padding: 4px 2px 2px; }
+        .gallery-caption h3 { max-width: none; }
+      }
+      @media (max-width: 420px) {
+        .wide-only { display: none; }
+        .screen-list { grid-template-columns: 1fr; }
+        .gallery-top { align-items: flex-start; flex-direction: column; }
+        .phone-stage { min-height: 435px; padding: 12px; }
+        .phone-frame { width: min(100%, 226px); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      }
+    </style>
+    <script src="assets/coach-demo.js" defer></script>
+    <script src="assets/screen-gallery.js" defer></script>
+    <script src="assets/currency.js" defer></script>
+    <script src="assets/menu.js" defer></script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="masthead">
+      <div class="wrap">
+        <a class="brand" href="#main" aria-label="VVollet, back to top">
+          <picture><source srcset="assets/vvollet-wallet-dark-transparent.png" media="(prefers-color-scheme: dark)" /><img src="assets/vvollet-wallet-transparent.png" alt="" width="34" height="34" /></picture>
+          VVollet
+        </a>
+        <nav id="site-nav" class="nav" aria-label="Sections">
+          <a href="#money-overview">Your money</a>
+          <a href="#daret">Daret</a>
+          <a href="#screens">Screens</a>
+          <a href="#tracks">What it tracks</a>
+          <a href="#coming-next">Coming next</a>
+          <a href="#privacy">Privacy</a>
+        </nav>
+        <button class="theme-toggle" data-theme-toggle type="button" aria-label="Switch to dark theme" aria-pressed="false">
+          <svg class="theme-icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" /></svg>
+          <svg class="theme-icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2.2M12 19.8V22M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2 12h2.2M19.8 12H22M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56" /></svg>
+        </button>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+          <span aria-hidden="true"></span><span aria-hidden="true"></span>
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="wrap">
+          <div>
+            <p class="dateline"><span>A budgeting app</span><span>Android &amp; iOS</span></p>
+            <h1 id="hero-title">Your money, clearly organized</h1>
+            <p class="lede">
+              VVollet brings your income, spending, cash, accounts, budgets, goals and Daret groups
+              together. <strong>See the full picture without juggling separate notes and apps.</strong>
+            </p>
+            <div class="actions">
+              <a class="btn" href="#money-overview">
+                Explore your money
+                <svg aria-hidden="true" viewBox="0 0 16 16" fill="none"><path d="M8 3v10m0 0 4-4m-4 4L4 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+              <span class="soon">Coming to Google Play and the App Store</span>
+            </div>
+          </div>
+
+          <figure class="receipt-col">
+            <div class="receipt on-navy">
+              <table class="num">
+                <caption><b>Friday, 13 November</b>An example month</caption>
+                <tbody>
+                  <tr><th scope="row">Monthly income</th><td data-currency-amount="9500">MAD 9,500.00</td></tr>
+                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Spent so far</th><td data-currency-amount="2930">MAD 2,930.00</td></tr>
+                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Daret contribution</th><td data-currency-amount="1000">MAD 1,000.00</td></tr>
+                  <tr><th scope="row"><span class="op minus" aria-hidden="true">−</span>Emergency fund</th><td data-currency-amount="250">MAD 250.00</td></tr>
+                  <tr class="total"><th scope="row">Remaining balance</th><td data-currency-amount="5320">MAD 5,320.00</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <figcaption class="receipt-note">A clear view of this month’s income, spending and commitments.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="screen-tour" id="screens" aria-labelledby="screens-title">
+        <div class="wrap">
+          <div>
+            <p class="label">Inside the app</p>
+            <h2 id="screens-title">A clear view of your money, from the start</h2>
+            <p class="intro">See the essentials: track balances, plan budgets and understand your full financial picture.</p>
+            <div class="screen-list" aria-label="Screen tour steps">
+              <button type="button" data-screen-index="0" aria-current="true"><span>01</span>Plan with budgets</button>
+              <button type="button" data-screen-index="1" aria-current="false"><span>02</span>Home</button>
+              <button type="button" data-screen-index="2" aria-current="false"><span>03</span>Quick add</button>
+              <button type="button" data-screen-index="3" aria-current="false"><span>04</span>Budgets</button>
+              <button type="button" data-screen-index="4" aria-current="false"><span>05</span>Wealth</button>
+            </div>
+          </div>
+
+          <section class="gallery" data-screen-gallery role="region" aria-roledescription="carousel" aria-label="VVollet screen tour">
+            <div class="gallery-top">
+              <p class="gallery-count"><span data-gallery-current>01</span> / <span data-gallery-total>05</span></p>
+              <div class="appearance" data-gallery-appearance hidden>
+                <span>App appearance</span>
+                <div class="appearance-switch">
+                  <button type="button" data-gallery-theme="dark" aria-pressed="true">Dark</button>
+                  <button type="button" data-gallery-theme="light" aria-pressed="false">White</button>
+                </div>
+              </div>
+            </div>
+            <div class="gallery-panel" data-gallery-panel data-appearance="dark">
+              <div class="phone-stage">
+                <div class="phone-frame" data-gallery-frame>
+                  <img class="screen-image is-active" data-gallery-layer="0" src="assets/screens/demo3.jpeg" alt="Dark-mode VVollet onboarding screen about planning with budgets" width="735" height="1600" loading="lazy" />
+                  <img class="screen-image" data-gallery-layer="1" src="assets/screens/demo3.jpeg" alt="" width="735" height="1600" loading="lazy" aria-hidden="true" />
+                </div>
+              </div>
+              <div class="gallery-caption">
+                <div>
+                  <p class="screen-kicker" data-gallery-kicker>First launch</p>
+                  <h3 data-gallery-title>Plan with budgets</h3>
+                  <p data-gallery-description>Set a limit for the things that matter, then let the month stay legible as you spend.</p>
+                </div>
+                <div class="gallery-controls">
+                  <button class="gallery-control" type="button" data-gallery-prev aria-label="Previous screen">
+                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="m12 4-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="gallery-control" type="button" data-gallery-autoplay aria-pressed="true" aria-label="Pause automatic screen tour">Pause</button>
+                  <button class="gallery-control" type="button" data-gallery-next aria-label="Next screen">
+                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="m8 4 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <span class="sr-only" aria-live="polite" data-gallery-announcement></span>
+          </section>
+        </div>
+      </section>
+
+      <section class="section" id="money-overview" aria-labelledby="money-overview-title">
+        <div class="wrap">
+          <p class="label">Your money</p>
+          <h2 id="money-overview-title">Everything that matters, in one place</h2>
+          <p class="intro">
+            Track the parts of your financial life that matter without losing sight of the bigger picture.
+          </p>
+
+          <div class="counts">
+            <div>
+              <h3>What VVollet tracks</h3>
+              <ul>
+                <li><span>Everyday expenses</span><span>groceries, fuel, a coffee</span></li>
+                <li><span>Daret contributions</span><span>your monthly share</span></li>
+                <li><span>Savings goal deposits</span><span>money set aside on purpose</span></li>
+                <li><span>Debt payments</span><span>loans, credit, instalments</span></li>
+                <li><span>Personal debts</span><span>money lent or borrowed</span></li>
+              </ul>
+            </div>
+            <div class="no">
+              <h3>How it stays organized</h3>
+              <ul>
+                <li><span>Accounts and cash</span><span>see where your money is</span></li>
+                <li><span>Transfers</span><span>move money between your accounts</span></li>
+                <li><span>Budgets</span><span>plan your spending by category</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="daret on-navy" id="daret" aria-labelledby="daret-title">
+        <div class="wrap">
+          <div>
+            <p class="label">Daret</p>
+            <h2 id="daret-title">Your Daret, without the notebook</h2>
+            <p class="intro">
+              Add your group once. VVollet takes your share out on the day it’s due
+              and knows which months the pot is coming to you. Money you’ve promised the
+              group stays clearly visible alongside the rest of your finances.
+            </p>
+            <dl class="daret-facts">
+              <div><dt>Shares</dt><dd>Hold one or several shares in the same group</dd></div>
+              <div><dt>Payment day</dt><dd>Any day from the 1st to the 28th</dd></div>
+              <div><dt>Paid from</dt><dd>A bank account or the cash in your pocket</dd></div>
+              <div><dt>Payout goes to</dt><dd>The account you choose</dd></div>
+            </dl>
+          </div>
+
+          <figure class="rotation" aria-labelledby="rotation-caption">
+            <div class="rotation-head">
+              <b id="rotation-caption">Daret with the cousins</b>
+              <span class="num">10 shares · <span data-currency-amount="1000">MAD 1,000.00</span> a month</span>
+            </div>
+            <ol class="months">
+              <li class="month paid"><b>Jul</b>Paid</li>
+              <li class="month paid"><b>Aug</b>Paid</li>
+              <li class="month paid"><b>Sep</b>Paid</li>
+              <li class="month paid"><b>Oct</b>Paid</li>
+              <li class="month paid now"><b>Nov</b>Paid 5th</li>
+              <li class="month mine"><b>Dec</b>Your turn</li>
+              <li class="month"><b>Jan</b></li>
+              <li class="month"><b>Feb</b></li>
+              <li class="month"><b>Mar</b></li>
+              <li class="month"><b>Apr</b></li>
+            </ol>
+            <p class="rotation-key">
+              <span><i style="background:rgba(255,255,255,.12)"></i>Paid</span>
+              <span><i style="border:1px solid var(--dark-text)"></i>This month</span>
+              <span><i style="background:var(--teal)"></i>Pot comes to you · <span class="num" data-currency-amount="10000">MAD 10,000.00</span></span>
+            </p>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" id="tracks" aria-labelledby="tracks-title">
+        <div class="wrap">
+          <p class="label">What it tracks</p>
+          <h2 id="tracks-title">The rest of your money, in the same place</h2>
+
+          <ol class="ledger">
+            <li><h3>Cash and bank, side by side</h3><p>Count the notes in your wallet as seriously as your bank balance. Withdrawals move money between the two.</p></li>
+            <li><h3>Bills and subscriptions</h3><p>Rent, internet, phone, streaming. The next ones due show up on your home screen before they leave.</p></li>
+            <li><h3>Budgets by category</h3><p>Set a limit for food or transport and see how much of it is gone, part-way through the month.</p></li>
+            <li><h3>Savings goals</h3><p>A car, a wedding, a cushion for bad months. Each deposit moves the goal forward.</p></li>
+            <li><h3>Debts and money lent</h3><p>Bank loans on one side; what you lent a friend, and what a friend lent you, on the other.</p></li>
+            <li><h3>Net worth</h3><p>See everything you own, minus everything you owe, from your accounts, cash, goals and debts.</p></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="tongues" aria-labelledby="lang-title">
+        <div class="wrap">
+          <div>
+            <p class="label">Languages</p>
+            <h2 id="lang-title">Arabic, French, English and 13 more</h2>
+            <p class="intro">Switch language at any time in settings. Amounts show in dirhams or whichever currency you use.</p>
+          </div>
+          <ul class="phrases">
+            <li lang="ar" dir="rtl">أموالك، منظمة بوضوح<small lang="en" dir="ltr">Arabic</small></li>
+            <li lang="fr">Vos finances, clairement organisées<small lang="en">French</small></li>
+            <li>Your money, clearly organized<small>English</small></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section next" id="coming-next" aria-labelledby="next-title">
+        <div class="wrap">
+          <div>
+            <p class="label">Coming next</p>
+            <h2 id="next-title">What we’re building now</h2>
+            <p class="intro">These are in development and not in the first release. We’ll add them in updates, and this page will say when each one is ready.</p>
+
+            <ul class="next-list">
+              <li>
+                <span class="status">In development</span>
+                <h3>A coach you can ask about your money</h3>
+                <p>Ask in your own words, like “can I afford this?” or “where did my money go this month?”. The Coach answers from your accounts, budgets, bills, goals and debts. It can log an expense, a transfer, a goal deposit, a subscription or a debt payment for you, and nothing changes until you tap Confirm. You can also send it a photo, such as a receipt.</p>
+              </li>
+              <li>
+                <span class="status">In development</span>
+                <h3>Talk to the Coach</h3>
+                <p>Ask out loud instead of typing. Anything you ask it to change by voice still waits for your confirmation on screen.</p>
+              </li>
+              <li>
+                <span class="status">In development</span>
+                <h3>Reminders and alerts</h3>
+                <p>A heads-up before a bill is due, an alert when a budget is running out, an optional daily summary and weekly report, and a notice for any transaction above an amount you choose. Quiet hours keep them away at night.</p>
+              </li>
+              <li>
+                <span class="status">In development</span>
+                <h3>Investments</h3>
+                <p>Add your stock positions with current prices, and follow your portfolio alongside the rest of your money.</p>
+              </li>
+            </ul>
+
+            <p class="next-note">The Coach will ask your permission before it reads anything. <a href="/privacy#shared">How the Coach will handle your data</a></p>
+          </div>
+
+          <figure class="coach is-thinking" aria-labelledby="coach-caption" data-coach-demo>
+            <div class="coach-head">
+              <b id="coach-caption">Coach</b>
+              <span>Preview</span>
+            </div>
+            <p class="bubble-user" hidden aria-hidden="true">I just paid 250 for dinner with friends, in cash</p>
+            <div class="bubble-ai" hidden aria-hidden="true">
+              <p>I’ll add it as an expense from your cash once you confirm.</p>
+              <p>This expense reduces your cash balance by <strong class="num" data-currency-amount="250">MAD 250.00</strong>. Nothing changes until you confirm.</p>
+            </div>
+            <div class="confirm" hidden aria-hidden="true">
+              <p class="confirm-title">Add expense</p>
+              <dl class="num">
+                <div><dt>Amount</dt><dd data-currency-amount="250">MAD 250.00</dd></div>
+                <div><dt>Paid from</dt><dd>Cash</dd></div>
+                <div><dt>Note</dt><dd>Dinner with friends</dd></div>
+              </dl>
+              <div class="confirm-actions" aria-hidden="true">
+                <span class="cancel">Cancel</span>
+                <span class="ok">Confirm</span>
+              </div>
+            </div>
+            <div class="coach-tabs" role="tablist" aria-label="Coach preview type">
+              <button class="coach-tab" type="button" role="tab" aria-selected="true" aria-controls="coach-stage" id="coach-text-tab" data-coach-mode="text">Type a question</button>
+              <button class="coach-tab" type="button" role="tab" aria-selected="false" aria-controls="coach-stage" id="coach-voice-tab" data-coach-mode="voice">Send a voice note</button>
+            </div>
+            <div class="coach-stage" id="coach-stage" role="tabpanel" aria-labelledby="coach-text-tab">
+              <p class="coach-state" aria-live="polite"><i aria-hidden="true"></i><span data-coach-state>Coach is thinking</span></p>
+              <div class="bubble-user" data-coach-user>
+                <span>Can I afford a 300 MAD jacket this week?</span>
+              </div>
+              <div class="typing-row" aria-hidden="true"><span class="typing-dots"><i></i><i></i><i></i></span><span>Coach is thinking</span></div>
+              <div class="bubble-ai" data-coach-answer hidden aria-hidden="true"><p><span data-coach-typed></span><span class="reply-caret"></span></p></div>
+              <span class="sr-only" data-coach-announcement aria-live="polite"></span>
+            </div>
+            <figcaption class="coach-controls">
+              <span>Illustrative preview &mdash; no real data</span>
+              <button class="coach-replay" type="button" data-coach-replay>Replay</button>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" id="privacy" aria-labelledby="privacy-title">
+        <div class="wrap">
+          <p class="label">Privacy</p>
+          <h2 id="privacy-title">Your numbers are nobody else’s business</h2>
+
+          <ul class="privacy-list">
+            <li>
+              <h3>Only your account can read them</h3>
+              <p>Your data syncs to your VVollet account. Database rules make sure each record can only be read by the person who created it.</p>
+            </li>
+            <li>
+              <h3>A PIN on the app</h3>
+              <p>Lock VVollet with a PIN, and hide your balances from the app switcher when you leave the app.</p>
+            </li>
+            <li>
+              <h3>Photos without the extras</h3>
+              <p>Location and camera details are removed from photos before they are saved.</p>
+            </li>
+          </ul>
+          <p class="more"><a href="/privacy">Read the privacy policy</a></p>
+        </div>
+      </section>
+
+      <section class="closing" aria-labelledby="closing-title">
+        <div class="wrap">
+          <h2 id="closing-title">Know your number before you leave the house</h2>
+          <p>VVollet is launching on Google Play and the App Store. This page will link to both as soon as it’s live.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>© 2026 VVollet</span>
+        <nav aria-label="Footer">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/support">Support</a>
+          <a href="/delete-account">Delete account</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
