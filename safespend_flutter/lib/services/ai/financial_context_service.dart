@@ -125,7 +125,9 @@ class FinancialContextService {
         .map((e) => {'name': e.key, 'amount': FinancialContext._r(e.value)})
         .toList();
 
-    final budgets = p.categories.where((c) => c.budgetLimit > 0).map((c) {
+    final budgets = p.categories
+        .where((c) => c.includeInMonthlyBudget && c.budgetLimit > 0)
+        .map((c) {
       final spent = p.getCategorySpending(c.id);
       return {
         'category_id': c.id,

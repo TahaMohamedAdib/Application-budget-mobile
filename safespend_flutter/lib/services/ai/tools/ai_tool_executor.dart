@@ -463,7 +463,9 @@ class AIToolExecutor {
   }
 
   Map<String, dynamic> _budgetStatus() => {
-        'budgets': provider.categories.where((c) => c.budgetLimit > 0).map((c) {
+        'budgets': provider.categories
+            .where((c) => c.includeInMonthlyBudget && c.budgetLimit > 0)
+            .map((c) {
           final spent = provider.getCategorySpending(c.id);
           return {
             'category_id': c.id,
@@ -656,6 +658,10 @@ class AIToolExecutor {
     if (category == null) throw _ToolArgumentError('No category with that id.');
     final limit = _num(a, 'limit', required: true)!.toDouble();
     if (limit < 0) throw _ToolArgumentError('Budget limit cannot be negative.');
+    if (!category.includeInMonthlyBudget) {
+      throw _ToolArgumentError(
+          'This category is excluded from the monthly budget.');
+    }
     provider.updateCategory(category.copyWith(budgetLimit: limit));
     return {'category_id': category.id, 'limit': _r(limit)};
   }

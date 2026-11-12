@@ -3,6 +3,7 @@
 const translationsFeatures = <String, Map<String, String>>{
   "en": {
     "continueWithGoogle": "Continue with Google",
+    "includeInMonthlyBudget": "Include in monthly budget",
     "sendRecoveryEmail": "Send recovery email",
     "recoveryEmailSent":
         "If an account exists, recovery instructions have been sent.",
