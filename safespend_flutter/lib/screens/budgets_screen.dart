@@ -873,14 +873,17 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(s.tr('includeInMonthlyBudget')),
-                value: includeInMonthlyBudget,
-                onChanged: (value) => setModalState(() {
-                  includeInMonthlyBudget = value;
-                  if (!value) budgetCtrl.clear();
-                }),
+              Material(
+                type: MaterialType.transparency,
+                child: SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(s.tr('includeInMonthlyBudget')),
+                  value: includeInMonthlyBudget,
+                  onChanged: (value) => setModalState(() {
+                    includeInMonthlyBudget = value;
+                    if (!value) budgetCtrl.clear();
+                  }),
+                ),
               ),
               TextField(
                 controller: budgetCtrl,
@@ -1111,14 +1114,17 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(s.tr('includeInMonthlyBudget')),
-                  value: includeInMonthlyBudget,
-                  onChanged: (value) => setModalState(() {
-                        includeInMonthlyBudget = value;
-                        if (!value) budgetCtrl.clear();
-                      })),
+              Material(
+                type: MaterialType.transparency,
+                child: SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(s.tr('includeInMonthlyBudget')),
+                    value: includeInMonthlyBudget,
+                    onChanged: (value) => setModalState(() {
+                          includeInMonthlyBudget = value;
+                          if (!value) budgetCtrl.clear();
+                        })),
+              ),
               TextField(
                 controller: budgetCtrl,
                 enabled: includeInMonthlyBudget,
