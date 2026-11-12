@@ -89,7 +89,8 @@ class HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Row(
                       children: [
-                        AccountPickerField(
+                        Expanded(
+                          child: AccountPickerField(
                           provider: provider,
                           label: s.selectAccount,
                           value: provider.selectedAccountId,
@@ -121,14 +122,18 @@ class HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   _buildHeaderAccountIcon(provider),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    _getSelectedAccountName(provider, s),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? AppTheme.darkTextPrimary
-                                          : AppTheme.lightTextPrimary,
+                                  Expanded(
+                                    child: Text(
+                                      _getSelectedAccountName(provider, s),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppTheme.darkTextPrimary
+                                            : AppTheme.lightTextPrimary,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -142,8 +147,8 @@ class HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
+                          ),
                         ),
-                        const Spacer(),
                         FeatureHelpButton(
                           title: s.tourHomeTitle,
                           description: s.tourHomeBody,
