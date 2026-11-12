@@ -6,6 +6,7 @@ import 'translations_features.dart';
 import 'translations_settings.dart';
 import 'translations_settings_extra.dart';
 import 'translations_onboarding.dart';
+import 'translations_tester_feedback.dart';
 
 /// All translations, keyed by locale then by string key.
 ///
@@ -21,6 +22,7 @@ final translations = _merge([
   translationsSettings,
   translationsSettingsExtra,
   translationsOnboarding,
+  translationsTesterFeedback,
 ]);
 
 Map<String, Map<String, String>> _merge(
