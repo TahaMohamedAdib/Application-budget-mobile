@@ -19,6 +19,7 @@ import 'screens/budgets_screen.dart';
 import 'screens/wealth_screen.dart';
 import 'screens/coach_screen.dart';
 import 'screens/auth_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'screens/onboarding/app_tour_screen.dart';
 import 'screens/onboarding/feature_guide_sheet.dart';
@@ -125,6 +126,8 @@ class MyApp extends StatelessWidget {
     }
 
     // Authenticated but Supabase data not loaded yet → trigger load + show splash
+    if (auth.isPasswordRecovery) return const ResetPasswordScreen();
+
     if (!provider.supabaseDataLoaded) {
       final uid = auth.userId;
       if (uid != null) {

@@ -9,6 +9,7 @@ class AuthService with ChangeNotifier {
   Session? _session;
   bool _loading = true;
   bool _localMode = false;
+  bool _passwordRecovery = false;
 
   User? get user => _user;
   Session? get session => _session;
@@ -16,6 +17,7 @@ class AuthService with ChangeNotifier {
   bool get localMode => _localMode;
   bool get isAuthenticated => _user != null || _localMode;
   String? get userId => _localMode ? 'local_user' : _user?.id;
+  bool get isPasswordRecovery => _passwordRecovery;
 
   SupabaseClient? get _client => SupabaseConfig.client;
 
@@ -26,7 +28,8 @@ class AuthService with ChangeNotifier {
   Future<void> _init() async {
     // If Supabase is not available, run in local-only mode
     if (!SupabaseConfig.isAvailable || _client == null) {
-      if (kDebugMode) debugPrint('[AuthService] Supabase not available — local mode');
+      if (kDebugMode)
+        debugPrint('[AuthService] Supabase not available — local mode');
       _localMode = true;
       _loading = false;
       notifyListeners();
@@ -38,7 +41,8 @@ class AuthService with ChangeNotifier {
     // authenticated *immediately* — no waiting for the stream.
     final restored = _client!.auth.currentSession;
     if (restored != null) {
-      if (kDebugMode) debugPrint('[AuthService] restored session for ${restored.user.email}');
+      if (kDebugMode)
+        debugPrint('[AuthService] restored authenticated session');
       _session = restored;
       _user = restored.user;
       _localMode = false;
@@ -51,10 +55,12 @@ class AuthService with ChangeNotifier {
     _client!.auth.onAuthStateChange.listen(
       (data) {
         if (kDebugMode) {
-          debugPrint('[AuthService] event=${data.event} user=${data.session?.user.email}');
+          debugPrint('[AuthService] auth event=${data.event}');
         }
         _session = data.session;
         _user = data.session?.user;
+        _passwordRecovery = data.event == AuthChangeEvent.passwordRecovery;
+        if (data.event == AuthChangeEvent.signedOut) _passwordRecovery = false;
         if (_user != null) _localMode = false;
         notifyListeners();
       },
@@ -64,11 +70,46 @@ class AuthService with ChangeNotifier {
     );
   }
 
-  // Email + Password sign up
-  Future<({bool success, String? error})> signUp(String email, String password) async {
-    if (_client == null) return (success: false, error: 'No connection to server. App is running in local mode.');
+  Future<({bool success, String? error})> requestPasswordRecovery(
+      String email) async {
+    if (_client == null) return (success: false, error: 'unavailable');
     try {
-      final response = await _client!.auth.signUp(email: email, password: password);
+      await _client!.auth.resetPasswordForEmail(email,
+          redirectTo: SupabaseConfig.authCallbackUrl);
+      return (success: true, error: null);
+    } on AuthException catch (e) {
+      return (success: false, error: e.message);
+    } catch (_) {
+      return (success: false, error: 'request_failed');
+    }
+  }
+
+  Future<({bool success, String? error})> resetPassword(String password) async {
+    if (_client == null || !_passwordRecovery || _session == null)
+      return (success: false, error: 'invalid_recovery_session');
+    try {
+      await _client!.auth.updateUser(UserAttributes(password: password));
+      _passwordRecovery = false;
+      notifyListeners();
+      return (success: true, error: null);
+    } on AuthException catch (e) {
+      return (success: false, error: e.message);
+    } catch (_) {
+      return (success: false, error: 'reset_failed');
+    }
+  }
+
+  // Email + Password sign up
+  Future<({bool success, String? error})> signUp(
+      String email, String password) async {
+    if (_client == null)
+      return (
+        success: false,
+        error: 'No connection to server. App is running in local mode.'
+      );
+    try {
+      final response =
+          await _client!.auth.signUp(email: email, password: password);
       if (response.session != null) {
         // Immediately signed in (email confirmation is disabled)
         _user = response.user;
@@ -90,10 +131,16 @@ class AuthService with ChangeNotifier {
   }
 
   // Email + Password sign in
-  Future<({bool success, String? error})> signIn(String email, String password) async {
-    if (_client == null) return (success: false, error: 'No connection to server. App is running in local mode.');
+  Future<({bool success, String? error})> signIn(
+      String email, String password) async {
+    if (_client == null)
+      return (
+        success: false,
+        error: 'No connection to server. App is running in local mode.'
+      );
     try {
-      final response = await _client!.auth.signInWithPassword(email: email, password: password);
+      final response = await _client!.auth
+          .signInWithPassword(email: email, password: password);
       _user = response.user;
       _session = response.session;
       _localMode = false;
@@ -108,7 +155,8 @@ class AuthService with ChangeNotifier {
 
   // Google OAuth
   Future<({bool success, String? error})> signInWithGoogle() async {
-    if (_client == null) return (success: false, error: 'No connection to server.');
+    if (_client == null)
+      return (success: false, error: 'No connection to server.');
     try {
       await _client!.auth.signInWithOAuth(
         OAuthProvider.google,
@@ -124,7 +172,8 @@ class AuthService with ChangeNotifier {
 
   // Apple OAuth
   Future<({bool success, String? error})> signInWithApple() async {
-    if (_client == null) return (success: false, error: 'No connection to server.');
+    if (_client == null)
+      return (success: false, error: 'No connection to server.');
     try {
       await _client!.auth.signInWithOAuth(
         OAuthProvider.apple,
@@ -139,8 +188,10 @@ class AuthService with ChangeNotifier {
   }
 
   // Resend confirmation email
-  Future<({bool success, String? error})> resendConfirmationEmail(String email) async {
-    if (_client == null) return (success: false, error: 'No connection to server.');
+  Future<({bool success, String? error})> resendConfirmationEmail(
+      String email) async {
+    if (_client == null)
+      return (success: false, error: 'No connection to server.');
     try {
       await _client!.auth.resend(type: OtpType.signup, email: email);
       return (success: true, error: null);
@@ -152,10 +203,13 @@ class AuthService with ChangeNotifier {
   }
 
   // Change password (requires current password verification)
-  Future<({bool success, String? error})> changePassword(String currentPassword, String newPassword) async {
-    if (_client == null) return (success: false, error: 'No connection to server.');
-    if (_user?.email == null) return (success: false, error: 'No user logged in.');
-    
+  Future<({bool success, String? error})> changePassword(
+      String currentPassword, String newPassword) async {
+    if (_client == null)
+      return (success: false, error: 'No connection to server.');
+    if (_user?.email == null)
+      return (success: false, error: 'No user logged in.');
+
     try {
       // First verify current password by re-authenticating
       final verifyResponse = await _client!.auth.signInWithPassword(
@@ -165,12 +219,13 @@ class AuthService with ChangeNotifier {
       if (verifyResponse.user == null) {
         return (success: false, error: 'Current password is incorrect.');
       }
-      
+
       // Now update to new password
       await _client!.auth.updateUser(UserAttributes(password: newPassword));
       return (success: true, error: null);
     } on AuthException catch (e) {
-      if (e.message.toLowerCase().contains('invalid') || e.message.toLowerCase().contains('password')) {
+      if (e.message.toLowerCase().contains('invalid') ||
+          e.message.toLowerCase().contains('password')) {
         return (success: false, error: 'Current password is incorrect.');
       }
       return (success: false, error: e.message);
@@ -180,10 +235,13 @@ class AuthService with ChangeNotifier {
   }
 
   // Update user display name
-  Future<({bool success, String? error})> updateDisplayName(String displayName) async {
-    if (_client == null) return (success: false, error: 'No connection to server.');
+  Future<({bool success, String? error})> updateDisplayName(
+      String displayName) async {
+    if (_client == null)
+      return (success: false, error: 'No connection to server.');
     try {
-      await _client!.auth.updateUser(UserAttributes(data: {'display_name': displayName}));
+      await _client!.auth
+          .updateUser(UserAttributes(data: {'display_name': displayName}));
       notifyListeners();
       return (success: true, error: null);
     } on AuthException catch (e) {
