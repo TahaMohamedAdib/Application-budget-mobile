@@ -7,6 +7,7 @@ class Category {
   final String icon;
   final String color;
   final double budgetLimit; // monthly spending cap (0 = no limit set)
+  final bool includeInMonthlyBudget;
 
   Category({
     required this.id,
@@ -15,7 +16,8 @@ class Category {
     required this.icon,
     required this.color,
     this.budgetLimit = 0.0,
-  });
+    this.includeInMonthlyBudget = true,
+  }) : assert(includeInMonthlyBudget || budgetLimit == 0);
 
   Category copyWith({
     String? id,
@@ -24,6 +26,7 @@ class Category {
     String? icon,
     String? color,
     double? budgetLimit,
+    bool? includeInMonthlyBudget,
   }) {
     return Category(
       id: id ?? this.id,
@@ -31,7 +34,11 @@ class Category {
       group: group ?? this.group,
       icon: icon ?? this.icon,
       color: color ?? this.color,
-      budgetLimit: budgetLimit ?? this.budgetLimit,
+      includeInMonthlyBudget:
+          includeInMonthlyBudget ?? this.includeInMonthlyBudget,
+      budgetLimit: (includeInMonthlyBudget ?? this.includeInMonthlyBudget)
+          ? (budgetLimit ?? this.budgetLimit)
+          : 0,
     );
   }
 
@@ -43,6 +50,7 @@ class Category {
       'icon': icon,
       'color': color,
       'budgetLimit': budgetLimit,
+      'includeInMonthlyBudget': includeInMonthlyBudget,
     };
   }
 
@@ -54,37 +62,139 @@ class Category {
       icon: json['icon'],
       color: json['color'],
       budgetLimit: (json['budgetLimit'] ?? 0.0).toDouble(),
+      includeInMonthlyBudget: json['includeInMonthlyBudget'] as bool? ?? true,
     );
   }
 
   String toJsonString() => jsonEncode(toJson());
-  
-  factory Category.fromJsonString(String str) => Category.fromJson(jsonDecode(str));
+
+  factory Category.fromJsonString(String str) =>
+      Category.fromJson(jsonDecode(str));
 }
 
 // Default categories
 final List<Category> defaultCategories = [
   // Fixed
-  Category(id: 'rent', name: 'Rent/House', group: 'fixed', icon: 'home', color: '#ef4444'),
-  Category(id: 'utilities', name: 'Utilities', group: 'fixed', icon: 'flash', color: '#f97316'),
-  Category(id: 'phone', name: 'Phone/Internet', group: 'fixed', icon: 'phone', color: '#8b5cf6'),
-  Category(id: 'subscriptions', name: 'Subscriptions', group: 'fixed', icon: 'tv', color: '#ec4899'),
-  Category(id: 'insurance', name: 'Insurance', group: 'fixed', icon: 'shield', color: '#06b6d4'),
-  Category(id: 'loans', name: 'Loans', group: 'fixed', icon: 'credit_card', color: '#64748b'),
-  Category(id: 'debt_payment', name: 'Debt Payment', group: 'fixed', icon: 'money_off', color: '#dc2626'),
-  
+  Category(
+      id: 'rent',
+      name: 'Rent/House',
+      group: 'fixed',
+      icon: 'home',
+      color: '#ef4444'),
+  Category(
+      id: 'utilities',
+      name: 'Utilities',
+      group: 'fixed',
+      icon: 'flash',
+      color: '#f97316'),
+  Category(
+      id: 'phone',
+      name: 'Phone/Internet',
+      group: 'fixed',
+      icon: 'phone',
+      color: '#8b5cf6'),
+  Category(
+      id: 'subscriptions',
+      name: 'Subscriptions',
+      group: 'fixed',
+      icon: 'tv',
+      color: '#ec4899'),
+  Category(
+      id: 'insurance',
+      name: 'Insurance',
+      group: 'fixed',
+      icon: 'shield',
+      color: '#06b6d4'),
+  Category(
+      id: 'loans',
+      name: 'Loans',
+      group: 'fixed',
+      icon: 'credit_card',
+      color: '#64748b'),
+  Category(
+      id: 'debt_payment',
+      name: 'Debt Payment',
+      group: 'fixed',
+      icon: 'money_off',
+      color: '#dc2626'),
+
   // Variable
-  Category(id: 'subscriptions_budget', name: 'Subscriptions', group: 'variable', icon: 'autorenew', color: '#ec4899'),
-  Category(id: 'groceries', name: 'Groceries', group: 'variable', icon: 'shopping_cart', color: '#0b715f'),
-  Category(id: 'fuel', name: 'Fuel/Transport', group: 'variable', icon: 'car', color: '#3b82f6'),
-  Category(id: 'eating-out', name: 'Dining Out', group: 'variable', icon: 'restaurant', color: '#f59e0b'),
-  Category(id: 'shopping', name: 'Shopping', group: 'variable', icon: 'shopping_bag', color: '#a855f7'),
-  Category(id: 'health', name: 'Health & Fitness', group: 'variable', icon: 'favorite', color: '#ef4444'),
-  Category(id: 'entertainment', name: 'Entertainment', group: 'variable', icon: 'sports_esports', color: '#0b715f'),
-  Category(id: 'personal', name: 'Personal Care', group: 'variable', icon: 'face', color: '#ec4899'),
-  Category(id: 'education', name: 'Education', group: 'variable', icon: 'school', color: '#3b82f6'),
-  Category(id: 'travel', name: 'Travel', group: 'variable', icon: 'flight', color: '#06b6d4'),
-  Category(id: 'gifts', name: 'Gifts & Donations', group: 'variable', icon: 'card_giftcard', color: '#f97316'),
-  Category(id: 'pets', name: 'Pets', group: 'variable', icon: 'pets', color: '#8b5cf6'),
-  Category(id: 'other', name: 'Other', group: 'variable', icon: 'more_horiz', color: '#64748b'),
+  Category(
+      id: 'subscriptions_budget',
+      name: 'Subscriptions',
+      group: 'variable',
+      icon: 'autorenew',
+      color: '#ec4899'),
+  Category(
+      id: 'groceries',
+      name: 'Groceries',
+      group: 'variable',
+      icon: 'shopping_cart',
+      color: '#0b715f'),
+  Category(
+      id: 'fuel',
+      name: 'Fuel/Transport',
+      group: 'variable',
+      icon: 'car',
+      color: '#3b82f6'),
+  Category(
+      id: 'eating-out',
+      name: 'Dining Out',
+      group: 'variable',
+      icon: 'restaurant',
+      color: '#f59e0b'),
+  Category(
+      id: 'shopping',
+      name: 'Shopping',
+      group: 'variable',
+      icon: 'shopping_bag',
+      color: '#a855f7'),
+  Category(
+      id: 'health',
+      name: 'Health & Fitness',
+      group: 'variable',
+      icon: 'favorite',
+      color: '#ef4444'),
+  Category(
+      id: 'entertainment',
+      name: 'Entertainment',
+      group: 'variable',
+      icon: 'sports_esports',
+      color: '#0b715f'),
+  Category(
+      id: 'personal',
+      name: 'Personal Care',
+      group: 'variable',
+      icon: 'face',
+      color: '#ec4899'),
+  Category(
+      id: 'education',
+      name: 'Education',
+      group: 'variable',
+      icon: 'school',
+      color: '#3b82f6'),
+  Category(
+      id: 'travel',
+      name: 'Travel',
+      group: 'variable',
+      icon: 'flight',
+      color: '#06b6d4'),
+  Category(
+      id: 'gifts',
+      name: 'Gifts & Donations',
+      group: 'variable',
+      icon: 'card_giftcard',
+      color: '#f97316'),
+  Category(
+      id: 'pets',
+      name: 'Pets',
+      group: 'variable',
+      icon: 'pets',
+      color: '#8b5cf6'),
+  Category(
+      id: 'other',
+      name: 'Other',
+      group: 'variable',
+      icon: 'more_horiz',
+      color: '#64748b'),
 ];

@@ -177,6 +177,7 @@ class EntityMappers {
         'icon': c.icon,
         'color': c.color,
         'budget_limit': c.budgetLimit,
+        'include_in_monthly_budget': c.includeInMonthlyBudget ? 1 : 0,
       };
 
   static Category categoryFromRow(Map<String, Object?> r) => Category(
@@ -186,6 +187,8 @@ class EntityMappers {
         icon: r['icon'] as String? ?? '',
         color: r['color'] as String? ?? '',
         budgetLimit: _readDouble(r['budget_limit']),
+        includeInMonthlyBudget: r['include_in_monthly_budget'] == null ||
+            _readBool(r['include_in_monthly_budget']),
       );
 
   // Recurring rules. The template transaction is stored whole as JSON: it is
@@ -232,10 +235,10 @@ class EntityMappers {
         contributionPerShare: _readDouble(r['contribution_per_share']),
         totalShares: r['total_shares'] as int? ?? 0,
         userShares: r['user_shares'] as int? ?? 1,
-        payoutMonths: (jsonDecode(r['payout_months'] as String? ?? '[]')
-                as List<dynamic>)
-            .map((e) => (e as num).toInt())
-            .toList(),
+        payoutMonths:
+            (jsonDecode(r['payout_months'] as String? ?? '[]') as List<dynamic>)
+                .map((e) => (e as num).toInt())
+                .toList(),
         startDate: r['start_date']! as String,
         paymentSourceId: r['payment_source_id']! as String,
         destinationAccountId: r['destination_account_id']! as String,

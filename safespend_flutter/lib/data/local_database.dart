@@ -44,7 +44,7 @@ class LocalDatabase {
   /// Bumping this runs [_migrate] from the old version up to the new one.
   /// Never renumber or reuse a version: installed devices replay from
   /// whatever they last ran.
-  static const int schemaVersion = 1;
+  static const int schemaVersion = 2;
 
   Database? _db;
   Completer<Database>? _opening;
@@ -105,7 +105,9 @@ class LocalDatabase {
   /// (`from == 0`) runs all of them.
   static Future<void> _migrate(Database db, int from, int to) async {
     if (from < 1) await _createV1(db);
-    // Future steps go here, each guarded by `if (from < n)`.
+    if (from < 2)
+      await db.execute(
+          'ALTER TABLE categories ADD COLUMN include_in_monthly_budget INTEGER NOT NULL DEFAULT 1');
   }
 
   /// Lets tests build the real schema in an in-memory database, so the
@@ -293,6 +295,7 @@ class LocalDatabase {
         icon TEXT,
         color TEXT,
         budget_limit REAL NOT NULL DEFAULT 0,
+        include_in_monthly_budget INTEGER NOT NULL DEFAULT 1,
         updated_at INTEGER NOT NULL,
         version INTEGER,
         deleted_at INTEGER,

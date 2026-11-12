@@ -36,9 +36,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       builder: (context, provider, _) {
         final cf = MoneyFormat.of(provider.settings);
         final allCategories = provider.categories;
+        final monthlyCategories =
+            allCategories.where((c) => c.includeInMonthlyBudget).toList();
         final totalBudget =
-            allCategories.fold(0.0, (sum, c) => sum + c.budgetLimit);
-        final totalSpent = allCategories.fold(
+            monthlyCategories.fold(0.0, (sum, c) => sum + c.budgetLimit);
+        final totalSpent = monthlyCategories.fold(
             0.0, (sum, c) => sum + provider.getCategorySpending(c.id));
 
         return Scaffold(

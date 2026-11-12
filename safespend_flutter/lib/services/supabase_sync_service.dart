@@ -1211,6 +1211,7 @@ class SupabaseSyncService {
         'icon': c.icon,
         'color': c.color,
         'budget_limit': c.budgetLimit,
+        'include_in_monthly_budget': c.includeInMonthlyBudget,
       };
 
   static Category _rowToCategory(Map<String, dynamic> c) => Category(
@@ -1220,6 +1221,7 @@ class SupabaseSyncService {
         icon: c['icon'] ?? 'category',
         color: c['color'] ?? '#22c55e',
         budgetLimit: (c['budget_limit'] as num?)?.toDouble() ?? 0,
+        includeInMonthlyBudget: c['include_in_monthly_budget'] as bool? ?? true,
       );
 
   static Future<List<Category>> loadCategories(String userId) async {
