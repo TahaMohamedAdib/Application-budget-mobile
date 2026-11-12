@@ -295,7 +295,6 @@ class LocalDatabase {
         icon TEXT,
         color TEXT,
         budget_limit REAL NOT NULL DEFAULT 0,
-        include_in_monthly_budget INTEGER NOT NULL DEFAULT 1,
         updated_at INTEGER NOT NULL,
         version INTEGER,
         deleted_at INTEGER,
