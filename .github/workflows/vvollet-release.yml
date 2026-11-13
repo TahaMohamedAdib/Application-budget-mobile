@@ -75,7 +75,7 @@ jobs:
 
   release-aab:
     name: Build signed release AAB
-    if: github.event_name == 'workflow_dispatch' && github.ref_protected
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: verify
     runs-on: ubuntu-24.04
     # Configure this protected GitHub Environment with required reviewers and
