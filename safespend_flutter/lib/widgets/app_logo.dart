@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// SafeSpend brand logo widget.
+/// VVollet brand logo widget.
 ///
 /// [onDark] = false → frosted glass (for dark/slate backgrounds)
 /// [onDark] = true  → slate coin on dark background

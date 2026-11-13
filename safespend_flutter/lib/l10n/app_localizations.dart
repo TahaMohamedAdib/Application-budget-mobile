@@ -25,6 +25,20 @@ class S {
     return languageNames.containsKey(normalized) ? normalized : fallbackLocale;
   }
 
+  /// Resolves the first supported language in the platform preference order.
+  /// Region and script are deliberately ignored because the catalogs are
+  /// language-level (`fr`, not `fr_CA`); an unsupported list falls back to
+  /// English deterministically.
+  static String resolveDeviceLocale(Iterable<Locale> preferredLocales) {
+    for (final locale in preferredLocales) {
+      final code = normalizeLocaleCode(locale.languageCode);
+      if (code != fallbackLocale || locale.languageCode.toLowerCase() == 'en') {
+        return code;
+      }
+    }
+    return fallbackLocale;
+  }
+
   static String displayNameForLocale(String? locale) =>
       localeDisplayNames[normalizeLocaleCode(locale)] ??
       localeDisplayNames[fallbackLocale]!;
@@ -269,6 +283,7 @@ class S {
   String get netWorth => _t('netWorth');
   String get cashOnHand => _t('cashOnHand');
   String get investments => _t('investments');
+  String get upcomingFeature => _t('upcomingFeature');
   String get debt => _t('debt');
   String get personalDebts => _t('personalDebts');
   String get savingsGoals => _t('savingsGoals');
@@ -730,6 +745,9 @@ class S {
   String get billRemindersDetail => _t('billRemindersDetail');
   String get budgetAlerts => _t('budgetAlerts');
   String get budgetAlertsDetail => _t('budgetAlertsDetail');
+  String get expenseReminder => _t('expenseReminder');
+  String get expenseReminderDetail => _t('expenseReminderDetail');
+  String get reminderTime => _t('reminderTime');
   String get largeTransactionAlerts => _t('largeTransactionAlerts');
   String get largeTransactionAlertsDetail => _t('largeTransactionAlertsDetail');
   String get alertThreshold => _t('alertThreshold');

@@ -9,7 +9,7 @@ import '../../widgets/settings_ui.dart';
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
-  static const supportEmail = 'support@safespend.app';
+  static const supportEmail = 'support@vvollet.com';
 
   @override
   Widget build(BuildContext context) {

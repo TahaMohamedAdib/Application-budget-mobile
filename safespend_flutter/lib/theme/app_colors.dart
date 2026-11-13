@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Centralized color definitions for SafeSpend.
+/// Centralized color definitions for VVollet.
 /// All hex values are defined once here — screens should reference AppColors or AppTheme aliases.
 class AppColors {
   AppColors._();

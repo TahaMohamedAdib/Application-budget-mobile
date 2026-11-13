@@ -1,6 +1,6 @@
 import 'ai_tool.dart';
 
-/// The complete set of capabilities SafeSpend exposes to the AI backend.
+/// The complete set of capabilities VVollet exposes to the AI backend.
 ///
 /// This is the contract: the backend may request any tool named here and
 /// nothing else. Adding a capability means adding it here *and* handling it in
@@ -13,7 +13,7 @@ class AIToolRegistry {
   static const _accountId = AIToolParam(
     name: 'account_id',
     type: AIToolParamType.string,
-    description: 'SafeSpend account id, or "cash_on_hand" for physical cash.',
+    description: 'VVollet account id, or "cash_on_hand" for physical cash.',
   );
 
   static const List<AITool> readTools = [

@@ -1,0 +1,6 @@
+# Copy to android/key.properties locally. Do not commit key.properties or the keystore.
+# CI writes the same four values from encrypted repository secrets.
+storeFile=/absolute/path/to/vvollet-release.jks
+storePassword=replace-with-secret
+keyAlias=vvollet
+keyPassword=replace-with-secret

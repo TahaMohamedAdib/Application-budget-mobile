@@ -11,6 +11,7 @@ import 'providers/app_provider.dart';
 import 'services/supabase_config.dart';
 import 'services/supabase_sync_service.dart';
 import 'services/auth_service.dart';
+import 'services/notifications/notification_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_icons.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
@@ -93,6 +94,12 @@ void main() async {
     await SupabaseSyncService.initializeOfflineSync();
   } catch (e) {
     if (kDebugMode) debugPrint('[main] Offline sync init failed: $e');
+  }
+
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e) {
+    if (kDebugMode) debugPrint('[main] Notifications init failed: $e');
   }
 
   runApp(

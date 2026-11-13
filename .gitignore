@@ -44,6 +44,14 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Android release-signing material is local-only. The keystore lives outside
+# this repository; this file contains its private passwords and path.
+**/android/key.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+
 # --- Secrets & Environment Files ---
 .env
 .env.*

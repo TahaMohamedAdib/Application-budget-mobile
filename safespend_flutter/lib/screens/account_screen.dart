@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/feature_help_button.dart';
+import '../widgets/settings_ui.dart';
 import '../widgets/stored_image.dart';
 import '../services/supabase_sync_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,6 +21,51 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
+  bool _deleting = false;
+
+  /// Confirms, deletes the account on the server, then tears down the
+  /// session and local data the same way sign-out does.
+  Future<void> _deleteAccount(BuildContext context) async {
+    final s = S.of(context);
+    final confirmed = await showSettingsConfirm(
+      context,
+      title: s.tr('accountDeletionConfirmTitle'),
+      message: s.tr('accountDeletionConfirmMessage'),
+      confirmLabel: s.tr('accountDeletionAction'),
+      cancelLabel: s.cancel,
+      destructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final auth = context.read<AuthService>();
+    final provider = context.read<AppProvider>();
+    // Save this before signing out: deleting the remote Auth user invalidates
+    // the current session, but the local SQLite rows still need its id.
+    final deletedUserId = auth.userId;
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    setState(() => _deleting = true);
+    final result = await auth.deleteAccount();
+    if (!mounted) return;
+    setState(() => _deleting = false);
+
+    if (!result.success) {
+      messenger
+          .showSnackBar(SnackBar(content: Text(s.tr('accountDeletionFailed'))));
+      return;
+    }
+
+    await auth.signOut();
+    // Do not report a completed deletion while this device could still retain
+    // the account's SQLite rows or queued writes.
+    await provider.clearData(userId: deletedUserId);
+    if (!mounted) return;
+    messenger
+        .showSnackBar(SnackBar(content: Text(s.tr('accountDeletionDone'))));
+    navigator.popUntil((route) => route.isFirst);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -373,6 +419,71 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                     ).animate().fadeIn(
                         duration: 280.ms, delay: 200.ms, curve: Curves.easeOut),
+
+                  // Account deletion (App Store 5.1.1(v), Google Play policy)
+                  if (!isLocalMode) ...[
+                    const SizedBox(height: 32),
+                    Container(
+                      decoration: AppTheme.premiumCard(context),
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap:
+                              _deleting ? null : () => _deleteAccount(context),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.error.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Center(
+                                      child: Icon(
+                                          IOSIcons.delete_outline_rounded,
+                                          size: 20,
+                                          color: AppTheme.error)),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(s.tr('accountDeletionAction'),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppTheme.error)),
+                                      const SizedBox(height: 2),
+                                      Text(s.tr('accountDeletionDetail'),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall),
+                                    ],
+                                  ),
+                                ),
+                                if (_deleting)
+                                  const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ).animate().fadeIn(
+                        duration: 280.ms, delay: 240.ms, curve: Curves.easeOut),
+                  ],
                 ],
               ),
             ),

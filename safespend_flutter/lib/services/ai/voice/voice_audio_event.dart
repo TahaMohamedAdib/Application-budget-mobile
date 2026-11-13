@@ -37,7 +37,7 @@ class VoiceInterrupted extends VoiceAudioEvent {
   const VoiceInterrupted();
 }
 
-/// The assistant wants to run a SafeSpend tool. Routed through the same
+/// The assistant wants to run a VVollet tool. Routed through the same
 /// executor and confirmation flow as text — spoken intent grants no extra
 /// authority to mutate data.
 class VoiceToolCallEvent extends VoiceAudioEvent {

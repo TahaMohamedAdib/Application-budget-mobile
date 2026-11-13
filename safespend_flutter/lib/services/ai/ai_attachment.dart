@@ -95,7 +95,7 @@ class AIAttachment {
   /// this — it doubles the memory held for the attachment.
   String toBase64() => base64Encode(bytes);
 
-  /// Wire form for the SafeSpend backend contract.
+  /// Wire form for the VVollet backend contract.
   Map<String, dynamic> toJson() => {
         'kind': kind.name,
         'mime_type': mimeType,

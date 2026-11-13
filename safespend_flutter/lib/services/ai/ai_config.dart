@@ -18,7 +18,7 @@ enum AIProvider { safespend }
 /// ```
 ///
 /// No credential for the model-hosting infrastructure is compiled into the
-/// app. The SafeSpend backend authenticates callers with the user's existing
+/// app. The VVollet backend authenticates callers with the user's existing
 /// Supabase session token, which is short-lived and already on the device.
 class AIConfig {
   const AIConfig._();
@@ -35,7 +35,7 @@ class AIConfig {
     defaultValue: '',
   );
 
-  /// Base URL of the SafeSpend AI backend.
+  /// Base URL of the VVollet AI backend.
   ///
   /// Falls back to the Edge Functions host of the configured Supabase project,
   /// where the `chat` function already lives. That keeps the default build

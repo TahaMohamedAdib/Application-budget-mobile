@@ -26,7 +26,7 @@ const featureEnglish = <String, String>{
   'amountLent': 'Amount Lent',
   'amountReceivedShort': '{amount} received',
   'amountExceedsMaximum': 'Amount is too large',
-  'askSafeSpendAi': 'Ask SafeSpend AI',
+  'askVVolletAi': 'Ask VVollet AI',
   'attachReceiptPhoto': 'Attach receipt photo',
   'atLeastEightCharacters': 'At least 8 characters',
   'autoSave': 'Auto-Save',
