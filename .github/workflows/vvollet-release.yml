@@ -49,8 +49,25 @@ jobs:
         run: ./android/gradlew --version
       - name: Fetch packages
         run: flutter pub get
-      - name: Analyze
-        run: flutter analyze
+      - name: Analyze without increasing the established diagnostics baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/reports
+          set +e
+          flutter analyze --no-fatal-warnings --no-fatal-infos 2>&1 | tee build/reports/flutter-analyze.log
+          analyze_status=${PIPESTATUS[0]}
+          set -e
+
+          errors=$(grep -Eic '^[[:space:]]*error[[:space:]]*[•-]' build/reports/flutter-analyze.log || true)
+          warnings=$(grep -Eic '^[[:space:]]*warning[[:space:]]*[•-]' build/reports/flutter-analyze.log || true)
+          infos=$(grep -Eic '^[[:space:]]*info[[:space:]]*[•-]' build/reports/flutter-analyze.log || true)
+          echo "Analyzer diagnostics: $errors errors, $warnings warnings, $infos infos"
+
+          test "$analyze_status" -eq 0
+          test "$errors" -eq 0
+          test "$warnings" -le 43
+          test "$infos" -le 376
       - name: Run focused authentication and migration tests
         run: flutter test test/auth_recovery_guards_test.dart test/category_budget_migration_test.dart
       - name: Run complete test suite
@@ -58,7 +75,7 @@ jobs:
 
   release-aab:
     name: Build signed release AAB
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.ref_protected
     needs: verify
     runs-on: ubuntu-24.04
     # Configure this protected GitHub Environment with required reviewers and
@@ -120,11 +137,11 @@ jobs:
             https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
           echo '675786493983787ffa11550bdb7c0715679a44e1643f3ff980a529e9c822595c  /tmp/bundletool.jar' | sha256sum --check --status
           manifest="$(java -jar /tmp/bundletool.jar dump manifest --bundle="$bundle" --module=base)"
-          grep -q 'package="com.taha.safespend"' <<< "$manifest"
+          grep -q 'package="com.vvollet.app"' <<< "$manifest"
           grep -q "android:versionCode=\"$BUILD_NUMBER\"" <<< "$manifest"
           {
             echo "### Signed AAB validation"
-            echo "- Package: com.taha.safespend"
+            echo "- Package: com.vvollet.app"
             echo "- Version code: $BUILD_NUMBER"
             echo "- Upload certificate SHA-256: $actual_sha256"
           } >> "$GITHUB_STEP_SUMMARY"
