@@ -32,15 +32,12 @@ where table_schema = 'public'
   and table_name = 'user_categories'
 order by ordinal_position;
 
-select count(*) as categories_with_invalid_exclusion
-from public.user_categories
-where coalesce(include_in_monthly_budget, true) = false
-  and coalesce(budget_limit, 0) <> 0;
-
 select count(*) as existing_users from auth.users;
 ```
 
-The invalid-exclusion count must be zero. Back up `auth.users`,
+The first query must show the existing `budget_limit` column. It intentionally
+does **not** reference `include_in_monthly_budget`, because that column does
+not exist until this migration runs. Back up `auth.users`,
 `public.user_categories`, and any existing migration-history table before
 applying the migration.
 
@@ -84,6 +81,11 @@ select conname, pg_get_constraintdef(oid)
 from pg_constraint
 where conrelid = 'public.user_categories'::regclass
   and conname = 'user_categories_excluded_budget_limit';
+
+select count(*) as categories_with_invalid_exclusion
+from public.user_categories
+where include_in_monthly_budget = false
+  and coalesce(budget_limit, 0) <> 0;
 
 select p.proname, p.prosecdef, p.proconfig,
        has_function_privilege('anon', p.oid, 'EXECUTE') as anon_can_execute,
