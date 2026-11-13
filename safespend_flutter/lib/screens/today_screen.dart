@@ -147,7 +147,6 @@ class HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
-                          ),
                         ),
                         ),
                         const Spacer(),
