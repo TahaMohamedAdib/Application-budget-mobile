@@ -451,7 +451,12 @@ class _PlanScreenState extends State<PlanScreen> {
                                 .where((c) => c.group == 'variable')
                                 .toList();
                             final totalBudget = variableCats.fold(
-                                0.0, (sum, c) => sum + c.budgetLimit);
+                                0.0,
+                                (sum, c) =>
+                                    sum +
+                                    (c.includeInMonthlyBudget
+                                        ? c.budgetLimit
+                                        : 0));
                             final totalSpent = variableCats.fold(
                                 0.0,
                                 (sum, c) =>

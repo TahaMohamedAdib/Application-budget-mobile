@@ -1,0 +1,159 @@
+name: VVollet release validation
+
+on:
+  pull_request:
+    paths:
+      - 'safespend_flutter/**'
+      - '.github/workflows/vvollet-release.yml'
+  push:
+    branches:
+      - feat/tester-feedback
+    paths:
+      - 'safespend_flutter/**'
+      - '.github/workflows/vvollet-release.yml'
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Google Play versionCode; must exceed the highest uploaded value.'
+        required: true
+        type: string
+      build_name:
+        description: 'Android versionName for this candidate.'
+        required: true
+        default: '1.0.0'
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: safespend_flutter
+
+jobs:
+  verify:
+    name: Analyze and test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Verify Gradle wrapper
+        run: ./android/gradlew --version
+      - name: Fetch packages
+        run: flutter pub get
+      - name: Analyze without increasing the established diagnostics baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/reports
+          set +e
+          flutter analyze --no-fatal-warnings --no-fatal-infos 2>&1 | tee build/reports/flutter-analyze.log
+          analyze_status=${PIPESTATUS[0]}
+          set -e
+
+          errors=$(grep -Eic '^[[:space:]]*error[[:space:]]*[•-]' build/reports/flutter-analyze.log || true)
+          warnings=$(grep -Eic '^[[:space:]]*warning[[:space:]]*[•-]' build/reports/flutter-analyze.log || true)
+          infos=$(grep -Eic '^[[:space:]]*info[[:space:]]*[•-]' build/reports/flutter-analyze.log || true)
+          echo "Analyzer diagnostics: $errors errors, $warnings warnings, $infos infos"
+
+          test "$analyze_status" -eq 0
+          test "$errors" -eq 0
+          test "$warnings" -le 43
+          test "$infos" -le 376
+      - name: Run focused authentication and migration tests
+        run: flutter test test/auth_recovery_guards_test.dart test/category_budget_migration_test.dart
+      - name: Run complete test suite
+        run: flutter test
+
+  release-aab:
+    name: Build signed release AAB
+    if: github.event_name == 'workflow_dispatch' && github.ref_protected
+    needs: verify
+    runs-on: ubuntu-24.04
+    # Configure this protected GitHub Environment with required reviewers and
+    # environment-scoped signing secrets before dispatching this job.
+    environment: release-signing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Fetch packages
+        run: flutter pub get
+      - name: Materialize protected upload key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.VVOLLET_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.VVOLLET_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.VVOLLET_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.VVOLLET_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64"
+          test -n "$STORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+      - name: Build release AAB
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          BUILD_NAME: ${{ inputs.build_name }}
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          flutter build appbundle --release --build-number "$BUILD_NUMBER" --build-name "$BUILD_NAME"
+      - name: Verify package, version code, version name, and signing certificate
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          BUILD_NAME: ${{ inputs.build_name }}
+          EXPECTED_SHA256: 45:97:75:F0:57:08:FC:E9:D6:09:4D:B3:A7:85:CD:99:E4:83:E7:3B:02:EF:87:AD:CF:5A:32:1E:02:B2:D5:A7
+        run: |
+          set -euo pipefail
+          bundle=build/app/outputs/bundle/release/app-release.aab
+          test -s "$bundle"
+          actual_sha256="$(keytool -printcert -jarfile "$bundle" | awk -F': ' '/SHA256:/{print $2}')"
+          test "$actual_sha256" = "$EXPECTED_SHA256"
+          curl --fail --location --silent --show-error \
+            --output /tmp/bundletool.jar \
+            https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
+          echo '675786493983787ffa11550bdb7c0715679a44e1643f3ff980a529e9c822595c  /tmp/bundletool.jar' | sha256sum --check --status
+          manifest="$(java -jar /tmp/bundletool.jar dump manifest --bundle="$bundle" --module=base)"
+          grep -q 'package="com.vvollet.app"' <<< "$manifest"
+          grep -q "android:versionCode=\"$BUILD_NUMBER\"" <<< "$manifest"
+          grep -q "android:versionName=\"$BUILD_NAME\"" <<< "$manifest"
+          {
+            echo "### Signed AAB validation"
+            echo "- Package: com.vvollet.app"
+            echo "- Version code: $BUILD_NUMBER"
+            echo "- Version name: $BUILD_NAME"
+            echo "- Upload certificate SHA-256: $actual_sha256"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove signing material
+        if: always()
+        run: rm -f android/key.properties android/app/upload-keystore.jks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vvollet-release-aab-${{ inputs.build_number }}
+          path: safespend_flutter/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14

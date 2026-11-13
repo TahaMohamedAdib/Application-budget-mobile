@@ -2,6 +2,16 @@
 // Existing human-edited strings are never overwritten.
 const translationsFeatures = <String, Map<String, String>>{
   "en": {
+    "continueWithGoogle": "Continue with Google",
+    "includeInMonthlyBudget": "Include in monthly budget",
+    "sendRecoveryEmail": "Send recovery email",
+    "recoveryEmailSent":
+        "If an account exists, recovery instructions have been sent.",
+    "resetPassword": "Reset password",
+    "passwordPolicy":
+        "Use 8+ characters with an uppercase letter, number, and special character.",
+    "passwordResetSuccess": "Password updated successfully.",
+    "recoverySessionInvalid": "This recovery link is invalid or has expired.",
     "actionCouldNotBeCompleted": "That action could not be completed.",
     "activeSubscriptionsSwipe": "{count} active · swipe left to delete",
     "addedAmountToGoal": "Added {amount} to {name}",

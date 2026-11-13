@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array><dict><key>CFBundleURLSchemes</key><array><string>io.supabase.timctayytkcvxvpukvlq</string></array></dict></array>
 	<key>NSCameraUsageDescription</key>
 	<string>VVollet uses the camera only when you choose to take a photo, such as a receipt or profile picture.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

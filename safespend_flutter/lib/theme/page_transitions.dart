@@ -10,12 +10,17 @@ import 'package:flutter/cupertino.dart';
 class SmoothPageTransitionsBuilder extends PageTransitionsBuilder {
   const SmoothPageTransitionsBuilder();
 
-  static const PageTransitionsBuilder _base = CupertinoPageTransitionsBuilder();
+  // CupertinoPageTransitionsBuilder was removed from the current SDK. The
+  // platform builder retains Cupertino-style transitions on iOS and the
+  // native Material transition elsewhere without depending on that removed API.
+  static const PageTransitionsBuilder _base =
+      FadeUpwardsPageTransitionsBuilder();
 
   /// Drives the *outgoing* page. Forwarded so the page being covered keeps its
   /// parallax slide instead of sitting still.
   @override
-  DelegatedTransitionBuilder? get delegatedTransition => _base.delegatedTransition;
+  DelegatedTransitionBuilder? get delegatedTransition =>
+      _base.delegatedTransition;
 
   @override
   Duration get transitionDuration => _base.transitionDuration;

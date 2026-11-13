@@ -1215,6 +1215,7 @@ class SupabaseSyncService {
         'icon': c.icon,
         'color': c.color,
         'budget_limit': c.budgetLimit,
+        'include_in_monthly_budget': c.includeInMonthlyBudget,
       };
 
   static Category _rowToCategory(Map<String, dynamic> c) => Category(
@@ -1224,6 +1225,7 @@ class SupabaseSyncService {
         icon: c['icon'] ?? 'category',
         color: c['color'] ?? '#22c55e',
         budgetLimit: (c['budget_limit'] as num?)?.toDouble() ?? 0,
+        includeInMonthlyBudget: c['include_in_monthly_budget'] as bool? ?? true,
       );
 
   static Future<List<Category>> loadCategories(String userId) async {
@@ -1237,6 +1239,19 @@ class SupabaseSyncService {
     } catch (e) {
       if (kDebugMode) debugPrint('[Supabase] Error loading categories: $e');
       return [];
+    }
+  }
+
+  static Future<bool> initializeDefaultCategories(
+      List<Category> categories) async {
+    try {
+      final result = await _db.rpc('initialize_default_categories', params: {
+        'p_categories':
+            categories.map((category) => category.toJson()).toList(),
+      });
+      return result == true;
+    } catch (_) {
+      return false;
     }
   }
 

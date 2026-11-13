@@ -267,17 +267,28 @@ class _AuthScreenState extends State<AuthScreen> {
                         validator: (v) {
                           if (v == null || v.isEmpty)
                             return s.tr('passwordRequired');
-                          if (v.length < 8)
+                          if (!_isLogin && v.length < 8)
                             return s.tr('atLeastEightCharacters');
-                          if (!RegExp(r'[A-Z]').hasMatch(v))
+                          if (!_isLogin && !RegExp(r'[A-Z]').hasMatch(v))
                             return s.tr('includeUppercaseLetter');
-                          if (!RegExp(r'[0-9]').hasMatch(v))
+                          if (!_isLogin && !RegExp(r'[0-9]').hasMatch(v))
                             return s.tr('includeNumber');
-                          if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(v))
+                          if (!_isLogin &&
+                              !RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(v))
                             return s.tr('includeSpecialCharacter');
                           return null;
                         },
                       ),
+
+                      if (_isLogin)
+                        Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: TextButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : () => _requestRecovery(
+                                        _emailController.text.trim()),
+                                child: Text(s.forgotPassword))),
 
                       // Confirm password (sign up only)
                       if (!_isLogin) ...[
@@ -353,6 +364,14 @@ class _AuthScreenState extends State<AuthScreen> {
                     .slideY(begin: 0.03, end: 0, curve: Curves.easeOut),
 
                 const SizedBox(height: 28),
+                SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _signInWithGoogle,
+                        icon: const Icon(Icons.g_mobiledata, size: 28),
+                        label: Text(s.tr('continueWithGoogle')))),
+                const SizedBox(height: 12),
 
                 // Toggle login/signup
                 Wrap(
@@ -388,5 +407,43 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _requestRecovery(String initialEmail) async {
+    final email = TextEditingController(text: initialEmail);
+    final s = S.of(context);
+    await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+                title: Text(s.forgotPassword),
+                content: TextField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(labelText: s.email)),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: Text(s.cancel)),
+                  ElevatedButton(
+                      onPressed: () async {
+                        final value = email.text.trim();
+                        if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                            .hasMatch(value)) return;
+                        final result = await context
+                            .read<AuthService>()
+                            .requestPasswordRecovery(value);
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(result.success
+                                ? s.tr('recoveryEmailSent')
+                                : s.tr('actionCouldNotBeCompleted')),
+                            backgroundColor: result.success
+                                ? AppTheme.success
+                                : AppTheme.error));
+                      },
+                      child: Text(s.tr('sendRecoveryEmail')))
+                ]));
+    email.dispose();
   }
 }

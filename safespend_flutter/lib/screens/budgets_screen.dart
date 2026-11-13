@@ -36,9 +36,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
       builder: (context, provider, _) {
         final cf = MoneyFormat.of(provider.settings);
         final allCategories = provider.categories;
+        final monthlyCategories =
+            allCategories.where((c) => c.includeInMonthlyBudget).toList();
         final totalBudget =
-            allCategories.fold(0.0, (sum, c) => sum + c.budgetLimit);
-        final totalSpent = allCategories.fold(
+            monthlyCategories.fold(0.0, (sum, c) => sum + c.budgetLimit);
+        final totalSpent = monthlyCategories.fold(
             0.0, (sum, c) => sum + provider.getCategorySpending(c.id));
 
         return Scaffold(
@@ -803,6 +805,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final spent = provider.getCategorySpending(cat.id);
     String selectedIcon = cat.icon;
+    bool includeInMonthlyBudget = cat.includeInMonthlyBudget;
 
     final iconOptions = <String, String>{
       'home': AppIcons.home,
@@ -870,8 +873,21 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              Material(
+                type: MaterialType.transparency,
+                child: SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(s.tr('includeInMonthlyBudget')),
+                  value: includeInMonthlyBudget,
+                  onChanged: (value) => setModalState(() {
+                    includeInMonthlyBudget = value;
+                    if (!value) budgetCtrl.clear();
+                  }),
+                ),
+              ),
               TextField(
                 controller: budgetCtrl,
+                enabled: includeInMonthlyBudget,
                 keyboardType: TextInputType.number,
                 style:
                     const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -1002,15 +1018,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     return;
                   }
                   final budget = double.tryParse(budgetCtrl.text) ?? 0;
-                  if (budget <= 0) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text(s.setSpendingLimit)));
-                    return;
-                  }
                   provider.updateCategory(cat.copyWith(
                     name: nameCtrl.text.trim(),
                     icon: selectedIcon,
                     budgetLimit: budget,
+                    includeInMonthlyBudget: includeInMonthlyBudget,
                   ));
                   Navigator.pop(ctx);
                 },
@@ -1036,6 +1048,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final budgetCtrl = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     String selectedIcon = 'category';
+    bool includeInMonthlyBudget = true;
 
     final iconOptions = <String, String>{
       'home': AppIcons.home,
@@ -1101,8 +1114,20 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              Material(
+                type: MaterialType.transparency,
+                child: SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(s.tr('includeInMonthlyBudget')),
+                    value: includeInMonthlyBudget,
+                    onChanged: (value) => setModalState(() {
+                          includeInMonthlyBudget = value;
+                          if (!value) budgetCtrl.clear();
+                        })),
+              ),
               TextField(
                 controller: budgetCtrl,
+                enabled: includeInMonthlyBudget,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: s.monthlyBudget,
@@ -1230,11 +1255,6 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     return;
                   }
                   final budget = double.tryParse(budgetCtrl.text) ?? 0;
-                  if (budget <= 0) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text(s.setSpendingLimit)));
-                    return;
-                  }
                   final newCat = Category(
                     id: const Uuid().v4(),
                     name: nameCtrl.text.trim(),
@@ -1242,6 +1262,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     icon: selectedIcon,
                     color: '#B8860B',
                     budgetLimit: budget,
+                    includeInMonthlyBudget: includeInMonthlyBudget,
                   );
                   provider.addCategory(newCat);
                   Navigator.pop(ctx);

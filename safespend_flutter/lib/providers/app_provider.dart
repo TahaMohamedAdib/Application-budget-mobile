@@ -361,6 +361,11 @@ class AppProvider with ChangeNotifier {
       _recurringRules = data['recurringRules'] as List<RecurringRule>;
       _holdings = data['holdings'] as List<Holding>;
       _categories = data['categories'] as List<Category>;
+      if (_categories.isEmpty &&
+          await SupabaseSyncService.initializeDefaultCategories(
+              defaultCategories)) {
+        _categories = await SupabaseSyncService.loadCategories(userId);
+      }
 
       _isLoading = false;
       _supabaseDataLoaded = true;
