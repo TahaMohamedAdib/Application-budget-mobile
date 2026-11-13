@@ -251,6 +251,29 @@ class AuthService with ChangeNotifier {
     }
   }
 
+  /// Permanently deletes the signed-in user's account on the server: their
+  /// photos, every database row (via ON DELETE CASCADE) and the auth user.
+  ///
+  /// Does not sign out or clear local data; the caller does that on success
+  /// so the UI can tear down in the usual sign-out order.
+  Future<({bool success, String? error})> deleteAccount() async {
+    if (_client == null) return (success: false, error: 'No connection to server.');
+    if (_user == null) return (success: false, error: 'No user logged in.');
+    try {
+      final response = await _client!.functions
+          .invoke('delete-account', method: HttpMethod.post)
+          .timeout(const Duration(seconds: 30));
+      final data = response.data;
+      if (response.status == 200 && data is Map && data['deleted'] == true) {
+        return (success: true, error: null);
+      }
+      return (success: false, error: 'delete_failed');
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AuthService] delete account failed: $e');
+      return (success: false, error: e.toString());
+    }
+  }
+
   // Get display name
   String? get displayName => _user?.userMetadata?['display_name'] as String?;
 

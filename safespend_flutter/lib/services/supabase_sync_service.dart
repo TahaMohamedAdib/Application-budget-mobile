@@ -413,6 +413,8 @@ class SupabaseSyncService {
         isDarkMode: (data['theme'] ?? 'dark') == 'dark',
         netWorthScope: data['net_worth_scope'] ?? 'all',
         selectedAccountId: data['selected_account_id'],
+        locale: data['locale'] ?? 'en',
+        localeManuallySelected: data['locale_manually_selected'] ?? false,
         // Restores the profile picture on a fresh install: this row is the
         // only copy that outlives the app's local storage.
         avatarPath: data['avatar_url'] as String?,
@@ -432,6 +434,8 @@ class SupabaseSyncService {
       'theme': settings.isDarkMode ? 'dark' : 'light',
       'net_worth_scope': settings.netWorthScope,
       'selected_account_id': settings.selectedAccountId,
+      'locale': settings.locale,
+      'locale_manually_selected': settings.localeManuallySelected,
       'updated_at': DateTime.now().toIso8601String(),
     };
     // A picked image can temporarily be an app-owned local path while its

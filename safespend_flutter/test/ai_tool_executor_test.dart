@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:safespend_flutter/models/account.dart';
 import 'package:safespend_flutter/models/category.dart';
 import 'package:safespend_flutter/providers/app_provider.dart';
@@ -38,6 +39,7 @@ void main() {
   // AppProvider's constructor reaches for SharedPreferences; the binding must
   // exist or every construction logs a initialisation failure.
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('read tools', () {
     test('execute immediately without confirmation', () {

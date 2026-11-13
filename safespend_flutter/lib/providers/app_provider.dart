@@ -20,7 +20,9 @@ import '../data/local_repository.dart';
 import '../data/sync_engine.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/image_service.dart';
+import '../services/notifications/notification_service.dart';
 import '../utils/recurring_dates.dart';
+import '../l10n/app_localizations.dart';
 
 /// Top-level function for compute() — parses all cached JSON off the main thread.
 Map<String, dynamic> _parseLocalData(Map<String, String?> rawJson) {
@@ -146,6 +148,30 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   String? get _userId => SupabaseSyncService.currentUserId;
+
+  /// Notification failures must never block a financial mutation.
+  void _refreshNotifications() {
+    if (_settings.notificationsEnabled != true) return;
+    unawaited(NotificationService.instance
+        .refresh(
+      settings: _settings,
+      transactions: _transactions,
+      recurringRules: _recurringRules,
+    )
+        .catchError((Object e) {
+      if (kDebugMode) debugPrint('[notifications] refresh failed: $e');
+    }));
+    if (_settings.budgetAlerts) {
+      unawaited(NotificationService.instance
+          .evaluateBudgets(
+        categories: _categories,
+        spendingFor: getCategorySpending,
+      )
+          .catchError((Object e) {
+        if (kDebugMode) debugPrint('[notifications] budget check failed: $e');
+      }));
+    }
+  }
 
   // ── Local-first store ─────────────────────────────────────────────
   //
@@ -374,10 +400,13 @@ class AppProvider with ChangeNotifier {
 
   /// Clear all data (used on sign out). Resets flags so the next user
   /// can load their own data from Supabase cleanly.
-  void clearData() {
+  Future<void> clearData({String? userId}) async {
     // Captured before the fields are reset: the Supabase session may already
     // be gone by the time the wipe runs, and a null id would wipe nothing.
-    final signingOutUserId = _userId;
+    // Account deletion invalidates the Supabase session before the local wipe.
+    // Its caller therefore supplies the identity captured while it was still
+    // authenticated; ordinary sign-out continues to resolve the current one.
+    final signingOutUserId = userId ?? _userId;
     _accounts = [];
     _transactions = [];
     _categories = [];
@@ -397,9 +426,19 @@ class AppProvider with ChangeNotifier {
     // gated on it, and nothing re-runs loadData() to set it again.
     _localDataLoaded = true;
     notifyListeners();
-    unawaited(SupabaseSyncService.clearPendingRetryQueue());
-    _clearLocalCache();
-    _clearRepository(signingOutUserId);
+    // Remove only this person's queued cloud writes before a future
+    // connectivity event can replay them after the server has deleted the
+    // account. A normal sign-out must not discard another user's queue.
+    await SupabaseSyncService.clearPendingRetryQueue(userId: signingOutUserId);
+    // Notification cleanup is best-effort. A platform-plugin failure must not
+    // prevent sign-out/account deletion from clearing the person's data.
+    await NotificationService.instance.cancelAll().catchError((Object e) {
+      if (kDebugMode) {
+        debugPrint('[AppProvider] notification cleanup failed: $e');
+      }
+    });
+    await _clearLocalCache();
+    await _clearRepository(signingOutUserId);
   }
 
   /// Stops sync and removes this user's local rows at sign-out.
@@ -407,15 +446,11 @@ class AppProvider with ChangeNotifier {
   /// Both halves matter. Leaving the engine running would have it sync a user
   /// who is no longer signed in, and leaving the rows would let the next
   /// account on this device read the previous one's finances.
-  void _clearRepository(String? userId) {
-    unawaited(_syncEngine.stop());
+  Future<void> _clearRepository(String? userId) async {
+    await _syncEngine.stop();
     _repositoryReady = false;
     if (userId == null) return;
-    unawaited(
-      LocalDatabase.instance.wipeUser(userId).catchError((Object e) {
-        if (kDebugMode) debugPrint('[AppProvider] local wipe failed: $e');
-      }),
-    );
+    await LocalDatabase.instance.wipeUser(userId);
   }
 
   Future<void> _clearLocalCache() async {
@@ -460,6 +495,7 @@ class AppProvider with ChangeNotifier {
         _transactions = parsed['transactions'] as List<Transaction>;
       if (parsed.containsKey('settings'))
         _settings = parsed['settings'] as Settings;
+      _applyDeviceLocale(PlatformDispatcher.instance.locales);
       if (parsed.containsKey('recurringRules'))
         _recurringRules = parsed['recurringRules'] as List<RecurringRule>;
       if (parsed.containsKey('holdings'))
@@ -486,6 +522,7 @@ class AppProvider with ChangeNotifier {
       notifyListeners();
       processSalaries();
       processSubscriptions();
+      _refreshNotifications();
     }
   }
 
@@ -543,6 +580,7 @@ class AppProvider with ChangeNotifier {
         prefs.setString('categories',
             jsonEncode(_categories.map((c) => c.toJson()).toList())),
       ]);
+      _refreshNotifications();
 
       // Mirror into SQLite, which is the store the app will read from. Awaited
       // after the blobs rather than alongside them: if this throws, the legacy
@@ -1782,13 +1820,15 @@ class AppProvider with ChangeNotifier {
   double getCategorySpending(String categoryId) {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    return _transactions
-        .where((t) =>
-            t.type == 'expense' &&
-            t.categoryId == categoryId &&
-            DateTime.parse(t.date)
-                .isAfter(startOfMonth.subtract(const Duration(days: 1))))
-        .fold(0.0, (sum, t) => sum + t.amount);
+    final startOfNextMonth = DateTime(now.year, now.month + 1, 1);
+    return _transactions.where((t) {
+      final date = DateTime.tryParse(t.date);
+      return t.type == 'expense' &&
+          t.categoryId == categoryId &&
+          date != null &&
+          !date.isBefore(startOfMonth) &&
+          date.isBefore(startOfNextMonth);
+    }).fold(0.0, (sum, t) => sum + t.amount);
   }
 
   // ============================================
@@ -1844,6 +1884,7 @@ class AppProvider with ChangeNotifier {
     _settings = settings;
     _saveToLocal();
     notifyListeners();
+    _refreshNotifications();
     final uid = _userId;
     if (uid != null) SupabaseSyncService.saveProfile(uid, settings);
   }
@@ -1925,11 +1966,33 @@ class AppProvider with ChangeNotifier {
   }
 
   void setLocale(String locale) {
-    _settings = _settings.copyWith(locale: locale);
+    _settings = _settings.copyWith(
+      locale: S.normalizeLocaleCode(locale),
+      localeManuallySelected: true,
+    );
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
     if (uid != null) SupabaseSyncService.saveProfile(uid, _settings);
+  }
+
+  /// Refreshes the automatic language only while the person has not made an
+  /// explicit choice. Public for lifecycle integration and deterministic tests.
+  void applyDeviceLocales(Iterable<Locale> locales) {
+    if (_settings.localeManuallySelected) return;
+    final resolved = S.resolveDeviceLocale(locales);
+    if (_settings.locale == resolved) return;
+    _settings = _settings.copyWith(locale: resolved);
+    _saveToLocal();
+    notifyListeners();
+  }
+
+  void _applyDeviceLocale(Iterable<Locale> locales) {
+    if (_settings.localeManuallySelected) return;
+    final resolved = S.resolveDeviceLocale(locales);
+    if (_settings.locale == resolved) return;
+    _settings = _settings.copyWith(locale: resolved);
+    _saveToLocal();
   }
 
   // ============================================

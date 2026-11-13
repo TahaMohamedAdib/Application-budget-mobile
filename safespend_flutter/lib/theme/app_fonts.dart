@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Local font helpers with the small API surface used by SafeSpend.
+/// Local font helpers with the small API surface used by VVollet.
 ///
 /// Inter is bundled in pubspec, so typography is stable offline. The old
 /// google_fonts calls are routed through this compatibility helper while

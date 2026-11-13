@@ -7,7 +7,7 @@ import '../../providers/app_provider.dart';
 /// Detail is fetched on demand through the read tools, which keeps requests
 /// small and limits how much data leaves the device per turn.
 ///
-/// Every number here is computed by SafeSpend. The model's job is to explain
+/// Every number here is computed by VVollet. The model's job is to explain
 /// these figures, never to derive them.
 class FinancialContext {
   final String currency;

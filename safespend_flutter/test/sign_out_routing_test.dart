@@ -36,7 +36,7 @@ void main() {
   test('clearData leaves the splash gate open', () async {
     final provider = await loadedProvider();
 
-    provider.clearData();
+    await provider.clearData();
 
     // The splash is shown while this is false. After a sign-out the app must
     // fall through to the auth screen instead.
@@ -50,7 +50,7 @@ void main() {
   test('clearData still empties the data it is meant to', () async {
     final provider = await loadedProvider();
 
-    provider.clearData();
+    await provider.clearData();
 
     expect(provider.accounts, isEmpty);
     expect(provider.transactions, isEmpty);
@@ -67,7 +67,7 @@ void main() {
     var notified = 0;
     provider.addListener(() => notified++);
 
-    provider.clearData();
+    await provider.clearData();
 
     expect(notified, greaterThan(0));
   });

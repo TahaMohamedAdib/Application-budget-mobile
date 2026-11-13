@@ -12,7 +12,6 @@ import 'accounts_screen.dart';
 import 'cash_on_hand_screen.dart';
 import 'debt_screen.dart';
 import 'personal_debts_screen.dart';
-import 'portfolio_screen.dart';
 import 'goals_screen.dart';
 import 'daret_screen.dart';
 import 'settings_screen.dart';
@@ -122,7 +121,6 @@ class _WealthScreenState extends State<WealthScreen> {
             : provider.getTotalByAccountType('bank');
         final totalCash = provider.totalCash;
         final totalSavings = provider.totalSavingsGoals;
-        final totalInvestments = provider.totalInvestmentValue;
         final totalDebt = provider.totalDebtRemaining;
         final totalPersonalDebt = provider.goals
             .where((g) => g.type == 'personal_debt')
@@ -390,16 +388,12 @@ class _WealthScreenState extends State<WealthScreen> {
                                     builder: (_) => const CashOnHandScreen())),
                           ),
                           _buildBreakdownItem(
+                            itemKey: const Key('wealth-investments-upcoming'),
                             context: context,
                             cf: cf,
                             icon: IOSIcons.wealthInvestments,
                             label: s.investments,
-                            sublabel: s.stocksFundsEtc,
-                            amount: totalInvestments,
-                            onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const PortfolioScreen())),
+                            sublabel: s.upcomingFeature,
                           ),
                           _buildBreakdownItem(
                             context: context,
@@ -472,13 +466,14 @@ class _WealthScreenState extends State<WealthScreen> {
   }
 
   Widget _buildBreakdownItem({
+    Key? itemKey,
     required BuildContext context,
     required MoneyFormat cf,
     required IconData icon,
     required String label,
     required String sublabel,
-    required double amount,
-    required VoidCallback onTap,
+    double? amount,
+    VoidCallback? onTap,
 
     /// Colour for the amount only — icons stay neutral across the app.
     /// Null leaves the amount in the default text colour.
@@ -486,69 +481,88 @@ class _WealthScreenState extends State<WealthScreen> {
     bool isFirst = false,
     bool isLast = false,
   }) {
+    final isEnabled = onTap != null;
+
     return Column(
       children: [
         if (!isFirst)
           Divider(height: 1, indent: 72, color: Theme.of(context).dividerColor),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.vertical(
-            top: isFirst ? const Radius.circular(16) : Radius.zero,
-            bottom: isLast ? const Radius.circular(16) : Radius.zero,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppTheme.adaptiveIconSurface(context),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppTheme.adaptiveIcon(context, alpha: 0.12),
+        Semantics(
+          key: itemKey,
+          button: true,
+          enabled: isEnabled,
+          label: isEnabled ? null : '$label. $sublabel',
+          excludeSemantics: !isEnabled,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.vertical(
+              top: isFirst ? const Radius.circular(16) : Radius.zero,
+              bottom: isLast ? const Radius.circular(16) : Radius.zero,
+            ),
+            child: Opacity(
+              opacity: isEnabled ? 1 : 0.62,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppTheme.adaptiveIconSurface(context),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppTheme.adaptiveIcon(context, alpha: 0.12),
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(icon,
+                            size: 23, color: AppTheme.adaptiveIcon(context)),
+                      ),
                     ),
-                  ),
-                  child: Center(
-                    child: Icon(icon,
-                        size: 23, color: AppTheme.adaptiveIcon(context)),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)),
-                      Text(sublabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(label,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                          Text(sublabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    if (amount != null) ...[
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        child: MoneyAmount(
+                          value: amount,
+                          formatter: cf,
+                          fontSize: 15,
+                          minFontSize: 11,
+                          alignEnd: true,
+                          currencyInline: true,
+                          color: amountColor ?? AppTheme.balanceColor(amount),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                     ],
-                  ),
+                    if (isEnabled)
+                      AppIcon(AppIcons.caretRight,
+                          size: 18, color: AppTheme.adaptiveIcon(context))
+                    else
+                      Icon(IOSIcons.lock_outline_rounded,
+                          size: 18, color: AppTheme.adaptiveIcon(context)),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 140),
-                  child: MoneyAmount(
-                    value: amount,
-                    formatter: cf,
-                    fontSize: 15,
-                    minFontSize: 11,
-                    alignEnd: true,
-                    currencyInline: true,
-                    color: amountColor ?? AppTheme.balanceColor(amount),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AppIcon(AppIcons.caretRight,
-                    size: 18, color: AppTheme.adaptiveIcon(context)),
-              ],
+              ),
             ),
           ),
         ),

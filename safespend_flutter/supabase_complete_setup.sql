@@ -1,5 +1,5 @@
 -- ============================================================
--- SafeSpend Flutter — Complete Supabase Setup
+-- VVollet Flutter — Complete Supabase Setup
 -- Paste this entire script in: Supabase → SQL Editor → Run
 -- Safe to run multiple times (uses IF NOT EXISTS / ADD COLUMN IF NOT EXISTS)
 -- ============================================================
@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'en';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS locale_manually_selected BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 

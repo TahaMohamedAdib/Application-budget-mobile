@@ -7,7 +7,7 @@ import 'ai_service.dart';
 
 /// Resolves the active [AIService] from configuration.
 ///
-/// One provider remains: the SafeSpend backend, which holds the model
+/// One provider remains: the VVollet backend, which holds the model
 /// credential server-side and authenticates callers with their existing
 /// Supabase session. The direct-to-Gemini implementation was removed because
 /// it required an API key compiled into the app binary, where anyone who
@@ -22,7 +22,7 @@ class AIServiceFactory {
   static AIService create({AIProvider? provider}) {
     switch (provider ?? AIConfig.provider) {
       case AIProvider.safespend:
-        return SafeSpendAIService(tokenProvider: _supabaseToken);
+        return VVolletAIService(tokenProvider: _supabaseToken);
     }
   }
 

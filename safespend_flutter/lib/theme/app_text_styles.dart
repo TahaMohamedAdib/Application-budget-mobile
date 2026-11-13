@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_fonts.dart';
 
-/// SafeSpend's typography contract.
+/// VVollet's typography contract.
 ///
 /// Ordinary copy inherits Inter from the app theme. Call sites choose a
 /// semantic role instead of inventing a size: screen title, section title,

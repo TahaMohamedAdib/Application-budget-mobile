@@ -15,7 +15,7 @@ import 'ai_tool_call.dart';
 import 'financial_context_service.dart';
 import 'tools/ai_tool_registry.dart';
 
-/// Client for the self-hosted SafeSpend AI backend.
+/// Client for the self-hosted VVollet AI backend.
 ///
 /// The backend fronts Qwen3-Omni (multimodal) and Qwen3.6 (deep financial
 /// reasoning) and decides which one serves a request. That routing is
@@ -49,7 +49,7 @@ import 'tools/ai_tool_registry.dart';
 /// Auth is the caller's Supabase session token via `Authorization: Bearer`.
 /// The backend derives the user id from that token — never from the request
 /// body, and never from model output.
-class SafeSpendAIService implements AIService {
+class VVolletAIService implements AIService {
   final http.Client _client;
   final bool _ownsClient;
 
@@ -59,7 +59,7 @@ class SafeSpendAIService implements AIService {
 
   final String baseUrl;
 
-  SafeSpendAIService({
+  VVolletAIService({
     required this.tokenProvider,
     String? baseUrl,
     http.Client? client,
@@ -131,7 +131,7 @@ class SafeSpendAIService implements AIService {
       if (response.statusCode != 200) {
         if (kDebugMode) {
           debugPrint(
-              'SafeSpend AI error [${response.statusCode}]: ${response.body}');
+              'VVollet AI error [${response.statusCode}]: ${response.body}');
         }
         return AIResponse.failure(AIException.of(AIErrorKind.unknown));
       }
@@ -149,7 +149,7 @@ class SafeSpendAIService implements AIService {
     } on http.ClientException catch (e) {
       return AIResponse.failure(AIException.of(AIErrorKind.network, cause: e));
     } catch (e) {
-      if (kDebugMode) debugPrint('SafeSpend AI unexpected error: $e');
+      if (kDebugMode) debugPrint('VVollet AI unexpected error: $e');
       return AIResponse.failure(AIException.of(AIErrorKind.unknown, cause: e));
     }
   }

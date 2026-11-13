@@ -1,10 +1,5 @@
+import java.io.FileInputStream
 import java.util.Properties
-
-val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    keystorePropertiesFile.inputStream().use(keystoreProperties::load)
-}
 
 plugins {
     id("com.android.application")
@@ -13,12 +8,22 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releasePropertiesFile = rootProject.file("key.properties")
+val releaseProperties = Properties()
+val releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+if (releasePropertiesFile.exists()) {
+    FileInputStream(releasePropertiesFile).use(releaseProperties::load)
+}
+
 android {
     namespace = "com.taha.safespend"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -28,32 +33,51 @@ android {
     }
 
     defaultConfig {
+        // Must match the Play Console listing. The Kotlin namespace above stays
+        // com.taha.safespend; only the published app identity changed.
         applicationId = "com.vvollet.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+        multiDexEnabled = true
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    signingConfigs {
-        create("release") {
-            val storeFilePath = keystoreProperties.getProperty("storeFile")
-            if (!storeFilePath.isNullOrBlank()) {
-                storeFile = file(storeFilePath)
-            }
-            storePassword = keystoreProperties.getProperty("storePassword")
-            keyAlias = keystoreProperties.getProperty("keyAlias")
-            keyPassword = keystoreProperties.getProperty("keyPassword")
+    // Configure signing before build types reference it. Defining this inside
+    // the release block can leave AGP using its default debug configuration.
+    val releaseSigningConfig = if (releasePropertiesFile.exists()) {
+        signingConfigs.create("release") {
+            keyAlias = releaseProperties.getProperty("keyAlias")
+            keyPassword = releaseProperties.getProperty("keyPassword")
+            storeFile = file(releaseProperties.getProperty("storeFile"))
+            storePassword = releaseProperties.getProperty("storePassword")
         }
+    } else {
+        null
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Store credentials only in ignored key.properties (local) or
+            // generated from encrypted CI secrets. A store build must never
+            // silently fall back to the Android debug certificate.
+            if (releaseTaskRequested && !releasePropertiesFile.exists()) {
+                throw GradleException(
+                    "Release signing is required. Create android/key.properties from " +
+                        "android/key.properties.example or inject it in CI."
+                )
+            }
+            if (releaseSigningConfig != null) {
+                signingConfig = releaseSigningConfig
+            }
         }
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

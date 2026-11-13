@@ -42,7 +42,7 @@ class AIToolExecution {
   });
 }
 
-/// Validates and runs AI tool calls against SafeSpend's own business logic.
+/// Validates and runs AI tool calls against VVollet's own business logic.
 ///
 /// This is the only bridge between the model and user data, and it enforces
 /// three rules:

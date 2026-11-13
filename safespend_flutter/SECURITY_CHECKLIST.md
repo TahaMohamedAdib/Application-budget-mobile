@@ -1,4 +1,4 @@
-# SafeSpend — Production Security Checklist
+# VVollet — Production Security Checklist
 
 Deployment-side actions. Code fixes from the audit are already in the repository; the items here take effect only when applied to the live Supabase project, the build pipeline, or the store listing.
 

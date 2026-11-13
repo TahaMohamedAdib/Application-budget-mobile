@@ -28,6 +28,10 @@
 	<true/>
 	<key>CFBundleURLTypes</key>
 	<array><dict><key>CFBundleURLSchemes</key><array><string>io.supabase.timctayytkcvxvpukvlq</string></array></dict></array>
+	<key>NSCameraUsageDescription</key>
+	<string>VVollet uses the camera only when you choose to take a photo, such as a receipt or profile picture.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>VVollet opens your photo library only when you choose a picture to add, such as a receipt or profile picture.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

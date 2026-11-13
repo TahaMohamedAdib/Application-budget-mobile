@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/settings.dart';
 import '../../providers/app_provider.dart';
+import '../../services/notifications/notification_service.dart';
 import '../../theme/ios_icons.dart';
-import '../../utils/currency_helper.dart';
 import '../../widgets/settings_ui.dart';
 
 class NotificationsScreen extends StatelessWidget {
@@ -24,7 +24,7 @@ class NotificationsScreen extends StatelessWidget {
         // Every category is meaningless while the master switch is off, so the
         // whole list below dims and stops responding rather than silently
         // recording preferences that can't fire.
-        final on = settings.notificationsEnabled ?? true;
+        final on = settings.notificationsEnabled ?? false;
 
         return SettingsScaffold(
           title: s.notifications,
@@ -38,23 +38,52 @@ class NotificationsScreen extends StatelessWidget {
                   label: s.pushNotifications,
                   detail: s.remindersForBills,
                   value: on,
-                  onChanged: (v) =>
-                      update(settings.copyWith(notificationsEnabled: v)),
+                  onChanged: (v) async {
+                    if (!v) {
+                      update(settings.copyWith(notificationsEnabled: false));
+                      return;
+                    }
+                    final granted =
+                        await NotificationService.instance.requestPermission();
+                    if (context.mounted && granted) {
+                      update(settings.copyWith(notificationsEnabled: true));
+                    }
+                  },
                 ),
               ],
             ),
-
             SettingsGroup(
               header: s.alerts,
               children: [
+                SettingsSwitchRow(
+                  icon: IOSIcons.today,
+                  label: s.expenseReminder,
+                  detail: s.expenseReminderDetail,
+                  enabled: on,
+                  value: settings.expenseReminderEnabled,
+                  onChanged: (v) =>
+                      update(settings.copyWith(expenseReminderEnabled: v)),
+                ),
+                if (settings.expenseReminderEnabled)
+                  SettingsRow(
+                    icon: IOSIcons.access_time_rounded,
+                    label: s.reminderTime,
+                    value: _fmt(settings.expenseReminderMinutes),
+                    onTap: on
+                        ? () => _pickTime(
+                            context,
+                            settings.expenseReminderMinutes,
+                            (m) => update(
+                                settings.copyWith(expenseReminderMinutes: m)))
+                        : null,
+                  ),
                 SettingsSwitchRow(
                   icon: IOSIcons.receipt_long_rounded,
                   label: s.billReminders,
                   detail: s.billRemindersDetail,
                   enabled: on,
                   value: settings.billReminders,
-                  onChanged: (v) =>
-                      update(settings.copyWith(billReminders: v)),
+                  onChanged: (v) => update(settings.copyWith(billReminders: v)),
                 ),
                 SettingsSwitchRow(
                   icon: IOSIcons.pie_chart_outline_rounded,
@@ -64,54 +93,8 @@ class NotificationsScreen extends StatelessWidget {
                   value: settings.budgetAlerts,
                   onChanged: (v) => update(settings.copyWith(budgetAlerts: v)),
                 ),
-                SettingsSwitchRow(
-                  icon: IOSIcons.warning_amber_rounded,
-                  label: s.largeTransactionAlerts,
-                  detail: s.largeTransactionAlertsDetail,
-                  enabled: on,
-                  value: settings.largeTransactionAlerts,
-                  onChanged: (v) =>
-                      update(settings.copyWith(largeTransactionAlerts: v)),
-                ),
-                if (settings.largeTransactionAlerts)
-                  SettingsSliderRow(
-                    label: s.alertThreshold,
-                    value: settings.largeTransactionThreshold,
-                    min: 100,
-                    max: 10000,
-                    divisions: 99,
-                    valueLabel:
-                        '${CurrencyHelper.getSymbol(settings.currency)}${settings.largeTransactionThreshold.round()}',
-                    onChanged: on
-                        ? (v) => update(settings.copyWith(
-                            largeTransactionThreshold: (v / 100).round() * 100))
-                        : (_) {},
-                  ),
               ],
             ),
-
-            SettingsGroup(
-              header: s.summaries,
-              children: [
-                SettingsSwitchRow(
-                  icon: IOSIcons.today,
-                  label: s.dailySummary,
-                  detail: s.dailySummaryDetail,
-                  enabled: on,
-                  value: settings.dailySummary,
-                  onChanged: (v) => update(settings.copyWith(dailySummary: v)),
-                ),
-                SettingsSwitchRow(
-                  icon: IOSIcons.calendar_month,
-                  label: s.weeklyReport,
-                  detail: s.weeklyReportDetail,
-                  enabled: on,
-                  value: settings.weeklyReport,
-                  onChanged: (v) => update(settings.copyWith(weeklyReport: v)),
-                ),
-              ],
-            ),
-
             SettingsGroup(
               header: s.quietHours,
               footer: s.quietHoursFooter,
@@ -133,8 +116,8 @@ class NotificationsScreen extends StatelessWidget {
                         ? () => _pickTime(
                               context,
                               settings.quietHoursStart,
-                              (m) => update(
-                                  settings.copyWith(quietHoursStart: m)),
+                              (m) =>
+                                  update(settings.copyWith(quietHoursStart: m)),
                             )
                         : null,
                   ),

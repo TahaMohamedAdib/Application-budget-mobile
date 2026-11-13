@@ -43,6 +43,10 @@ class Settings {
   final String themeMode; // 'light', 'dark', 'system'
   final String locale; // 'en', 'fr', 'ar', 'es', etc.
 
+  /// True only after the person actively chooses a language. Until then the
+  /// app follows the device preference list on launch/resume.
+  final bool localeManuallySelected;
+
   // ── Device-local: appearance ──
   /// Multiplier applied on top of the platform text scale. 0.9 – 1.3.
   final double textScale;
@@ -58,6 +62,12 @@ class Settings {
 
   // ── Device-local: notifications ──
   final bool? notificationsEnabled;
+
+  /// A daily, local-only nudge to record spending. Opt-in by default.
+  final bool expenseReminderEnabled;
+
+  /// Minutes after midnight used by [expenseReminderEnabled].
+  final int expenseReminderMinutes;
   final bool billReminders;
   final bool budgetAlerts;
   final bool dailySummary;
@@ -89,13 +99,16 @@ class Settings {
     this.avatarPath,
     this.themeMode = 'system',
     this.locale = 'en',
+    this.localeManuallySelected = false,
     this.textScale = 1.0,
     this.hideAmounts = false,
     this.decimalPlaces = 2,
     this.compactNumbers = false,
     this.dateFormat = 'dd/MM/yyyy',
     this.firstDayOfWeek = DateTime.monday,
-    this.notificationsEnabled = true,
+    this.notificationsEnabled = false,
+    this.expenseReminderEnabled = false,
+    this.expenseReminderMinutes = 20 * 60,
     this.billReminders = true,
     this.budgetAlerts = true,
     this.dailySummary = false,
@@ -123,6 +136,7 @@ class Settings {
     Object? avatarPath = _notProvided,
     String? themeMode,
     String? locale,
+    bool? localeManuallySelected,
     double? textScale,
     bool? hideAmounts,
     int? decimalPlaces,
@@ -130,6 +144,8 @@ class Settings {
     String? dateFormat,
     int? firstDayOfWeek,
     bool? notificationsEnabled,
+    bool? expenseReminderEnabled,
+    int? expenseReminderMinutes,
     bool? billReminders,
     bool? budgetAlerts,
     bool? dailySummary,
@@ -158,6 +174,8 @@ class Settings {
           : avatarPath as String?,
       themeMode: themeMode ?? this.themeMode,
       locale: locale ?? this.locale,
+      localeManuallySelected:
+          localeManuallySelected ?? this.localeManuallySelected,
       textScale: textScale ?? this.textScale,
       hideAmounts: hideAmounts ?? this.hideAmounts,
       decimalPlaces: decimalPlaces ?? this.decimalPlaces,
@@ -165,6 +183,10 @@ class Settings {
       dateFormat: dateFormat ?? this.dateFormat,
       firstDayOfWeek: firstDayOfWeek ?? this.firstDayOfWeek,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      expenseReminderEnabled:
+          expenseReminderEnabled ?? this.expenseReminderEnabled,
+      expenseReminderMinutes:
+          expenseReminderMinutes ?? this.expenseReminderMinutes,
       billReminders: billReminders ?? this.billReminders,
       budgetAlerts: budgetAlerts ?? this.budgetAlerts,
       dailySummary: dailySummary ?? this.dailySummary,
@@ -203,6 +225,12 @@ class Settings {
       isDarkMode: remote.isDarkMode,
       netWorthScope: remote.netWorthScope,
       selectedAccountId: remote.selectedAccountId,
+      // Only an explicit remote choice travels across devices. An automatic
+      // value represents that other device's language list and must never
+      // overwrite this device's own detected language.
+      locale: remote.localeManuallySelected ? remote.locale : locale,
+      localeManuallySelected:
+          remote.localeManuallySelected ? true : localeManuallySelected,
       // Carries the profile picture back after a reinstall: the server row is
       // the only place it survives, since local storage is gone with the app.
       avatarPath: avatar,
@@ -219,7 +247,10 @@ class Settings {
       'selectedAccountId': selectedAccountId,
       'avatarPath': avatarPath,
       'notificationsEnabled': notificationsEnabled,
+      'expenseReminderEnabled': expenseReminderEnabled,
+      'expenseReminderMinutes': expenseReminderMinutes,
       'locale': locale,
+      'localeManuallySelected': localeManuallySelected,
       'textScale': textScale,
       'hideAmounts': hideAmounts,
       'decimalPlaces': decimalPlaces,
@@ -254,8 +285,17 @@ class Settings {
       netWorthScope: json['netWorthScope'] ?? 'all',
       selectedAccountId: json['selectedAccountId'],
       avatarPath: json['avatarPath'],
-      notificationsEnabled: json['notificationsEnabled'] ?? true,
+      // Notification delivery was not wired in old builds. Do not silently
+      // opt an existing person into a new OS permission/reminder system.
+      notificationsEnabled: json['notificationsEnabled'] ?? false,
+      expenseReminderEnabled: json['expenseReminderEnabled'] ?? false,
+      expenseReminderMinutes:
+          (json['expenseReminderMinutes'] as num?)?.toInt() ?? 20 * 60,
       locale: json['locale'] ?? 'en',
+      // Old settings have no intent marker, so they correctly opt into device
+      // detection rather than treating an inherited English default as a
+      // deliberate choice.
+      localeManuallySelected: json['localeManuallySelected'] ?? false,
       textScale: (json['textScale'] as num?)?.toDouble() ?? 1.0,
       hideAmounts: json['hideAmounts'] ?? false,
       decimalPlaces: (json['decimalPlaces'] as num?)?.toInt() ?? 2,
@@ -299,7 +339,10 @@ class Settings {
           selectedAccountId == other.selectedAccountId &&
           avatarPath == other.avatarPath &&
           notificationsEnabled == other.notificationsEnabled &&
+          expenseReminderEnabled == other.expenseReminderEnabled &&
+          expenseReminderMinutes == other.expenseReminderMinutes &&
           locale == other.locale &&
+          localeManuallySelected == other.localeManuallySelected &&
           textScale == other.textScale &&
           hideAmounts == other.hideAmounts &&
           decimalPlaces == other.decimalPlaces &&
@@ -331,7 +374,10 @@ class Settings {
         selectedAccountId,
         avatarPath,
         notificationsEnabled,
+        expenseReminderEnabled,
+        expenseReminderMinutes,
         locale,
+        localeManuallySelected,
         textScale,
         hideAmounts,
         decimalPlaces,

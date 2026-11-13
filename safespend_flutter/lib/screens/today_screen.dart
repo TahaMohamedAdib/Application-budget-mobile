@@ -89,17 +89,17 @@ class HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Row(
                       children: [
-                        Expanded(
+                        Flexible(
                           child: AccountPickerField(
-                          provider: provider,
-                          label: s.selectAccount,
-                          value: provider.selectedAccountId,
-                          includeCashOnHand: false,
-                          includeAllAccounts: true,
-                          allAccountsLabel: s.allAccounts,
-                          onChanged: provider.setSelectedAccount,
-                          triggerBuilder: (context, selected, open) =>
-                              GestureDetector(
+                            provider: provider,
+                            label: s.selectAccount,
+                            value: provider.selectedAccountId,
+                            includeCashOnHand: false,
+                            includeAllAccounts: true,
+                            allAccountsLabel: s.allAccounts,
+                            onChanged: provider.setSelectedAccount,
+                            triggerBuilder: (context, selected, open) =>
+                                GestureDetector(
                             onTap: open,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
@@ -122,7 +122,7 @@ class HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   _buildHeaderAccountIcon(provider),
                                   const SizedBox(width: 8),
-                                  Expanded(
+                                  Flexible(
                                     child: Text(
                                       _getSelectedAccountName(provider, s),
                                       maxLines: 1,
@@ -149,6 +149,8 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                           ),
                         ),
+                        ),
+                        const Spacer(),
                         FeatureHelpButton(
                           title: s.tourHomeTitle,
                           description: s.tourHomeBody,
@@ -273,45 +275,69 @@ class HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // ── Header: title + balance left, time pills right ──
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
+                            // The fixed-width selector cannot coexist with a
+                            // long currency amount in the 310px of content a
+                            // 390px phone leaves after card padding. Stack it
+                            // below on compact widths instead of squeezing the
+                            // amount past its readable minimum size.
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final balance = Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      s.balance,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white60
+                                            : const Color(0xFF686C72),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 7),
+                                    MoneyAmount(
+                                      key: const ValueKey(
+                                          'home-balance-evolution-amount'),
+                                      value: _getAccountBalance(provider),
+                                      formatter: currencyFormat,
+                                      fontSize: 28,
+                                      minFontSize: 16,
+                                      allowCompact: true,
+                                      currencyInline: true,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF1C1C1E),
+                                    ),
+                                  ],
+                                );
+                                final selector =
+                                    _buildBalanceRangeSelector(isDark, s);
+                                if (constraints.maxWidth < 340) {
+                                  return Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        s.balance,
-                                        style: TextStyle(
-                                          color: isDark
-                                              ? Colors.white60
-                                              : const Color(0xFF686C72),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.2,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 7),
-                                      MoneyAmount(
-                                        key: const ValueKey(
-                                            'home-balance-evolution-amount'),
-                                        value: _getAccountBalance(provider),
-                                        formatter: currencyFormat,
-                                        fontSize: 28,
-                                        minFontSize: 16,
-                                        allowCompact: true,
-                                        currencyInline: true,
-                                        color: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF1C1C1E),
+                                      balance,
+                                      const SizedBox(height: 14),
+                                      Align(
+                                        alignment:
+                                            AlignmentDirectional.centerEnd,
+                                        child: selector,
                                       ),
                                     ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                _buildBalanceRangeSelector(isDark, s),
-                              ],
+                                  );
+                                }
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: balance),
+                                    const SizedBox(width: 12),
+                                    selector,
+                                  ],
+                                );
+                              },
                             ),
                             const SizedBox(height: 20),
                             RepaintBoundary(
@@ -1423,10 +1449,8 @@ class HomeScreenState extends State<HomeScreen> {
                         width: 44,
                         height: 44,
                         borderRadius: BorderRadius.circular(14),
-                        placeholder:
-                            AppIcon(icon, color: iconColor, size: 28),
-                        errorWidget:
-                            AppIcon(icon, color: iconColor, size: 28),
+                        placeholder: AppIcon(icon, color: iconColor, size: 28),
+                        errorWidget: AppIcon(icon, color: iconColor, size: 28),
                       )
                     : AppIcon(icon, color: iconColor, size: 28),
               ),
@@ -1951,8 +1975,8 @@ class HomeScreenState extends State<HomeScreen> {
                     width: double.infinity,
                     height: 180,
                     borderRadius: BorderRadius.circular(16),
-                    errorWidget: const Icon(IOSIcons.broken_image_rounded,
-                        size: 40),
+                    errorWidget:
+                        const Icon(IOSIcons.broken_image_rounded, size: 40),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -1983,8 +2007,7 @@ class HomeScreenState extends State<HomeScreen> {
                                       _getTransactionTypeLabel(t.type))),
                               actions: [
                                 TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(dCtx, false),
+                                    onPressed: () => Navigator.pop(dCtx, false),
                                     child: Text(s.cancel)),
                                 TextButton(
                                   onPressed: () {
@@ -2009,7 +2032,8 @@ class HomeScreenState extends State<HomeScreen> {
                         child: ElevatedButton.icon(
                           onPressed: () {
                             Navigator.pop(ctx);
-                            showTransactionSheet(context, initialTransaction: t);
+                            showTransactionSheet(context,
+                                initialTransaction: t);
                           },
                           icon: const Icon(IOSIcons.edit_rounded, size: 18),
                           label: Text(s.editTransaction,
