@@ -122,9 +122,10 @@ jobs:
           set -euo pipefail
           [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]
           flutter build appbundle --release --build-number "$BUILD_NUMBER" --build-name "$BUILD_NAME"
-      - name: Verify package, version code, and signing certificate
+      - name: Verify package, version code, version name, and signing certificate
         env:
           BUILD_NUMBER: ${{ inputs.build_number }}
+          BUILD_NAME: ${{ inputs.build_name }}
           EXPECTED_SHA256: 45:97:75:F0:57:08:FC:E9:D6:09:4D:B3:A7:85:CD:99:E4:83:E7:3B:02:EF:87:AD:CF:5A:32:1E:02:B2:D5:A7
         run: |
           set -euo pipefail
@@ -139,10 +140,12 @@ jobs:
           manifest="$(java -jar /tmp/bundletool.jar dump manifest --bundle="$bundle" --module=base)"
           grep -q 'package="com.vvollet.app"' <<< "$manifest"
           grep -q "android:versionCode=\"$BUILD_NUMBER\"" <<< "$manifest"
+          grep -q "android:versionName=\"$BUILD_NAME\"" <<< "$manifest"
           {
             echo "### Signed AAB validation"
             echo "- Package: com.vvollet.app"
             echo "- Version code: $BUILD_NUMBER"
+            echo "- Version name: $BUILD_NAME"
             echo "- Upload certificate SHA-256: $actual_sha256"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Remove signing material

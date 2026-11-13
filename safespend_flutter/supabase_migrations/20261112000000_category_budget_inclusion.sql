@@ -16,6 +16,7 @@ create table if not exists public.category_initialization (
   created_at timestamptz not null default now()
 );
 alter table public.category_initialization enable row level security;
+drop policy if exists "users read own category initialization" on public.category_initialization;
 create policy "users read own category initialization" on public.category_initialization for select using (auth.uid() = user_id);
 insert into public.category_initialization (user_id, initialized_at)
 select id, now() from auth.users on conflict (user_id) do nothing;
