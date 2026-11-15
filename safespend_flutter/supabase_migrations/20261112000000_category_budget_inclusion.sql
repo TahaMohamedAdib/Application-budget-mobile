@@ -43,5 +43,6 @@ begin
   update public.category_initialization set initialized_at = now() where user_id = v_user;
   return true;
 end $$;
-revoke all on function public.initialize_default_categories(jsonb) from public;
+-- Supabase can grant EXECUTE directly to anon in addition to PUBLIC.
+revoke all on function public.initialize_default_categories(jsonb) from public, anon;
 grant execute on function public.initialize_default_categories(jsonb) to authenticated;

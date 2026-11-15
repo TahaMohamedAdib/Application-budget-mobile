@@ -1,6 +1,6 @@
 # VVollet app map
 
-Last updated: 2026-11-08
+Last updated: 2026-11-15
 
 This living product and code map describes the current working tree, including existing uncommitted changes. The initial baseline comes from source inspection, not a full runtime or deployment check. Update it at the end of app tasks following [AGENTS.md](../AGENTS.md).
 
@@ -115,6 +115,8 @@ Additional implementations exist in [plan_screen.dart](../lib/screens/plan_scree
 - Selected account state is shared across screens. Aggregate values are cached and invalidated through provider changes.
 
 ## Persistence and integrations
+
+Category initialization uses the authenticated Supabase `initialize_default_categories(jsonb)` RPC. The [category inclusion migration](../supabase_migrations/20261112000000_category_budget_inclusion.sql) explicitly revokes execution from `PUBLIC` and `anon`. Staging verified those effective permissions after a manual revoke. Replay of the checked-in change is pending.
 
 ```mermaid
 flowchart LR
@@ -236,6 +238,7 @@ Append one concise entry per relevant completed task. Keep the sections above cu
 
 | Date | Outcome | Affected areas/files | Validation and limitations |
 | --- | --- | --- | --- |
+| 2026-11-15 | Revoked anonymous RPC execution in the category inclusion migration and updated the staging evidence and production plan. | `supabase_migrations/20261112000000_category_budget_inclusion.sql`, `docs/SUPABASE_STAGING_VALIDATION_RESULTS.md`, `docs/SUPABASE_PRODUCTION_MIGRATION_PLAN.md` | Staging evidence covers the manual revoke. Checked-in migration replay and restore rehearsal are pending. |
 | 2026-11-12 | Stabilized the tester-feedback release work: constrained the Home account selector so long account names cannot overflow compact screens; made the SQLite migration helper honor its requested target version; added fresh-schema, v1-to-v2, and inclusion-persistence regression tests; and changed Android release signing from the debug key to the existing ignored upload-key configuration. Added the Supabase staging/rollback runbook. | `lib/screens/today_screen.dart`, `lib/data/local_database.dart`, `test/category_budget_migration_test.dart`, `android/app/build.gradle.kts`, `docs/SUPABASE_CATEGORY_RELEASE_RUNBOOK.md` | Full `flutter test`: 2,294 passed, 0 failed (JSON reporter also emitted 2,344 successful events including framework setup/teardown). Full analyzer: 0 errors, 43 warnings, 376 info diagnostics; the migration helper itself has no analyzer issues. Local migration and Home overflow tests pass. Release AAB build is blocked before signing by Gradle 9.7.1/Android Gradle Plugin incompatibility. No production migration, Supabase staging/RLS concurrency test, live OAuth/device callback, or recovery-email delivery test was run. |
 | 2026-09-11 | Created the living app map and persistent maintenance instructions; refreshed the outdated README overview. | `docs/APP_MAP.md`, `AGENTS.md`, `README.md` | Inspected source, navigation references, models, services, and test inventory. Checked documentation file links. Documentation-only change; no Flutter tests or live services run. |
 | 2026-09-11 | Made large amounts on the Wealth screen fit their layout: added the shared `WealthAmount` figure, applied it to the net-worth hero, the three gold stat columns and the breakdown rows, reused it for the Home hero and the wealth overview card, routed the hand-built `+`/`-` stats through `MoneyFormat.signed`, and extended compact formatting to trillions with a rounding carry. | `lib/widgets/wealth_ui.dart`, `lib/screens/wealth_screen.dart`, `lib/screens/today_screen.dart`, `lib/utils/money_format.dart`, `test/wealth_ui_test.dart`, `test/money_format_test.dart` | `flutter test` on the money-format, wealth-UI and balance-series suites: 67 passed, 0 failed. `flutter analyze` on the four touched files: 48 issues, all matching the pre-change baseline (`withOpacity` deprecations and unused locals); none in the new code. Full `feature_screens_smoke_test.dart`: 767 passed, 1 failed — the pre-existing `de`-locale portfolio overflow noted under Known boundaries, reproduced with these changes stashed. Not run: the app itself, cloud sync, or a device at a real text scale. |
