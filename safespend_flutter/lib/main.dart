@@ -140,7 +140,9 @@ class MyApp extends StatelessWidget {
       if (uid != null) {
         // Schedule after the current frame to avoid calling setState during build
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          provider.loadFromSupabase(uid);
+          if (context.mounted && !auth.loading && auth.userId == uid) {
+            provider.loadFromSupabase(uid);
+          }
         });
       }
       return const _SplashScreen();
@@ -419,17 +421,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
     _menuAnimation = CurvedAnimation(
         parent: _menuAnimController, curve: Curves.easeOutCubic);
-
-    // Load user data from Supabase on mount (only if not already loaded this session)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final appProvider = Provider.of<AppProvider>(context, listen: false);
-      if (auth.isAuthenticated &&
-          auth.userId != null &&
-          !appProvider.supabaseDataLoaded) {
-        appProvider.loadFromSupabase(auth.userId!);
-      }
-    });
 
     // Check every minute for subscriptions that have become due
     _subscriptionTimer = Timer.periodic(const Duration(minutes: 1), (_) {

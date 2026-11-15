@@ -8,6 +8,11 @@ class SupabaseConfig {
   static String get authCallbackUrl => EnvConfig.supabaseAuthCallback;
 
   static bool isAvailable = false;
+  static LocalStorage? _sessionStorage;
+
+  static Future<void> clearPersistedSession() async {
+    await _sessionStorage?.removePersistedSession();
+  }
 
   static SupabaseClient? get client {
     if (!isAvailable) return null;
@@ -25,13 +30,20 @@ class SupabaseConfig {
       return;
     }
     try {
+      // Keep the SDK's existing per-project key so upgrades restore sessions.
+      final sessionStorage = SharedPreferencesLocalStorage(
+        persistSessionKey:
+            'sb-${Uri.parse(supabaseUrl).host.split('.').first}-auth-token',
+      );
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
-        authOptions: const FlutterAuthClientOptions(
+        authOptions: FlutterAuthClientOptions(
           authFlowType: AuthFlowType.pkce,
+          localStorage: sessionStorage,
         ),
       );
+      _sessionStorage = sessionStorage;
       isAvailable = true;
       if (kDebugMode) debugPrint('[SupabaseConfig] initialized OK — url=$supabaseUrl');
     } catch (e) {

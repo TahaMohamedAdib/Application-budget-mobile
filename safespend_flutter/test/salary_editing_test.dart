@@ -121,6 +121,39 @@ void main() {
       expect(provider.settings.monthlyIncome, 2000);
     });
 
+    test(
+      'an opening balance includes past paydays and pays the next one once',
+      () async {
+        final provider = await providerWith(
+          bankAccount(
+            salary: 1200,
+            day: 1,
+          ).copyWith(balance: 5000, addedAt: '2026-11-15T12:00:00'),
+        );
+
+        provider.processSalaries(now: DateTime(2026, 11, 15));
+        expect(provider.accounts.single.balance, 5000);
+        expect(provider.transactions, isEmpty);
+
+        provider.processSalaries(now: DateTime(2026, 12, 1));
+        provider.processSalaries(now: DateTime(2026, 12, 1));
+        expect(provider.accounts.single.balance, 6200);
+        expect(provider.transactions.single.date, '2026-12-01');
+      },
+    );
+
+    test('setup on payday keeps the opening balance for that day', () async {
+      final provider = await providerWith(
+        bankAccount(
+          salary: 1200,
+          day: 15,
+        ).copyWith(balance: 5000, addedAt: '2026-11-15T12:00:00'),
+      );
+      provider.processSalaries(now: DateTime(2026, 11, 15));
+      expect(provider.accounts.single.balance, 5000);
+      expect(provider.transactions, isEmpty);
+    });
+
     test('annualises a weekly wage into monthly income', () async {
       final provider = await providerWith(bankAccount());
 

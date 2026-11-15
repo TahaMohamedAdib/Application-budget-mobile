@@ -90,6 +90,7 @@ class AppProvider with ChangeNotifier {
   bool _localDataLoaded = false;
   bool _supabaseDataLoaded = false;
   bool _supabaseLoadInProgress = false;
+  int _loadGeneration = 0;
 
   bool _setupComplete = false;
   bool _hasSeenAppTour = false;
@@ -199,7 +200,8 @@ class AppProvider with ChangeNotifier {
   Future<bool> hasUnsyncedChanges() async {
     final uid = _userId;
     if (uid == null) return false;
-    return _repository.hasUnsyncedChanges(uid);
+    return await _repository.hasUnsyncedChanges(uid) ||
+        await SupabaseSyncService.hasPendingOperationsForUser(uid);
   }
 
   /// Prepares the local store for [userId] and starts background sync.
@@ -230,12 +232,15 @@ class AppProvider with ChangeNotifier {
     await _syncEngine.retryFailed();
   }
 
-  Future<void> initializeLocalStore(String userId) async {
+  Future<void> _initializeLocalStore(String userId, int generation) async {
     try {
       final result = await _legacyMigration.migrateIfNeeded(userId);
+      if (generation != _loadGeneration) return;
       if (kDebugMode && result.migrated) {
-        debugPrint('[AppProvider] migrated ${result.totalRecords} records '
-            'into the local database');
+        debugPrint(
+          '[AppProvider] migrated ${result.totalRecords} records '
+          'into the local database',
+        );
       }
       _repositoryReady = true;
       await _syncEngine.start(userId);
@@ -244,8 +249,10 @@ class AppProvider with ChangeNotifier {
       // using the SharedPreferences path it has always used.
       _repositoryReady = false;
       if (kDebugMode) {
-        debugPrint('[AppProvider] local store unavailable, '
-            'continuing on the legacy cache: $e');
+        debugPrint(
+          '[AppProvider] local store unavailable, '
+          'continuing on the legacy cache: $e',
+        );
       }
     }
   }
@@ -284,7 +291,7 @@ class AppProvider with ChangeNotifier {
   ///
   /// Returns false when there is nothing stored yet, so the caller can fall
   /// back rather than show an empty app.
-  Future<bool> _loadFromRepository(String userId) async {
+  Future<bool> _loadFromRepository(String userId, int generation) async {
     if (!_repositoryReady) return false;
     try {
       final results = await Future.wait([
@@ -295,7 +302,9 @@ class AppProvider with ChangeNotifier {
         _repository.categories(userId),
         _repository.recurringRules(userId),
         _repository.darets(userId),
+        _repository.settings(userId),
       ]);
+      if (generation != _loadGeneration) return false;
 
       final accounts = results[0] as List<Account>;
       final transactions = results[1] as List<Transaction>;
@@ -309,7 +318,7 @@ class AppProvider with ChangeNotifier {
       _recurringRules = results[5] as List<RecurringRule>;
       _darets = results[6] as List<Daret>;
 
-      final storedSettings = await _repository.settings(userId);
+      final storedSettings = results[7] as Map<String, dynamic>?;
       if (storedSettings != null) {
         _settings = Settings.fromJson(storedSettings);
       }
@@ -323,7 +332,8 @@ class AppProvider with ChangeNotifier {
   /// Load ALL data from Supabase for the authenticated user.
   /// Falls back to SharedPreferences if not authenticated or on error.
   Future<void> loadFromSupabase(String userId) async {
-    if (_supabaseLoadInProgress) return;
+    if (_supabaseLoadInProgress || _supabaseDataLoaded) return;
+    final generation = _loadGeneration;
     _supabaseLoadInProgress = true;
     _isLoading = true;
     notifyListeners();
@@ -331,17 +341,19 @@ class AppProvider with ChangeNotifier {
     try {
       // Bring up the local store before anything else: it is what the app
       // reads from, and the one-time import from the old blobs happens here.
-      await initializeLocalStore(userId);
+      await _initializeLocalStore(userId, generation);
+      if (generation != _loadGeneration) return;
 
-      // Serve local data immediately. A returning user sees their accounts at
-      // once rather than a spinner, and an offline launch shows the real app
-      // instead of an empty one. The server pull below refines this.
-      if (await _loadFromRepository(userId)) {
+      // Stage the cached data for offline use while waiting for the cloud.
+      final loadedFromRepository = await _loadFromRepository(
+        userId,
+        generation,
+      );
+      if (generation != _loadGeneration) return;
+      if (loadedFromRepository) {
         _isLoading = false;
         _localDataLoaded = true;
         notifyListeners();
-        processSalaries();
-        processSubscriptions();
       }
 
       // Pending offline work no longer skips the pull. It used to, because a
@@ -351,7 +363,16 @@ class AppProvider with ChangeNotifier {
       unawaited(_syncEngine.sync());
 
       final data = await SupabaseSyncService.loadAllUserData(userId);
+      if (generation != _loadGeneration) return;
 
+      final categories = data['categories'] as List<Category>;
+      final categoryDefaults = categories.isEmpty &&
+              await SupabaseSyncService.initializeDefaultCategories(
+                defaultCategories,
+              )
+          ? await SupabaseSyncService.loadCategories(userId)
+          : categories;
+      if (generation != _loadGeneration) return;
       if (data['settings'] != null) {
         _settings = _settings.withRemoteProfile(data['settings'] as Settings);
       }
@@ -360,12 +381,7 @@ class AppProvider with ChangeNotifier {
       _goals = data['goals'] as List<Goal>;
       _recurringRules = data['recurringRules'] as List<RecurringRule>;
       _holdings = data['holdings'] as List<Holding>;
-      _categories = data['categories'] as List<Category>;
-      if (_categories.isEmpty &&
-          await SupabaseSyncService.initializeDefaultCategories(
-              defaultCategories)) {
-        _categories = await SupabaseSyncService.loadCategories(userId);
-      }
+      _categories = categoryDefaults;
 
       _isLoading = false;
       _supabaseDataLoaded = true;
@@ -375,7 +391,9 @@ class AppProvider with ChangeNotifier {
       if (_accounts.isNotEmpty && !_setupComplete) {
         _setupComplete = true;
         final prefs = await SharedPreferences.getInstance();
+        if (generation != _loadGeneration) return;
         await prefs.setBool('setup_complete', true);
+        if (generation != _loadGeneration) return;
       }
 
       notifyListeners();
@@ -388,9 +406,11 @@ class AppProvider with ChangeNotifier {
       // Flush any queued sync operations that failed while offline
       SupabaseSyncService.flushRetryQueue();
     } catch (e) {
+      if (generation != _loadGeneration) return;
       if (kDebugMode)
         debugPrint(
-            '[AppProvider] Error loading from Supabase, falling back to local: $e');
+          '[AppProvider] Error loading from Supabase, falling back to local: $e',
+        );
       _supabaseDataLoaded =
           true; // mark as done even on error to avoid retry loops
       _supabaseLoadInProgress = false;
@@ -407,6 +427,8 @@ class AppProvider with ChangeNotifier {
     // Its caller therefore supplies the identity captured while it was still
     // authenticated; ordinary sign-out continues to resolve the current one.
     final signingOutUserId = userId ?? _userId;
+    _loadGeneration++;
+    _saveDebounce?.cancel();
     _accounts = [];
     _transactions = [];
     _categories = [];
@@ -415,6 +437,7 @@ class AppProvider with ChangeNotifier {
     _goals = [];
     _darets = [];
     _settings = Settings();
+    _selectedAccountId = null;
     _isLoading = false;
     _supabaseDataLoaded = false;
     _setupComplete = false;
@@ -471,6 +494,7 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   Future<void> loadData() async {
+    final generation = _loadGeneration;
     try {
       final prefs = await SharedPreferences.getInstance();
 
@@ -488,6 +512,7 @@ class AppProvider with ChangeNotifier {
 
       // Parse JSON off the main thread via isolate
       final parsed = await compute(_parseLocalData, rawJson);
+      if (generation != _loadGeneration) return;
 
       if (parsed.containsKey('accounts'))
         _accounts = parsed['accounts'] as List<Account>;
@@ -517,12 +542,16 @@ class AppProvider with ChangeNotifier {
       if (kDebugMode)
         debugPrint('[AppProvider] Critical error in loadData: $e');
     } finally {
-      _isLoading = false;
-      _localDataLoaded = true;
-      notifyListeners();
-      processSalaries();
-      processSubscriptions();
-      _refreshNotifications();
+      if (generation == _loadGeneration) {
+        _isLoading = false;
+        _localDataLoaded = true;
+        notifyListeners();
+        if (_supabaseDataLoaded || _userId == null) {
+          processSalaries();
+          processSubscriptions();
+        }
+        _refreshNotifications();
+      }
     }
   }
 
@@ -609,7 +638,7 @@ class AppProvider with ChangeNotifier {
   // ACCOUNT METHODS
   // ============================================
 
-  void addAccount(Account account) {
+  Future<void> addAccount(Account account) async {
     final normalized = account.addedAt == null
         ? account.copyWith(addedAt: DateTime.now().toIso8601String())
         : account;
@@ -618,10 +647,10 @@ class AppProvider with ChangeNotifier {
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveAccount(uid, normalized);
+    if (uid != null) await SupabaseSyncService.saveAccount(uid, normalized);
   }
 
-  void updateAccount(Account account) {
+  Future<void> updateAccount(Account account) async {
     final index = _accounts.indexWhere((a) => a.id == account.id);
     if (index != -1) {
       final normalized = account.copyWith(
@@ -634,7 +663,7 @@ class AppProvider with ChangeNotifier {
       _saveToLocal();
       notifyListeners();
       final uid = _userId;
-      if (uid != null) SupabaseSyncService.saveAccount(uid, normalized);
+      if (uid != null) await SupabaseSyncService.saveAccount(uid, normalized);
     }
   }
 
@@ -734,22 +763,20 @@ class AppProvider with ChangeNotifier {
   /// who opens the app after a month away gets four dated salary transactions,
   /// so the balance history stays truthful.
   ///
-  /// The first run for an account has no `lastSalaryDate` to work from. It
-  /// credits only the most recent due date rather than back-filling from the
-  /// beginning of time — inventing months of income the user never told us
-  /// about would be worse than missing one packet.
-  void processSalaries() {
-    final today = DateTime.now();
+  /// With no prior salary credit, the opening balance anchors the schedule.
+  /// Only paydays after the account was added are eligible.
+  void processSalaries({DateTime? now}) {
+    final today = now ?? DateTime.now();
     bool changed = false;
 
     for (int i = 0; i < _accounts.length; i++) {
       final acc = _accounts[i];
       if (!acc.hasSalarySchedule) continue;
 
-      var due = acc.payDatesBetween(_lastSalaryBoundary(acc), today);
+      var due = acc.payDatesBetween(_lastSalaryBoundary(acc, today), today);
       if (due.isEmpty) continue;
 
-      // No history yet — take the latest due date only.
+      // Only one payday is inferred before the first tracked credit.
       if (acc.lastSalaryDate == null) due = [due.last];
 
       var account = acc;
@@ -785,27 +812,34 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  /// The date after which pay packets are still owed.
-  ///
-  /// Handles both storage formats of `lastSalaryDate`: the current
-  /// 'yyyy-MM-dd', and the legacy 'yyyy-MM' that meant "paid for this month",
-  /// which resolves to the last day of that month.
-  DateTime _lastSalaryBoundary(Account acc) {
+  DateTime? _openingDate(Account account) {
+    final date = account.addedAt;
+    // Preserve the account's recorded calendar day even on a device in a
+    // different time zone. PostgreSQL may return an offset or a UTC suffix.
+    if (date == null || date.length < 10) return null;
+    return DateTime.tryParse(date.substring(0, 10));
+  }
+
+  /// The date after which pay packets are still owed. The legacy 'yyyy-MM'
+  /// salary marker means the entire month has already been paid.
+  DateTime _lastSalaryBoundary(Account acc, DateTime today) {
     final raw = acc.lastSalaryDate;
     if (raw == null) {
-      // Look back one full cycle so exactly one packet can be due.
+      final openingDate = _openingDate(acc);
+      if (openingDate != null) return openingDate;
+      // A legacy account may lack an opening date.
       final lookback = switch (acc.effectiveSalaryFrequency) {
         'weekly' => 8,
         'biweekly' => 15,
         _ => 32,
       };
-      return DateTime.now().subtract(Duration(days: lookback));
+      return today.subtract(Duration(days: lookback));
     }
     if (raw.length == 7) {
       final month = DateTime.tryParse('$raw-01');
       if (month != null) return DateTime(month.year, month.month + 1, 0);
     }
-    return DateTime.tryParse(raw) ?? DateTime.now();
+    return DateTime.tryParse(raw) ?? today;
   }
 
   static const String cashOnHandId = 'cash_on_hand';
@@ -1860,13 +1894,15 @@ class AppProvider with ChangeNotifier {
     final index = _accounts.indexWhere((a) => a.id == accountId);
     if (index == -1) return;
 
+    final previous = _accounts[index];
     _accounts[index] = amount == null || amount <= 0
-        ? _accounts[index].withoutSalary()
-        : _accounts[index].withSalary(
-            amount: amount,
-            frequency: frequency,
-            day: day,
-          );
+        ? previous.withoutSalary()
+        : previous.withSalary(amount: amount, frequency: frequency, day: day);
+    if (_accounts[index].hasSalarySchedule && !previous.hasSalarySchedule) {
+      _accounts[index] = _accounts[index].copyWith(
+        lastSalaryDate: DateTime.now().toIso8601String().substring(0, 10),
+      );
+    }
 
     _settings = _settings.copyWith(monthlyIncome: monthlyIncomeFromSalaries);
 
@@ -1880,13 +1916,13 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  void updateSettings(Settings settings) {
+  Future<void> updateSettings(Settings settings) async {
     _settings = settings;
     _saveToLocal();
     notifyListeners();
     _refreshNotifications();
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveProfile(uid, settings);
+    if (uid != null) await SupabaseSyncService.saveProfile(uid, settings);
   }
 
   /// Stores [localPath] as the user's profile picture and uploads it.
