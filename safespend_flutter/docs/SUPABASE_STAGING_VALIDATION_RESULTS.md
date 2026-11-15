@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-**Status:** CONDITIONAL GO — with identified limitations
+**Status:** Staging evidence recorded. Production deployment pending.
 
 Migrations 1–8 applied successfully to staging. Core RPC security, concurrency, ownership isolation, and backward compatibility gates passed. Exclusion constraint works. **Critical fix applied:** revoked unexpected anon EXECUTE grant on the RPC.
 
@@ -17,10 +17,8 @@ Migrations 1–8 applied successfully to staging. Core RPC security, concurrency
 - Excluded category balance verification: partial evidence only (constraint works, but before/after balance delta and monthly-budget-total exclusion not demonstrated with live client behavior)
 - Older client (1.0.0) backward compatibility: NOT TESTED (requires signed APK installation)
 
-**Production readiness:** Proceed with production migration under these conditions:
-1. Accept the above test gaps as acceptable risk (RLS policies verified, constraint enforced, migration is additive)
-2. Monitor first production users closely for unexpected RPC behavior or balance calculation issues
-3. Have rollback procedure ready (revoke RPC grants, disable trigger — do NOT drop columns while clients active)
+**Production readiness:** See the [production migration plan](SUPABASE_PRODUCTION_MIGRATION_PLAN.md) for migration history verification, backup and restore rehearsal, and deployment review.
+
 
 ---
 
@@ -103,7 +101,7 @@ proacl: {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_ro
 
 **Issue identified:** Anon had EXECUTE grant despite HTTP 400 response. The 400 came from the function's internal `auth.uid()` check (raises 'authentication required'), not from a missing grant. This contradicts runbook requirement: `anon_can_execute` must be **false**.
 
-**Remediation:**
+**Remediation applied manually in staging:**
 ```sql
 REVOKE EXECUTE ON FUNCTION public.initialize_default_categories(jsonb) FROM anon;
 ```
@@ -114,6 +112,8 @@ anon_can_execute: FALSE ✅
 authenticated_can_execute: true ✅
 proacl: {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
 ```
+
+The repository migration now explicitly revokes both `PUBLIC` and `anon`. The results above verify the manual staging change. A baseline replay of the checked-in migration is pending.
 
 #### Function Arguments
 
@@ -389,16 +389,7 @@ select count(*) as existing_users from auth.users;
 
 ### For Production Migration
 
-1. **Apply migrations 1–8 in order** with the same fail-closed guards (`test "$PROD_REF" != "dqhoqarozpgiuaqwxrcj"`).
-2. **Take a managed backup** before starting. Verify backup restore procedure in staging.
-3. **Run pre-deployment checks** (schema verification, user count) and save output with the release.
-4. **After migration, verify anon grant** immediately:
-   ```sql
-   select has_function_privilege('anon', 'public.initialize_default_categories(jsonb)'::regprocedure, 'EXECUTE');
-   -- Must return FALSE. If TRUE, revoke immediately.
-   ```
-5. **Monitor first production calls** to the RPC for unexpected behavior (duplicate seeding, authorization failures).
-6. **Verify balance calculations** after 1.0.1+3 clients sync transactions with excluded categories. Watch for user reports of incorrect budget totals.
+Use the [production migration plan](SUPABASE_PRODUCTION_MIGRATION_PLAN.md). Reconcile the production migration history and current schema before selecting any SQL to apply. Rehearse restoring a backup into a disposable target and verify the checked-in migration there, including effective EXECUTE permissions for both `anon` and `authenticated`.
 
 ### Recovery Procedure
 
@@ -413,34 +404,11 @@ If deployment must be halted:
 
 ## GO/NO-GO Recommendation
 
-**Recommendation:** CONDITIONAL GO
+**Recommendation:** Hold production deployment pending the backup and restore rehearsal, migration replay and review of the documented test gaps.
 
-**Rationale:**
-- Core security gates (RLS, RPC authorization, concurrency, constraint) passed with high confidence.
-- Critical anon grant issue identified and fixed in staging; production must verify immediately post-migration.
-- Test gaps (HTTP bidirectional, offline sync, older client, balance delta) are acceptable risks given:
-  - Migration is additive (no breaking changes)
-  - RLS verified at SQL layer (PostgREST respects RLS)
-  - Constraint enforcement confirmed
-  - Marker prevents re-seeding regardless of client state
-  - Balance/budget calculations are client-side (not DB-computed); issues would surface in app UX, not data corruption
-
-**Conditions for production deployment:**
-1. ✅ Staging validation complete (current status)
-2. ⚠️ Production migration plan documented (see SUPABASE_PRODUCTION_MIGRATION_PLAN.md)
-3. ⚠️ Backup/restore procedure tested in staging (pending task #9)
-4. ⚠️ Rollback procedure ready (documented above, validated in staging if feasible)
-5. ⚠️ First-user monitoring plan in place (track RPC calls, balance calculations, budget screen usage)
-
-**Unresolved gaps (non-blocking):**
-- HTTP bidirectional REST testing (mitigated by SQL RLS verification)
-- Offline sync queue + multi-device deletion persistence (mitigated by marker design)
-- Older client (1.0.0) execution test (mitigated by additive schema design)
-- Before/after balance delta for excluded categories (mitigated by client-side balance model; regression would be UX-visible, not data-corrupting)
-
-**Decision:** Proceed with production migration after completing production plan documentation (task #9) and backup/restore validation. Accept test gaps as documented risks. Monitor closely post-deployment.
+Core staging evidence covers the SQL-level RLS policies, concurrency guard, initialization marker and exclusion constraint. Gate GB includes a manual staging permission change. HTTP bidirectional isolation, offline sync across devices, the older client and actual balance deltas remain unverified.
 
 ---
 
 **Validation Date:** 2026-11-15  
-**Next Step:** Complete production migration plan, commit evidence to repository, open PR for review.
+**Next step:** Rehearse backup and restore on a disposable staging target.
