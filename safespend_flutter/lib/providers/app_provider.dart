@@ -1458,22 +1458,34 @@ class AppProvider with ChangeNotifier {
   void sellHolding({
     required Holding holding,
     required double sharesToSell,
-    required double sellPrice,
+    required double sellPriceInAccountCurrency,
     required String accountId,
     required String transactionId,
   }) {
-    final proceeds = sharesToSell * sellPrice;
-    final remainingShares = holding.shares - sharesToSell;
+    final index = _holdings.indexWhere((item) => item.id == holding.id);
+    final proceeds = sharesToSell * sellPriceInAccountCurrency;
+    if (index == -1 ||
+        !sharesToSell.isFinite ||
+        sharesToSell <= 0 ||
+        sharesToSell > _holdings[index].shares ||
+        !proceeds.isFinite ||
+        proceeds <= 0 ||
+        (accountId != cashOnHandId &&
+            !_accounts.any((account) => account.id == accountId)) ||
+        _transactions.any((transaction) => transaction.id == transactionId)) {
+      return;
+    }
+    final storedHolding = _holdings[index];
+    final remainingShares = storedHolding.shares - sharesToSell;
 
     // 1. Update or remove the holding
     if (remainingShares <= 0) {
-      _holdings.removeWhere((h) => h.id == holding.id);
+      _holdings.removeAt(index);
       final uid = _userId;
       if (uid != null) SupabaseSyncService.deleteHolding(uid, holding.id);
     } else {
-      final updated = holding.copyWith(shares: remainingShares);
-      final idx = _holdings.indexWhere((h) => h.id == holding.id);
-      if (idx != -1) _holdings[idx] = updated;
+      final updated = storedHolding.copyWith(shares: remainingShares);
+      _holdings[index] = updated;
       final uid = _userId;
       if (uid != null) SupabaseSyncService.saveHolding(uid, updated);
     }

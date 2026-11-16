@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:safespend_flutter/models/account.dart';
 import 'package:safespend_flutter/models/category.dart';
 import 'package:safespend_flutter/models/goal.dart';
+import 'package:safespend_flutter/models/holding.dart';
 import 'package:safespend_flutter/models/recurring_rule.dart';
 import 'package:safespend_flutter/services/ai/financial_context_service.dart';
 import 'package:safespend_flutter/providers/app_provider.dart';
@@ -121,6 +122,44 @@ void main() {
     expect(p.accounts.single.balance, 4795);
     p.deleteTransaction(expense.id);
     expect(p.accounts.single.balance, 5000);
+  });
+
+  test('a sale credits the account currency and cannot sell stale shares',
+      () async {
+    final p = await fixture.emptyProvider();
+    addTearDown(p.dispose);
+    await p.addAccount(
+        Account(id: 'bank', name: 'Bank', type: 'bank', balance: 5000));
+    final holding = Holding(
+      id: 'shares',
+      symbol: 'AAPL',
+      shares: 3,
+      costBasis: 175,
+      currentPrice: 200,
+    );
+    p.addHolding(holding);
+
+    p.sellHolding(
+      holding: holding,
+      sharesToSell: 2,
+      sellPriceInAccountCurrency: 2000,
+      accountId: 'bank',
+      transactionId: 'sale',
+    );
+    expect(p.accounts.single.balance, 9000);
+    expect(p.transactions.single.amount, 4000);
+    expect(p.holdings.single.shares, 1);
+
+    p.sellHolding(
+      holding: holding,
+      sharesToSell: 2,
+      sellPriceInAccountCurrency: 2000,
+      accountId: 'bank',
+      transactionId: 'second-sale',
+    );
+    expect(p.accounts.single.balance, 9000);
+    expect(p.transactions, hasLength(1));
+    expect(p.holdings.single.shares, 1);
   });
 
   test('deleting an account reverses linked history and removes its schedules',

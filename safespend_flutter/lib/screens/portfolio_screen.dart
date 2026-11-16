@@ -1318,14 +1318,12 @@ class _PortfolioScreenState extends State<PortfolioScreen>
           provider.sellHolding(
             holding: holding,
             sharesToSell: sharesToSell,
-            sellPrice: sellPrice,
+            sellPriceInAccountCurrency: sellPrice,
             accountId: accountId,
             transactionId: transactionId,
           );
           Navigator.pop(context);
-          final proceeds = sharesToSell *
-              sellPrice *
-              _fxRate; // convert USD proceeds to local currency for display
+          final proceeds = sharesToSell * sellPrice;
           final dest = accountId == AppProvider.cashOnHandId
               ? s.cashOnHand
               : provider.accounts
@@ -3267,9 +3265,6 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
   double get _sharesToSell => double.tryParse(_sharesCtrl.text) ?? 0;
   double get _sellPrice =>
       double.tryParse(_priceCtrl.text) ?? 0; // in user's currency
-  double get _sellPriceUsd => widget.fxRate > 0
-      ? _sellPrice / widget.fxRate
-      : _sellPrice; // back to USD for storage
   double get _proceeds => _sharesToSell * _sellPrice;
   double get _profitLoss =>
       _sharesToSell * (_sellPrice - widget.holding.costBasis * widget.fxRate);
@@ -3287,7 +3282,7 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
 
   void _confirm() {
     final s = S.of(context);
-    if (_sharesToSell <= 0) {
+    if (!_sharesToSell.isFinite || _sharesToSell <= 0) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(s.enterSharesToSell)));
       return;
@@ -3298,14 +3293,14 @@ class _SellHoldingModalState extends State<SellHoldingModal> {
               'youOnlyHold', {'shares': widget.holding.shares.toString()}))));
       return;
     }
-    if (_sellPrice <= 0) {
+    if (!_sellPrice.isFinite || _sellPrice <= 0 || !_proceeds.isFinite) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(s.enterSellPrice)));
       return;
     }
     widget.onSell(
       sharesToSell: _sharesToSell,
-      sellPrice: _sellPriceUsd, // store in USD internally
+      sellPrice: _sellPrice,
       accountId: _selectedAccountId,
       transactionId: const Uuid().v4(),
     );
