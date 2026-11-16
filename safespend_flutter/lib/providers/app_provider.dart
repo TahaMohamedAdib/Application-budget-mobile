@@ -250,6 +250,7 @@ class AppProvider with ChangeNotifier {
       // A failure here costs background sync, not the app: the provider keeps
       // using the SharedPreferences path it has always used.
       _repositoryReady = false;
+      await _syncEngine.stop();
       if (kDebugMode) {
         debugPrint(
           '[AppProvider] local store unavailable, '
@@ -368,12 +369,6 @@ class AppProvider with ChangeNotifier {
         _localDataLoaded = true;
         notifyListeners();
       }
-
-      // Pending offline work no longer skips the pull. It used to, because a
-      // pull could overwrite unsynced changes wholesale; the repository now
-      // protects dirty rows one at a time, so skipping would only cost the
-      // user edits they made on another device.
-      unawaited(_syncEngine.sync());
 
       final data = await SupabaseSyncService.loadAllUserData(userId);
       if (generation != _loadGeneration) return;

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
@@ -47,7 +45,7 @@ class LocalDatabase {
   static const int schemaVersion = 2;
 
   Database? _db;
-  Completer<Database>? _opening;
+  Future<Database>? _opening;
 
   /// Overridden by tests to run against an in-memory database.
   @visibleForTesting
@@ -55,7 +53,7 @@ class LocalDatabase {
 
   /// The open database, opening it on first use.
   ///
-  /// Concurrent callers share one open attempt; without the completer, two
+  /// Concurrent callers share one open attempt; without the shared future, two
   /// simultaneous first-callers would each run `openDatabase` and the loser's
   /// handle would leak.
   Future<Database> get database async {
@@ -65,16 +63,12 @@ class LocalDatabase {
     final inFlight = _opening;
     if (inFlight != null) return inFlight.future;
 
-    final completer = Completer<Database>();
-    _opening = completer;
+    final opening = _open();
+    _opening = opening;
     try {
-      final db = await _open();
+      final db = await opening;
       _db = db;
-      completer.complete(db);
       return db;
-    } catch (error, stack) {
-      completer.completeError(error, stack);
-      rethrow;
     } finally {
       _opening = null;
     }
