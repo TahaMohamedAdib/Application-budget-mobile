@@ -38,7 +38,7 @@ import '../../widgets/onboarding_ui.dart';
 ///   safe-to-spend, and was previously never written at all, leaving every new
 ///   user's budget stuck at zero.
 /// * `Account.salaryAmount` / `salaryFrequency` / `salaryDay` /
-///   `salaryAnchorDate` — the pay cycle the auto-credit engine walks.
+///   `salaryAnchorDate` — the pay cycle used for planning.
 class SetupScreen extends StatefulWidget {
   final VoidCallback onComplete;
   final VoidCallback onBack;

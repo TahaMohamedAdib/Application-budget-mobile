@@ -19,6 +19,7 @@ import '../data/local_database.dart';
 import '../data/local_repository.dart';
 import '../data/sync_engine.dart';
 import '../services/supabase_sync_service.dart';
+import '../services/supabase_config.dart';
 import '../services/image_service.dart';
 import '../services/notifications/notification_service.dart';
 import '../utils/recurring_dates.dart';
@@ -408,7 +409,6 @@ class AppProvider with ChangeNotifier {
 
       // Cache to SharedPreferences for offline use
       _saveToLocal();
-      processSalaries();
       processSubscriptions();
 
       // Flush any queued sync operations that failed while offline
@@ -558,8 +558,7 @@ class AppProvider with ChangeNotifier {
         _isLoading = false;
         _localDataLoaded = true;
         notifyListeners();
-        if (_supabaseDataLoaded || _userId == null) {
-          processSalaries();
+        if (_supabaseDataLoaded || !SupabaseConfig.isAvailable) {
           processSubscriptions();
         }
         _refreshNotifications();
@@ -765,93 +764,7 @@ class AppProvider with ChangeNotifier {
           uid, _recurringRules.firstWhere((r) => r.id == ruleId));
   }
 
-  /// Auto-credits every pay packet that has fallen due since the account was
-  /// last paid, for all three pay cycles.
-  ///
-  /// Each due date is credited separately rather than merged: a weekly earner
-  /// who opens the app after a month away gets four dated salary transactions,
-  /// so the balance history stays truthful.
-  ///
-  /// With no prior salary credit, the opening balance anchors the schedule.
-  /// Only paydays after the account was added are eligible.
-  void processSalaries({DateTime? now}) {
-    final today = now ?? DateTime.now();
-    bool changed = false;
-
-    for (int i = 0; i < _accounts.length; i++) {
-      final acc = _accounts[i];
-      if (!acc.hasSalarySchedule) continue;
-
-      var due = acc.payDatesBetween(_lastSalaryBoundary(acc, today), today);
-      if (due.isEmpty) continue;
-
-      // Only one payday is inferred before the first tracked credit.
-      if (acc.lastSalaryDate == null) due = [due.last];
-
-      var account = acc;
-      for (final payDate in due) {
-        final tx = Transaction(
-          id: const Uuid().v4(),
-          type: 'income',
-          amount: account.salaryAmount!,
-          date: payDate.toIso8601String().substring(0, 10),
-          note: systemNote('systemSalary'),
-          accountId: account.id,
-        );
-        _transactions.add(tx);
-        account = account.copyWith(
-          balance: account.balance + account.salaryAmount!,
-          lastSalaryDate: payDate.toIso8601String().substring(0, 10),
-        );
-
-        final uid = _userId;
-        if (uid != null) SupabaseSyncService.saveTransaction(uid, tx);
-      }
-
-      _accounts[i] = account;
-      changed = true;
-
-      final uid = _userId;
-      if (uid != null) SupabaseSyncService.saveAccount(uid, account);
-    }
-
-    if (changed) {
-      _saveToLocal();
-      notifyListeners();
-    }
-  }
-
-  DateTime? _openingDate(Account account) {
-    final date = account.addedAt;
-    // Preserve the account's recorded calendar day even on a device in a
-    // different time zone. PostgreSQL may return an offset or a UTC suffix.
-    if (date == null || date.length < 10) return null;
-    return DateTime.tryParse(date.substring(0, 10));
-  }
-
-  /// The date after which pay packets are still owed. The legacy 'yyyy-MM'
-  /// salary marker means the entire month has already been paid.
-  DateTime _lastSalaryBoundary(Account acc, DateTime today) {
-    final raw = acc.lastSalaryDate;
-    if (raw == null) {
-      final openingDate = _openingDate(acc);
-      if (openingDate != null) return openingDate;
-      // A legacy account may lack an opening date.
-      final lookback = switch (acc.effectiveSalaryFrequency) {
-        'weekly' => 8,
-        'biweekly' => 15,
-        _ => 32,
-      };
-      return today.subtract(Duration(days: lookback));
-    }
-    if (raw.length == 7) {
-      final month = DateTime.tryParse('$raw-01');
-      if (month != null) return DateTime(month.year, month.month + 1, 0);
-    }
-    return DateTime.tryParse(raw) ?? today;
-  }
-
-  static const String cashOnHandId = 'cash_on_hand';
+  static const String cashOnHandId = Transaction.cashOnHandId;
 
   /// Process all overdue recurring rules: create transactions and advance nextDate.
   /// Compares full datetime so same-day future rules are NOT processed prematurely.
@@ -861,7 +774,13 @@ class AppProvider with ChangeNotifier {
 
     for (int i = 0; i < _recurringRules.length; i++) {
       final rule = _recurringRules[i];
-      if (!rule.isActive) continue;
+      // Older builds created these rules before Daret required confirmation.
+      if (!rule.isActive ||
+          rule.templateTransaction.type == 'daret_contribution' ||
+          rule.templateTransaction.type == 'daret_payout' ||
+          rule.id.startsWith('daret_contrib_')) {
+        continue;
+      }
 
       // Support both date-only "2026-03-22" and full datetime "2026-03-22T15:30:00"
       final parsedDate = DateTime.tryParse(rule.nextDate);
@@ -1087,11 +1006,6 @@ class AppProvider with ChangeNotifier {
       final goal = _goals.where((g) => g.id == goalId).firstOrNull;
       if (goal?.paymentDay != null) return goal!.paymentDay!;
     }
-    if (rule.id.startsWith('daret_contrib_')) {
-      final daretId = rule.id.substring(15);
-      final daret = _darets.where((d) => d.id == daretId).firstOrNull;
-      if (daret != null) return daret.paymentDay;
-    }
     return DateTime.tryParse(rule.templateTransaction.date)?.day ?? fallback;
   }
 
@@ -1099,7 +1013,7 @@ class AppProvider with ChangeNotifier {
   // TRANSACTION METHODS
   // ============================================
 
-  void addTransaction(Transaction transaction) {
+  Future<void> addTransaction(Transaction transaction) async {
     if (!transaction.amount.isFinite ||
         transaction.amount <= 0 ||
         !transaction.fees.isFinite ||
@@ -1161,10 +1075,11 @@ class AppProvider with ChangeNotifier {
     // Sync to Supabase: save the transaction + any changed account balances
     final uid = _userId;
     if (uid != null) {
-      SupabaseSyncService.saveTransaction(uid, transaction);
-      if (changedAccounts.isNotEmpty) {
-        SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts);
-      }
+      await Future.wait([
+        SupabaseSyncService.saveTransaction(uid, transaction),
+        if (changedAccounts.isNotEmpty)
+          SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts),
+      ]);
     }
   }
 
@@ -1925,14 +1840,9 @@ class AppProvider with ChangeNotifier {
     if (index == -1) return;
 
     final previous = _accounts[index];
-    _accounts[index] = amount == null || amount <= 0
+    _accounts[index] = amount == null || !amount.isFinite || amount <= 0
         ? previous.withoutSalary()
         : previous.withSalary(amount: amount, frequency: frequency, day: day);
-    if (_accounts[index].hasSalarySchedule && !previous.hasSalarySchedule) {
-      _accounts[index] = _accounts[index].copyWith(
-        lastSalaryDate: DateTime.now().toIso8601String().substring(0, 10),
-      );
-    }
 
     _settings = _settings.copyWith(monthlyIncome: monthlyIncomeFromSalaries);
 
@@ -2223,175 +2133,131 @@ class AppProvider with ChangeNotifier {
 
   void addDaret(Daret daret) {
     _darets.add(daret);
-    _syncDaretRecurringRule(daret);
     _saveToLocal();
     notifyListeners();
   }
 
   void updateDaret(Daret daret) {
     final index = _darets.indexWhere((d) => d.id == daret.id);
-    if (index != -1) {
-      _darets[index] = daret;
-      _syncDaretRecurringRule(daret);
-      _saveToLocal();
-      notifyListeners();
-    }
+    if (index == -1) return;
+    _darets[index] = daret;
+    _saveToLocal();
+    notifyListeners();
   }
 
   void deleteDaret(String id) {
-    // Remove recurring rules
-    final contribRuleId = 'daret_contrib_$id';
-    _recurringRules.removeWhere((r) => r.id == contribRuleId);
+    _recurringRules.removeWhere((rule) => rule.id == 'daret_contrib_$id');
     _darets.removeWhere((d) => d.id == id);
     _saveToLocal();
     notifyListeners();
   }
 
-  /// Creates or updates the monthly contribution recurring rule for a daret.
-  void _syncDaretRecurringRule(Daret daret) {
-    final ruleId = 'daret_contrib_${daret.id}';
-    final existingIdx = _recurringRules.indexWhere((r) => r.id == ruleId);
-
-    if (!daret.isActive || daret.isComplete) {
-      if (existingIdx != -1) {
-        _recurringRules.removeAt(existingIdx);
+  /// Pending scheduled contributions and payouts, including past-due rounds.
+  List<DaretPayment> dueDaretPayments({DateTime? now}) {
+    final today = now ?? DateTime.now();
+    final postedIds = _transactions.map((transaction) => transaction.id).toSet();
+    final posted = <(String?, String, int, int)>{};
+    for (final transaction in _transactions) {
+      if (transaction.type != 'daret_contribution' &&
+          transaction.type != 'daret_payout') {
+        continue;
       }
-      return;
+      final date = DateTime.tryParse(transaction.date);
+      if (date == null) continue;
+      posted.add((transaction.categoryId, transaction.type, date.year, date.month));
     }
 
-    final now = DateTime.now();
-    final day = daret.paymentDay;
-    final nextDate = nextMonthlyDueDate(now, day);
+    final due = [
+      for (final daret in _darets)
+        for (final payment in daret.paymentsThrough(today))
+          if (!postedIds.contains(payment.id) &&
+              !posted.contains((
+            daret.id,
+            payment.transactionType,
+            payment.dueDate.year,
+            payment.dueDate.month,
+          )))
+            payment,
+    ];
+    return due..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+  }
 
-    final rule = RecurringRule(
-      id: ruleId,
-      frequency: 'monthly',
-      nextDate: nextDate.toIso8601String(),
-      isActive: true,
-      templateTransaction: Transaction(
-        id: '${ruleId}_template',
-        type: 'daret_contribution',
-        amount: daret.monthlyPayment,
-        date: nextDate.toIso8601String(),
-        accountId: daret.paymentSourceId,
-        note: systemNote('savingsCircle', daret.name),
-        categoryId: daret.id,
-        isRecurring: true,
+  Future<bool> confirmDaretPayment(DaretPayment selection, {DateTime? now}) async {
+    final payment = dueDaretPayments(now: now)
+        .where((item) => item.id == selection.id)
+        .firstOrNull;
+    if (payment == null) return false;
+    if (payment.accountId != cashOnHandId &&
+        !_accounts.any((account) => account.id == payment.accountId)) {
+      return false;
+    }
+
+    final transaction = Transaction(
+      id: payment.id,
+      type: payment.transactionType,
+      amount: payment.amount,
+      date: payment.dueDate.toIso8601String().substring(0, 10),
+      note: systemNote(
+        payment.isPayout ? 'received' : 'savingsCircle',
+        payment.daretName,
+        payment.accountId == cashOnHandId,
       ),
+      accountId: payment.accountId,
+      categoryId: payment.daretId,
     );
-
-    if (existingIdx != -1) {
-      final existing = _recurringRules[existingIdx];
-      _recurringRules[existingIdx] = rule.copyWith(nextDate: existing.nextDate);
-    } else {
-      _recurringRules.add(rule);
-    }
+    final sync = addTransaction(transaction);
+    _saveDebounce?.cancel();
+    await Future.wait([sync, _performSave()]);
+    return true;
   }
 
-  /// Process monthly daret contribution: deduct from source account.
-  void processDaretContribution(String daretId) {
-    final idx = _darets.indexWhere((d) => d.id == daretId);
-    if (idx == -1) return;
-    final daret = _darets[idx];
-
-    final txn = Transaction(
-      id: const Uuid().v4(),
-      type: 'daret_contribution',
-      amount: daret.monthlyPayment,
-      date: DateTime.now().toIso8601String(),
-      note: systemNote('savingsCircle', daret.name),
-      accountId: daret.paymentSourceId,
-      categoryId: daret.id,
-    );
-    _transactions.add(txn);
-
-    // Deduct from source account
-    if (daret.paymentSourceId != cashOnHandId) {
-      final ai = _accounts.indexWhere((a) => a.id == daret.paymentSourceId);
-      if (ai != -1) {
-        _accounts[ai] = _accounts[ai].copyWith(
-          balance: _accounts[ai].balance - daret.monthlyPayment,
-        );
-      }
-    }
-
-    _saveToLocal();
-    notifyListeners();
-
-    final uid = _userId;
-    if (uid != null) {
-      SupabaseSyncService.saveTransaction(uid, txn);
-      if (daret.paymentSourceId != cashOnHandId) {
-        final ai = _accounts.indexWhere((a) => a.id == daret.paymentSourceId);
-        if (ai != -1) SupabaseSyncService.saveAccount(uid, _accounts[ai]);
-      }
-    }
+  double daretPostedTotal(String daretId, {required bool isPayout}) {
+    final type = isPayout ? 'daret_payout' : 'daret_contribution';
+    return _transactions
+        .where((tx) => tx.categoryId == daretId && tx.type == type)
+        .fold(0.0, (sum, tx) => sum + tx.amount);
   }
 
-  /// Check and process daret payout for the current month.
-  void checkDaretPayout(String daretId) {
-    final idx = _darets.indexWhere((d) => d.id == daretId);
-    if (idx == -1) return;
-    final daret = _darets[idx];
+  double daretRemainingLiability(Daret daret) =>
+      (daret.totalCycleContribution -
+          daretPostedTotal(daret.id, isPayout: false))
+          .clamp(0.0, double.infinity)
+          .toDouble();
 
-    if (!daret.payoutMonths.contains(daret.currentMonth)) return;
-
-    final now = DateTime.now();
-    final alreadyPaid = _transactions.any((t) {
-      if (t.type != 'daret_payout' || t.categoryId != daret.id) return false;
-      final date = DateTime.tryParse(t.date);
-      return date != null && date.year == now.year && date.month == now.month;
-    });
-    if (alreadyPaid) return;
-
-    final txn = Transaction(
-      id: const Uuid().v4(),
-      type: 'daret_payout',
-      amount: daret.singlePayoutAmount,
-      date: now.toIso8601String(),
-      note: systemNote('received', daret.name),
-      accountId: daret.destinationAccountId,
-      categoryId: daret.id,
-    );
-    _transactions.add(txn);
-
-    // Credit destination account
-    if (daret.destinationAccountId != cashOnHandId) {
-      final ai =
-          _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
-      if (ai != -1) {
-        _accounts[ai] = _accounts[ai].copyWith(
-          balance: _accounts[ai].balance + daret.singlePayoutAmount,
-        );
+  bool isDaretPaymentPosted(Daret daret, int round, {required bool isPayout}) {
+    final due = daret.dueDateForRound(round);
+    if (due == null) return false;
+    final type = isPayout ? 'daret_payout' : 'daret_contribution';
+    return _transactions.any((transaction) {
+      if (transaction.categoryId != daret.id || transaction.type != type) {
+        return false;
       }
-    }
-
-    _saveToLocal();
-    notifyListeners();
-
-    final uid = _userId;
-    if (uid != null) {
-      SupabaseSyncService.saveTransaction(uid, txn);
-      if (daret.destinationAccountId != cashOnHandId) {
-        final ai =
-            _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
-        if (ai != -1) SupabaseSyncService.saveAccount(uid, _accounts[ai]);
-      }
-    }
-  }
-
-  /// Get total net position across all active darets
-  /// (totalReceived - totalPaid so far)
-  double get totalDaretNetPosition {
-    return _darets.where((d) => d.isActive).fold(0.0, (sum, d) {
-      return sum + d.totalReceivedSoFar - d.totalPaidSoFar;
+      final date = DateTime.tryParse(transaction.date);
+      return date != null && date.year == due.year && date.month == due.month;
     });
   }
 
-  /// Get total remaining liability across all active darets
-  double get totalDaretLiability {
-    return _darets.where((d) => d.isActive).fold(0.0, (sum, d) {
-      return sum + d.remainingLiability;
-    });
+  int? nextDaretPayoutRound(Daret daret) =>
+      (daret.payoutMonths.toList()..sort())
+          .where((round) => !isDaretPaymentPosted(daret, round, isPayout: true))
+          .firstOrNull;
+
+  bool isDaretSettled(Daret daret) {
+    if (!daret.isActive) return true;
+    final lastDue = daret.dueDateForRound(daret.totalShares);
+    return lastDue != null &&
+        !DateTime.now().isBefore(lastDue) &&
+        daret.paymentsThrough(lastDue).every((payment) => isDaretPaymentPosted(
+            daret, payment.round, isPayout: payment.isPayout));
   }
+
+  double get totalDaretNetPosition =>
+      _darets.where((d) => d.isActive).fold(0.0, (sum, d) =>
+          sum +
+          daretPostedTotal(d.id, isPayout: true) -
+          daretPostedTotal(d.id, isPayout: false));
+
+  double get totalDaretLiability =>
+      _darets.where((d) => d.isActive).fold(0.0, (sum, d) =>
+          sum + daretRemainingLiability(d));
 }

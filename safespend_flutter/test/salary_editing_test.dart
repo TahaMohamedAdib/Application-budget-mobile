@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import 'package:safespend_flutter/models/account.dart';
+import 'package:safespend_flutter/models/transaction.dart';
 import 'package:safespend_flutter/providers/app_provider.dart';
 
 /// Editing a salary after onboarding.
@@ -121,37 +123,30 @@ void main() {
       expect(provider.settings.monthlyIncome, 2000);
     });
 
-    test(
-      'an opening balance includes past paydays and pays the next one once',
-      () async {
-        final provider = await providerWith(
-          bankAccount(
-            salary: 1200,
-            day: 1,
-          ).copyWith(balance: 5000, addedAt: '2026-11-15T12:00:00'),
-        );
-
-        provider.processSalaries(now: DateTime(2026, 11, 15));
-        expect(provider.accounts.single.balance, 5000);
-        expect(provider.transactions, isEmpty);
-
-        provider.processSalaries(now: DateTime(2026, 12, 1));
-        provider.processSalaries(now: DateTime(2026, 12, 1));
-        expect(provider.accounts.single.balance, 6200);
-        expect(provider.transactions.single.date, '2026-12-01');
-      },
-    );
-
-    test('setup on payday keeps the opening balance for that day', () async {
+    test('salary is planning information until a deposit is recorded', () async {
       final provider = await providerWith(
-        bankAccount(
-          salary: 1200,
-          day: 15,
-        ).copyWith(balance: 5000, addedAt: '2026-11-15T12:00:00'),
+        bankAccount(salary: 1200, day: 1).copyWith(
+          balance: 5000,
+          addedAt: '2026-01-15',
+        ),
       );
-      provider.processSalaries(now: DateTime(2026, 11, 15));
+      final account = provider.accounts.single;
+      SharedPreferences.setMockInitialValues({
+        'accounts': jsonEncode([account.toJson()]),
+      });
+      await provider.loadData();
       expect(provider.accounts.single.balance, 5000);
       expect(provider.transactions, isEmpty);
+      expect(provider.monthlyIncomeFromSalaries, 1200);
+
+      await provider.addTransaction(Transaction(
+        id: 'deposit',
+        type: 'income',
+        amount: 1200,
+        date: '2026-02-01',
+        accountId: 'a1',
+      ));
+      expect(provider.accounts.single.balance, 6200);
     });
 
     test('annualises a weekly wage into monthly income', () async {

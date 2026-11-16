@@ -16,6 +16,7 @@ import '../models/recurring_rule.dart';
 import '../models/holding.dart';
 import '../models/category.dart';
 import '../models/settings.dart';
+import '../utils/system_note.dart';
 
 enum _SyncOperationType {
   saveProfile,
@@ -647,7 +648,11 @@ class SupabaseSyncService {
       {
         'id': t.id,
         'user_id': userId,
-        'account_id': t.accountId.isEmpty ? null : t.accountId,
+        'account_id': t.accountId.isEmpty ||
+                (t.accountId == Transaction.cashOnHandId &&
+                    systemNoteUsesCash(t.note))
+            ? null
+            : t.accountId,
         'to_account_id': t.toAccountId,
         'type': t.type,
         'amount': t.amount,
@@ -664,9 +669,10 @@ class SupabaseSyncService {
         id: t['id'],
         type: t['type'] ?? 'expense',
         amount: (t['amount'] as num?)?.toDouble() ?? 0,
-        fees: (t['fees'] as num?)?.toDouble() ?? 0,
+        fees: ((t['fees'] ?? t['fee_amount']) as num?)?.toDouble() ?? 0,
         date: t['date'] ?? DateTime.now().toIso8601String(),
-        accountId: t['account_id'] ?? '',
+        accountId: t['account_id'] ??
+            (systemNoteUsesCash(t['note']) ? Transaction.cashOnHandId : ''),
         toAccountId: t['to_account_id'],
         categoryId: t['category_id'],
         note: t['note'],
@@ -686,9 +692,15 @@ class SupabaseSyncService {
 
   static Future<void> _saveTransactionRemote(
       String userId, Transaction transaction) async {
-    await _db
-        .from('transactions')
-        .upsert(_transactionToRow(userId, transaction));
+    final row = _transactionToRow(userId, transaction);
+    try {
+      await _db.from('transactions').upsert(row);
+    } on PostgrestException catch (error) {
+      if (_missingColumnFrom(error) != 'fees') rethrow;
+      // The base schema calls the same monetary field fee_amount.
+      row['fee_amount'] = row.remove('fees');
+      await _db.from('transactions').upsert(row);
+    }
   }
 
   static Future<void> saveTransaction(

@@ -26,6 +26,7 @@ import 'screens/onboarding/app_tour_screen.dart';
 import 'screens/onboarding/feature_guide_sheet.dart';
 import 'screens/settings/pin_entry_screen.dart';
 import 'widgets/add_transaction_modal.dart';
+import 'widgets/daret_payment_prompt.dart';
 import 'widgets/quick_actions_sheet.dart';
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
@@ -406,7 +407,8 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _selectedIndex = 0;
   late final PageController _pageController;
   bool _isMenuOpen = false;
@@ -415,6 +417,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late final Animation<double> _menuAnimation;
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
   Timer? _subscriptionTimer;
+  final Set<String> _promptedDaretPayments = {};
+  bool _daretPromptOpen = false;
 
   /// Gap between the screen bottom and the floating nav pill. iOS parks its
   /// own tab bar *inside* the home-indicator inset rather than above it, so we
@@ -436,6 +440,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _screens = [
       HomeScreen(key: _homeKey, onOpenWealth: () => _onTabTapped(3)),
       const CoachScreen(),
@@ -454,11 +459,47 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _subscriptionTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
       Provider.of<AppProvider>(context, listen: false).processSubscriptions();
+      _checkDaretPayments();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkDaretPayments();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkDaretPayments();
+  }
+
+  Future<void> _checkDaretPayments() async {
+    if (!mounted ||
+        _daretPromptOpen ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    final provider = context.read<AppProvider>();
+    if (provider.settings.appLockEnabled) {
+      // While app lock is on, the inline prompt becomes reachable on unlock.
+      setState(() {});
+      return;
+    }
+    final payments = provider.dueDaretPayments();
+    setState(() {});
+    if (!payments.any((payment) => !_promptedDaretPayments.contains(payment.id))) {
+      return;
+    }
+    _promptedDaretPayments.addAll(payments.map((payment) => payment.id));
+    _daretPromptOpen = true;
+    try {
+      await showDaretPayments(context, provider);
+    } finally {
+      _daretPromptOpen = false;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _subscriptionTimer?.cancel();
     _pageController.dispose();
     _menuAnimController.dispose();

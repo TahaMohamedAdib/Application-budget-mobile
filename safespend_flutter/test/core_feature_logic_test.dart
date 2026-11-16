@@ -240,29 +240,52 @@ void main() {
     });
   });
 
-  group('daret payouts', () {
-    test('checking the same payout month twice credits it only once', () async {
+  group('Daret confirmations', () {
+    test('due contributions and payouts stay pending until confirmed', () async {
       final provider = await emptyProvider();
-      provider.addAccount(
-          Account(id: 'bank', name: 'Bank', type: 'bank', balance: 0));
-      final now = DateTime.now();
+      addTearDown(provider.dispose);
+      await provider.addAccount(
+          Account(id: 'bank', name: 'Bank', type: 'bank', balance: 5000));
       provider.addDaret(Daret(
         id: 'daret',
         name: 'Family',
-        contributionPerShare: 100,
-        totalShares: 2,
-        payoutMonths: const [1],
-        startDate: now.toIso8601String(),
-        paymentSourceId: AppProvider.cashOnHandId,
+        contributionPerShare: 500,
+        totalShares: 10,
+        payoutMonths: const [3],
+        startDate: '2026-01-01',
+        paymentDay: 15,
+        paymentSourceId: 'bank',
         destinationAccountId: 'bank',
       ));
+      provider.addRecurringRule(RecurringRule(
+        id: 'daret_contrib_daret',
+        frequency: 'monthly',
+        nextDate: '2026-01-15',
+        templateTransaction: transaction(
+          id: 'old-rule',
+          type: 'daret_contribution',
+          amount: 500,
+          accountId: 'bank',
+        ),
+      ));
+      expect(provider.dueDaretPayments(now: DateTime(2026, 1, 14)), isEmpty);
+      provider.processSubscriptions();
+      expect(provider.transactions, isEmpty);
 
-      provider.checkDaretPayout('daret');
-      provider.checkDaretPayout('daret');
-
-      expect(provider.transactions.where((t) => t.type == 'daret_payout'),
-          hasLength(1));
-      expect(balanceOf(provider, 'bank'), 200);
+      final march = DateTime(2026, 3, 16);
+      final due = provider.dueDaretPayments(now: march);
+      expect(due.where((payment) => !payment.isPayout), hasLength(3));
+      final payout = due.singleWhere((payment) => payment.isPayout);
+      final contribution = due.first;
+      expect(balanceOf(provider, 'bank'), 5000);
+      expect(await provider.confirmDaretPayment(contribution, now: march), isTrue);
+      expect(await provider.confirmDaretPayment(contribution, now: march), isFalse);
+      expect(balanceOf(provider, 'bank'), 4500);
+      expect(await provider.confirmDaretPayment(payout, now: march), isTrue);
+      expect(balanceOf(provider, 'bank'), 9500);
+      expect(provider.dueDaretPayments(now: march), hasLength(2));
+      expect(provider.daretPostedTotal('daret', isPayout: true), 5000);
+      expect(provider.daretPostedTotal('daret', isPayout: false), 500);
     });
   });
 
