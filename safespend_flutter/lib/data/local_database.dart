@@ -61,7 +61,7 @@ class LocalDatabase {
     if (existing != null && existing.isOpen) return existing;
 
     final inFlight = _opening;
-    if (inFlight != null) return inFlight.future;
+    if (inFlight != null) return inFlight;
 
     final opening = _open();
     _opening = opening;
