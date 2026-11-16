@@ -56,14 +56,19 @@ class _AccountScreenState extends State<AccountScreen> {
       return;
     }
 
-    await auth.signOut();
     // Do not report a completed deletion while this device could still retain
     // the account's SQLite rows or queued writes.
-    await provider.clearData(userId: deletedUserId);
-    if (!mounted) return;
-    messenger
-        .showSnackBar(SnackBar(content: Text(s.tr('accountDeletionDone'))));
-    navigator.popUntil((route) => route.isFirst);
+    await auth.signOut(
+      clearLocalData: () async {
+        await provider.clearData(userId: deletedUserId);
+      },
+    );
+    if (messenger.mounted) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(s.tr('accountDeletionDone'))),
+      );
+    }
+    if (navigator.mounted) navigator.popUntil((route) => route.isFirst);
   }
 
   @override

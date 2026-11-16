@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 class Transaction {
+  static const cashOnHandId = 'cash_on_hand';
+
   final String id;
   final String type; // 'expense', 'income', 'transfer', 'withdrawal'
   final double amount;

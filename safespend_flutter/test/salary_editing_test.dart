@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:safespend_flutter/models/account.dart';
+import 'package:safespend_flutter/models/transaction.dart';
 import 'package:safespend_flutter/providers/app_provider.dart';
 
 /// Editing a salary after onboarding.
@@ -119,6 +122,32 @@ void main() {
 
       expect(provider.accounts.first.salaryAmount, 2000);
       expect(provider.settings.monthlyIncome, 2000);
+    });
+
+    test('salary is planning information until a deposit is recorded', () async {
+      final provider = await providerWith(
+        bankAccount(salary: 1200, day: 1).copyWith(
+          balance: 5000,
+          addedAt: '2026-01-15',
+        ),
+      );
+      final account = provider.accounts.single;
+      SharedPreferences.setMockInitialValues({
+        'accounts': jsonEncode([account.toJson()]),
+      });
+      await provider.loadData();
+      expect(provider.accounts.single.balance, 5000);
+      expect(provider.transactions, isEmpty);
+      expect(provider.monthlyIncomeFromSalaries, 1200);
+
+      await provider.addTransaction(Transaction(
+        id: 'deposit',
+        type: 'income',
+        amount: 1200,
+        date: '2026-02-01',
+        accountId: 'a1',
+      ));
+      expect(provider.accounts.single.balance, 6200);
     });
 
     test('annualises a weekly wage into monthly income', () async {

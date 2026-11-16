@@ -10,10 +10,12 @@ class AuthService with ChangeNotifier {
   bool _loading = true;
   bool _localMode = false;
   bool _passwordRecovery = false;
+  bool _signingOut = false;
+  StreamSubscription<AuthState>? _authSubscription;
 
   User? get user => _user;
   Session? get session => _session;
-  bool get loading => _loading;
+  bool get loading => _loading || _signingOut;
   bool get localMode => _localMode;
   bool get isAuthenticated => _user != null || _localMode;
   String? get userId => _localMode ? 'local_user' : _user?.id;
@@ -52,15 +54,17 @@ class AuthService with ChangeNotifier {
 
     // Keep listening for future auth events (sign-in, sign-out, token
     // refresh) so the UI stays in sync.
-    _client!.auth.onAuthStateChange.listen(
+    _authSubscription = _client!.auth.onAuthStateChange.listen(
       (data) {
         if (kDebugMode) {
           debugPrint('[AuthService] auth event=${data.event}');
         }
+        if (_signingOut) return;
+        final sameUser = _user?.id == data.session?.user.id;
         _session = data.session;
         _user = data.session?.user;
-        _passwordRecovery = data.event == AuthChangeEvent.passwordRecovery;
-        if (data.event == AuthChangeEvent.signedOut) _passwordRecovery = false;
+        _passwordRecovery = data.event == AuthChangeEvent.passwordRecovery ||
+            (_passwordRecovery && sameUser && data.session != null);
         if (_user != null) _localMode = false;
         notifyListeners();
       },
@@ -108,8 +112,11 @@ class AuthService with ChangeNotifier {
         error: 'No connection to server. App is running in local mode.'
       );
     try {
-      final response =
-          await _client!.auth.signUp(email: email, password: password);
+      final response = await _client!.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: SupabaseConfig.authCallbackUrl,
+      );
       if (response.session != null) {
         // Immediately signed in (email confirmation is disabled)
         _user = response.user;
@@ -189,11 +196,16 @@ class AuthService with ChangeNotifier {
 
   // Resend confirmation email
   Future<({bool success, String? error})> resendConfirmationEmail(
-      String email) async {
+    String email,
+  ) async {
     if (_client == null)
       return (success: false, error: 'No connection to server.');
     try {
-      await _client!.auth.resend(type: OtpType.signup, email: email);
+      await _client!.auth.resend(
+        type: OtpType.signup,
+        email: email,
+        emailRedirectTo: SupabaseConfig.authCallbackUrl,
+      );
       return (success: true, error: null);
     } on AuthException catch (e) {
       return (success: false, error: e.message);
@@ -277,41 +289,39 @@ class AuthService with ChangeNotifier {
   // Get display name
   String? get displayName => _user?.userMetadata?['display_name'] as String?;
 
-  /// Signs the user out without making them wait on the network.
-  ///
-  /// GoTrue's `signOut()` drops the local session synchronously and *then*
-  /// awaits a request that revokes the token server-side. Awaiting the whole
-  /// call meant a slow or unreachable network froze the app on the settings
-  /// screen with no indication anything was happening — sometimes for the
-  /// full HTTP timeout.
-  ///
-  /// Local state is therefore cleared first and the revocation is left to
-  /// finish in the background. Nothing is lost by not waiting: the session is
-  /// already gone from this device either way, and the request retries
-  /// nothing — it only tells the server to invalidate a token that will
-  /// expire on its own regardless.
-  Future<void> signOut() async {
+  /// Clears the saved session before exposing the signed-out screen.
+  Future<void> signOut({Future<void> Function()? clearLocalData}) async {
+    if (_signingOut) return;
     final client = _client;
-
+    _signingOut = true;
     _user = null;
     _session = null;
     _localMode = false;
+    _passwordRecovery = false;
     notifyListeners();
 
-    if (client == null) return;
+    try {
+      if (client != null) {
+        final signOut = client.auth
+            .signOut()
+            .timeout(const Duration(seconds: 5))
+            .catchError((Object error) {
+          if (kDebugMode) debugPrint('[AuthService] sign-out request: $error');
+        });
+        // Supabase's signedOut listener removes the stored session asynchronously.
+        await SupabaseConfig.clearPersistedSession();
+        await signOut;
+      }
+      await clearLocalData?.call();
+    } finally {
+      _signingOut = false;
+      notifyListeners();
+    }
+  }
 
-    // Calling this without awaiting still clears GoTrue's in-memory session
-    // and notifies its subscribers, because both happen before its first
-    // await. Only the server round trip is left running.
-    unawaited(
-      client.auth
-          .signOut()
-          .timeout(const Duration(seconds: 10))
-          .catchError((Object error) {
-        if (kDebugMode) {
-          debugPrint('[AuthService] background sign-out failed: $error');
-        }
-      }),
-    );
+  @override
+  void dispose() {
+    unawaited(_authSubscription?.cancel());
+    super.dispose();
   }
 }

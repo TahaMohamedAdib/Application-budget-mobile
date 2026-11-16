@@ -24,6 +24,7 @@ import '../widgets/money_amount.dart';
 import '../widgets/account_picker_field.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/feature_help_button.dart';
+import '../widgets/daret_payment_prompt.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/balance_series.dart';
 import '../utils/money_format.dart';
@@ -186,6 +187,10 @@ class HomeScreenState extends State<HomeScreen> {
                       .animate()
                       .fadeIn(duration: 260.ms, curve: Curves.easeOut)
                       .slideY(begin: -0.05, end: 0, curve: Curves.easeOut),
+                ),
+
+                SliverToBoxAdapter(
+                  child: DaretPaymentPrompt(provider: provider),
                 ),
 
                 // Filter pills

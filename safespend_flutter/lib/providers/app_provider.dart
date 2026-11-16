@@ -19,6 +19,7 @@ import '../data/local_database.dart';
 import '../data/local_repository.dart';
 import '../data/sync_engine.dart';
 import '../services/supabase_sync_service.dart';
+import '../services/supabase_config.dart';
 import '../services/image_service.dart';
 import '../services/notifications/notification_service.dart';
 import '../utils/recurring_dates.dart';
@@ -90,6 +91,8 @@ class AppProvider with ChangeNotifier {
   bool _localDataLoaded = false;
   bool _supabaseDataLoaded = false;
   bool _supabaseLoadInProgress = false;
+  bool _cloudLoadFailed = false;
+  int _loadGeneration = 0;
 
   bool _setupComplete = false;
   bool _hasSeenAppTour = false;
@@ -128,6 +131,7 @@ class AppProvider with ChangeNotifier {
   bool get setupComplete => _setupComplete;
   bool get hasSeenAppTour => _hasSeenAppTour;
   bool get supabaseDataLoaded => _supabaseDataLoaded;
+  bool get cloudLoadFailed => _cloudLoadFailed;
   String? get selectedAccountId => _selectedAccountId;
 
   bool hasSeenFeatureGuide(String feature) =>
@@ -199,7 +203,8 @@ class AppProvider with ChangeNotifier {
   Future<bool> hasUnsyncedChanges() async {
     final uid = _userId;
     if (uid == null) return false;
-    return _repository.hasUnsyncedChanges(uid);
+    return await _repository.hasUnsyncedChanges(uid) ||
+        await SupabaseSyncService.hasPendingOperationsForUser(uid);
   }
 
   /// Prepares the local store for [userId] and starts background sync.
@@ -230,12 +235,15 @@ class AppProvider with ChangeNotifier {
     await _syncEngine.retryFailed();
   }
 
-  Future<void> initializeLocalStore(String userId) async {
+  Future<void> _initializeLocalStore(String userId, int generation) async {
     try {
       final result = await _legacyMigration.migrateIfNeeded(userId);
+      if (generation != _loadGeneration) return;
       if (kDebugMode && result.migrated) {
-        debugPrint('[AppProvider] migrated ${result.totalRecords} records '
-            'into the local database');
+        debugPrint(
+          '[AppProvider] migrated ${result.totalRecords} records '
+          'into the local database',
+        );
       }
       _repositoryReady = true;
       await _syncEngine.start(userId);
@@ -243,9 +251,12 @@ class AppProvider with ChangeNotifier {
       // A failure here costs background sync, not the app: the provider keeps
       // using the SharedPreferences path it has always used.
       _repositoryReady = false;
+      await _syncEngine.stop();
       if (kDebugMode) {
-        debugPrint('[AppProvider] local store unavailable, '
-            'continuing on the legacy cache: $e');
+        debugPrint(
+          '[AppProvider] local store unavailable, '
+          'continuing on the legacy cache: $e',
+        );
       }
     }
   }
@@ -284,7 +295,7 @@ class AppProvider with ChangeNotifier {
   ///
   /// Returns false when there is nothing stored yet, so the caller can fall
   /// back rather than show an empty app.
-  Future<bool> _loadFromRepository(String userId) async {
+  Future<bool> _loadFromRepository(String userId, int generation) async {
     if (!_repositoryReady) return false;
     try {
       final results = await Future.wait([
@@ -295,21 +306,24 @@ class AppProvider with ChangeNotifier {
         _repository.categories(userId),
         _repository.recurringRules(userId),
         _repository.darets(userId),
+        _repository.settings(userId),
       ]);
+      if (generation != _loadGeneration) return false;
 
-      final accounts = results[0] as List<Account>;
-      final transactions = results[1] as List<Transaction>;
-      if (accounts.isEmpty && transactions.isEmpty) return false;
+      final storedSettings = results[7] as Map<String, dynamic>?;
+      if (storedSettings == null &&
+          results.take(7).every((data) => (data as List).isEmpty)) {
+        return false;
+      }
 
-      _accounts = accounts;
-      _transactions = transactions;
+      _accounts = results[0] as List<Account>;
+      _transactions = results[1] as List<Transaction>;
       _goals = results[2] as List<Goal>;
       _holdings = results[3] as List<Holding>;
       _categories = results[4] as List<Category>;
       _recurringRules = results[5] as List<RecurringRule>;
       _darets = results[6] as List<Daret>;
 
-      final storedSettings = await _repository.settings(userId);
       if (storedSettings != null) {
         _settings = Settings.fromJson(storedSettings);
       }
@@ -320,38 +334,54 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  /// Load ALL data from Supabase for the authenticated user.
-  /// Falls back to SharedPreferences if not authenticated or on error.
+  /// Loads the authenticated user's cloud snapshot with an offline fallback.
   Future<void> loadFromSupabase(String userId) async {
-    if (_supabaseLoadInProgress) return;
+    if (_supabaseLoadInProgress || _supabaseDataLoaded) return;
+    final generation = _loadGeneration;
+    _cloudLoadFailed = false;
     _supabaseLoadInProgress = true;
     _isLoading = true;
     notifyListeners();
 
+    var loadedFromRepository = false;
     try {
       // Bring up the local store before anything else: it is what the app
       // reads from, and the one-time import from the old blobs happens here.
-      await initializeLocalStore(userId);
+      await _initializeLocalStore(userId, generation);
+      if (generation != _loadGeneration) return;
 
-      // Serve local data immediately. A returning user sees their accounts at
-      // once rather than a spinner, and an offline launch shows the real app
-      // instead of an empty one. The server pull below refines this.
-      if (await _loadFromRepository(userId)) {
+      // Stage the cached data for offline use while waiting for the cloud.
+      loadedFromRepository = await _loadFromRepository(
+        userId,
+        generation,
+      );
+      if (generation != _loadGeneration) return;
+      var hasSavedSetup = loadedFromRepository && _accounts.isNotEmpty;
+      if (userId == 'local_user') {
+        _setupComplete = _setupComplete || hasSavedSetup;
+        _isLoading = false;
+        _supabaseDataLoaded = true;
+        _supabaseLoadInProgress = false;
+        notifyListeners();
+        return;
+      }
+      if (loadedFromRepository) {
         _isLoading = false;
         _localDataLoaded = true;
         notifyListeners();
-        processSalaries();
-        processSubscriptions();
       }
 
-      // Pending offline work no longer skips the pull. It used to, because a
-      // pull could overwrite unsynced changes wholesale; the repository now
-      // protects dirty rows one at a time, so skipping would only cost the
-      // user edits they made on another device.
-      unawaited(_syncEngine.sync());
-
       final data = await SupabaseSyncService.loadAllUserData(userId);
+      if (generation != _loadGeneration) return;
 
+      final categories = data['categories'] as List<Category>;
+      final categoryDefaults = categories.isEmpty &&
+              await SupabaseSyncService.initializeDefaultCategories(
+                defaultCategories,
+              )
+          ? await SupabaseSyncService.loadCategories(userId)
+          : categories;
+      if (generation != _loadGeneration) return;
       if (data['settings'] != null) {
         _settings = _settings.withRemoteProfile(data['settings'] as Settings);
       }
@@ -360,41 +390,41 @@ class AppProvider with ChangeNotifier {
       _goals = data['goals'] as List<Goal>;
       _recurringRules = data['recurringRules'] as List<RecurringRule>;
       _holdings = data['holdings'] as List<Holding>;
-      _categories = data['categories'] as List<Category>;
-      if (_categories.isEmpty &&
-          await SupabaseSyncService.initializeDefaultCategories(
-              defaultCategories)) {
-        _categories = await SupabaseSyncService.loadCategories(userId);
+      _categories = categoryDefaults;
+      hasSavedSetup = _accounts.isNotEmpty;
+
+      // Auto-skip onboarding if user already has data in Supabase
+      if (hasSavedSetup && !_setupComplete) {
+        _setupComplete = true;
+        final prefs = await SharedPreferences.getInstance();
+        if (generation != _loadGeneration) return;
+        await prefs.setBool('setup_complete', true);
+        if (generation != _loadGeneration) return;
       }
 
       _isLoading = false;
       _supabaseDataLoaded = true;
       _supabaseLoadInProgress = false;
-
-      // Auto-skip onboarding if user already has data in Supabase
-      if (_accounts.isNotEmpty && !_setupComplete) {
-        _setupComplete = true;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('setup_complete', true);
-      }
-
       notifyListeners();
 
       // Cache to SharedPreferences for offline use
       _saveToLocal();
-      processSalaries();
       processSubscriptions();
 
       // Flush any queued sync operations that failed while offline
       SupabaseSyncService.flushRetryQueue();
     } catch (e) {
+      if (generation != _loadGeneration) return;
       if (kDebugMode)
         debugPrint(
-            '[AppProvider] Error loading from Supabase, falling back to local: $e');
-      _supabaseDataLoaded =
-          true; // mark as done even on error to avoid retry loops
+          '[AppProvider] Error loading from Supabase, falling back to local: $e',
+        );
+      _isLoading = false;
+      _supabaseDataLoaded = loadedFromRepository;
       _supabaseLoadInProgress = false;
-      await loadData();
+      _cloudLoadFailed = !loadedFromRepository;
+      if (loadedFromRepository && _accounts.isNotEmpty) _setupComplete = true;
+      notifyListeners();
     }
   }
 
@@ -407,6 +437,8 @@ class AppProvider with ChangeNotifier {
     // Its caller therefore supplies the identity captured while it was still
     // authenticated; ordinary sign-out continues to resolve the current one.
     final signingOutUserId = userId ?? _userId;
+    _loadGeneration++;
+    _saveDebounce?.cancel();
     _accounts = [];
     _transactions = [];
     _categories = [];
@@ -415,8 +447,10 @@ class AppProvider with ChangeNotifier {
     _goals = [];
     _darets = [];
     _settings = Settings();
+    _selectedAccountId = null;
     _isLoading = false;
     _supabaseDataLoaded = false;
+    _cloudLoadFailed = false;
     _setupComplete = false;
     _supabaseLoadInProgress = false;
     // Deliberately left true. `localDataLoaded` means "we know what is in local
@@ -471,6 +505,7 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   Future<void> loadData() async {
+    final generation = _loadGeneration;
     try {
       final prefs = await SharedPreferences.getInstance();
 
@@ -488,6 +523,7 @@ class AppProvider with ChangeNotifier {
 
       // Parse JSON off the main thread via isolate
       final parsed = await compute(_parseLocalData, rawJson);
+      if (generation != _loadGeneration) return;
 
       if (parsed.containsKey('accounts'))
         _accounts = parsed['accounts'] as List<Account>;
@@ -506,7 +542,8 @@ class AppProvider with ChangeNotifier {
       if (parsed.containsKey('categories'))
         _categories = parsed['categories'] as List<Category>;
 
-      _setupComplete = prefs.getBool('setup_complete') ?? false;
+      _setupComplete = (prefs.getBool('setup_complete') ?? false) ||
+          _accounts.isNotEmpty;
       // Versioned so users who only saw the old generic slide deck receive
       // the redesigned, task-focused tour once.
       _hasSeenAppTour = prefs.getBool('has_seen_app_tour_v2') ?? false;
@@ -517,12 +554,15 @@ class AppProvider with ChangeNotifier {
       if (kDebugMode)
         debugPrint('[AppProvider] Critical error in loadData: $e');
     } finally {
-      _isLoading = false;
-      _localDataLoaded = true;
-      notifyListeners();
-      processSalaries();
-      processSubscriptions();
-      _refreshNotifications();
+      if (generation == _loadGeneration) {
+        _isLoading = false;
+        _localDataLoaded = true;
+        notifyListeners();
+        if (_supabaseDataLoaded || !SupabaseConfig.isAvailable) {
+          processSubscriptions();
+        }
+        _refreshNotifications();
+      }
     }
   }
 
@@ -609,7 +649,7 @@ class AppProvider with ChangeNotifier {
   // ACCOUNT METHODS
   // ============================================
 
-  void addAccount(Account account) {
+  Future<void> addAccount(Account account) async {
     final normalized = account.addedAt == null
         ? account.copyWith(addedAt: DateTime.now().toIso8601String())
         : account;
@@ -618,10 +658,10 @@ class AppProvider with ChangeNotifier {
     _saveToLocal();
     notifyListeners();
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveAccount(uid, normalized);
+    if (uid != null) await SupabaseSyncService.saveAccount(uid, normalized);
   }
 
-  void updateAccount(Account account) {
+  Future<void> updateAccount(Account account) async {
     final index = _accounts.indexWhere((a) => a.id == account.id);
     if (index != -1) {
       final normalized = account.copyWith(
@@ -634,7 +674,7 @@ class AppProvider with ChangeNotifier {
       _saveToLocal();
       notifyListeners();
       final uid = _userId;
-      if (uid != null) SupabaseSyncService.saveAccount(uid, normalized);
+      if (uid != null) await SupabaseSyncService.saveAccount(uid, normalized);
     }
   }
 
@@ -688,10 +728,7 @@ class AppProvider with ChangeNotifier {
     // Compute next payment date (the upcoming day this month or next)
     final now = DateTime.now();
     final day = account.debtPaymentDay ?? 1;
-    DateTime nextDate = DateTime(now.year, now.month, day);
-    if (!nextDate.isAfter(now)) {
-      nextDate = DateTime(now.year, now.month + 1, day);
-    }
+    final nextDate = nextMonthlyDueDate(now, day);
 
     final sourceId = account.debtPaymentSourceId ?? cashOnHandId;
 
@@ -727,88 +764,7 @@ class AppProvider with ChangeNotifier {
           uid, _recurringRules.firstWhere((r) => r.id == ruleId));
   }
 
-  /// Auto-credits every pay packet that has fallen due since the account was
-  /// last paid, for all three pay cycles.
-  ///
-  /// Each due date is credited separately rather than merged: a weekly earner
-  /// who opens the app after a month away gets four dated salary transactions,
-  /// so the balance history stays truthful.
-  ///
-  /// The first run for an account has no `lastSalaryDate` to work from. It
-  /// credits only the most recent due date rather than back-filling from the
-  /// beginning of time — inventing months of income the user never told us
-  /// about would be worse than missing one packet.
-  void processSalaries() {
-    final today = DateTime.now();
-    bool changed = false;
-
-    for (int i = 0; i < _accounts.length; i++) {
-      final acc = _accounts[i];
-      if (!acc.hasSalarySchedule) continue;
-
-      var due = acc.payDatesBetween(_lastSalaryBoundary(acc), today);
-      if (due.isEmpty) continue;
-
-      // No history yet — take the latest due date only.
-      if (acc.lastSalaryDate == null) due = [due.last];
-
-      var account = acc;
-      for (final payDate in due) {
-        final tx = Transaction(
-          id: const Uuid().v4(),
-          type: 'income',
-          amount: account.salaryAmount!,
-          date: payDate.toIso8601String().substring(0, 10),
-          note: systemNote('systemSalary'),
-          accountId: account.id,
-        );
-        _transactions.add(tx);
-        account = account.copyWith(
-          balance: account.balance + account.salaryAmount!,
-          lastSalaryDate: payDate.toIso8601String().substring(0, 10),
-        );
-
-        final uid = _userId;
-        if (uid != null) SupabaseSyncService.saveTransaction(uid, tx);
-      }
-
-      _accounts[i] = account;
-      changed = true;
-
-      final uid = _userId;
-      if (uid != null) SupabaseSyncService.saveAccount(uid, account);
-    }
-
-    if (changed) {
-      _saveToLocal();
-      notifyListeners();
-    }
-  }
-
-  /// The date after which pay packets are still owed.
-  ///
-  /// Handles both storage formats of `lastSalaryDate`: the current
-  /// 'yyyy-MM-dd', and the legacy 'yyyy-MM' that meant "paid for this month",
-  /// which resolves to the last day of that month.
-  DateTime _lastSalaryBoundary(Account acc) {
-    final raw = acc.lastSalaryDate;
-    if (raw == null) {
-      // Look back one full cycle so exactly one packet can be due.
-      final lookback = switch (acc.effectiveSalaryFrequency) {
-        'weekly' => 8,
-        'biweekly' => 15,
-        _ => 32,
-      };
-      return DateTime.now().subtract(Duration(days: lookback));
-    }
-    if (raw.length == 7) {
-      final month = DateTime.tryParse('$raw-01');
-      if (month != null) return DateTime(month.year, month.month + 1, 0);
-    }
-    return DateTime.tryParse(raw) ?? DateTime.now();
-  }
-
-  static const String cashOnHandId = 'cash_on_hand';
+  static const String cashOnHandId = Transaction.cashOnHandId;
 
   /// Process all overdue recurring rules: create transactions and advance nextDate.
   /// Compares full datetime so same-day future rules are NOT processed prematurely.
@@ -818,10 +774,18 @@ class AppProvider with ChangeNotifier {
 
     for (int i = 0; i < _recurringRules.length; i++) {
       final rule = _recurringRules[i];
-      if (!rule.isActive) continue;
+      // Older builds created these rules before Daret required confirmation.
+      if (!rule.isActive ||
+          rule.templateTransaction.type == 'daret_contribution' ||
+          rule.templateTransaction.type == 'daret_payout' ||
+          rule.id.startsWith('daret_contrib_')) {
+        continue;
+      }
 
       // Support both date-only "2026-03-22" and full datetime "2026-03-22T15:30:00"
-      DateTime nextDate = DateTime.parse(rule.nextDate);
+      final parsedDate = DateTime.tryParse(rule.nextDate);
+      if (parsedDate == null) continue;
+      DateTime nextDate = parsedDate;
       int safetyCounter = 0;
       bool stopRule = false;
 
@@ -831,7 +795,10 @@ class AppProvider with ChangeNotifier {
 
         final isIncome = rule.templateTransaction.type == 'income';
         final amount = _recurringAmountDue(rule);
-        if (amount <= 0) {
+        if (!amount.isFinite ||
+            amount <= 0 ||
+            !rule.templateTransaction.fees.isFinite ||
+            rule.templateTransaction.fees < 0) {
           stopRule = true;
           changed = true;
           break;
@@ -1039,11 +1006,6 @@ class AppProvider with ChangeNotifier {
       final goal = _goals.where((g) => g.id == goalId).firstOrNull;
       if (goal?.paymentDay != null) return goal!.paymentDay!;
     }
-    if (rule.id.startsWith('daret_contrib_')) {
-      final daretId = rule.id.substring(15);
-      final daret = _darets.where((d) => d.id == daretId).firstOrNull;
-      if (daret != null) return daret.paymentDay;
-    }
     return DateTime.tryParse(rule.templateTransaction.date)?.day ?? fallback;
   }
 
@@ -1051,7 +1013,14 @@ class AppProvider with ChangeNotifier {
   // TRANSACTION METHODS
   // ============================================
 
-  void addTransaction(Transaction transaction) {
+  Future<void> addTransaction(Transaction transaction) async {
+    if (!transaction.amount.isFinite ||
+        transaction.amount <= 0 ||
+        !transaction.fees.isFinite ||
+        transaction.fees < 0 ||
+        _transactions.any((saved) => saved.id == transaction.id)) {
+      return;
+    }
     _transactions.add(transaction);
 
     final isCashSource = transaction.accountId == cashOnHandId;
@@ -1106,10 +1075,11 @@ class AppProvider with ChangeNotifier {
     // Sync to Supabase: save the transaction + any changed account balances
     final uid = _userId;
     if (uid != null) {
-      SupabaseSyncService.saveTransaction(uid, transaction);
-      if (changedAccounts.isNotEmpty) {
-        SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts);
-      }
+      await Future.wait([
+        SupabaseSyncService.saveTransaction(uid, transaction),
+        if (changedAccounts.isNotEmpty)
+          SupabaseSyncService.saveMultipleAccounts(uid, changedAccounts),
+      ]);
     }
   }
 
@@ -1403,22 +1373,34 @@ class AppProvider with ChangeNotifier {
   void sellHolding({
     required Holding holding,
     required double sharesToSell,
-    required double sellPrice,
+    required double sellPriceInAccountCurrency,
     required String accountId,
     required String transactionId,
   }) {
-    final proceeds = sharesToSell * sellPrice;
-    final remainingShares = holding.shares - sharesToSell;
+    final index = _holdings.indexWhere((item) => item.id == holding.id);
+    final proceeds = sharesToSell * sellPriceInAccountCurrency;
+    if (index == -1 ||
+        !sharesToSell.isFinite ||
+        sharesToSell <= 0 ||
+        sharesToSell > _holdings[index].shares ||
+        !proceeds.isFinite ||
+        proceeds <= 0 ||
+        (accountId != cashOnHandId &&
+            !_accounts.any((account) => account.id == accountId)) ||
+        _transactions.any((transaction) => transaction.id == transactionId)) {
+      return;
+    }
+    final storedHolding = _holdings[index];
+    final remainingShares = storedHolding.shares - sharesToSell;
 
     // 1. Update or remove the holding
     if (remainingShares <= 0) {
-      _holdings.removeWhere((h) => h.id == holding.id);
+      _holdings.removeAt(index);
       final uid = _userId;
       if (uid != null) SupabaseSyncService.deleteHolding(uid, holding.id);
     } else {
-      final updated = holding.copyWith(shares: remainingShares);
-      final idx = _holdings.indexWhere((h) => h.id == holding.id);
-      if (idx != -1) _holdings[idx] = updated;
+      final updated = storedHolding.copyWith(shares: remainingShares);
+      _holdings[index] = updated;
       final uid = _userId;
       if (uid != null) SupabaseSyncService.saveHolding(uid, updated);
     }
@@ -1523,10 +1505,7 @@ class AppProvider with ChangeNotifier {
 
     final now = DateTime.now();
     final day = goal.paymentDay ?? 1;
-    DateTime nextDate = DateTime(now.year, now.month, day);
-    if (!nextDate.isAfter(now)) {
-      nextDate = DateTime(now.year, now.month + 1, day);
-    }
+    final nextDate = nextMonthlyDueDate(now, day);
 
     final sourceId = goal.paymentSourceAccountId ?? cashOnHandId;
 
@@ -1860,13 +1839,10 @@ class AppProvider with ChangeNotifier {
     final index = _accounts.indexWhere((a) => a.id == accountId);
     if (index == -1) return;
 
-    _accounts[index] = amount == null || amount <= 0
-        ? _accounts[index].withoutSalary()
-        : _accounts[index].withSalary(
-            amount: amount,
-            frequency: frequency,
-            day: day,
-          );
+    final previous = _accounts[index];
+    _accounts[index] = amount == null || !amount.isFinite || amount <= 0
+        ? previous.withoutSalary()
+        : previous.withSalary(amount: amount, frequency: frequency, day: day);
 
     _settings = _settings.copyWith(monthlyIncome: monthlyIncomeFromSalaries);
 
@@ -1880,13 +1856,13 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  void updateSettings(Settings settings) {
+  Future<void> updateSettings(Settings settings) async {
     _settings = settings;
     _saveToLocal();
     notifyListeners();
     _refreshNotifications();
     final uid = _userId;
-    if (uid != null) SupabaseSyncService.saveProfile(uid, settings);
+    if (uid != null) await SupabaseSyncService.saveProfile(uid, settings);
   }
 
   /// Stores [localPath] as the user's profile picture and uploads it.
@@ -2120,7 +2096,7 @@ class AppProvider with ChangeNotifier {
   double getTotalByAccountType(String type) {
     return _accounts
         .where((a) => a.type == type)
-        .fold(0.0, (sum, a) => sum + a.balance.abs());
+        .fold(0.0, (sum, a) => sum + a.balance);
   }
 
   double get totalSavingsGoals {
@@ -2157,178 +2133,131 @@ class AppProvider with ChangeNotifier {
 
   void addDaret(Daret daret) {
     _darets.add(daret);
-    _syncDaretRecurringRule(daret);
     _saveToLocal();
     notifyListeners();
   }
 
   void updateDaret(Daret daret) {
     final index = _darets.indexWhere((d) => d.id == daret.id);
-    if (index != -1) {
-      _darets[index] = daret;
-      _syncDaretRecurringRule(daret);
-      _saveToLocal();
-      notifyListeners();
-    }
+    if (index == -1) return;
+    _darets[index] = daret;
+    _saveToLocal();
+    notifyListeners();
   }
 
   void deleteDaret(String id) {
-    // Remove recurring rules
-    final contribRuleId = 'daret_contrib_$id';
-    _recurringRules.removeWhere((r) => r.id == contribRuleId);
+    _recurringRules.removeWhere((rule) => rule.id == 'daret_contrib_$id');
     _darets.removeWhere((d) => d.id == id);
     _saveToLocal();
     notifyListeners();
   }
 
-  /// Creates or updates the monthly contribution recurring rule for a daret.
-  void _syncDaretRecurringRule(Daret daret) {
-    final ruleId = 'daret_contrib_${daret.id}';
-    final existingIdx = _recurringRules.indexWhere((r) => r.id == ruleId);
-
-    if (!daret.isActive || daret.isComplete) {
-      if (existingIdx != -1) {
-        _recurringRules.removeAt(existingIdx);
+  /// Pending scheduled contributions and payouts, including past-due rounds.
+  List<DaretPayment> dueDaretPayments({DateTime? now}) {
+    final today = now ?? DateTime.now();
+    final postedIds = _transactions.map((transaction) => transaction.id).toSet();
+    final posted = <(String?, String, int, int)>{};
+    for (final transaction in _transactions) {
+      if (transaction.type != 'daret_contribution' &&
+          transaction.type != 'daret_payout') {
+        continue;
       }
-      return;
+      final date = DateTime.tryParse(transaction.date);
+      if (date == null) continue;
+      posted.add((transaction.categoryId, transaction.type, date.year, date.month));
     }
 
-    final now = DateTime.now();
-    final day = daret.paymentDay;
-    DateTime nextDate = DateTime(now.year, now.month, day);
-    if (!nextDate.isAfter(now)) {
-      nextDate = DateTime(now.year, now.month + 1, day);
+    final due = [
+      for (final daret in _darets)
+        for (final payment in daret.paymentsThrough(today))
+          if (!postedIds.contains(payment.id) &&
+              !posted.contains((
+            daret.id,
+            payment.transactionType,
+            payment.dueDate.year,
+            payment.dueDate.month,
+          )))
+            payment,
+    ];
+    return due..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+  }
+
+  Future<bool> confirmDaretPayment(DaretPayment selection, {DateTime? now}) async {
+    final payment = dueDaretPayments(now: now)
+        .where((item) => item.id == selection.id)
+        .firstOrNull;
+    if (payment == null) return false;
+    if (payment.accountId != cashOnHandId &&
+        !_accounts.any((account) => account.id == payment.accountId)) {
+      return false;
     }
 
-    final rule = RecurringRule(
-      id: ruleId,
-      frequency: 'monthly',
-      nextDate: nextDate.toIso8601String(),
-      isActive: true,
-      templateTransaction: Transaction(
-        id: '${ruleId}_template',
-        type: 'daret_contribution',
-        amount: daret.monthlyPayment,
-        date: nextDate.toIso8601String(),
-        accountId: daret.paymentSourceId,
-        note: systemNote('savingsCircle', daret.name),
-        categoryId: daret.id,
-        isRecurring: true,
+    final transaction = Transaction(
+      id: payment.id,
+      type: payment.transactionType,
+      amount: payment.amount,
+      date: payment.dueDate.toIso8601String().substring(0, 10),
+      note: systemNote(
+        payment.isPayout ? 'received' : 'savingsCircle',
+        payment.daretName,
+        payment.accountId == cashOnHandId,
       ),
+      accountId: payment.accountId,
+      categoryId: payment.daretId,
     );
-
-    if (existingIdx != -1) {
-      final existing = _recurringRules[existingIdx];
-      _recurringRules[existingIdx] = rule.copyWith(nextDate: existing.nextDate);
-    } else {
-      _recurringRules.add(rule);
-    }
+    final sync = addTransaction(transaction);
+    _saveDebounce?.cancel();
+    await Future.wait([sync, _performSave()]);
+    return true;
   }
 
-  /// Process monthly daret contribution: deduct from source account.
-  void processDaretContribution(String daretId) {
-    final idx = _darets.indexWhere((d) => d.id == daretId);
-    if (idx == -1) return;
-    final daret = _darets[idx];
-
-    final txn = Transaction(
-      id: const Uuid().v4(),
-      type: 'daret_contribution',
-      amount: daret.monthlyPayment,
-      date: DateTime.now().toIso8601String(),
-      note: systemNote('savingsCircle', daret.name),
-      accountId: daret.paymentSourceId,
-      categoryId: daret.id,
-    );
-    _transactions.add(txn);
-
-    // Deduct from source account
-    if (daret.paymentSourceId != cashOnHandId) {
-      final ai = _accounts.indexWhere((a) => a.id == daret.paymentSourceId);
-      if (ai != -1) {
-        _accounts[ai] = _accounts[ai].copyWith(
-          balance: _accounts[ai].balance - daret.monthlyPayment,
-        );
-      }
-    }
-
-    _saveToLocal();
-    notifyListeners();
-
-    final uid = _userId;
-    if (uid != null) {
-      SupabaseSyncService.saveTransaction(uid, txn);
-      if (daret.paymentSourceId != cashOnHandId) {
-        final ai = _accounts.indexWhere((a) => a.id == daret.paymentSourceId);
-        if (ai != -1) SupabaseSyncService.saveAccount(uid, _accounts[ai]);
-      }
-    }
+  double daretPostedTotal(String daretId, {required bool isPayout}) {
+    final type = isPayout ? 'daret_payout' : 'daret_contribution';
+    return _transactions
+        .where((tx) => tx.categoryId == daretId && tx.type == type)
+        .fold(0.0, (sum, tx) => sum + tx.amount);
   }
 
-  /// Check and process daret payout for the current month.
-  void checkDaretPayout(String daretId) {
-    final idx = _darets.indexWhere((d) => d.id == daretId);
-    if (idx == -1) return;
-    final daret = _darets[idx];
+  double daretRemainingLiability(Daret daret) =>
+      (daret.totalCycleContribution -
+          daretPostedTotal(daret.id, isPayout: false))
+          .clamp(0.0, double.infinity)
+          .toDouble();
 
-    if (!daret.payoutMonths.contains(daret.currentMonth)) return;
-
-    final now = DateTime.now();
-    final alreadyPaid = _transactions.any((t) {
-      if (t.type != 'daret_payout' || t.categoryId != daret.id) return false;
-      final date = DateTime.tryParse(t.date);
-      return date != null && date.year == now.year && date.month == now.month;
-    });
-    if (alreadyPaid) return;
-
-    final txn = Transaction(
-      id: const Uuid().v4(),
-      type: 'daret_payout',
-      amount: daret.singlePayoutAmount,
-      date: now.toIso8601String(),
-      note: systemNote('received', daret.name),
-      accountId: daret.destinationAccountId,
-      categoryId: daret.id,
-    );
-    _transactions.add(txn);
-
-    // Credit destination account
-    if (daret.destinationAccountId != cashOnHandId) {
-      final ai =
-          _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
-      if (ai != -1) {
-        _accounts[ai] = _accounts[ai].copyWith(
-          balance: _accounts[ai].balance + daret.singlePayoutAmount,
-        );
+  bool isDaretPaymentPosted(Daret daret, int round, {required bool isPayout}) {
+    final due = daret.dueDateForRound(round);
+    if (due == null) return false;
+    final type = isPayout ? 'daret_payout' : 'daret_contribution';
+    return _transactions.any((transaction) {
+      if (transaction.categoryId != daret.id || transaction.type != type) {
+        return false;
       }
-    }
-
-    _saveToLocal();
-    notifyListeners();
-
-    final uid = _userId;
-    if (uid != null) {
-      SupabaseSyncService.saveTransaction(uid, txn);
-      if (daret.destinationAccountId != cashOnHandId) {
-        final ai =
-            _accounts.indexWhere((a) => a.id == daret.destinationAccountId);
-        if (ai != -1) SupabaseSyncService.saveAccount(uid, _accounts[ai]);
-      }
-    }
-  }
-
-  /// Get total net position across all active darets
-  /// (totalReceived - totalPaid so far)
-  double get totalDaretNetPosition {
-    return _darets.where((d) => d.isActive).fold(0.0, (sum, d) {
-      return sum + d.totalReceivedSoFar - d.totalPaidSoFar;
+      final date = DateTime.tryParse(transaction.date);
+      return date != null && date.year == due.year && date.month == due.month;
     });
   }
 
-  /// Get total remaining liability across all active darets
-  double get totalDaretLiability {
-    return _darets.where((d) => d.isActive).fold(0.0, (sum, d) {
-      return sum + d.remainingLiability;
-    });
+  int? nextDaretPayoutRound(Daret daret) =>
+      (daret.payoutMonths.toList()..sort())
+          .where((round) => !isDaretPaymentPosted(daret, round, isPayout: true))
+          .firstOrNull;
+
+  bool isDaretSettled(Daret daret) {
+    if (!daret.isActive) return true;
+    final lastDue = daret.dueDateForRound(daret.totalShares);
+    return lastDue != null &&
+        !DateTime.now().isBefore(lastDue) &&
+        daret.paymentsThrough(lastDue).every((payment) => isDaretPaymentPosted(
+            daret, payment.round, isPayout: payment.isPayout));
   }
+
+  double get totalDaretNetPosition =>
+      _darets.where((d) => d.isActive).fold(0.0, (sum, d) =>
+          sum +
+          daretPostedTotal(d.id, isPayout: true) -
+          daretPostedTotal(d.id, isPayout: false));
+
+  double get totalDaretLiability =>
+      _darets.where((d) => d.isActive).fold(0.0, (sum, d) =>
+          sum + daretRemainingLiability(d));
 }

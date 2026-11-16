@@ -11,6 +11,7 @@ import '../models/daret.dart';
 import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/wealth_ui.dart';
+import '../widgets/daret_payment_prompt.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/money_format.dart';
 
@@ -30,9 +31,11 @@ class _DaretScreenState extends State<DaretScreen> {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final cf = MoneyFormat.of(provider.settings);
-        final activeDarets = provider.darets.where((d) => d.isActive).toList();
         final completedDarets =
-            provider.darets.where((d) => !d.isActive || d.isComplete).toList();
+            provider.darets.where(provider.isDaretSettled).toList();
+        final activeDarets = provider.darets
+            .where((daret) => !completedDarets.contains(daret))
+            .toList();
         final totalLiability = provider.totalDaretLiability;
 
         return Scaffold(
@@ -53,6 +56,9 @@ class _DaretScreenState extends State<DaretScreen> {
                       addTooltip: s.newDaret,
                     ),
                   ).animate().fadeIn(duration: 260.ms),
+                ),
+                SliverToBoxAdapter(
+                  child: DaretPaymentPrompt(provider: provider),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
@@ -158,6 +164,7 @@ class _DaretScreenState extends State<DaretScreen> {
   Widget _buildDaretCard(BuildContext context, Daret daret,
       AppProvider provider, MoneyFormat cf, bool isDark) {
     final s = S.of(context);
+    final nextPayout = provider.nextDaretPayoutRound(daret);
     return GestureDetector(
       onTap: () => _showDaretDetail(context, daret, provider, cf, isDark),
       child: Container(
@@ -236,7 +243,7 @@ class _DaretScreenState extends State<DaretScreen> {
                         .textTheme
                         .bodySmall
                         ?.copyWith(fontWeight: FontWeight.w500)),
-                if (daret.nextPayoutMonth > 0)
+                if (nextPayout != null)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -246,7 +253,7 @@ class _DaretScreenState extends State<DaretScreen> {
                     ),
                     child: Text(
                         s.payoutMonth
-                            .replaceAll('{month}', '${daret.nextPayoutMonth}'),
+                            .replaceAll('{month}', '$nextPayout'),
                         style: const TextStyle(
                             color: AppTheme.incomeIcon,
                             fontSize: 12,
@@ -370,15 +377,17 @@ class _DaretScreenState extends State<DaretScreen> {
                             valueColor: AppTheme.incomeIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.totalPaidSoFar,
-                            cf.format(daret.totalPaidSoFar),
+                            cf.format(provider.daretPostedTotal(daret.id,
+                                isPayout: false)),
                             valueColor: AppTheme.expenseIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.totalReceivedSoFar,
-                            cf.format(daret.totalReceivedSoFar),
+                            cf.format(provider.daretPostedTotal(daret.id,
+                                isPayout: true)),
                             valueColor: AppTheme.incomeIcon),
                         const SizedBox(height: 12),
                         _detailRow(ctx, s, s.remainingLiability,
-                            cf.format(daret.remainingLiability),
+                            cf.format(provider.daretRemainingLiability(daret)),
                             valueColor: AppTheme.expenseIcon),
                       ],
                     ),
@@ -425,12 +434,18 @@ class _DaretScreenState extends State<DaretScreen> {
                         final isPayout = daret.payoutMonths.contains(month);
                         final isCurrent = month == daret.currentMonth;
                         final isPast = month < daret.currentMonth;
+                        final payoutReceived = isPayout &&
+                            provider.isDaretPaymentPosted(
+                              daret,
+                              month,
+                              isPayout: true,
+                            );
                         return Container(
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
                             color: isPayout
-                                ? (isPast
+                                ? (payoutReceived
                                     ? AppTheme.incomeIcon
                                     : AppTheme.incomeIcon
                                         .withValues(alpha: 0.15))
@@ -462,7 +477,7 @@ class _DaretScreenState extends State<DaretScreen> {
                                       ? FontWeight.w700
                                       : FontWeight.w500,
                                   color: isPayout
-                                      ? (isPast
+                                      ? (payoutReceived
                                           ? Colors.white
                                           : AppTheme.incomeIcon)
                                       : isCurrent
@@ -674,7 +689,9 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
 
   void _save() {
     if (_nameController.text.trim().isEmpty) return;
-    if (_contribution <= 0 || _totalShares <= 0) return;
+    if (!_contribution.isFinite || _contribution <= 0 || _totalShares <= 0) {
+      return;
+    }
     final validPayouts = _payoutMonths.whereType<int>().toList();
     if (validPayouts.length != _userShares) return;
 
@@ -689,6 +706,7 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
       paymentSourceId: _paymentSourceId ?? AppProvider.cashOnHandId,
       destinationAccountId: _destinationAccountId ?? AppProvider.cashOnHandId,
       paymentDay: _paymentDay,
+      isActive: widget.existing?.isActive ?? true,
     );
 
     if (_isEditing) {

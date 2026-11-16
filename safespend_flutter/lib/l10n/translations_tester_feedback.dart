@@ -1,5 +1,9 @@
 const translationsTesterFeedback = <String, Map<String, String>>{
   'en': {
+    'daretPaymentsDue': 'Daret payments due',
+    'daretPendingCount': 'Awaiting confirmation: {count}',
+    'daretMarkPaid': 'Mark contribution as paid',
+    'daretMarkReceived': 'Mark payout as received',
     'continueWithGoogle': 'Continue with Google',
     'sendRecoveryEmail': 'Send recovery email',
     'recoveryEmailSent':
@@ -12,6 +16,10 @@ const translationsTesterFeedback = <String, Map<String, String>>{
     'includeInMonthlyBudget': 'Include in monthly budget'
   },
   'fr': {
+    'daretPaymentsDue': 'Paiements Daret à confirmer',
+    'daretPendingCount': 'En attente de confirmation : {count}',
+    'daretMarkPaid': 'Marquer la cotisation comme payée',
+    'daretMarkReceived': 'Marquer le versement comme reçu',
     'continueWithGoogle': 'Continuer avec Google',
     'sendRecoveryEmail': 'Envoyer l’e-mail de récupération',
     'recoveryEmailSent':
@@ -25,6 +33,10 @@ const translationsTesterFeedback = <String, Map<String, String>>{
     'includeInMonthlyBudget': 'Inclure dans le budget mensuel'
   },
   'ar': {
+    'daretPaymentsDue': 'دفعات الدّارت المستحقة',
+    'daretPendingCount': 'في انتظار التأكيد: {count}',
+    'daretMarkPaid': 'تأكيد دفع المساهمة',
+    'daretMarkReceived': 'تأكيد استلام المبلغ',
     'continueWithGoogle': 'المتابعة باستخدام Google',
     'sendRecoveryEmail': 'إرسال بريد الاسترداد',
     'recoveryEmailSent':

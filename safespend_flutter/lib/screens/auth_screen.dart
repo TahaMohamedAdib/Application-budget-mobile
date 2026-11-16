@@ -3,7 +3,6 @@ import 'package:safespend_flutter/theme/ios_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/auth_service.dart';
-import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
 
@@ -37,7 +36,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthService>(context, listen: false);
-    final appProvider = Provider.of<AppProvider>(context, listen: false);
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -53,9 +51,6 @@ class _AuthScreenState extends State<AuthScreen> {
     if (result.error == 'email_confirmation_required') {
       if (!mounted) return;
       _showEmailConfirmationDialog(email);
-    } else if (result.success && auth.userId != null) {
-      // Fully authenticated — load cloud data
-      await appProvider.loadFromSupabase(auth.userId!);
     } else if (result.error != null) {
       if (!mounted) return;
       final isEmailNotConfirmed =
@@ -66,8 +61,9 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(S.of(context).tr('actionCouldNotBeCompleted')),
-              backgroundColor: AppTheme.error),
+            content: Text(S.of(context).tr('actionCouldNotBeCompleted')),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     }
@@ -410,40 +406,52 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _requestRecovery(String initialEmail) async {
-    final email = TextEditingController(text: initialEmail);
+    final auth = context.read<AuthService>();
     final s = S.of(context);
-    await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-                title: Text(s.forgotPassword),
-                content: TextField(
-                    controller: email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(labelText: s.email)),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: Text(s.cancel)),
-                  ElevatedButton(
-                      onPressed: () async {
-                        final value = email.text.trim();
-                        if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                            .hasMatch(value)) return;
-                        final result = await context
-                            .read<AuthService>()
-                            .requestPasswordRecovery(value);
-                        if (!dialogContext.mounted) return;
-                        Navigator.pop(dialogContext);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(result.success
-                                ? s.tr('recoveryEmailSent')
-                                : s.tr('actionCouldNotBeCompleted')),
-                            backgroundColor: result.success
-                                ? AppTheme.success
-                                : AppTheme.error));
-                      },
-                      child: Text(s.tr('sendRecoveryEmail')))
-                ]));
-    email.dispose();
+    var email = initialEmail;
+    final submittedEmail = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(s.forgotPassword),
+        content: TextFormField(
+          initialValue: initialEmail,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(labelText: s.email),
+          onChanged: (value) => email = value,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(s.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = email.trim();
+              if (RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: Text(s.tr('sendRecoveryEmail')),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || submittedEmail == null) return;
+
+    setState(() => _isLoading = true);
+    final result = await auth.requestPasswordRecovery(submittedEmail);
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.success
+              ? s.tr('recoveryEmailSent')
+              : s.tr('actionCouldNotBeCompleted'),
+        ),
+        backgroundColor: result.success ? AppTheme.success : AppTheme.error,
+      ),
+    );
   }
 }

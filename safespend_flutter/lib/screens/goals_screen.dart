@@ -16,6 +16,7 @@ import '../widgets/app_form_sheet.dart';
 import '../widgets/app_picker_field.dart';
 import '../widgets/wealth_ui.dart';
 import '../utils/money_format.dart';
+import '../utils/recurring_dates.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/stored_image.dart';
 import '../services/supabase_sync_service.dart';
@@ -1125,12 +1126,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
       return;
     }
 
-    final now = DateTime.now();
-    int day = goal.paymentDay ?? 1;
-    DateTime nextDate = DateTime(now.year, now.month, day);
-    if (nextDate.isBefore(now) || nextDate.isAtSameMomentAs(now)) {
-      nextDate = DateTime(now.year, now.month + 1, day);
-    }
+    final nextDate = nextMonthlyDueDate(DateTime.now(), goal.paymentDay ?? 1);
 
     final rule = RecurringRule(
       id: ruleId,

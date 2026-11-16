@@ -8,7 +8,8 @@ DateTime advanceRecurringDate(
   String frequency, {
   int? scheduledDay,
 }) {
-  DateTime atDate(int year, int month, int day) => DateTime(
+  final dateConstructor = from.isUtc ? DateTime.utc : DateTime.new;
+  DateTime atDate(int year, int month, int day) => dateConstructor(
         year,
         month,
         day,
@@ -38,4 +39,15 @@ DateTime advanceRecurringDate(
         targetDay.clamp(1, lastDay),
       );
   }
+}
+
+/// Next monthly date after [from], clamped to the last day of shorter months.
+DateTime nextMonthlyDueDate(DateTime from, int scheduledDay) {
+  final dateConstructor = from.isUtc ? DateTime.utc : DateTime.new;
+  final lastDay = dateConstructor(from.year, from.month + 1, 0).day;
+  final thisMonth =
+      dateConstructor(from.year, from.month, scheduledDay.clamp(1, lastDay));
+  return thisMonth.isAfter(from)
+      ? thisMonth
+      : advanceRecurringDate(thisMonth, 'monthly', scheduledDay: scheduledDay);
 }

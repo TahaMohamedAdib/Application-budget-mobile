@@ -26,6 +26,7 @@ import 'screens/onboarding/app_tour_screen.dart';
 import 'screens/onboarding/feature_guide_sheet.dart';
 import 'screens/settings/pin_entry_screen.dart';
 import 'widgets/add_transaction_modal.dart';
+import 'widgets/daret_payment_prompt.dart';
 import 'widgets/quick_actions_sheet.dart';
 
 Color _alpha(Color color, double value) => color.withValues(alpha: value);
@@ -135,19 +136,49 @@ class MyApp extends StatelessWidget {
     // Authenticated but Supabase data not loaded yet → trigger load + show splash
     if (auth.isPasswordRecovery) return const ResetPasswordScreen();
 
+    if (provider.cloudLoadFailed) {
+      final s = S.of(context);
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(s.tr('actionCouldNotBeCompleted'),
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () {
+                      final uid = auth.userId;
+                      if (uid != null) provider.loadFromSupabase(uid);
+                    },
+                    child: Text(s.retry),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (!provider.supabaseDataLoaded) {
       final uid = auth.userId;
       if (uid != null) {
         // Schedule after the current frame to avoid calling setState during build
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          provider.loadFromSupabase(uid);
+          if (context.mounted && !auth.loading && auth.userId == uid) {
+            provider.loadFromSupabase(uid);
+          }
         });
       }
       return const _SplashScreen();
     }
 
-    // Has data → skip onboarding if accounts exist
-    if (provider.setupComplete || provider.accounts.isNotEmpty) {
+    // The provider also marks returning users with saved accounts as set up.
+    if (provider.setupComplete) {
       // First launch into the app → show the guided tour once.
       if (!provider.hasSeenAppTour) {
         return AppTourScreen(onDone: provider.markAppTourSeen);
@@ -376,7 +407,8 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _selectedIndex = 0;
   late final PageController _pageController;
   bool _isMenuOpen = false;
@@ -385,6 +417,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late final Animation<double> _menuAnimation;
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
   Timer? _subscriptionTimer;
+  final Set<String> _promptedDaretPayments = {};
+  bool _daretPromptOpen = false;
 
   /// Gap between the screen bottom and the floating nav pill. iOS parks its
   /// own tab bar *inside* the home-indicator inset rather than above it, so we
@@ -406,6 +440,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _screens = [
       HomeScreen(key: _homeKey, onOpenWealth: () => _onTabTapped(3)),
       const CoachScreen(),
@@ -420,26 +455,51 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _menuAnimation = CurvedAnimation(
         parent: _menuAnimController, curve: Curves.easeOutCubic);
 
-    // Load user data from Supabase on mount (only if not already loaded this session)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final appProvider = Provider.of<AppProvider>(context, listen: false);
-      if (auth.isAuthenticated &&
-          auth.userId != null &&
-          !appProvider.supabaseDataLoaded) {
-        appProvider.loadFromSupabase(auth.userId!);
-      }
-    });
-
     // Check every minute for subscriptions that have become due
     _subscriptionTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
       Provider.of<AppProvider>(context, listen: false).processSubscriptions();
+      _checkDaretPayments();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkDaretPayments();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkDaretPayments();
+  }
+
+  Future<void> _checkDaretPayments() async {
+    if (!mounted ||
+        _daretPromptOpen ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    final provider = context.read<AppProvider>();
+    if (provider.settings.appLockEnabled) {
+      // While app lock is on, the inline prompt becomes reachable on unlock.
+      setState(() {});
+      return;
+    }
+    final payments = provider.dueDaretPayments();
+    setState(() {});
+    if (!payments.any((payment) => !_promptedDaretPayments.contains(payment.id))) {
+      return;
+    }
+    _promptedDaretPayments.addAll(payments.map((payment) => payment.id));
+    _daretPromptOpen = true;
+    try {
+      await showDaretPayments(context, provider);
+    } finally {
+      _daretPromptOpen = false;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _subscriptionTimer?.cancel();
     _pageController.dispose();
     _menuAnimController.dispose();

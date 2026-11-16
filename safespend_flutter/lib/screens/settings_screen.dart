@@ -185,10 +185,13 @@ class SettingsScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     final auth = Provider.of<AuthService>(context, listen: false);
-    await auth.signOut();
-    provider.clearData();
-    if (context.mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+    final userId = auth.userId;
+    final navigator = Navigator.of(context);
+    await auth.signOut(
+      clearLocalData: () => provider.clearData(userId: userId),
+    );
+    if (navigator.mounted) {
+      navigator.popUntil((route) => route.isFirst);
     }
   }
 }

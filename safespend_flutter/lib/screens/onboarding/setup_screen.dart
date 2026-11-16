@@ -38,7 +38,7 @@ import '../../widgets/onboarding_ui.dart';
 ///   safe-to-spend, and was previously never written at all, leaving every new
 ///   user's budget stuck at zero.
 /// * `Account.salaryAmount` / `salaryFrequency` / `salaryDay` /
-///   `salaryAnchorDate` — the pay cycle the auto-credit engine walks.
+///   `salaryAnchorDate` — the pay cycle used for planning.
 class SetupScreen extends StatefulWidget {
   final VoidCallback onComplete;
   final VoidCallback onBack;
@@ -86,6 +86,7 @@ class _SetupScreenState extends State<SetupScreen> {
   String? _wageError;
 
   bool _isSaving = false;
+  Account? _savedAccount;
 
   static const _commonCurrencies = [
     'USD',
@@ -236,7 +237,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final now = DateTime.now();
 
     return Account(
-      id: const Uuid().v4(),
+      id: _savedAccount?.id ?? const Uuid().v4(),
       name: _accountNameController.text.trim(),
       type: 'bank',
       balance: _parseAmount(_balanceController.text) ?? 0,
@@ -264,17 +265,31 @@ class _SetupScreenState extends State<SetupScreen> {
     final provider = context.read<AppProvider>();
     final account = _buildAccount();
 
-    provider.updateSettings(
-      provider.settings.copyWith(
-        currency: _currency,
-        // Previously left at zero, which pinned safe-to-spend to zero for every
-        // new user. The account holds one pay packet; settings holds the
-        // per-month figure the budget maths expects.
-        monthlyIncome: account.monthlySalaryEquivalent,
-      ),
-    );
-    provider.addAccount(account);
+    // Finish these writes (or queue them for offline retry) before letting
+    // the user continue to a screen from which they can sign out.
+    try {
+      await Future.wait([
+        provider.updateSettings(
+          provider.settings.copyWith(
+            currency: _currency,
+            monthlyIncome: account.monthlySalaryEquivalent,
+          ),
+        ),
+        _savedAccount == null
+            ? provider.addAccount(account)
+            : provider.updateAccount(account),
+      ]);
+    } catch (_) {
+      if (!mounted) return;
+      _savedAccount = account;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(S.of(context).tr('actionCouldNotBeCompleted'))),
+      );
+      return;
+    }
 
+    if (!mounted) return;
     HapticFeedback.mediumImpact();
     widget.onComplete();
   }

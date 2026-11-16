@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:safespend_flutter/models/account.dart';
+import 'package:safespend_flutter/models/category.dart';
 import 'package:safespend_flutter/models/goal.dart';
+import 'package:safespend_flutter/models/holding.dart';
 import 'package:safespend_flutter/models/recurring_rule.dart';
 import 'package:safespend_flutter/services/ai/financial_context_service.dart';
 import 'package:safespend_flutter/providers/app_provider.dart';
@@ -75,6 +77,89 @@ void main() {
         balance: 400,
         includeInNetWorth: false));
     expect(p.getNetWorth(), 0);
+  });
+
+  test('an overdrawn bank account reduces the combined bank balance',
+      () async {
+    final p = await fixture.emptyProvider();
+    addTearDown(p.dispose);
+    await p.addAccount(
+        Account(id: 'a', name: 'Bank A', type: 'bank', balance: 500));
+    await p.addAccount(
+        Account(id: 'b', name: 'Bank B', type: 'bank', balance: -100));
+    expect(p.getTotalByAccountType('bank'), 400);
+  });
+
+  test('excluded category expenses still change the actual bank balance',
+      () async {
+    final p = await fixture.emptyProvider();
+    addTearDown(p.dispose);
+    await p.addAccount(
+        Account(id: 'bank', name: 'Bank', type: 'bank', balance: 5000));
+    p.addCategory(Category(
+      id: 'travel',
+      name: 'Travel',
+      group: 'variable',
+      icon: 'flight',
+      color: '#06b6d4',
+      includeInMonthlyBudget: false,
+    ));
+    final expense = fixture.transaction(
+      id: 'expense',
+      type: 'expense',
+      amount: 300,
+      fees: 5,
+      accountId: 'bank',
+    ).copyWith(categoryId: 'travel');
+
+    p.addTransaction(expense);
+    p.addTransaction(expense);
+    p.addTransaction(expense.copyWith(id: 'invalid', amount: double.nan));
+    expect(p.transactions, hasLength(1));
+    expect(p.accounts.single.balance, 4695);
+
+    p.updateTransaction(expense.copyWith(amount: 200));
+    expect(p.accounts.single.balance, 4795);
+    p.deleteTransaction(expense.id);
+    expect(p.accounts.single.balance, 5000);
+  });
+
+  test('a sale credits the account currency and cannot sell stale shares',
+      () async {
+    final p = await fixture.emptyProvider();
+    addTearDown(p.dispose);
+    await p.addAccount(
+        Account(id: 'bank', name: 'Bank', type: 'bank', balance: 5000));
+    final holding = Holding(
+      id: 'shares',
+      symbol: 'AAPL',
+      shares: 3,
+      costBasis: 175,
+      currentPrice: 200,
+    );
+    p.addHolding(holding);
+
+    p.sellHolding(
+      holding: holding,
+      sharesToSell: 2,
+      sellPriceInAccountCurrency: 2000,
+      accountId: 'bank',
+      transactionId: 'sale',
+    );
+    expect(p.accounts.single.balance, 9000);
+    expect(p.transactions.single.amount, 4000);
+    expect(p.holdings.single.shares, 1);
+
+    p.sellHolding(
+      holding: holding,
+      sharesToSell: 2,
+      sellPriceInAccountCurrency: 2000,
+      accountId: 'bank',
+      transactionId: 'second-sale',
+    );
+    expect(p.accounts.single.balance, 9000);
+    expect(p.transactions, hasLength(1));
+    expect(p.holdings.single.shares, 1);
   });
 
   test('deleting an account reverses linked history and removes its schedules',

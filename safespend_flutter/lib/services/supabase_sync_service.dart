@@ -16,6 +16,7 @@ import '../models/recurring_rule.dart';
 import '../models/holding.dart';
 import '../models/category.dart';
 import '../models/settings.dart';
+import '../utils/system_note.dart';
 
 enum _SyncOperationType {
   saveProfile,
@@ -401,28 +402,23 @@ class SupabaseSyncService {
   // ============================================
 
   static Future<Settings?> loadProfile(String userId) async {
-    try {
-      final data =
-          await _db.from('profiles').select().eq('id', userId).maybeSingle();
+    final data =
+        await _db.from('profiles').select().eq('id', userId).maybeSingle();
 
-      if (data == null) return null;
+    if (data == null) return null;
 
-      return Settings(
-        currency: data['currency'] ?? 'USD',
-        monthlyIncome: (data['monthly_income'] as num?)?.toDouble() ?? 0,
-        isDarkMode: (data['theme'] ?? 'dark') == 'dark',
-        netWorthScope: data['net_worth_scope'] ?? 'all',
-        selectedAccountId: data['selected_account_id'],
-        locale: data['locale'] ?? 'en',
-        localeManuallySelected: data['locale_manually_selected'] ?? false,
-        // Restores the profile picture on a fresh install: this row is the
-        // only copy that outlives the app's local storage.
-        avatarPath: data['avatar_url'] as String?,
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase] Error loading profile: $e');
-      return null;
-    }
+    return Settings(
+      currency: data['currency'] ?? 'USD',
+      monthlyIncome: (data['monthly_income'] as num?)?.toDouble() ?? 0,
+      isDarkMode: (data['theme'] ?? 'dark') == 'dark',
+      netWorthScope: data['net_worth_scope'] ?? 'all',
+      selectedAccountId: data['selected_account_id'],
+      locale: data['locale'] ?? 'en',
+      localeManuallySelected: data['locale_manually_selected'] ?? false,
+      // Restores the profile picture on a fresh install: this row is the
+      // only copy that outlives the app's local storage.
+      avatarPath: data['avatar_url'] as String?,
+    );
   }
 
   static Future<void> _saveProfileRemote(
@@ -580,17 +576,12 @@ class SupabaseSyncService {
       );
 
   static Future<List<Account>> loadAccounts(String userId) async {
-    try {
-      final data = await _db
-          .from('accounts')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: true);
-      return data.map<Account>(_rowToAccount).toList();
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase] Error loading accounts: $e');
-      return [];
-    }
+    final data = await _db
+        .from('accounts')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: true);
+    return data.map<Account>(_rowToAccount).toList();
   }
 
   static Future<void> _saveAccountRemote(String userId, Account account) async {
@@ -657,7 +648,11 @@ class SupabaseSyncService {
       {
         'id': t.id,
         'user_id': userId,
-        'account_id': t.accountId.isEmpty ? null : t.accountId,
+        'account_id': t.accountId.isEmpty ||
+                (t.accountId == Transaction.cashOnHandId &&
+                    systemNoteUsesCash(t.note))
+            ? null
+            : t.accountId,
         'to_account_id': t.toAccountId,
         'type': t.type,
         'amount': t.amount,
@@ -674,9 +669,10 @@ class SupabaseSyncService {
         id: t['id'],
         type: t['type'] ?? 'expense',
         amount: (t['amount'] as num?)?.toDouble() ?? 0,
-        fees: (t['fees'] as num?)?.toDouble() ?? 0,
+        fees: ((t['fees'] ?? t['fee_amount']) as num?)?.toDouble() ?? 0,
         date: t['date'] ?? DateTime.now().toIso8601String(),
-        accountId: t['account_id'] ?? '',
+        accountId: t['account_id'] ??
+            (systemNoteUsesCash(t['note']) ? Transaction.cashOnHandId : ''),
         toAccountId: t['to_account_id'],
         categoryId: t['category_id'],
         note: t['note'],
@@ -686,24 +682,25 @@ class SupabaseSyncService {
       );
 
   static Future<List<Transaction>> loadTransactions(String userId) async {
-    try {
-      final data = await _db
-          .from('transactions')
-          .select()
-          .eq('user_id', userId)
-          .order('date', ascending: true);
-      return data.map<Transaction>(_rowToTransaction).toList();
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase] Error loading transactions: $e');
-      return [];
-    }
+    final data = await _db
+        .from('transactions')
+        .select()
+        .eq('user_id', userId)
+        .order('date', ascending: true);
+    return data.map<Transaction>(_rowToTransaction).toList();
   }
 
   static Future<void> _saveTransactionRemote(
       String userId, Transaction transaction) async {
-    await _db
-        .from('transactions')
-        .upsert(_transactionToRow(userId, transaction));
+    final row = _transactionToRow(userId, transaction);
+    try {
+      await _db.from('transactions').upsert(row);
+    } on PostgrestException catch (error) {
+      if (_missingColumnFrom(error) != 'fees') rethrow;
+      // The base schema calls the same monetary field fee_amount.
+      row['fee_amount'] = row.remove('fees');
+      await _db.from('transactions').upsert(row);
+    }
   }
 
   static Future<void> saveTransaction(
@@ -984,17 +981,12 @@ class SupabaseSyncService {
       );
 
   static Future<List<Goal>> loadGoals(String userId) async {
-    try {
-      final data = await _db
-          .from('goals')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: true);
-      return data.map<Goal>(_rowToGoal).toList();
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase] Error loading goals: $e');
-      return [];
-    }
+    final data = await _db
+        .from('goals')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: true);
+    return data.map<Goal>(_rowToGoal).toList();
   }
 
   static Future<void> _saveGoalRemote(String userId, Goal goal) async {
@@ -1069,18 +1061,12 @@ class SupabaseSyncService {
       );
 
   static Future<List<RecurringRule>> loadRecurringRules(String userId) async {
-    try {
-      final data = await _db
-          .from('recurring_rules')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: true);
-      return data.map<RecurringRule>(_rowToRule).toList();
-    } catch (e) {
-      if (kDebugMode)
-        debugPrint('[Supabase] Error loading recurring rules: $e');
-      return [];
-    }
+    final data = await _db
+        .from('recurring_rules')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: true);
+    return data.map<RecurringRule>(_rowToRule).toList();
   }
 
   static Future<void> _saveRecurringRuleRemote(
@@ -1155,17 +1141,12 @@ class SupabaseSyncService {
       );
 
   static Future<List<Holding>> loadHoldings(String userId) async {
-    try {
-      final data = await _db
-          .from('stock_holdings')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: true);
-      return data.map<Holding>(_rowToHolding).toList();
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase] Error loading holdings: $e');
-      return [];
-    }
+    final data = await _db
+        .from('stock_holdings')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: true);
+    return data.map<Holding>(_rowToHolding).toList();
   }
 
   static Future<void> _saveHoldingRemote(String userId, Holding holding) async {
@@ -1229,17 +1210,12 @@ class SupabaseSyncService {
       );
 
   static Future<List<Category>> loadCategories(String userId) async {
-    try {
-      final data = await _db
-          .from('user_categories')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: true);
-      return data.map<Category>(_rowToCategory).toList();
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Supabase] Error loading categories: $e');
-      return [];
-    }
+    final data = await _db
+        .from('user_categories')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: true);
+    return data.map<Category>(_rowToCategory).toList();
   }
 
   static Future<bool> initializeDefaultCategories(
