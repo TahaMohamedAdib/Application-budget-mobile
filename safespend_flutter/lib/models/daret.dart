@@ -37,7 +37,7 @@ class Daret {
   final String startDate; // ISO 8601
   final String paymentSourceId; // account ID or 'cash_on_hand'
   final String destinationAccountId; // where payout is deposited
-  final int paymentDay; // day of month for contributions (1–28)
+  final int paymentDay; // day of month for contributions and scheduled payouts
   final bool isActive;
 
   Daret({

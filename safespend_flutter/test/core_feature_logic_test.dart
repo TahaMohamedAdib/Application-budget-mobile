@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart' show MaterialApp, Scaffold;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:safespend_flutter/models/account.dart';
@@ -9,6 +11,7 @@ import 'package:safespend_flutter/models/settings.dart';
 import 'package:safespend_flutter/models/transaction.dart';
 import 'package:safespend_flutter/providers/app_provider.dart';
 import 'package:safespend_flutter/utils/recurring_dates.dart';
+import 'package:safespend_flutter/widgets/daret_payment_prompt.dart';
 
 Future<AppProvider> emptyProvider() async {
   SharedPreferences.setMockInitialValues({});
@@ -241,6 +244,40 @@ void main() {
   });
 
   group('Daret confirmations', () {
+    testWidgets('closing the prompt leaves the contribution pending',
+        (tester) async {
+      final provider = (await tester.runAsync(emptyProvider))!;
+      addTearDown(provider.dispose);
+      provider.addDaret(Daret(
+        id: 'circle',
+        name: 'Family',
+        contributionPerShare: 500,
+        totalShares: 2,
+        payoutMonths: const [],
+        startDate: '2026-01-01',
+        paymentSourceId: AppProvider.cashOnHandId,
+        destinationAccountId: AppProvider.cashOnHandId,
+      ));
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: ChangeNotifierProvider.value(
+            value: provider,
+            child: Consumer<AppProvider>(
+              builder: (context, provider, _) =>
+                  DaretPaymentPrompt(provider: provider),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('Daret payments due'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mark contribution as paid'), findsWidgets);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Daret payments due'), findsOneWidget);
+      expect(provider.transactions, isEmpty);
+    });
+
     test('due contributions and payouts stay pending until confirmed', () async {
       final provider = await emptyProvider();
       addTearDown(provider.dispose);

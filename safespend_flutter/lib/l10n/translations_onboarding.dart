@@ -113,9 +113,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Next payday: {day}',
     'obIncomeSkip': 'I\'d rather not say',
     'obIncomeSkipNote':
-        'You can add your pay later in Settings. Safe-to-spend needs it to be accurate.',
-
-    // ── Setup: summary ──
+        'You can add your pay later in Settings. Record salary as income when it arrives.',
     'obSummaryTitle': 'Ready to go',
     'obSummarySubtitle': 'Here\'s what VVollet will start with.',
     'obSummaryAccount': 'Account',
@@ -249,7 +247,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Prochaine paie : {day}',
     'obIncomeSkip': 'Je préfère ne pas le dire',
     'obIncomeSkipNote':
-        'Vous pourrez ajouter votre salaire plus tard dans les réglages. Le disponible en a besoin pour être juste.',
+        'Vous pouvez ajouter votre salaire plus tard dans les paramètres. Enregistrez-le comme revenu lorsqu’il est reçu.',
     'obSummaryTitle': 'Tout est prêt',
     'obSummarySubtitle': 'Voici ce avec quoi VVollet va démarrer.',
     'obSummaryAccount': 'Compte',
@@ -356,7 +354,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'الراتب القادم: {day}',
     'obIncomeSkip': 'أفضّل عدم الإفصاح',
     'obIncomeSkipNote':
-        'يمكنك إضافة راتبك لاحقًا من الإعدادات. المتاح للإنفاق يحتاجه ليكون دقيقًا.',
+        'يمكنك إضافة راتبك لاحقًا من الإعدادات. سجّله كدخل عند استلامه.',
     'obSummaryTitle': 'كل شيء جاهز',
     'obSummarySubtitle': 'هذا ما سيبدأ به VVollet.',
     'obSummaryAccount': 'الحساب',
@@ -468,7 +466,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Próximo cobro: {day}',
     'obIncomeSkip': 'Prefiero no decirlo',
     'obIncomeSkipNote':
-        'Puedes añadir tu sueldo luego en Ajustes. El disponible lo necesita para ser exacto.',
+        'Puedes añadir tu sueldo más adelante en Ajustes. Regístralo como ingreso cuando lo recibas.',
     'obSummaryTitle': 'Todo listo',
     'obSummarySubtitle': 'Esto es con lo que VVollet empezará.',
     'obSummaryAccount': 'Cuenta',
@@ -584,7 +582,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Nächster Zahltag: {day}',
     'obIncomeSkip': 'Lieber nicht angeben',
     'obIncomeSkipNote':
-        'Du kannst dein Gehalt später in den Einstellungen ergänzen. Für ein genaues Budget wird es gebraucht.',
+        'Du kannst dein Gehalt später in den Einstellungen hinzufügen. Erfasse es als Einnahme, sobald es eingeht.',
     'obSummaryTitle': 'Alles bereit',
     'obSummarySubtitle': 'Damit startet VVollet.',
     'obSummaryAccount': 'Konto',
@@ -701,7 +699,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Próximo pagamento: {day}',
     'obIncomeSkip': 'Prefiro não dizer',
     'obIncomeSkipNote':
-        'Pode adicionar o salário depois nas definições. O disponível precisa dele para ser exato.',
+        'Podes adicionar o teu salário mais tarde nas definições. Regista-o como receita quando o receberes.',
     'obSummaryTitle': 'Tudo pronto',
     'obSummarySubtitle': 'É com isto que o VVollet vai começar.',
     'obSummaryAccount': 'Conta',
@@ -815,7 +813,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Prossima paga: {day}',
     'obIncomeSkip': 'Preferisco non dirlo',
     'obIncomeSkipNote':
-        'Puoi aggiungere lo stipendio più tardi nelle impostazioni. Serve per un disponibile accurato.',
+        'Puoi aggiungere lo stipendio in seguito nelle impostazioni. Registralo come entrata quando lo ricevi.',
     'obSummaryTitle': 'Tutto pronto',
     'obSummarySubtitle': 'Ecco da cosa partirà VVollet.',
     'obSummaryAccount': 'Conto',
@@ -928,7 +926,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Sonraki maaş günü: {day}',
     'obIncomeSkip': 'Söylemesem daha iyi',
     'obIncomeSkipNote':
-        'Maaşınızı sonradan Ayarlar\'dan ekleyebilirsiniz. Doğru bir hesap için gereklidir.',
+        'Maaşını daha sonra Ayarlar’dan ekleyebilirsin. Aldığında gelir olarak kaydet.',
     'obSummaryTitle': 'Hazırsınız',
     'obSummarySubtitle': 'VVollet bunlarla başlayacak.',
     'obSummaryAccount': 'Hesap',
@@ -1044,7 +1042,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Volgende betaaldag: {day}',
     'obIncomeSkip': 'Liever niet zeggen',
     'obIncomeSkipNote':
-        'Je kunt je loon later toevoegen in Instellingen. Zonder dat klopt het besteedbare bedrag niet.',
+        'Je kunt je loon later toevoegen in de instellingen. Registreer het als inkomen zodra je het ontvangt.',
     'obSummaryTitle': 'Klaar om te beginnen',
     'obSummarySubtitle': 'Hiermee begint VVollet.',
     'obSummaryAccount': 'Rekening',
@@ -1155,7 +1153,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Следующая выплата: {day}',
     'obIncomeSkip': 'Предпочту не указывать',
     'obIncomeSkipNote':
-        'Зарплату можно добавить позже в настройках. Без неё доступная сумма будет неточной.',
+        'Зарплату можно добавить позже в настройках. Когда она поступит, запишите её как доход.',
     'obSummaryTitle': 'Всё готово',
     'obSummarySubtitle': 'Вот с чего начнёт VVollet.',
     'obSummaryAccount': 'Счёт',
@@ -1255,7 +1253,8 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obMonthlyEquivalent': '大约相当于每月 {amount}',
     'obNextPayday': '下次发薪：{day}',
     'obIncomeSkip': '不想填写',
-    'obIncomeSkipNote': '你可以稍后在设置中补充工资。可花金额需要它才准确。',
+    'obIncomeSkipNote':
+        '你可以稍后在设置中添加工资。收到工资后，请将其记为收入。',
     'obSummaryTitle': '一切就绪',
     'obSummarySubtitle': 'VVollet 将以此开始。',
     'obSummaryAccount': '账户',
@@ -1353,7 +1352,8 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obMonthlyEquivalent': '月あたり約 {amount} です',
     'obNextPayday': '次の給料日：{day}',
     'obIncomeSkip': '入力しない',
-    'obIncomeSkipNote': '給与はあとから設定で追加できます。正確な金額の算出には必要です。',
+    'obIncomeSkipNote':
+        '給与は後から設定で追加できます。受け取ったら収入として記録してください。',
     'obSummaryTitle': '準備完了',
     'obSummarySubtitle': 'この内容で始めます。',
     'obSummaryAccount': '口座',
@@ -1452,7 +1452,8 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obMonthlyEquivalent': '월 약 {amount}입니다',
     'obNextPayday': '다음 급여일: {day}',
     'obIncomeSkip': '입력하지 않기',
-    'obIncomeSkipNote': '급여는 나중에 설정에서 추가할 수 있습니다. 정확한 계산에 필요합니다.',
+    'obIncomeSkipNote':
+        '급여는 나중에 설정에서 추가할 수 있습니다. 급여를 받으면 수입으로 기록하세요.',
     'obSummaryTitle': '준비 완료',
     'obSummarySubtitle': '이 내용으로 시작합니다.',
     'obSummaryAccount': '계좌',
@@ -1560,7 +1561,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'अगला वेतन: {day}',
     'obIncomeSkip': 'बताना नहीं चाहूँगा',
     'obIncomeSkipNote':
-        'वेतन बाद में सेटिंग्स में जोड़ सकते हैं। सही गणना के लिए यह ज़रूरी है।',
+        'आप बाद में सेटिंग में वेतन जोड़ सकते हैं। मिलने पर उसे आय के रूप में दर्ज करें।',
     'obSummaryTitle': 'सब तैयार है',
     'obSummarySubtitle': 'VVollet इन्हीं से शुरुआत करेगा।',
     'obSummaryAccount': 'खाता',
@@ -1673,7 +1674,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Gajian berikutnya: {day}',
     'obIncomeSkip': 'Saya tidak ingin menyebutkan',
     'obIncomeSkipNote':
-        'Anda bisa menambahkan gaji nanti di Pengaturan. Perhitungan yang akurat membutuhkannya.',
+        'Gaji bisa ditambahkan nanti di Pengaturan. Catat sebagai pemasukan saat diterima.',
     'obSummaryTitle': 'Siap digunakan',
     'obSummarySubtitle': 'Inilah yang akan menjadi awal VVollet.',
     'obSummaryAccount': 'Rekening',
@@ -1786,7 +1787,7 @@ const translationsOnboarding = <String, Map<String, String>>{
     'obNextPayday': 'Następna wypłata: {day}',
     'obIncomeSkip': 'Wolę nie podawać',
     'obIncomeSkipNote':
-        'Wynagrodzenie możesz dodać później w ustawieniach. Bez niego bezpieczna kwota nie będzie dokładna.',
+        'Wynagrodzenie możesz dodać później w ustawieniach. Po otrzymaniu zapisz je jako przychód.',
     'obSummaryTitle': 'Wszystko gotowe',
     'obSummarySubtitle': 'Od tego VVollet zacznie.',
     'obSummaryAccount': 'Konto',

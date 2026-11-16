@@ -689,7 +689,9 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
 
   void _save() {
     if (_nameController.text.trim().isEmpty) return;
-    if (_contribution <= 0 || _totalShares <= 0) return;
+    if (!_contribution.isFinite || _contribution <= 0 || _totalShares <= 0) {
+      return;
+    }
     final validPayouts = _payoutMonths.whereType<int>().toList();
     if (validPayouts.length != _userShares) return;
 
@@ -704,6 +706,7 @@ class _DaretFormSheetState extends State<_DaretFormSheet> {
       paymentSourceId: _paymentSourceId ?? AppProvider.cashOnHandId,
       destinationAccountId: _destinationAccountId ?? AppProvider.cashOnHandId,
       paymentDay: _paymentDay,
+      isActive: widget.existing?.isActive ?? true,
     );
 
     if (_isEditing) {
