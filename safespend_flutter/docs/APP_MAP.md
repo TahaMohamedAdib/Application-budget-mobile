@@ -1,6 +1,6 @@
 # VVollet app map
 
-Last updated: 2026-11-15
+Last updated: 2026-11-16
 
 This living product and code map describes the current working tree, including existing uncommitted changes. The initial baseline comes from source inspection, not a full runtime or deployment check. Update it at the end of app tasks following [AGENTS.md](../AGENTS.md).
 
@@ -105,12 +105,13 @@ Additional implementations exist in [plan_screen.dart](../lib/screens/plan_scree
 
 [AppProvider](../lib/providers/app_provider.dart) is the central change point for financial behavior:
 
-- Transaction add/update/delete adjusts affected balances. Changes must consider reversal of the previous transaction, fees, transfers, physical cash, and linked goals/debts.
+- Transaction add/update/delete adjusts affected balances. An expense in a category excluded from the monthly budget still reduces the source balance by the amount plus fees. Adding a transaction with an existing ID or an invalid amount/fee leaves the balance unchanged.
 - Cash on hand is derived from transaction types, not a normal stored bank balance.
-- `getSafeToSpendMonth` subtracts this calendar month's expense, goal contribution, debt payment, personal debt return, and Daret contribution totals (including fees) from configured monthly income. `getSafeToSpendToday` divides by calendar days remaining, including today. These methods do not themselves reserve future unpaid bills.
+- There is no Safe to Spend control on the active Home or Budgets screens. The internal calendar-month formula remains in the financial-context code used by the gated Coach.
 - `getNetWorth` combines included non-investment account balances, cash, and investment value; subtracts remaining `debt` goals and adds remaining `personal_debt` goals. Consult the method before changing debt sign conventions.
 - Salary schedules belong to accounts. The opening balance is treated as current on the setup date. The first scheduled credit must follow that date, including when the setup date is a payday. Enabling salary on an existing account anchors the schedule to the date of that change. Later credits advance the saved payday.
-- `processSubscriptions` handles due recurring transactions. [recurring_dates.dart](../lib/utils/recurring_dates.dart) handles schedule calculations, including short-month boundaries.
+- `processSubscriptions` handles due recurring transactions. New monthly debt, savings and Daret schedules use [recurring_dates.dart](../lib/utils/recurring_dates.dart) to clamp to the last day of short months. Advancing a saved timestamp keeps its UTC or local basis.
+- The combined bank balance sums signed balances, so overdrafts reduce it.
 - Goal/debt contributions, investment purchases/sales, and Daret payments can affect both feature records and funding balances. Keep these paths aligned with transaction editing/deletion.
 - Selected account state is shared across screens. Aggregate values are cached and invalidated through provider changes.
 
@@ -118,6 +119,7 @@ Additional implementations exist in [plan_screen.dart](../lib/screens/plan_scree
 
 - Password recovery submits from the sign-in screen once the email dialog has returned the address. The dialog owns its text field and the sign-in screen shows the delivery result. Signup confirmation and password recovery pass the configured native redirect URL.
 - Sign-out holds the authentication screen until the saved Supabase session and the departing user's local data have been cleared. A cloud load that completes after cleanup began is ignored.
+- A failed cloud startup read keeps a per-user SQLite snapshot when available. With no such snapshot, the app offers Retry and waits for a successful load before considering onboarding. First-run setup remains visible until the awaited account and profile writes complete.
 
 Category initialization uses the authenticated Supabase `initialize_default_categories(jsonb)` RPC. The [category inclusion migration](../supabase_migrations/20261112000000_category_budget_inclusion.sql) explicitly revokes execution from `PUBLIC` and `anon`. Staging verified those effective permissions after a manual revoke. Replay of the checked-in change is pending.
 
@@ -241,6 +243,7 @@ Append one concise entry per relevant completed task. Keep the sections above cu
 
 | Date | Outcome | Affected areas/files | Validation and limitations |
 | --- | --- | --- | --- |
+| 2026-11-16 | Fixed false empty-account startup on failed cloud reads, early onboarding exit, overdrawn bank totals, duplicate transaction IDs and short-month schedules. Verified the spending rule for budget-excluded categories with a regression case. | `lib/main.dart`, `lib/providers/app_provider.dart`, `lib/services/supabase_sync_service.dart`, `lib/utils/recurring_dates.dart`, `lib/screens/goals_screen.dart` | Regression cases cover no-cloud startup, excluded expenses and reversal, overdrafts, duplicate submissions and calendar boundaries. Live Android and multi-device staging tests are pending. |
 | 2026-11-15 | Prevented initial salary credits on or before the opening balance date, moved password-recovery submission outside the dialog, and made sign-out await session and cache cleanup. Setup waits for profile and account writes to succeed or enter the retry queue. | `lib/providers/app_provider.dart`, `lib/screens/onboarding/setup_screen.dart`, `lib/screens/auth_screen.dart`, `lib/services/auth_service.dart`, `lib/services/supabase_config.dart` | Added focused recovery-dialog and opening-balance regressions. Staging APK and physical-device retest pending. |
 | 2026-11-15 | Revoked anonymous RPC execution in the category inclusion migration and updated the staging evidence and production plan. | `supabase_migrations/20261112000000_category_budget_inclusion.sql`, `docs/SUPABASE_STAGING_VALIDATION_RESULTS.md`, `docs/SUPABASE_PRODUCTION_MIGRATION_PLAN.md` | Staging evidence covers the manual revoke. Checked-in migration replay and restore rehearsal are pending. |
 | 2026-11-12 | Stabilized the tester-feedback release work: constrained the Home account selector so long account names cannot overflow compact screens; made the SQLite migration helper honor its requested target version; added fresh-schema, v1-to-v2, and inclusion-persistence regression tests; and changed Android release signing from the debug key to the existing ignored upload-key configuration. Added the Supabase staging/rollback runbook. | `lib/screens/today_screen.dart`, `lib/data/local_database.dart`, `test/category_budget_migration_test.dart`, `android/app/build.gradle.kts`, `docs/SUPABASE_CATEGORY_RELEASE_RUNBOOK.md` | Full `flutter test`: 2,294 passed, 0 failed (JSON reporter also emitted 2,344 successful events including framework setup/teardown). Full analyzer: 0 errors, 43 warnings, 376 info diagnostics; the migration helper itself has no analyzer issues. Local migration and Home overflow tests pass. Release AAB build is blocked before signing by Gradle 9.7.1/Android Gradle Plugin incompatibility. No production migration, Supabase staging/RLS concurrency test, live OAuth/device callback, or recovery-email delivery test was run. |

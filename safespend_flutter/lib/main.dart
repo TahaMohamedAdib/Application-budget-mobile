@@ -135,6 +135,34 @@ class MyApp extends StatelessWidget {
     // Authenticated but Supabase data not loaded yet → trigger load + show splash
     if (auth.isPasswordRecovery) return const ResetPasswordScreen();
 
+    if (provider.cloudLoadFailed) {
+      final s = S.of(context);
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(s.tr('actionCouldNotBeCompleted'),
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () {
+                      final uid = auth.userId;
+                      if (uid != null) provider.loadFromSupabase(uid);
+                    },
+                    child: Text(s.retry),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (!provider.supabaseDataLoaded) {
       final uid = auth.userId;
       if (uid != null) {
@@ -148,8 +176,8 @@ class MyApp extends StatelessWidget {
       return const _SplashScreen();
     }
 
-    // Has data → skip onboarding if accounts exist
-    if (provider.setupComplete || provider.accounts.isNotEmpty) {
+    // The provider also marks returning users with saved accounts as set up.
+    if (provider.setupComplete) {
       // First launch into the app → show the guided tour once.
       if (!provider.hasSeenAppTour) {
         return AppTourScreen(onDone: provider.markAppTourSeen);

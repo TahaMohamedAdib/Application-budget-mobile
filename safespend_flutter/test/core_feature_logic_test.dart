@@ -319,6 +319,20 @@ void main() {
   });
 
   group('recurring calendar dates', () {
+    test('a new 31st schedule does not skip February', () {
+      expect(nextMonthlyDueDate(DateTime(2026, 1, 31, 12), 31),
+          DateTime(2026, 2, 28));
+      expect(nextMonthlyDueDate(DateTime(2028, 2, 1), 31),
+          DateTime(2028, 2, 29));
+    });
+
+    test('a server timestamp keeps its UTC time zone when advanced', () {
+      final next =
+          advanceRecurringDate(DateTime.utc(2026, 3, 4, 10, 30), 'weekly');
+      expect(next, DateTime.utc(2026, 3, 11, 10, 30));
+      expect(next.isUtc, isTrue);
+    });
+
     test('a 31st schedule clamps to February then returns to the 31st', () {
       final february = advanceRecurringDate(
         DateTime(2026, 1, 31, 9, 30),

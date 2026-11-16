@@ -90,6 +90,7 @@ class AppProvider with ChangeNotifier {
   bool _localDataLoaded = false;
   bool _supabaseDataLoaded = false;
   bool _supabaseLoadInProgress = false;
+  bool _cloudLoadFailed = false;
   int _loadGeneration = 0;
 
   bool _setupComplete = false;
@@ -129,6 +130,7 @@ class AppProvider with ChangeNotifier {
   bool get setupComplete => _setupComplete;
   bool get hasSeenAppTour => _hasSeenAppTour;
   bool get supabaseDataLoaded => _supabaseDataLoaded;
+  bool get cloudLoadFailed => _cloudLoadFailed;
   String? get selectedAccountId => _selectedAccountId;
 
   bool hasSeenFeatureGuide(String feature) =>
@@ -306,19 +308,20 @@ class AppProvider with ChangeNotifier {
       ]);
       if (generation != _loadGeneration) return false;
 
-      final accounts = results[0] as List<Account>;
-      final transactions = results[1] as List<Transaction>;
-      if (accounts.isEmpty && transactions.isEmpty) return false;
+      final storedSettings = results[7] as Map<String, dynamic>?;
+      if (storedSettings == null &&
+          results.take(7).every((data) => (data as List).isEmpty)) {
+        return false;
+      }
 
-      _accounts = accounts;
-      _transactions = transactions;
+      _accounts = results[0] as List<Account>;
+      _transactions = results[1] as List<Transaction>;
       _goals = results[2] as List<Goal>;
       _holdings = results[3] as List<Holding>;
       _categories = results[4] as List<Category>;
       _recurringRules = results[5] as List<RecurringRule>;
       _darets = results[6] as List<Daret>;
 
-      final storedSettings = results[7] as Map<String, dynamic>?;
       if (storedSettings != null) {
         _settings = Settings.fromJson(storedSettings);
       }
@@ -329,15 +332,16 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  /// Load ALL data from Supabase for the authenticated user.
-  /// Falls back to SharedPreferences if not authenticated or on error.
+  /// Loads the authenticated user's cloud snapshot with an offline fallback.
   Future<void> loadFromSupabase(String userId) async {
     if (_supabaseLoadInProgress || _supabaseDataLoaded) return;
     final generation = _loadGeneration;
+    _cloudLoadFailed = false;
     _supabaseLoadInProgress = true;
     _isLoading = true;
     notifyListeners();
 
+    var loadedFromRepository = false;
     try {
       // Bring up the local store before anything else: it is what the app
       // reads from, and the one-time import from the old blobs happens here.
@@ -345,11 +349,20 @@ class AppProvider with ChangeNotifier {
       if (generation != _loadGeneration) return;
 
       // Stage the cached data for offline use while waiting for the cloud.
-      final loadedFromRepository = await _loadFromRepository(
+      loadedFromRepository = await _loadFromRepository(
         userId,
         generation,
       );
       if (generation != _loadGeneration) return;
+      var hasSavedSetup = loadedFromRepository && _accounts.isNotEmpty;
+      if (userId == 'local_user') {
+        _setupComplete = _setupComplete || hasSavedSetup;
+        _isLoading = false;
+        _supabaseDataLoaded = true;
+        _supabaseLoadInProgress = false;
+        notifyListeners();
+        return;
+      }
       if (loadedFromRepository) {
         _isLoading = false;
         _localDataLoaded = true;
@@ -382,13 +395,10 @@ class AppProvider with ChangeNotifier {
       _recurringRules = data['recurringRules'] as List<RecurringRule>;
       _holdings = data['holdings'] as List<Holding>;
       _categories = categoryDefaults;
-
-      _isLoading = false;
-      _supabaseDataLoaded = true;
-      _supabaseLoadInProgress = false;
+      hasSavedSetup = _accounts.isNotEmpty;
 
       // Auto-skip onboarding if user already has data in Supabase
-      if (_accounts.isNotEmpty && !_setupComplete) {
+      if (hasSavedSetup && !_setupComplete) {
         _setupComplete = true;
         final prefs = await SharedPreferences.getInstance();
         if (generation != _loadGeneration) return;
@@ -396,6 +406,9 @@ class AppProvider with ChangeNotifier {
         if (generation != _loadGeneration) return;
       }
 
+      _isLoading = false;
+      _supabaseDataLoaded = true;
+      _supabaseLoadInProgress = false;
       notifyListeners();
 
       // Cache to SharedPreferences for offline use
@@ -411,10 +424,12 @@ class AppProvider with ChangeNotifier {
         debugPrint(
           '[AppProvider] Error loading from Supabase, falling back to local: $e',
         );
-      _supabaseDataLoaded =
-          true; // mark as done even on error to avoid retry loops
+      _isLoading = false;
+      _supabaseDataLoaded = loadedFromRepository;
       _supabaseLoadInProgress = false;
-      await loadData();
+      _cloudLoadFailed = !loadedFromRepository;
+      if (loadedFromRepository && _accounts.isNotEmpty) _setupComplete = true;
+      notifyListeners();
     }
   }
 
@@ -440,6 +455,7 @@ class AppProvider with ChangeNotifier {
     _selectedAccountId = null;
     _isLoading = false;
     _supabaseDataLoaded = false;
+    _cloudLoadFailed = false;
     _setupComplete = false;
     _supabaseLoadInProgress = false;
     // Deliberately left true. `localDataLoaded` means "we know what is in local
@@ -531,7 +547,8 @@ class AppProvider with ChangeNotifier {
       if (parsed.containsKey('categories'))
         _categories = parsed['categories'] as List<Category>;
 
-      _setupComplete = prefs.getBool('setup_complete') ?? false;
+      _setupComplete = (prefs.getBool('setup_complete') ?? false) ||
+          _accounts.isNotEmpty;
       // Versioned so users who only saw the old generic slide deck receive
       // the redesigned, task-focused tour once.
       _hasSeenAppTour = prefs.getBool('has_seen_app_tour_v2') ?? false;
@@ -717,10 +734,7 @@ class AppProvider with ChangeNotifier {
     // Compute next payment date (the upcoming day this month or next)
     final now = DateTime.now();
     final day = account.debtPaymentDay ?? 1;
-    DateTime nextDate = DateTime(now.year, now.month, day);
-    if (!nextDate.isAfter(now)) {
-      nextDate = DateTime(now.year, now.month + 1, day);
-    }
+    final nextDate = nextMonthlyDueDate(now, day);
 
     final sourceId = account.debtPaymentSourceId ?? cashOnHandId;
 
@@ -855,7 +869,9 @@ class AppProvider with ChangeNotifier {
       if (!rule.isActive) continue;
 
       // Support both date-only "2026-03-22" and full datetime "2026-03-22T15:30:00"
-      DateTime nextDate = DateTime.parse(rule.nextDate);
+      final parsedDate = DateTime.tryParse(rule.nextDate);
+      if (parsedDate == null) continue;
+      DateTime nextDate = parsedDate;
       int safetyCounter = 0;
       bool stopRule = false;
 
@@ -865,7 +881,10 @@ class AppProvider with ChangeNotifier {
 
         final isIncome = rule.templateTransaction.type == 'income';
         final amount = _recurringAmountDue(rule);
-        if (amount <= 0) {
+        if (!amount.isFinite ||
+            amount <= 0 ||
+            !rule.templateTransaction.fees.isFinite ||
+            rule.templateTransaction.fees < 0) {
           stopRule = true;
           changed = true;
           break;
@@ -1086,6 +1105,13 @@ class AppProvider with ChangeNotifier {
   // ============================================
 
   void addTransaction(Transaction transaction) {
+    if (!transaction.amount.isFinite ||
+        transaction.amount <= 0 ||
+        !transaction.fees.isFinite ||
+        transaction.fees < 0 ||
+        _transactions.any((saved) => saved.id == transaction.id)) {
+      return;
+    }
     _transactions.add(transaction);
 
     final isCashSource = transaction.accountId == cashOnHandId;
@@ -1557,10 +1583,7 @@ class AppProvider with ChangeNotifier {
 
     final now = DateTime.now();
     final day = goal.paymentDay ?? 1;
-    DateTime nextDate = DateTime(now.year, now.month, day);
-    if (!nextDate.isAfter(now)) {
-      nextDate = DateTime(now.year, now.month + 1, day);
-    }
+    final nextDate = nextMonthlyDueDate(now, day);
 
     final sourceId = goal.paymentSourceAccountId ?? cashOnHandId;
 
@@ -2156,7 +2179,7 @@ class AppProvider with ChangeNotifier {
   double getTotalByAccountType(String type) {
     return _accounts
         .where((a) => a.type == type)
-        .fold(0.0, (sum, a) => sum + a.balance.abs());
+        .fold(0.0, (sum, a) => sum + a.balance);
   }
 
   double get totalSavingsGoals {
@@ -2231,10 +2254,7 @@ class AppProvider with ChangeNotifier {
 
     final now = DateTime.now();
     final day = daret.paymentDay;
-    DateTime nextDate = DateTime(now.year, now.month, day);
-    if (!nextDate.isAfter(now)) {
-      nextDate = DateTime(now.year, now.month + 1, day);
-    }
+    final nextDate = nextMonthlyDueDate(now, day);
 
     final rule = RecurringRule(
       id: ruleId,

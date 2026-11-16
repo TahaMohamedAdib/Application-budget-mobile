@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:safespend_flutter/providers/app_provider.dart';
+import 'package:safespend_flutter/services/supabase_config.dart';
+import 'package:safespend_flutter/services/supabase_sync_service.dart';
 
 /// Sign-out routing.
 ///
@@ -45,6 +47,22 @@ void main() {
       isTrue,
       reason: 'sign-out would strand the app on the splash screen',
     );
+  });
+
+  test('a failed cloud read is not reported as an empty account', () async {
+    final wasAvailable = SupabaseConfig.isAvailable;
+    SupabaseConfig.isAvailable = false;
+    addTearDown(() => SupabaseConfig.isAvailable = wasAvailable);
+
+    await expectLater(
+      SupabaseSyncService.loadAllUserData('cloud-user'),
+      throwsException,
+    );
+
+    final provider = await loadedProvider();
+    await provider.loadFromSupabase('cloud-user');
+    expect(provider.cloudLoadFailed, isTrue);
+    expect(provider.supabaseDataLoaded, isFalse);
   });
 
   test('clearData still empties the data it is meant to', () async {
